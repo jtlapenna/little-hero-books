@@ -8,6 +8,7 @@ const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
 const DEFAULT_PRODUCTION_LULU_API_BASE = 'https://api.lulu.com';
 const PRODUCTION_SUBMIT_ENV = 'ENABLE_LULU_PRODUCTION_SUBMIT';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
+const NON_PRODUCTION_LULU_STATUSES = new Set(['SKIPPED', 'DRY_RUN', 'TEST_MODE']);
 
 export type SignObjectUrlForW4Sibling = (
   key: string,
@@ -130,6 +131,33 @@ function toTrimmedString(value: unknown): string | null {
 
   const lowered = trimmed.toLowerCase();
   return lowered === 'null' || lowered === 'undefined' ? null : trimmed;
+}
+
+function isNonProductionLuluMarker(
+  luluJobId: string | null,
+  luluStatus: string | null,
+  printSubmittedAt: string | null,
+): boolean {
+  if (printSubmittedAt) {
+    return false;
+  }
+
+  const normalizedStatus = luluStatus?.trim().toUpperCase() ?? null;
+  if (normalizedStatus && NON_PRODUCTION_LULU_STATUSES.has(normalizedStatus)) {
+    return true;
+  }
+
+  const normalizedJobId = luluJobId?.trim().toUpperCase() ?? null;
+  if (!normalizedJobId) {
+    return false;
+  }
+
+  return (
+    normalizedJobId === 'SKIPPED' ||
+    normalizedJobId === 'DRY_RUN' ||
+    normalizedJobId === 'TEST_MODE' ||
+    normalizedJobId.startsWith('TEST-')
+  );
 }
 
 function toBoolean(value: unknown): boolean {
@@ -415,7 +443,7 @@ function mapAmazonShippingToLulu(amazonShipping: string | null): string | null {
     shipping.includes('STD') ||
     shipping.includes('GROUND')
   ) {
-    return 'GROUND';
+    return shipping.includes('GROUND') ? 'GROUND' : 'MAIL';
   }
 
   return 'MAIL';
@@ -950,7 +978,12 @@ async function getExistingLuluSubmission(
     const record = toRecord(loaded);
     const luluJobId = toTrimmedString(record.lulu_job_id);
     const luluStatus = toTrimmedString(record.lulu_status);
-    if (!luluJobId && !luluStatus) {
+    const printSubmittedAt = toTrimmedString(record.print_submitted_at);
+    if (!luluJobId && !luluStatus && !printSubmittedAt) {
+      continue;
+    }
+
+    if (isNonProductionLuluMarker(luluJobId, luluStatus, printSubmittedAt)) {
       continue;
     }
 
@@ -1170,19 +1203,11 @@ function evaluateGroupedProductionGuard(params: {
     };
   }
 
-  if (!envEnabled && !dryRun) {
-    return {
-      requested,
-      allowed: false,
-      reason: 'env_disabled',
-      checkedAt,
-      envEnabled,
-      dryRun,
-    };
-  }
-
+  let approvalVerification:
+    | ReturnType<typeof verifyW41ProductionApprovalToken>
+    | null = null;
   if (!dryRun) {
-    const approvalVerification = verifyW41ProductionApprovalToken({
+    approvalVerification = verifyW41ProductionApprovalToken({
       token: resolveProductionApprovalToken(params.input),
       rootGroupId: params.rootGroupId,
     });
@@ -1220,26 +1245,54 @@ export async function buildW4SiblingSubmitInput(
   const parsed = parseSiblingSubmitInput(input);
   validateSiblingGroupSize(parsed.siblings.map((sibling) => sibling.orderId));
   const CONFIG = withSandboxConfig(parsed.config);
+  const useDirectPdfUrlsForDryRun = toBoolean(
+    pickFirstNonEmpty(
+      parsed.requestInput.productionDryRun,
+      parsed.requestInput.allowDirectPdfUrls,
+    ),
+  );
 
   const signedUrlExpiresIn = options.signedUrlExpiresIn ?? 21600;
   const siblings: BuildW4SiblingSubmitItem[] = await Promise.all(
     parsed.siblings.map(async (sibling) => {
       const pdfR2Key = toTrimmedString(sibling.pdfR2Key);
       const coverPdfR2Key = toTrimmedString(sibling.coverPdfR2Key);
-      if (!pdfR2Key || !coverPdfR2Key) {
-        throw new Error(`W4.1 sibling submit input is missing PDF keys for ${sibling.orderId}`);
-      }
+      const directInteriorUrl = toTrimmedString(
+        pickFirstNonEmpty(
+          sibling.pdfUrl,
+          sibling.pdfDownloadUrl,
+        ),
+      );
+      const directCoverUrl = toTrimmedString(
+        pickFirstNonEmpty(
+          sibling.coverPdfUrl,
+          sibling.coverPdfDownloadUrl,
+        ),
+      );
+      const interiorSignedUrl =
+        useDirectPdfUrlsForDryRun && directInteriorUrl
+          ? directInteriorUrl
+          : pdfR2Key
+            ? await options.signObjectUrl(
+                pdfR2Key,
+                getBucketFromKey(pdfR2Key),
+                signedUrlExpiresIn,
+              )
+            : null;
+      const coverSignedUrl =
+        useDirectPdfUrlsForDryRun && directCoverUrl
+          ? directCoverUrl
+          : coverPdfR2Key
+            ? await options.signObjectUrl(
+                coverPdfR2Key,
+                getBucketFromKey(coverPdfR2Key),
+                signedUrlExpiresIn,
+              )
+            : null;
 
-      const interiorSignedUrl = await options.signObjectUrl(
-        pdfR2Key,
-        getBucketFromKey(pdfR2Key),
-        signedUrlExpiresIn,
-      );
-      const coverSignedUrl = await options.signObjectUrl(
-        coverPdfR2Key,
-        getBucketFromKey(coverPdfR2Key),
-        signedUrlExpiresIn,
-      );
+      if (!interiorSignedUrl || !coverSignedUrl) {
+        throw new Error(`W4.1 sibling submit input is missing PDF sources for ${sibling.orderId}`);
+      }
 
       return {
         ...sibling,

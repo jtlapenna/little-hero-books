@@ -1255,11 +1255,17 @@ const repoCentricW41ValidateNode = repoCentricW41Workflow.nodes?.find(
 const repoCentricW41RenderInteriorNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Generate Interior PDF',
 );
+const repoCentricW41PollInteriorNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Poll PDFMonkey until ready',
+);
 const repoCentricW41MaterializeInteriorNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Download Interior PDF',
 );
 const repoCentricW41RenderCoverNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Generate Cover PDF',
+);
+const repoCentricW41PollCoverNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Poll Cover PDFMonkey until ready',
 );
 const repoCentricW41MaterializeCoverNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Download Cover PDF',
@@ -1677,8 +1683,11 @@ assert(
     ) &&
     JSON.stringify(repoCentricW41FetchNode.parameters).includes(
       "'https://admin.littleherolabs.com'",
-    ),
-  'Repo-centric W4.1 workflow should call the repo-owned sibling print-input route while merging inbound CONFIG overrides and pinning the production backendUrl',
+    ) &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes('allowProductionLulu') &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes('productionDryRun') &&
+    JSON.stringify(repoCentricW41FetchNode.parameters).includes('productionApprovalToken'),
+  'Repo-centric W4.1 workflow should call the repo-owned sibling print-input route while merging inbound CONFIG overrides, pinning the production backendUrl, and preserving grouped production controls for downstream dry-run gating',
 );
 assert(
   repoCentricW41ValidateNode?.type === 'n8n-nodes-base.code' &&
@@ -1687,8 +1696,11 @@ assert(
     ) &&
     JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.siblings') &&
     JSON.stringify(repoCentricW41ValidateNode.parameters).includes('payload.workflowJobId') &&
-    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('workflowJobIdempotencyKey'),
-  'Repo-centric W4.1 workflow should unwrap the repo-owned sibling print-input response into per-sibling items and propagate shared workflow-job metadata',
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('workflowJobIdempotencyKey') &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('allowProductionLulu') &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('productionDryRun') &&
+    JSON.stringify(repoCentricW41ValidateNode.parameters).includes('productionApprovalToken'),
+  'Repo-centric W4.1 workflow should unwrap the repo-owned sibling print-input response into per-sibling items, propagate shared workflow-job metadata, and preserve grouped production controls through the active flow',
 );
 assert(
   repoCentricW41AggregateNode?.type === 'n8n-nodes-base.code' &&
@@ -1705,11 +1717,11 @@ assert(
   repoCentricW41TokenNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW41TokenNode.parameters).includes('https://api.sandbox.lulu.com') &&
     JSON.stringify(repoCentricW41TokenNode.parameters).includes('if (j.__skipLulu)') &&
-    JSON.stringify(repoCentricW41TokenNode.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes('j.luluApiBase || j.CONFIG?.lulu?.apiBase') &&
     JSON.stringify(repoCentricW41TokenNode.parameters).includes(
-      'active Lulu token path only supports sandbox submitMode',
+      'active Lulu token path only supports sandbox or production submitMode',
     ),
-  'Repo-centric W4.1 token path should stay sandbox-only, short-circuit skipped sibling groups, and fail closed if grouped production metadata reaches the active workflow',
+  'Repo-centric W4.1 token path should short-circuit skipped sibling groups, default to sandbox, and honor repo-owned grouped production submitMode when explicitly approved',
 );
 assert(
   normalizeWorkflowCodeSnapshot(
@@ -1720,24 +1732,24 @@ assert(
 assert(
   JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('if (j.__skipLulu)') &&
     JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('https://api.sandbox.lulu.com') &&
-    JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('j.luluApiBase || cfg.lulu?.apiBase') &&
     JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes(
-      'active Lulu validation path only supports sandbox submitMode',
+      'active Lulu validation path only supports sandbox or production submitMode',
     ) &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('lulu_job_id=not.is.null') &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('cfg.supabase?.projectUrl'),
-  'Repo-centric W4.1 validation node should validate sibling PDFs only against Lulu sandbox, fail closed on grouped production submitMode, and should not re-implement the duplicate-submit guard in n8n',
+  'Repo-centric W4.1 validation node should validate sibling PDFs against the repo-selected Lulu base, preserve skip behavior, and should not re-implement the duplicate-submit guard in n8n',
 );
 assert(
   JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('luluSubmitStatusCode: 0') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('https://api.sandbox.lulu.com') &&
-    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('j.luluApiBase || j.CONFIG?.lulu?.apiBase') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes(
-      'active Lulu submit path only supports sandbox submitMode',
+      'active Lulu submit path only supports sandbox or production submitMode',
     ) &&
     repoCentricW41ValidateGuardConnections.includes('"node":"Submit Lulu Print Job"'),
-  'Repo-centric W4.1 submit path should stay sandbox-only, short-circuit cleanly when the repo-owned guard marks the group as skipped, and reject grouped production submitMode on the active workflow',
+  'Repo-centric W4.1 submit path should short-circuit cleanly when the repo-owned guard marks the group as skipped, default to sandbox, and honor explicitly approved grouped production submitMode',
 );
 assert(
   repoCentricW41RenderInteriorNode?.type === 'n8n-nodes-base.code' &&
@@ -1747,7 +1759,15 @@ assert(
     JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes(
       'current.CONFIG?.backendApiToken',
     ) &&
+    JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes('allowIncomplete: true') &&
+    JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes('maxPollAttempts: 10') &&
     JSON.stringify(repoCentricW41RenderInteriorNode.parameters).includes('interior-pdf') &&
+    repoCentricW41PollInteriorNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41PollInteriorNode.parameters).includes(
+      '/api/internal/w4/poll-print-document',
+    ) &&
+    JSON.stringify(repoCentricW41PollInteriorNode.parameters).includes('maxPollAttempts: 30') &&
+    JSON.stringify(repoCentricW41PollInteriorNode.parameters).includes('interior-pdf') &&
     repoCentricW41RenderCoverNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes(
       '/api/internal/w4/render-print-document',
@@ -1755,8 +1775,16 @@ assert(
     JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes(
       'current.CONFIG?.backendApiToken',
     ) &&
-    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes('cover-pdf'),
-  'Repo-centric W4.1 workflow should route per-sibling interior and cover rendering through the repo-owned render-print-document route',
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes('allowIncomplete: true') &&
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes('maxPollAttempts: 10') &&
+    JSON.stringify(repoCentricW41RenderCoverNode.parameters).includes('cover-pdf') &&
+    repoCentricW41PollCoverNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW41PollCoverNode.parameters).includes(
+      '/api/internal/w4/poll-print-document',
+    ) &&
+    JSON.stringify(repoCentricW41PollCoverNode.parameters).includes('maxPollAttempts: 30') &&
+    JSON.stringify(repoCentricW41PollCoverNode.parameters).includes('cover-pdf'),
+  'Repo-centric W4.1 workflow should split per-sibling PDFMonkey work into repo-owned submit-and-short-poll plus repo-owned follow-up poll routes so grouped runs stay under n8n cloud task-runner limits',
 );
 assert(
   repoCentricW41MaterializeInteriorNode?.type === 'n8n-nodes-base.code' &&
@@ -1872,8 +1900,10 @@ assert(
     siblingW41ReattachInteriorContextCode.includes('$itemIndex') &&
     !siblingW41ReattachInteriorContextCode.includes('?.[0]?.json') &&
     siblingW41ReattachQaContextCode.includes('$itemIndex') &&
-    !siblingW41ReattachQaContextCode.includes('?.[0]?.json'),
-  'Sibling-source W4.1 per-sibling PDF and QA reattachment nodes should preserve the current item context instead of collapsing every branch onto sibling 0',
+    !siblingW41ReattachQaContextCode.includes('?.[0]?.json') &&
+    siblingW41ReattachQaContextCode.includes("Upload Interior PDF to R2") &&
+    siblingW41ReattachQaContextCode.includes('mergePreferPresent('),
+  'Sibling-source W4.1 per-sibling PDF and QA reattachment nodes should preserve the current item context, avoid collapsing every branch onto sibling 0, and merge the interior branch back into the QA branch without nulling direct PDF URLs',
 );
 
 console.log(

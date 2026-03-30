@@ -1845,7 +1845,10 @@ async function testW4PrintCompletion() {
       manifestUrl: 'https://admin.littleherolabs.com/api/manifests/book/orders/W4-SANDBOX-PROOF-001/manifests/4-manifest.json',
       manifestKey: 'book/orders/W4-SANDBOX-PROOF-001/manifests/4-manifest.json',
       luluJobId: 'sandbox-job-001',
-      luluStatus: 'CREATED',
+      luluStatus: {
+        name: 'CREATED',
+        message: 'Sandbox print job created',
+      },
     },
     {
       enqueueWorkflowJob: async () => null,
@@ -1915,6 +1918,15 @@ async function testW4PrintCompletion() {
     calls.some((entry) => entry.fn === 'appendWorkflowJobEvent'),
     'W4 completion should append a completed event',
   );
+  const successPayload = calls.find((entry) => entry.fn === 'markWorkflowJobSucceeded')?.payload as
+    | { jobId: number; input: { resultSnapshot?: JsonRecord } }
+    | undefined;
+  assert(
+    successPayload?.input?.resultSnapshot?.luluStatus === 'CREATED' &&
+      successPayload.input.resultSnapshot?.luluStatusDetail &&
+      typeof successPayload.input.resultSnapshot.luluStatusDetail === 'object',
+    'W4 completion should normalize structured Lulu status and preserve the detail in the result snapshot',
+  );
 }
 
 async function testW4SiblingCompletion() {
@@ -1963,7 +1975,10 @@ async function testW4SiblingCompletion() {
       manifestUrl: 'https://admin.littleherolabs.com/api/manifests/book/orders/W4-SIBLING-PROOF-001/manifests/4-manifest.json',
       manifestKey: 'book/orders/W4-SIBLING-PROOF-001/manifests/4-manifest.json',
       luluJobId: 'sandbox-sibling-job-001',
-      luluStatus: 'CREATED',
+      luluStatus: {
+        name: 'CREATED',
+        message: 'Sandbox grouped job created',
+      },
     },
     {
       enqueueWorkflowJob: async () => null,
@@ -2034,6 +2049,15 @@ async function testW4SiblingCompletion() {
         (entry.payload as { eventType?: string }).eventType === 'completed',
     ),
     'W4.1 completion should append a completed event',
+  );
+  const successPayload = calls.find((entry) => entry.fn === 'markWorkflowJobSucceeded')?.payload as
+    | { jobId: number; input: { resultSnapshot?: JsonRecord } }
+    | undefined;
+  assert(
+    successPayload?.input?.resultSnapshot?.luluStatus === 'CREATED' &&
+      successPayload.input.resultSnapshot?.luluStatusDetail &&
+      typeof successPayload.input.resultSnapshot.luluStatusDetail === 'object',
+    'W4.1 completion should normalize structured Lulu status and preserve the detail in the result snapshot',
   );
 }
 

@@ -55,6 +55,7 @@
     "test:w4-print-qa-failed": "tsx scripts/test-w4-print-qa-failed.ts",
     "test:w4-print-submitted": "tsx scripts/test-w4-print-submitted.ts",
     "test:w4-sibling-print-input": "tsx scripts/test-w4-sibling-print-input.ts",
+    "test:r2-client": "tsx scripts/test-r2-client.ts",
     "test:preview-token": "dotenv -e .env.local -- tsx scripts/test-preview-token.ts",
     "check:tokens": "dotenv -e .env.local -- tsx scripts/check-preview-tokens.ts",
     "migrate:book-configs": "dotenv -e .env.local -- tsx scripts/apply-book-configs-migration.ts",

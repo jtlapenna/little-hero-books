@@ -65,6 +65,10 @@ export const R2_CHARACTERS_PREFIX =
 const EMPTY_PAYLOAD_SHA256 =
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
+function isReadableStreamBody(body: BodyInit | null | undefined): body is ReadableStream {
+  return typeof ReadableStream !== 'undefined' && body instanceof ReadableStream;
+}
+
 async function sha256HexFromBytes(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
@@ -74,9 +78,18 @@ async function sha256HexFromBytes(bytes: Uint8Array): Promise<string> {
 
 async function normalizeBodyForSigning(
   body?: BodyInit | null
-): Promise<{ body?: BodyInit; payloadHash: string; contentLength?: number }> {
+): Promise<{ body?: BodyInit; payloadHash?: string; contentLength?: number; streaming?: boolean }> {
   if (body == null) {
     return { payloadHash: EMPTY_PAYLOAD_SHA256 };
+  }
+
+  if (isReadableStreamBody(body)) {
+    // Let aws4fetch sign S3/R2 stream uploads with UNSIGNED-PAYLOAD so we do not
+    // buffer large PDFs in memory just to compute a body hash.
+    return {
+      body,
+      streaming: true,
+    };
   }
 
   if (typeof body === 'string') {
@@ -132,9 +145,12 @@ async function signR2Request(input: {
   const normalized = await normalizeBodyForSigning(input.body);
   const headers: Record<string, string> = {
     Host: urlObj.hostname,
-    'x-amz-content-sha256': normalized.payloadHash,
     ...input.headers,
   };
+
+  if (normalized.payloadHash) {
+    headers['x-amz-content-sha256'] = normalized.payloadHash;
+  }
 
   if (normalized.contentLength !== undefined) {
     headers['Content-Length'] = String(normalized.contentLength);
@@ -144,6 +160,7 @@ async function signR2Request(input: {
     method: input.method,
     headers,
     body: normalized.body,
+    ...(normalized.streaming ? ({ duplex: 'half' } as RequestInit) : {}),
   });
 
   return r2Client.sign(unsignedRequest);

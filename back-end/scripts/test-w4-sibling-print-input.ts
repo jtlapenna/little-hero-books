@@ -210,6 +210,7 @@ function buildFixtureState(options: {
   omitFirstPageFor?: string | null;
   missingThreeManifestFor?: string | null;
   existingJobFor?: string | null;
+  nonProductionMarkerFor?: string | null;
 } = {}) {
   const fixture = loadFixtureGroup(options.fixtureId);
   const rootOrderId = fixture.rootOrderId;
@@ -315,7 +316,12 @@ function buildFixtureState(options: {
       customer_approval_required: true,
       customer_approval_status: 'approved',
       lulu_job_id: options.existingJobFor === orderId ? 'job-existing-123' : null,
-      lulu_status: options.existingJobFor === orderId ? 'CREATED' : null,
+      lulu_status:
+        options.existingJobFor === orderId
+          ? 'CREATED'
+          : options.nonProductionMarkerFor === orderId
+            ? 'DRY_RUN'
+            : null,
       print_submitted_at: null,
     };
     orderMap.set(orderId, orderRow);
@@ -529,7 +535,7 @@ async function main(): Promise<void> {
     ) &&
       testModeSubmit.luluPayload.line_items instanceof Array &&
       testModeSubmit.luluPayload.line_items.length === 2 &&
-      testModeSubmit.shippingLevelSent === 'GROUND',
+      testModeSubmit.shippingLevelSent === 'MAIL',
     'Expected W4.1 submit input to presign sibling PDFs and build a grouped Lulu payload',
   );
 
@@ -587,6 +593,45 @@ async function main(): Promise<void> {
       existingJobSubmit.luluJobId === 'job-existing-123' &&
       existingJobSubmit.luluStatus === 'CREATED',
     'Expected W4.1 submit input to bypass Lulu submission when any sibling already has a Lulu job',
+  );
+
+  const nonProductionHistoryState = buildFixtureState({
+    nonProductionMarkerFor: 'FIXTURE-BOOK1-AMAZON-SIB-002',
+  });
+  const nonProductionHistoryPrintInput = await buildW4SiblingPrintInput(
+    nonProductionHistoryState.wrappedInput,
+    {
+      loadManifest: nonProductionHistoryState.loadManifest,
+      loadOrder: nonProductionHistoryState.loadOrder,
+    },
+  );
+  const nonProductionHistorySubmit = await withW41ProductionEnv(async () => {
+    const approval = issueW41ProductionApprovalToken({
+      rootGroupId: nonProductionHistoryPrintInput.rootGroupId,
+      approvedBy: 'test-suite',
+    });
+
+    return buildW4SiblingSubmitInputResponse(
+      {
+        siblings: nonProductionHistoryPrintInput.siblings,
+        rootGroupId: nonProductionHistoryPrintInput.rootGroupId,
+        rootOrderId: nonProductionHistoryPrintInput.rootOrderId,
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        CONFIG: buildConfig(false),
+      },
+      {
+        loadOrder: nonProductionHistoryState.loadOrder,
+        signObjectUrl,
+      },
+    );
+  });
+  assert(
+    nonProductionHistorySubmit.submitMode === 'production' &&
+      nonProductionHistorySubmit.__skipLulu === false &&
+      nonProductionHistorySubmit.guard.reason === 'production' &&
+      nonProductionHistorySubmit.productionGuard.allowed === true,
+    'Expected W4.1 production shaping to ignore prior DRY_RUN markers instead of treating them as existing paid submissions',
   );
 
   const proceedSubmit = await buildW4SiblingSubmitInputResponse(
@@ -652,13 +697,55 @@ async function main(): Promise<void> {
     'Expected W4.1 sibling submit input to support grouped production dry-runs without creating a Lulu submit',
   );
 
+  const dryRunDirectUrlSignCalls: string[] = [];
+  const dryRunDirectUrlResponse = await buildW4SiblingSubmitInputResponse(
+    {
+      siblings: routerStyle.siblings.map((sibling, index) => ({
+        ...sibling,
+        pdfR2Key: null,
+        coverPdfR2Key: null,
+        pdfUrl: `https://cdn.example/${sibling.orderId}/interior-${index + 1}.pdf`,
+        coverPdfUrl: `https://cdn.example/${sibling.orderId}/cover-${index + 1}.pdf`,
+      })),
+      rootGroupId: routerStyle.rootGroupId,
+      rootOrderId: routerStyle.rootOrderId,
+      allowProductionLulu: true,
+      productionDryRun: true,
+      CONFIG: buildConfig(false),
+    },
+    {
+      loadOrder: baseState.loadOrder,
+      signObjectUrl: async (key: string, bucket: string, expiresIn: number) => {
+        dryRunDirectUrlSignCalls.push(`${bucket}:${key}:${expiresIn}`);
+        return `https://signed.example/${bucket}/${key}?expiresIn=${expiresIn}`;
+      },
+    },
+  );
+  assert(
+    dryRunDirectUrlResponse.submitMode === 'skip' &&
+      dryRunDirectUrlResponse.guard.reason === 'production_dry_run' &&
+      dryRunDirectUrlResponse.siblings.every(
+        (sibling, index) =>
+          sibling.interiorSignedUrl ===
+            `https://cdn.example/${sibling.orderId}/interior-${index + 1}.pdf` &&
+          sibling.coverSignedUrl ===
+            `https://cdn.example/${sibling.orderId}/cover-${index + 1}.pdf`,
+      ) &&
+      dryRunDirectUrlSignCalls.length === 0,
+    'Expected W4.1 grouped production dry-runs to use direct PDF URLs without trying to presign missing R2 keys',
+  );
+
   if (originalSubmitEnv === undefined) {
     delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
   } else {
     process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalSubmitEnv;
   }
 
-  await withW41ProductionEnv(async () => {
+  const originalSiblingSubmitEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const originalSiblingApprovalSecret = process.env.W41_PRODUCTION_APPROVAL_SECRET;
+  delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  process.env.W41_PRODUCTION_APPROVAL_SECRET = 'test-w41-production-approval-secret';
+  try {
     const approval = issueW41ProductionApprovalToken({
       rootGroupId: routerStyle.rootGroupId,
       approvedBy: 'test-suite',
@@ -685,10 +772,23 @@ async function main(): Promise<void> {
         productionShape.guard.reason === 'production' &&
         productionShape.productionGuard.allowed === true &&
         productionShape.productionGuard.reason === 'production_ready' &&
+        productionShape.productionGuard.envEnabled === false &&
         productionShape.luluApiBase === 'https://api.lulu.com',
-      'Expected W4.1 sibling submit input to surface a real grouped production submit shape only when env gate and approval token are both present',
+      'Expected W4.1 sibling submit input to surface a real grouped production submit shape when a valid approval token is present, even without a runtime env toggle',
     );
-  });
+  } finally {
+    if (originalSiblingSubmitEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalSiblingSubmitEnv;
+    }
+
+    if (originalSiblingApprovalSecret === undefined) {
+      delete process.env.W41_PRODUCTION_APPROVAL_SECRET;
+    } else {
+      process.env.W41_PRODUCTION_APPROVAL_SECRET = originalSiblingApprovalSecret;
+    }
+  }
 
   console.log(
     JSON.stringify(

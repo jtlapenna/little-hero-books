@@ -149,7 +149,7 @@ async function testSandboxSubmitShape(): Promise<void> {
   );
 }
 
-async function testProductionRequestStaysBlockedWithoutEnvGate(): Promise<void> {
+async function testProductionRequestRequiresApprovalWithoutEnvGate(): Promise<void> {
   const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
 
   try {
@@ -170,16 +170,65 @@ async function testProductionRequestStaysBlockedWithoutEnvGate(): Promise<void> 
       response.submitMode === 'skip' &&
         response.__skipLulu === true &&
         response.guard.reason === 'production_blocked' &&
-        response.productionGuard.reason === 'env_disabled' &&
+        response.productionGuard.reason === 'approval_missing' &&
         response.productionGuard.allowed === false &&
         response.luluApiBase === 'https://api.lulu.com',
-      'Expected explicit W4 production requests to fail closed until the production env gate is enabled',
+      'Expected explicit W4 production requests to fail closed until an approval token is provided, even when the env gate is absent',
     );
   } finally {
     if (originalEnv === undefined) {
       delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
     } else {
       process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
+async function testProductionSubmitShapeWithApprovalWithoutEnvGate(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const originalApprovalSecret = process.env.W4_PRODUCTION_APPROVAL_SECRET;
+
+  try {
+    delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    process.env.W4_PRODUCTION_APPROVAL_SECRET = 'test-w4-production-approval-secret';
+    const orderId = 'REAL-W4-PILOT-001A';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.__skipLulu === false &&
+        response.guard.reason === 'production' &&
+        response.productionGuard.reason === 'production_ready' &&
+        response.productionGuard.allowed === true &&
+        response.productionGuard.envEnabled === false &&
+        response.luluApiBase === 'https://api.lulu.com',
+      'Expected a valid W4 production approval token to authorize real production shaping even without a runtime env toggle',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+
+    if (originalApprovalSecret === undefined) {
+      delete process.env.W4_PRODUCTION_APPROVAL_SECRET;
+    } else {
+      process.env.W4_PRODUCTION_APPROVAL_SECRET = originalApprovalSecret;
     }
   }
 }
@@ -514,6 +563,40 @@ async function testExistingJobSkipsLulu(): Promise<void> {
   );
 }
 
+async function testDryRunMarkersDoNotBlockLaterProductionPilot(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-PILOT-DRYRUN-HISTORY';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+      },
+      {
+        loadOrder: async () => ({
+          ...createReadyProductionOrder(orderId),
+          lulu_job_id: 'SKIPPED',
+          lulu_status: 'DRY_RUN',
+          print_submitted_at: null,
+        }),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.__skipLulu === false &&
+        response.guard.reason === 'production' &&
+        response.productionGuard.allowed === true,
+      'Expected W4 production shaping to ignore prior DRY_RUN markers instead of treating them as existing paid submissions',
+    );
+  });
+}
+
 async function testTestModeSkipsLulu(): Promise<void> {
   const response = await buildW4SubmitInputResponse(
     {
@@ -580,9 +663,11 @@ async function testSandboxFallbackPhonePreventsProofFailure(): Promise<void> {
 async function main(): Promise<void> {
   await testSandboxSubmitShape();
   await testExistingJobSkipsLulu();
+  await testDryRunMarkersDoNotBlockLaterProductionPilot();
   await testTestModeSkipsLulu();
   await testSandboxFallbackPhonePreventsProofFailure();
-  await testProductionRequestStaysBlockedWithoutEnvGate();
+  await testProductionRequestRequiresApprovalWithoutEnvGate();
+  await testProductionSubmitShapeWithApprovalWithoutEnvGate();
   await testProductionDryRunValidatesWithoutSubmit();
   await testProductionRejectsProofOrders();
   await testProductionRequiresApprovalToken();

@@ -10,6 +10,16 @@
 ## Current baseline
 
 - `W4.1` sandbox-only repo extraction is proven live on imported workflow [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json).
+- Grouped production dry-run is now also proven live on a fresh non-proof sibling group:
+  - root group `441-03302026-9000018`
+  - durable grouped job `workflow_jobs.id = 181`
+  - attempt `142`
+  - terminal grouped events `qa-passed` (item 1), `qa-passed` (item 2), `manifest-published`, `completed`
+  - terminal non-production payload `submitMode = "skip"`, `luluJobId = "SKIPPED"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`
+  - no real Lulu job was created
+- The grouped dry-run proof needed two real fixes that are now part of the baseline:
+  - dry-run-only materialization bypass for large grouped PDFs, so grouped production dry-run no longer depends on large R2 uploads succeeding first
+  - `Reattach QA Context (Post Cover Upload)` now merges the interior branch back into the cover branch so grouped QA preserves both direct interior and direct cover PDF URLs
 - Shared sibling-group durable job control already exists in [`w4-sibling-jobs.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w4-sibling-jobs.ts).
 - Shared grouped completion fallback already exists in [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts): if `rootGroupId` and `orderIds` are present, the shared sibling job can still close once even if explicit workflow-job ids are missing.
 - Sandbox-only sibling recovery already exists in [`/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-recovery/page.tsx) and [`/api/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-recovery/route.ts).
@@ -129,7 +139,7 @@
    - full group ready
 2. Add approval-token tests scoped to `rootGroupId`.
 3. Add workflow contract checks proving sandbox responses cannot reach grouped production nodes.
-4. Add grouped production dry-run acceptance checks with no real Lulu submit.
+4. Completed: add grouped production dry-run acceptance checks with no real Lulu submit.
 
 ## Acceptance criteria
 
@@ -150,5 +160,5 @@
 
 1. Completed: lock workflow/export contracts so sandbox responses cannot reach grouped paid Lulu nodes even if grouped production metadata is present.
 2. Completed: add grouped production dry-run support with no real Lulu submit.
-3. Next: verify grouped admin preflight + approval flow against a fresh non-proof sibling candidate.
-4. Only then consider a single manually approved paid sibling-group pilot.
+3. Completed: verify grouped admin preflight + approval flow plus one grouped production dry-run against a fresh non-proof sibling candidate.
+4. Next: choose a fresh non-proof sibling group, inspect it in `/admin/w41-production`, mint a short-lived grouped approval token, and run one manually approved paid sibling-group pilot.

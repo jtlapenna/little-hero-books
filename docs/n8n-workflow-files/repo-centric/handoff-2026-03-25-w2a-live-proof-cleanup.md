@@ -1,5 +1,42 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 30, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: grouped `W4.1` production dry-run is now proven clean on the imported live workflow, still with no real Lulu submit.
+>
+> What changed in repo/backend:
+>
+> - repo worker [`w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workers/w4-print-worker.ts) now supports a dry-run-only materialization bypass for large grouped PDFs, recording `artifact-materialization-skipped` and carrying direct PDFMonkey URLs forward instead of forcing large R2 uploads during grouped production dry-run
+> - shared R2 signer [`r2-client.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/r2-client.ts) now preserves streaming uploads without buffering the full body into memory first
+> - grouped sibling submit builder [`w4-sibling-print-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-sibling-print-input.ts) now accepts direct PDF URLs during grouped production dry-run and maps Amazon-style `STANDARD` shipping to Lulu `MAIL`
+> - repo QA worker path now accepts direct PDF URLs for grouped production dry-runs, so grouped QA no longer depends on large R2 materialization succeeding first
+> - repo-centric `W4.1` export [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json) and sibling-source export [`SIBLING - w4.1-Sibling-Aggregation.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING%20-%20w4.1-Sibling-Aggregation.json) now merge the interior branch back into `Reattach QA Context (Post Cover Upload)` so grouped QA preserves both direct interior and direct cover PDF URLs instead of falling back to stale/null fields
+> - new focused coverage now lives in [`test-r2-client.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-r2-client.ts), [`test-w4-print-worker.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-print-worker.ts), [`test-w4-sibling-print-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-sibling-print-input.ts), and updated [`test-book-kernel.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-book-kernel.ts)
+>
+> Live verification from this pass:
+>
+> - backend deploy revision [`b7c3d548.little-hero-labs-admin.pages.dev`](https://b7c3d548.little-hero-labs-admin.pages.dev) carries the grouped dry-run bypass and R2 streaming-signing fix
+> - live `W4.1` workflow `boWA0mB20qYK2g4x` was patched in place from repo export with backups saved at:
+>   - [before](file:///Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-30/w4.1-Sibling-Aggregation.live.before-pdfmonkey-split-poll-route-qa-merge-2026-03-30T21-51-08.686Z.json)
+>   - [after](file:///Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-30/w4.1-Sibling-Aggregation.live.after-pdfmonkey-split-poll-route-qa-merge-2026-03-30T21-51-08.686Z.json)
+> - fresh non-proof sibling group `441-03302026-9000018` was inspected first from `/admin/w41-production` and then used for grouped production dry-run only
+> - the earlier grouped failures are now understood and superseded:
+>   - job `177`: Pages worker memory exhaustion during interior materialization
+>   - job `180`: QA saw a stale/missing interior PDF reference because the cover branch had not reattached the interior direct URL
+> - the corrected grouped production dry-run is `workflow_jobs.id = 181` / attempt `142`
+> - terminal grouped events for `181` are now:
+>   - `qa-passed` for item 1
+>   - `qa-passed` for item 2
+>   - `manifest-published`
+>   - terminal `completed`
+> - grouped dry-run remained non-billable by contract:
+>   - `submitMode = "skip"`
+>   - `luluJobId = "SKIPPED"`
+>   - `luluStatus = "DRY_RUN"`
+>   - `externalProvider = "lulu-sandbox"`
+> - `/admin/w41-production` now shows this exact group as `inspect` with historical dry-run markers, which is expected for reuse prevention rather than evidence of a paid submit
+> - no real Lulu sandbox or production job was created in this pass
+>
+> Practical meaning: grouped `W4.1` production dry-run is now proven on the imported live workflow. The next grouped production step is no longer more dry-run plumbing. It is planning a first paid sibling-group pilot on a fresh non-proof group, with explicit grouped approval, env-gated production submit, and rollback/cancel instructions ready before launch.
+>
 > Update — later on March 30, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the next grouped `W4.1` paid-cutover slice is now implemented in repo code and export contracts, but still remains non-billable by design.
 >
 > What changed in repo/backend:

@@ -27,6 +27,13 @@ export interface W4RenderPrintDocumentInput extends JsonRecord {
   runStamp?: string | null;
   pdfMonkeyTemplateId?: string | null;
   pdfMonkeyCoverTemplateId?: string | null;
+  pdfMonkeyStatus?: string | null;
+  pdfMonkeyStatusUrl?: string | null;
+  pdfMonkeyDocumentId?: string | null;
+  pdfMonkeyCoverDocumentId?: string | null;
+  allowIncomplete?: boolean | null;
+  maxPollAttempts?: number | null;
+  pollIntervalMs?: number | null;
 }
 
 export interface W4MaterializePrintPdfInput extends JsonRecord {
@@ -44,6 +51,7 @@ export interface W4MaterializePrintPdfInput extends JsonRecord {
   coverPdfR2Key?: string | null;
   pdfFilename?: string | null;
   coverPdfFilename?: string | null;
+  productionDryRun?: boolean | null;
 }
 
 export interface W4RunPrintQaInput extends JsonRecord {
@@ -61,6 +69,11 @@ export interface W4RunPrintQaInput extends JsonRecord {
   coverPreviewUrl?: string | null;
   pdfR2Key?: string | null;
   coverPdfR2Key?: string | null;
+  pdfUrl?: string | null;
+  coverPdfUrl?: string | null;
+  pdfDownloadUrl?: string | null;
+  coverPdfDownloadUrl?: string | null;
+  productionDryRun?: boolean | null;
 }
 
 export interface PublishW4PrintManifestInput extends JsonRecord {
@@ -145,6 +158,8 @@ export interface W4RenderPrintDocumentResult extends JsonRecord {
   cover_html?: string;
 }
 
+export type W4PollPrintDocumentResult = W4RenderPrintDocumentResult;
+
 export interface W4MaterializePrintPdfResult extends JsonRecord {
   documentKind: W4PrintDocumentKind;
   orderId: string;
@@ -157,6 +172,7 @@ export interface W4MaterializePrintPdfResult extends JsonRecord {
   contentType: string;
   uploadedAt: string;
   reusedExisting?: boolean;
+  materializationSkipped?: boolean;
   pdfR2Key?: string | null;
   coverPdfR2Key?: string | null;
   pdfUrl?: string | null;
@@ -230,6 +246,33 @@ function toInteger(value: unknown): number | null {
   }
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toPositiveInteger(value: unknown): number | null {
+  const parsed = toInteger(value);
+  return parsed && parsed > 0 ? parsed : null;
+}
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'n', 'off'].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function toJsonRecord(value: unknown): JsonRecord {
@@ -717,9 +760,10 @@ export async function renderW4PrintDocument(
       ? input.workflowAttemptId
       : null;
   const workflowJobIdempotencyKey = toTrimmedString(input.workflowJobIdempotencyKey);
-  const maxPollAttempts = options.maxPollAttempts ?? 40;
-  const pollIntervalMs = options.pollIntervalMs ?? 1500;
+  const maxPollAttempts = toPositiveInteger(input.maxPollAttempts) ?? options.maxPollAttempts ?? 40;
+  const pollIntervalMs = toPositiveInteger(input.pollIntervalMs) ?? options.pollIntervalMs ?? 1500;
   const maxPollRequestErrors = options.maxPollRequestErrors ?? 3;
+  const allowIncomplete = toBoolean(input.allowIncomplete);
 
   const basePayload = input.documentKind === 'cover-pdf'
     ? {
@@ -877,6 +921,31 @@ export async function renderW4PrintDocument(
     }
 
     if (status !== 'success' || !downloadUrl) {
+      if (allowIncomplete) {
+        return {
+          ...input,
+          documentKind: input.documentKind,
+          orderId,
+          amazonOrderId,
+          rootOrderId,
+          backendUrl,
+          document: currentDocument,
+          pdfMonkeyStatus: status,
+          pdfMonkeyPollAttempts: attempts,
+          workflowLogEvent: {
+            submitted: submitLog,
+            polled: lastPollLog,
+          },
+          pdfMonkeyStatusUrl: statusUrl,
+          pdfMonkeyDocumentId: input.documentKind === 'interior-pdf' ? documentId : null,
+          pdfMonkeyCoverDocumentId: input.documentKind === 'cover-pdf' ? documentId : null,
+          pdfDownloadUrl: input.documentKind === 'interior-pdf' ? downloadUrl : null,
+          coverPdfDownloadUrl: input.documentKind === 'cover-pdf' ? downloadUrl : null,
+          ...(input.documentKind === 'interior-pdf'
+            ? { pages_html: basePayload.html }
+            : { cover_html: basePayload.html }),
+        };
+      }
       throw new Error(`PDFMonkey ${input.documentKind} not ready after polling (status=${status})`);
     }
 
@@ -944,6 +1013,243 @@ export async function renderW4PrintDocument(
   }
 }
 
+export async function pollW4PrintDocument(
+  input: W4RenderPrintDocumentInput,
+  options: W4WorkerOptions = {},
+): Promise<W4PollPrintDocumentResult> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const recordWorkflowEvent = options.recordWorkflowEvent ?? (async () => ({}));
+  const pdfMonkeyApiKey =
+    toTrimmedString(options.pdfMonkeyApiKey) ??
+    toTrimmedString(process.env.PDFMONKEY_API_KEY);
+  if (!pdfMonkeyApiKey) {
+    throw new Error('PDFMONKEY_API_KEY is not configured');
+  }
+
+  const documentKind = input.documentKind === 'cover-pdf' ? 'cover-pdf' : 'interior-pdf';
+  const orderId = resolveOrderId(input);
+  if (!orderId) {
+    throw new Error('W4 print poll requires orderId');
+  }
+  const amazonOrderId = resolveAmazonOrderId(input, orderId);
+  const rootOrderId = resolveRootOrderId(input, amazonOrderId, orderId);
+  const backendUrl = resolveBackendUrl(input, options.defaultBackendUrl);
+  const workflowJobId =
+    typeof input.workflowJobId === 'number' && Number.isFinite(input.workflowJobId)
+      ? input.workflowJobId
+      : null;
+  const workflowAttemptId =
+    typeof input.workflowAttemptId === 'number' && Number.isFinite(input.workflowAttemptId)
+      ? input.workflowAttemptId
+      : null;
+  const workflowJobIdempotencyKey = toTrimmedString(input.workflowJobIdempotencyKey);
+  const maxPollAttempts = toPositiveInteger(input.maxPollAttempts) ?? options.maxPollAttempts ?? 30;
+  const pollIntervalMs = toPositiveInteger(input.pollIntervalMs) ?? options.pollIntervalMs ?? 1500;
+  const maxPollRequestErrors = options.maxPollRequestErrors ?? 3;
+  const allowIncomplete = toBoolean(input.allowIncomplete);
+
+  const documentId =
+    firstString(
+      documentKind === 'cover-pdf' ? input.pdfMonkeyCoverDocumentId : input.pdfMonkeyDocumentId,
+      input.pdfMonkeyDocumentId,
+      input.pdfMonkeyCoverDocumentId,
+    ) ?? null;
+  if (!documentId) {
+    throw new Error(`W4 ${documentKind} poll requires pdfMonkey document id`);
+  }
+
+  const statusUrl =
+    firstString(input.pdfMonkeyStatusUrl, `${PDFMONKEY_DOCUMENTS_API}/${documentId}`) ??
+    `${PDFMONKEY_DOCUMENTS_API}/${documentId}`;
+  let currentDocument = toDocumentRecord(input.document);
+  let status = firstString(input.pdfMonkeyStatus, currentDocument.status, 'queued') ?? 'queued';
+  let downloadUrl =
+    firstString(
+      documentKind === 'cover-pdf' ? input.coverPdfDownloadUrl : input.pdfDownloadUrl,
+      input.pdfDownloadUrl,
+      input.coverPdfDownloadUrl,
+      currentDocument.download_url,
+      currentDocument.file_url,
+    ) ?? null;
+  let attempts = toPositiveInteger(input.pdfMonkeyPollAttempts) ?? 0;
+  let consecutivePollRequestErrors = 0;
+
+  const externalContext =
+    documentKind === 'cover-pdf'
+      ? { documentKind, coverPdfR2Key: toTrimmedString(input.coverPdfR2Key) }
+      : { documentKind, pdfR2Key: toTrimmedString(input.pdfR2Key) };
+
+  const logEvent = async (body: JsonRecord): Promise<W4WorkflowEventResult | null> => {
+    if (!workflowJobId && !workflowJobIdempotencyKey) {
+      return null;
+    }
+
+    const response = await recordWorkflowEvent({
+      jobId: workflowJobId ?? undefined,
+      idempotencyKey: workflowJobIdempotencyKey ?? undefined,
+      attemptId: workflowAttemptId,
+      externalProvider: 'pdfmonkey',
+      externalRequestId: documentId,
+      externalStatusUrl: statusUrl,
+      ...body,
+    });
+
+    return response as unknown as W4WorkflowEventResult;
+  };
+
+  let lastPollLog: W4WorkflowEventResult | null = null;
+
+  try {
+    while (attempts < maxPollAttempts) {
+      if (status === 'success' && downloadUrl) {
+        break;
+      }
+
+      let polled: JsonRecord;
+      try {
+        polled = await requestJson(fetchImpl, statusUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${pdfMonkeyApiKey}`,
+          },
+        });
+        consecutivePollRequestErrors = 0;
+      } catch (error) {
+        consecutivePollRequestErrors += 1;
+        if (consecutivePollRequestErrors > maxPollRequestErrors) {
+          throw new Error(
+            `PDFMonkey ${documentKind} poll request failed after ${consecutivePollRequestErrors} consecutive transport errors: ${getErrorMessage(error)}`,
+          );
+        }
+        await sleep(pollIntervalMs);
+        continue;
+      }
+
+      currentDocument = toDocumentRecord(polled.data ?? polled.document ?? polled);
+      status = toTrimmedString(currentDocument.status) ?? status;
+      downloadUrl =
+        toTrimmedString(currentDocument.download_url) ??
+        toTrimmedString(currentDocument.file_url) ??
+        downloadUrl;
+      attempts += 1;
+
+      lastPollLog = await logEvent({
+        eventType: 'poll-tick',
+        jobStatus: 'polling',
+        attemptStatus: 'polling',
+        payload: {
+          orderId,
+          ...externalContext,
+          pollAttempt: attempts,
+          pdfMonkeyStatus: status ?? null,
+        },
+        context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+          ...externalContext,
+          pollAttempt: attempts,
+          pdfMonkeyStatus: status,
+        }),
+      });
+
+      if (status === 'error' || status === 'failure') {
+        throw new Error(`PDFMonkey ${documentKind} polling failed (status=${status})`);
+      }
+
+      if (status === 'success' && downloadUrl) {
+        break;
+      }
+
+      await sleep(pollIntervalMs);
+    }
+
+    if (status !== 'success' || !downloadUrl) {
+      if (allowIncomplete) {
+        return {
+          ...input,
+          documentKind,
+          orderId,
+          amazonOrderId,
+          rootOrderId,
+          backendUrl,
+          document: currentDocument,
+          pdfMonkeyStatus: status,
+          pdfMonkeyPollAttempts: attempts,
+          workflowLogEvent: {
+            submitted: null,
+            polled: lastPollLog,
+          },
+          pdfMonkeyStatusUrl: statusUrl,
+          pdfMonkeyDocumentId: documentKind === 'interior-pdf' ? documentId : null,
+          pdfMonkeyCoverDocumentId: documentKind === 'cover-pdf' ? documentId : null,
+          pdfDownloadUrl: documentKind === 'interior-pdf' ? downloadUrl : null,
+          coverPdfDownloadUrl: documentKind === 'cover-pdf' ? downloadUrl : null,
+        };
+      }
+      throw new Error(`PDFMonkey ${documentKind} not ready after polling (status=${status})`);
+    }
+
+    await logEvent({
+      eventType: 'provider-complete',
+      payload: {
+        orderId,
+        ...externalContext,
+        pdfMonkeyStatus: status,
+      },
+      context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+        ...externalContext,
+        pdfMonkeyStatus: status,
+      }),
+    });
+
+    return {
+      ...input,
+      documentKind,
+      orderId,
+      amazonOrderId,
+      rootOrderId,
+      backendUrl,
+      document: currentDocument,
+      pdfMonkeyStatus: status,
+      pdfMonkeyPollAttempts: attempts,
+      workflowLogEvent: {
+        submitted: null,
+        polled: lastPollLog,
+      },
+      pdfMonkeyStatusUrl: statusUrl,
+      pdfMonkeyDocumentId: documentKind === 'interior-pdf' ? documentId : null,
+      pdfMonkeyCoverDocumentId: documentKind === 'cover-pdf' ? documentId : null,
+      pdfDownloadUrl: documentKind === 'interior-pdf' ? downloadUrl : null,
+      coverPdfDownloadUrl: documentKind === 'cover-pdf' ? downloadUrl : null,
+    };
+  } catch (error) {
+    const message = getErrorMessage(error);
+    await logEvent({
+      eventType: 'provider-failed',
+      jobStatus: 'failed',
+      attemptStatus: 'failed',
+      lastError: {
+        message,
+        orderId,
+        ...externalContext,
+        pollAttempt: attempts || null,
+        pdfMonkeyStatus: status || null,
+      },
+      payload: {
+        orderId,
+        ...externalContext,
+        pollAttempt: attempts || null,
+        pdfMonkeyStatus: status || null,
+      },
+      context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+        ...externalContext,
+        pollAttempt: attempts,
+        pdfMonkeyStatus: status,
+      }),
+    });
+    throw error;
+  }
+}
+
 export async function materializeW4PrintPdf(
   input: W4MaterializePrintPdfInput,
   options: W4WorkerOptions = {},
@@ -988,6 +1294,7 @@ export async function materializeW4PrintPdf(
 
   const uploadBucket = getBucketFromKey(r2Key);
   const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
+  const shouldSkipUploadForDryRun = toBoolean(input.productionDryRun);
 
   const logEvent = async (body: JsonRecord): Promise<W4WorkflowEventResult | null> => {
     if (!workflowJobId && !workflowJobIdempotencyKey) {
@@ -1006,6 +1313,49 @@ export async function materializeW4PrintPdf(
   };
 
   try {
+    if (shouldSkipUploadForDryRun) {
+      const uploadedAt = new Date().toISOString();
+      const materialized = await logEvent({
+        eventType: 'artifact-materialization-skipped',
+        payload: {
+          orderId,
+          documentKind,
+          r2Key,
+          sourceUrl: downloadUrl,
+          reason: 'production_dry_run_direct_url',
+        },
+        context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+          documentKind,
+          r2Key,
+          sourceUrl: downloadUrl,
+          materializationSkipped: true,
+        }),
+      });
+
+      return {
+        ...input,
+        documentKind,
+        orderId,
+        amazonOrderId,
+        rootOrderId,
+        backendUrl,
+        uploadBucket,
+        r2Key,
+        byteSize: 0,
+        contentType: 'application/pdf',
+        uploadedAt,
+        materializationSkipped: true,
+        workflowLogEvent: {
+          materialized,
+        },
+        pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
+        coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
+        pdfUrl: documentKind === 'interior-pdf' ? downloadUrl : toTrimmedString(input.pdfUrl),
+        coverPdfUrl:
+          documentKind === 'cover-pdf' ? downloadUrl : toTrimmedString(input.coverPdfUrl),
+      };
+    }
+
     const existingObject = await headObjectImpl(uploadBucket, r2Key);
     if (existingObject.ok) {
       const contentType = existingObject.headers.get('content-type') || 'application/pdf';
@@ -1057,8 +1407,26 @@ export async function materializeW4PrintPdf(
     }
 
     const contentType = response.headers.get('content-type') || 'application/pdf';
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    await putObjectImpl(uploadBucket, r2Key, bytes, contentType);
+    let byteSize = Number.parseInt(response.headers.get('content-length') || '0', 10);
+    if (response.body) {
+      let streamedBytes = 0;
+      const countingStream = response.body.pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            streamedBytes += chunk.byteLength;
+            controller.enqueue(chunk);
+          },
+        }),
+      );
+      await putObjectImpl(uploadBucket, r2Key, countingStream, contentType);
+      if (!Number.isFinite(byteSize) || byteSize <= 0) {
+        byteSize = streamedBytes;
+      }
+    } else {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      byteSize = bytes.byteLength;
+      await putObjectImpl(uploadBucket, r2Key, bytes, contentType);
+    }
 
     const uploadedAt = new Date().toISOString();
     const materialized = await logEvent({
@@ -1067,12 +1435,12 @@ export async function materializeW4PrintPdf(
         orderId,
         documentKind,
         r2Key,
-        byteSize: bytes.byteLength,
+        byteSize,
       },
       context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
         documentKind,
         r2Key,
-        byteSize: bytes.byteLength,
+        byteSize,
       }),
     });
 
@@ -1085,7 +1453,7 @@ export async function materializeW4PrintPdf(
       backendUrl,
       uploadBucket,
       r2Key,
-      byteSize: bytes.byteLength,
+      byteSize,
       contentType,
       uploadedAt,
       workflowLogEvent: {
@@ -1155,14 +1523,26 @@ export async function runW4PrintQa(
     throw new Error('W4 print QA requires renderer apiBase and internalToken');
   }
 
+  const allowDirectPdfUrls = toBoolean(input.productionDryRun);
   const pdfR2Key = toTrimmedString(input.pdfR2Key);
   const coverPdfR2Key = toTrimmedString(input.coverPdfR2Key);
-  if (!pdfR2Key || !coverPdfR2Key) {
-    throw new Error('W4 print QA requires pdfR2Key and coverPdfR2Key');
+  const directInteriorUrl = firstString(input.pdfUrl, input.pdfDownloadUrl);
+  const directCoverUrl = firstString(input.coverPdfUrl, input.coverPdfDownloadUrl);
+  const interiorSignedUrl =
+    allowDirectPdfUrls && directInteriorUrl
+      ? directInteriorUrl
+      : pdfR2Key
+        ? await resolvePdfRefSignedUrl(pdfR2Key, signObjectUrl)
+        : null;
+  const coverSignedUrl =
+    allowDirectPdfUrls && directCoverUrl
+      ? directCoverUrl
+      : coverPdfR2Key
+        ? await resolvePdfRefSignedUrl(coverPdfR2Key, signObjectUrl)
+        : null;
+  if (!interiorSignedUrl || !coverSignedUrl) {
+    throw new Error('W4 print QA requires interior and cover PDF references');
   }
-
-  const interiorSignedUrl = await resolvePdfRefSignedUrl(pdfR2Key, signObjectUrl);
-  const coverSignedUrl = await resolvePdfRefSignedUrl(coverPdfR2Key, signObjectUrl);
   const pageImageUrls = Array.isArray(input.pageImageUrls) ? input.pageImageUrls : [];
   const interiorPreviewImageUrls = await Promise.all(
     pageImageUrls.map((reference) => signPreviewReference(reference, signObjectUrl)),

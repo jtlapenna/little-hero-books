@@ -6,6 +6,7 @@ import {
   publishW4PrintManifest,
 } from '@/lib/workers/w4-print-worker';
 import { renderW4PrintDocumentResponse } from '@/app/api/internal/w4/render-print-document/route';
+import { pollW4PrintDocumentResponse } from '@/app/api/internal/w4/poll-print-document/route';
 import { materializeW4PrintPdfResponse } from '@/app/api/internal/w4/materialize-print-pdf/route';
 import { runW4PrintQaResponse } from '@/app/api/internal/w4/run-print-qa/route';
 import { publishW4PrintManifestResponse } from '@/app/api/internal/w4/publish-print-manifest/route';
@@ -203,8 +204,138 @@ async function testCoverRenderDirectRecovery(): Promise<void> {
   );
 }
 
+async function testInteriorRenderCanReturnIncompleteForFollowupPoll(): Promise<void> {
+  const workflowEvents: JsonRecord[] = [];
+  let pollCount = 0;
+
+  const result = await renderW4PrintDocumentResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-002B',
+      workflowJobId: 5021,
+      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:W4-SANDBOX-PROOF-002B:print:test',
+      workflowAttemptId: 6021,
+      pdfFilename: 'interior_W4-SANDBOX-PROOF-002B.pdf',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-002B/interior_W4-SANDBOX-PROOF-002B.pdf',
+      pageImageUrls: [
+        'https://admin.littleherolabs.com/api/assets/book/orders/W4-SANDBOX-PROOF-002B/preview-images/p00.png',
+      ],
+      allowIncomplete: true,
+      maxPollAttempts: 1,
+      pollIntervalMs: 1,
+    },
+    {
+      defaultBackendUrl: 'https://admin.littleherolabs.com',
+      pdfMonkeyApiKey: 'stub-pdfmonkey-key',
+      sleep: async () => undefined,
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+      signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+
+        if (method === 'POST' && url === 'https://api.pdfmonkey.io/api/v1/documents') {
+          return jsonResponse({
+            data: {
+              id: 'pdfmonkey-incomplete-123',
+              status: 'pending',
+            },
+          });
+        }
+
+        if (method === 'GET' && url === 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-incomplete-123') {
+          pollCount += 1;
+          return jsonResponse({
+            data: {
+              id: 'pdfmonkey-incomplete-123',
+              status: 'generating',
+            },
+          });
+        }
+
+        throw new Error(`Unexpected fetch call: ${method} ${url}`);
+      },
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.pdfMonkeyStatus === 'generating' &&
+      result.pdfMonkeyDocumentId === 'pdfmonkey-incomplete-123' &&
+      !result.pdfDownloadUrl,
+    'Expected W4 render route to return an incomplete-but-trackable PDFMonkey document when allowIncomplete is enabled',
+  );
+  assert(
+    pollCount === 1 &&
+      workflowEvents.map((event) => event.eventType).join(',') ===
+        'provider-submitted,poll-tick',
+    'Expected allowIncomplete render path to emit submit and poll events without forcing a terminal failure',
+  );
+}
+
+async function testPollPrintDocumentRouteContinuesExistingDocument(): Promise<void> {
+  const workflowEvents: JsonRecord[] = [];
+  let pollCount = 0;
+
+  const result = await pollW4PrintDocumentResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-002B',
+      workflowJobId: 5022,
+      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:W4-SANDBOX-PROOF-002B:print:test',
+      workflowAttemptId: 6022,
+      pdfMonkeyDocumentId: 'pdfmonkey-incomplete-123',
+      pdfMonkeyStatusUrl: 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-incomplete-123',
+      pdfMonkeyStatus: 'generating',
+      pdfMonkeyPollAttempts: 1,
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-002B/interior_W4-SANDBOX-PROOF-002B.pdf',
+      maxPollAttempts: 3,
+      pollIntervalMs: 1,
+    },
+    {
+      defaultBackendUrl: 'https://admin.littleherolabs.com',
+      pdfMonkeyApiKey: 'stub-pdfmonkey-key',
+      sleep: async () => undefined,
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+        if (method !== 'GET' || url !== 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-incomplete-123') {
+          throw new Error(`Unexpected poll call: ${method} ${url}`);
+        }
+        pollCount += 1;
+        return jsonResponse({
+          data: {
+            id: 'pdfmonkey-incomplete-123',
+            status: pollCount === 1 ? 'generating' : 'success',
+            download_url: pollCount === 1 ? null : 'https://cdn.example/interior-followup.pdf',
+          },
+        });
+      },
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.pdfMonkeyStatus === 'success' &&
+      result.pdfDownloadUrl === 'https://cdn.example/interior-followup.pdf',
+    'Expected W4 poll route to continue polling an existing PDFMonkey document until it becomes downloadable',
+  );
+  assert(
+    workflowEvents.map((event) => event.eventType).join(',') ===
+      'poll-tick,poll-tick,provider-complete',
+    'Expected W4 poll route to emit poll and completion workflow events for a resumed PDFMonkey document',
+  );
+}
+
 async function testMaterializePrintPdfRoute(): Promise<void> {
-  const putCalls: Array<{ bucket: string; key: string; contentType?: string; byteLength: number }> = [];
+  const putCalls: Array<{
+    bucket: string;
+    key: string;
+    contentType?: string;
+    byteLength: number;
+    streamed: boolean;
+  }> = [];
   const result = await materializeW4PrintPdfResponse(
     {
       documentKind: 'interior-pdf',
@@ -230,8 +361,9 @@ async function testMaterializePrintPdfRoute(): Promise<void> {
         });
       },
       putObjectImpl: async (bucket, key, body, contentType) => {
+        const streamed = typeof ReadableStream !== 'undefined' && body instanceof ReadableStream;
         const bytes = new Uint8Array(await new Response(body).arrayBuffer());
-        putCalls.push({ bucket, key, contentType, byteLength: bytes.byteLength });
+        putCalls.push({ bucket, key, contentType, byteLength: bytes.byteLength, streamed });
         return { ok: true };
       },
       recordWorkflowEvent: createWorkflowEventRecorder([]),
@@ -249,8 +381,9 @@ async function testMaterializePrintPdfRoute(): Promise<void> {
   assert(
     putCalls.length === 1 &&
       putCalls[0]?.bucket === 'little-hero-orders' &&
-      putCalls[0]?.contentType === 'application/pdf',
-    'Expected W4 materialize route to upload the downloaded PDF into the orders bucket',
+      putCalls[0]?.contentType === 'application/pdf' &&
+      putCalls[0]?.streamed === true,
+    'Expected W4 materialize route to stream the downloaded PDF into the orders bucket',
   );
 }
 
@@ -308,6 +441,59 @@ async function testMaterializePrintPdfRouteReusesExistingObject(): Promise<void>
       workflowEvents[0]?.payload &&
       (workflowEvents[0].payload as JsonRecord).reusedExisting === true,
     'Expected W4 materialize route to record a reused-existing artifact event when it short-circuits to an existing R2 object',
+  );
+}
+
+async function testMaterializePrintPdfRouteSkipsUploadForProductionDryRun(): Promise<void> {
+  let headCalled = false;
+  let fetchCalled = false;
+  let putCalled = false;
+  const workflowEvents: JsonRecord[] = [];
+
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003C',
+      workflowJobId: 5032,
+      workflowAttemptId: 6032,
+      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:W4-SANDBOX-PROOF-003C:print:test',
+      productionDryRun: true,
+      pdfDownloadUrl: 'https://cdn.example/interior-materialize-dry-run.pdf',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003C/interior_W4-SANDBOX-PROOF-003C.pdf',
+    },
+    {
+      headObjectImpl: async () => {
+        headCalled = true;
+        throw new Error('Expected production dry-run materialization to bypass headObject');
+      },
+      fetchImpl: async () => {
+        fetchCalled = true;
+        throw new Error('Expected production dry-run materialization to bypass PDF download');
+      },
+      putObjectImpl: async () => {
+        putCalled = true;
+        throw new Error('Expected production dry-run materialization to bypass R2 upload');
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.materializationSkipped === true &&
+      result.pdfUrl === 'https://cdn.example/interior-materialize-dry-run.pdf',
+    'Expected W4 materialize route to short-circuit to the direct PDF URL for production dry-runs',
+  );
+  assert(
+    headCalled === false && fetchCalled === false && putCalled === false,
+    'Expected production dry-run materialization to avoid object checks, downloads, and uploads',
+  );
+  assert(
+    workflowEvents.length === 1 &&
+      workflowEvents[0]?.eventType === 'artifact-materialization-skipped' &&
+      ((workflowEvents[0]?.payload as JsonRecord | undefined)?.reason ===
+        'production_dry_run_direct_url'),
+    'Expected production dry-run materialization to record a skipped-upload workflow event',
   );
 }
 
@@ -423,6 +609,70 @@ async function testQaPassAndFailPaths(): Promise<void> {
   assert(
     failEvents.map((event) => event.eventType).join(',') === 'qa-failed',
     'Expected W4 QA failure path to emit a terminal qa-failed workflow event',
+  );
+}
+
+async function testQaUsesDirectPdfUrlsForProductionDryRun(): Promise<void> {
+  const signCalls: string[] = [];
+  const result = await runW4PrintQaResponse(
+    {
+      orderId: 'W4-SANDBOX-PROOF-004C',
+      workflowJobId: 5042,
+      workflowAttemptId: 6042,
+      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:W4-SANDBOX-PROOF-004C:print:test',
+      productionDryRun: true,
+      CONFIG: {
+        renderer: {
+          apiBase: 'https://renderer.example',
+          internalToken: 'renderer-token',
+        },
+      },
+      expectedPageCount: 1,
+      pageLabels: ['p00'],
+      pageImageUrls: ['book/orders/W4-SANDBOX-PROOF-004C/preview-images/p00.png'],
+      coverPreviewUrl: 'book/orders/W4-SANDBOX-PROOF-004C/preview-images/cover-spread.png',
+      pdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-004C/interior.pdf',
+      coverPdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-004C/cover.pdf',
+    },
+    {
+      signObjectUrl: async (key, bucket) => {
+        signCalls.push(`${bucket}:${key}`);
+        return `https://signed.example/${bucket}/${key}`;
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder([]),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+        if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
+          throw new Error(`Unexpected QA direct-url call: ${method} ${url}`);
+        }
+        const parsed = JSON.parse(String(init?.body ?? '{}')) as JsonRecord;
+        const directUrlMatches =
+          (String(parsed.type) === 'interior' &&
+            String(parsed.pdfUrl) === 'https://cdn.example/W4-SANDBOX-PROOF-004C/interior.pdf') ||
+          (String(parsed.type) === 'cover' &&
+            String(parsed.pdfUrl) === 'https://cdn.example/W4-SANDBOX-PROOF-004C/cover.pdf');
+        return jsonResponse({
+          passed: true,
+          failedPages: [],
+          warnings: [],
+          reasonCode: directUrlMatches ? 'direct-url-ok' : 'direct-url-mismatch',
+        });
+      },
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.qaPassed === true &&
+      result.interiorSignedUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004C/interior.pdf' &&
+      result.coverSignedUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004C/cover.pdf',
+    'Expected W4 QA to use direct PDF URLs during production dry-runs instead of requiring R2-signed PDF assets',
+  );
+  assert(
+    signCalls.length === 2 &&
+      signCalls.every((entry) => entry.includes('/preview-images/')),
+    'Expected production dry-run QA to presign only preview images while leaving direct PDF URLs untouched',
   );
 }
 
@@ -641,9 +891,13 @@ async function testManifestPublishSuccessAndError(): Promise<void> {
 async function main(): Promise<void> {
   await testInteriorRenderRouteWithTransientPollError();
   await testCoverRenderDirectRecovery();
+  await testInteriorRenderCanReturnIncompleteForFollowupPoll();
+  await testPollPrintDocumentRouteContinuesExistingDocument();
   await testMaterializePrintPdfRoute();
   await testMaterializePrintPdfRouteReusesExistingObject();
+  await testMaterializePrintPdfRouteSkipsUploadForProductionDryRun();
   await testQaPassAndFailPaths();
+  await testQaUsesDirectPdfUrlsForProductionDryRun();
   await testQaRouteFallsBackToEnvRendererToken();
   await testQaProbePayloadRejection();
   await testManifestPublishSuccessAndError();

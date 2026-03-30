@@ -8,6 +8,7 @@ const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
 const DEFAULT_PRODUCTION_LULU_API_BASE = 'https://api.lulu.com';
 const PRODUCTION_SUBMIT_ENV = 'ENABLE_LULU_PRODUCTION_SUBMIT';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
+const NON_PRODUCTION_LULU_STATUSES = new Set(['SKIPPED', 'DRY_RUN', 'TEST_MODE']);
 
 export type SignObjectUrlForW4 = (
   key: string,
@@ -105,6 +106,33 @@ function toTrimmedString(value: unknown): string | null {
 
   const lowered = trimmed.toLowerCase();
   return lowered === 'null' || lowered === 'undefined' ? null : trimmed;
+}
+
+function isNonProductionLuluMarker(
+  luluJobId: string | null,
+  luluStatus: string | null,
+  printSubmittedAt: string | null,
+): boolean {
+  if (printSubmittedAt) {
+    return false;
+  }
+
+  const normalizedStatus = luluStatus?.trim().toUpperCase() ?? null;
+  if (normalizedStatus && NON_PRODUCTION_LULU_STATUSES.has(normalizedStatus)) {
+    return true;
+  }
+
+  const normalizedJobId = luluJobId?.trim().toUpperCase() ?? null;
+  if (!normalizedJobId) {
+    return false;
+  }
+
+  return (
+    normalizedJobId === 'SKIPPED' ||
+    normalizedJobId === 'DRY_RUN' ||
+    normalizedJobId === 'TEST_MODE' ||
+    normalizedJobId.startsWith('TEST-')
+  );
 }
 
 function toBoolean(value: unknown): boolean {
@@ -791,19 +819,11 @@ function evaluateProductionGuard(params: {
     };
   }
 
-  if (!envEnabled && !dryRun) {
-    return {
-      requested,
-      allowed: false,
-      reason: 'env_disabled',
-      checkedAt,
-      envEnabled,
-      dryRun,
-    };
-  }
-
+  let approvalVerification:
+    | ReturnType<typeof verifyW4ProductionApprovalToken>
+    | null = null;
   if (!dryRun) {
-    const approvalVerification = verifyW4ProductionApprovalToken({
+    approvalVerification = verifyW4ProductionApprovalToken({
       token: resolveProductionApprovalToken(params.input),
       orderId:
         toTrimmedString(
@@ -856,6 +876,10 @@ function getExistingLuluSubmissionFromRecord(
   const printSubmittedAt = toTrimmedString(record.print_submitted_at);
 
   if (!luluJobId && !luluStatus && !printSubmittedAt) {
+    return null;
+  }
+
+  if (isNonProductionLuluMarker(luluJobId, luluStatus, printSubmittedAt)) {
     return null;
   }
 

@@ -567,7 +567,14 @@ Current status:
   - grouped preflight now calls that builder in production-dry-run mode, so [`/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-production/page.tsx) reflects grouped production readiness rather than sandbox submit shape
   - repo export [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json) now forwards `allowProductionLulu`, `productionDryRun`, and `productionApprovalToken` into the repo-owned sibling submit builder
   - contract tests now explicitly lock that the active sibling Lulu token, validation, and submit nodes fail closed on grouped `submitMode = "production"` and only allow sandbox submit on the imported live branch
-  - practical meaning: grouped production inspection, approval, and production dry-run semantics are now repo-owned, but grouped paid Lulu submit is still intentionally unreachable on the active workflow
+  - grouped production dry-run is now also proven on imported live `W4.1` with fresh non-proof sibling group `441-03302026-9000018`:
+    - backend deploy revision [`b7c3d548.little-hero-labs-admin.pages.dev`](https://b7c3d548.little-hero-labs-admin.pages.dev) added a dry-run-only materialization bypass for large grouped PDFs plus streaming-safe R2 signing
+    - live workflow `boWA0mB20qYK2g4x` was patched in place so `Reattach QA Context (Post Cover Upload)` merges the interior branch back into the cover branch without nulling direct PDF URLs
+    - earlier grouped failures are now closed and understood: `177` failed on Pages worker memory during materialization, `180` failed because QA saw a stale/null interior PDF reference
+    - corrected grouped dry-run job `181` / attempt `142` finished `succeeded`
+    - terminal grouped events are `qa-passed` for both sibling items, then `manifest-published`, then terminal `completed`
+    - the grouped dry-run remained non-billable: payload `submitMode = "skip"`, `luluJobId = "SKIPPED"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`
+  - practical meaning: grouped production inspection, approval, and production dry-run semantics are now repo-owned and proven live, but grouped paid Lulu submit is still intentionally unreachable on the active workflow
 - the next `W4` work should stay explicitly non-billable:
   - keep `W4.1` production-Lulu cutover out of the sandbox proof thread
   - design separate production-Lulu cutover plans with hard guardrails, explicit paid-job approvals, and rollback criteria instead of blending them into the sandbox proof path

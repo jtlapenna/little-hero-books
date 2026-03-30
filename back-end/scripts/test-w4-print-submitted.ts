@@ -304,7 +304,10 @@ async function testSiblingFallbackCompletesSharedGroupOnceWithoutWorkflowMetadat
       orderIds: ['W4-SIBLING-PROOF-012-item-1', 'W4-SIBLING-PROOF-012-item-2'],
       submitMode: 'sandbox',
       luluJobId: 'sandbox-sibling-job-012',
-      luluStatus: 'CREATED',
+      luluStatus: {
+        name: 'CREATED',
+        message: 'Sandbox grouped job created',
+      },
     },
     {
       getOrder: async (orderId) => ({
@@ -364,6 +367,12 @@ async function testSiblingFallbackCompletesSharedGroupOnceWithoutWorkflowMetadat
       Array.isArray(siblingCompletionPayload.orderIds) &&
       siblingCompletionPayload.orderIds.length === 2,
     'Expected sibling fallback handling to carry rootGroupId and grouped orderIds into the shared completion helper',
+  );
+  assert(
+    siblingCompletionPayload?.luluStatus === 'CREATED' &&
+      siblingCompletionPayload?.luluStatusDetail &&
+      typeof siblingCompletionPayload.luluStatusDetail === 'object',
+    'Expected sibling fallback handling to normalize structured Lulu status and preserve its detail for shared completion telemetry',
   );
 }
 

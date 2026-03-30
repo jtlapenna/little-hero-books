@@ -71,7 +71,8 @@ export interface CompleteW4PrintJobInput {
   manifestUrl?: string | null;
   manifestKey?: string | null;
   luluJobId?: string | null;
-  luluStatus?: string | null;
+  luluStatus?: unknown;
+  luluStatusDetail?: JsonRecord | null;
 }
 
 export interface CompleteW4PrintJobResult {
@@ -118,6 +119,33 @@ function toTrimmedString(value: unknown): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeLuluStatusValue(
+  value: unknown,
+  explicitDetail?: JsonRecord | null,
+): { status: string | null; detail: JsonRecord | null } {
+  const direct = toTrimmedString(value);
+  if (direct) {
+    return { status: direct, detail: explicitDetail ?? null };
+  }
+
+  const detail =
+    explicitDetail ??
+    (value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as JsonRecord)
+      : null);
+  if (!detail) {
+    return { status: null, detail: null };
+  }
+
+  const status =
+    toTrimmedString(detail.name) ??
+    toTrimmedString(detail.status) ??
+    toTrimmedString(detail.state) ??
+    null;
+
+  return { status, detail };
 }
 
 function toInteger(value: unknown): number | null {
@@ -551,13 +579,18 @@ export async function completeW4PrintJobForOrder(
   }
 
   const submitMode = toTrimmedString(input.submitMode) ?? null;
+  const { status: luluStatus, detail: luluStatusDetail } = normalizeLuluStatusValue(
+    input.luluStatus,
+    input.luluStatusDetail,
+  );
   const resultSnapshot: JsonRecord = {
     orderId,
     submitMode,
     manifestUrl: toTrimmedString(input.manifestUrl) ?? null,
     manifestKey: toTrimmedString(input.manifestKey) ?? null,
     luluJobId: toTrimmedString(input.luluJobId) ?? null,
-    luluStatus: toTrimmedString(input.luluStatus) ?? null,
+    luluStatus,
+    luluStatusDetail,
   };
 
   const succeeded =
@@ -575,7 +608,8 @@ export async function completeW4PrintJobForOrder(
       submitMode,
       manifestUrl: resultSnapshot.manifestUrl,
       luluJobId: resultSnapshot.luluJobId,
-      luluStatus: resultSnapshot.luluStatus,
+      luluStatus,
+      luluStatusDetail,
     },
   });
 

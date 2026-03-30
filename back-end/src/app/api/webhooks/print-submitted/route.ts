@@ -224,6 +224,7 @@ async function markW4PrintJobSubmitted(
       manifestKey,
       luluJobId,
       luluStatus,
+      luluStatusDetail,
     });
     return;
   }
@@ -235,6 +236,7 @@ async function markW4PrintJobSubmitted(
     manifestKey,
     luluJobId,
     luluStatus,
+    luluStatusDetail,
   });
 }
 
