@@ -279,6 +279,59 @@ async function testInspectRowCarriesPreflightErrors(): Promise<void> {
   );
 }
 
+async function testInspectRowSurfacesWebhookFreshness(): Promise<void> {
+  const inspection = await inspectW4ProductionRow(
+    createOrderRow({
+      lulu_job_id: '2806687',
+      lulu_status: 'CANCELED',
+      print_submitted_at: '2026-03-30T04:30:34.193Z',
+    }),
+    'orderId',
+    {
+      adminBaseUrl: 'https://admin.littleherolabs.com',
+      dependencies: {
+        loadLatestWebhookLog: async () => ({
+          received_at: '2026-03-30T04:51:58.221333+00:00',
+          status_name: 'CANCELED',
+          updated: true,
+          error_message: null,
+        }),
+      },
+    },
+  );
+
+  assert(
+    inspection.preflight === null &&
+      inspection.webhookSignal.deliveryState === 'received' &&
+      inspection.webhookSignal.latestStatus === 'CANCELED' &&
+      inspection.webhookSignal.deliveryReason === 'latest_webhook_applied',
+    'Expected W4 production inspection to surface the latest applied Lulu webhook for submitted orders',
+  );
+}
+
+async function testInspectRowFlagsMissingWebhookForSubmittedOrder(): Promise<void> {
+  const inspection = await inspectW4ProductionRow(
+    createOrderRow({
+      lulu_job_id: '2806687',
+      lulu_status: 'PRODUCTION_DELAYED',
+      print_submitted_at: '2026-03-30T04:30:34.193Z',
+    }),
+    'orderId',
+    {
+      adminBaseUrl: 'https://admin.littleherolabs.com',
+      dependencies: {
+        loadLatestWebhookLog: async () => null,
+      },
+    },
+  );
+
+  assert(
+    inspection.webhookSignal.deliveryState === 'missing' &&
+      inspection.webhookSignal.deliveryReason === 'no_webhook_log_entries',
+    'Expected W4 production inspection to flag submitted orders with no webhook evidence',
+  );
+}
+
 async function testSelectFieldsAndRouteHelper(): Promise<void> {
   const selectFields = W4_PRODUCTION_ORDER_SELECT_FIELDS.split(',')
     .map((field) => field.trim())
@@ -308,6 +361,8 @@ async function main(): Promise<void> {
   await testInspectRowUsesDryRunDependencies();
   await testInspectRowBlocksMissingPrintAssets();
   await testInspectRowCarriesPreflightErrors();
+  await testInspectRowSurfacesWebhookFreshness();
+  await testInspectRowFlagsMissingWebhookForSubmittedOrder();
   await testSelectFieldsAndRouteHelper();
   console.log('W4 production preflight tests passed');
 }

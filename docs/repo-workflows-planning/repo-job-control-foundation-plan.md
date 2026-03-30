@@ -487,6 +487,9 @@ Current status:
       - `SHIPPED` no longer backfills `delivered_at`
       - terminal `CANCELED` / `REJECTED` states now set `print_fulfillment_finished_at`
       - fresh live admin refresh on `441-0329202-9000007` now returns `luluStatus = "CANCELED"`, `status = "cancelled"`, and `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
+    - repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) now exposes a webhook freshness signal from `lulu_webhook_log` through [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx), so operators can see whether Lulu lifecycle state arrived automatically or only by manual refresh
+    - backend deploy revision [`6e333530.little-hero-labs-admin.pages.dev`](https://6e333530.little-hero-labs-admin.pages.dev) carries that signal, and both preview + production now show `webhookSignal.latestStatus = "CANCELED"` / `deliveryState = "received"` / `deliveryReason = "latest_webhook_applied"` for order `441-0329202-9000007`
+    - raw webhook log verification for `2806687` is now explicit in repo memory too: `UNPAID` -> `PRODUCTION_DELAYED` -> `CANCELED`, all `updated = true`, which means automatic Lulu webhook delivery is working end to end for the paid pilot
     - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
@@ -555,10 +558,17 @@ Current status:
   - three disposable proof attempts exposed and closed the remaining repo seams in order: missing QA renderer token fallback, admin replay `backendUrl` incorrectly set to `http://localhost:3001`, and sibling submit-input sandbox shaping dropping `CONFIG.backendApiToken` before post-submit manifest publish
   - after those repo/backend fixes, admin-triggered replay job `workflow_jobs.id = 158` and attempt `119` both finished `succeeded` with terminal `completed`, and the sibling group disappeared from `/admin/w41-recovery` candidate listings
   - the successful proof remained non-billable: terminal event payload recorded `submitMode = "skip"`, `nonProduction = true`, `externalProvider = "lulu-sandbox"`, `luluJobId = "TEST-441-0324-161613"`, and `luluStatus = "TEST_MODE"`
+- `W4.1` now also has the first grouped paid-cutover slice, but still no paid submit path:
+  - grouped paid-print preflight helper [`w41-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-production-preflight.ts) now inspects by `rootGroupId`, summarizes grouped child readiness, and fails closed on proof-like or already-submitted groups
+  - grouped approval-token helper [`w41-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-production-approval.ts) now mints short-lived sibling-root approval tokens, scoped to one grouped paid-print candidate
+  - admin API [`/api/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-production/route.ts) and admin page [`/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-production/page.tsx) are now live in backend deploy revision [`940d16d6.little-hero-labs-admin.pages.dev`](https://940d16d6.little-hero-labs-admin.pages.dev)
+  - preview deploy and production [`admin.littleherolabs.com`](https://admin.littleherolabs.com) both now return the same fail-closed result for known sandbox sibling proof group `441-0324-161613`: `candidateCount = 0`, `safeForProductionPilot = false`, `recommendedReason = "proof_or_non_production_group"`
+  - practical meaning: grouped production inspection and approval are now repo-owned, but grouped paid Lulu submit is still intentionally unreachable
 - the next `W4` work should stay explicitly non-billable:
   - keep `W4.1` production-Lulu cutover out of the sandbox proof thread
-  - design a separate production-Lulu cutover plan with hard guardrails, explicit paid-job approvals, and rollback criteria instead of blending it into the sandbox proof path
+  - design separate production-Lulu cutover plans with hard guardrails, explicit paid-job approvals, and rollback criteria instead of blending them into the sandbox proof path
   - the planning artifact for that next step now exists at [`w4-production-lulu-cutover-plan.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w4-production-lulu-cutover-plan.md)
+  - the sibling-group follow-on artifact now also exists at [`w41-production-lulu-cutover-plan.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w41-production-lulu-cutover-plan.md)
 
 ---
 

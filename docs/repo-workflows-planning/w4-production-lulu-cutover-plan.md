@@ -64,6 +64,12 @@
     - `SHIPPED` does not incorrectly set `delivered_at`
     - terminal `CANCELED` / `REJECTED` states stamp `print_fulfillment_finished_at`
     - fresh live admin refresh on `441-0329202-9000007` now returns `luluStatus = "CANCELED"`, `status = "cancelled"`, and `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
+  - repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) now also reads the latest `lulu_webhook_log` row per `lulu_job_id` and surfaces a webhook freshness signal in [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx)
+  - backend deploy revision [`6e333530.little-hero-labs-admin.pages.dev`](https://6e333530.little-hero-labs-admin.pages.dev) carries that operator signal
+  - live verification against order `441-0329202-9000007` now matches the raw webhook log exactly:
+    - preview and production both return `webhookSignal.latestStatus = "CANCELED"`
+    - both return `webhookSignal.deliveryState = "received"` with `deliveryReason = "latest_webhook_applied"`
+    - the newest raw webhook log rows for `2806687` are `CANCELED`, `PRODUCTION_DELAYED`, then `UNPAID`, all with `updated = true`
   - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
 - The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
 - The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.

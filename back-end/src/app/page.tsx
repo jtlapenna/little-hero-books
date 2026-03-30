@@ -45,6 +45,16 @@ interface W4ProductionResponse {
   summary?: W4ProductionSummary;
 }
 
+interface W41ProductionSummary {
+  candidateCount: number;
+  preflightReady: number;
+  inspectOnly: number;
+}
+
+interface W41ProductionResponse {
+  summary?: W41ProductionSummary;
+}
+
 interface W41RecoverySummary {
   candidateCount: number;
   replayReady: number;
@@ -71,6 +81,7 @@ export default function HomePage() {
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [w2aRecoverySummary, setW2ARecoverySummary] = useState<W2ARecoverySummary | null>(null);
   const [w4ProductionSummary, setW4ProductionSummary] = useState<W4ProductionSummary | null>(null);
+  const [w41ProductionSummary, setW41ProductionSummary] = useState<W41ProductionSummary | null>(null);
   const [w4RecoverySummary, setW4RecoverySummary] = useState<W4RecoverySummary | null>(null);
   const [w41RecoverySummary, setW41RecoverySummary] = useState<W41RecoverySummary | null>(null);
   const [workflowJobsSummary, setWorkflowJobsSummary] = useState<WorkflowJobsSummary | null>(null);
@@ -83,6 +94,7 @@ export default function HomePage() {
           attentionResponse,
           w2aRecoveryResponse,
           w4ProductionResponse,
+          w41ProductionResponse,
           w4RecoveryResponse,
           w41RecoveryResponse,
           workflowJobsResponse,
@@ -90,6 +102,7 @@ export default function HomePage() {
           fetch('/api/admin/orders-needing-attention'),
           fetch('/api/admin/w2a-recovery?hours=72&limit=10'),
           fetch('/api/admin/w4-production?hours=336&limit=10'),
+          fetch('/api/admin/w41-production?hours=336&limit=10'),
           fetch('/api/admin/w4-recovery?hours=72&limit=10'),
           fetch('/api/admin/w41-recovery?hours=72&limit=10'),
           fetch('/api/admin/workflow-jobs?hours=72&limit=12'),
@@ -119,6 +132,11 @@ export default function HomePage() {
         if (w4ProductionResponse.ok) {
           const productionData = (await w4ProductionResponse.json()) as W4ProductionResponse;
           setW4ProductionSummary(productionData.summary || null);
+        }
+
+        if (w41ProductionResponse.ok) {
+          const productionData = (await w41ProductionResponse.json()) as W41ProductionResponse;
+          setW41ProductionSummary(productionData.summary || null);
         }
 
         if (w4RecoveryResponse.ok) {
@@ -267,6 +285,30 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-emerald-700" />
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {!loading && w41ProductionSummary && w41ProductionSummary.candidateCount > 0 && (
+          <div className="mb-8 max-w-4xl mx-auto">
+            <Link
+              href="/admin/w41-production"
+              className="block bg-fuchsia-50 border-2 border-fuchsia-200 rounded-lg p-4 hover:bg-fuchsia-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShieldAlert className="h-6 w-6 text-fuchsia-700 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-fuchsia-950">
+                      {w41ProductionSummary.candidateCount} W4.1 Paid Print Candidate{w41ProductionSummary.candidateCount !== 1 ? 's' : ''}
+                    </h3>
+                    <p className="text-sm text-fuchsia-800 mt-1">
+                      preflight ready: {w41ProductionSummary.preflightReady} • inspect first: {w41ProductionSummary.inspectOnly}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-fuchsia-700" />
               </div>
             </Link>
           </div>

@@ -1,5 +1,29 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 30, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first grouped paid-cutover slice for `W4.1` now exists and is live in the admin app, but grouped paid Lulu submit is still intentionally unreachable.
+>
+> What changed in repo/backend:
+>
+> - new grouped preflight helper [`w41-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-production-preflight.ts) now inspects sibling readiness by `rootGroupId`, summarizes grouped shipping/contact state, and fails closed on proof-like or already-submitted groups
+> - new grouped approval helper [`w41-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-production-approval.ts) now mints short-lived approval tokens scoped to one sibling root group
+> - new admin API [`/api/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-production/route.ts) and admin page [`/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-production/page.tsx) expose grouped paid-print inspection separately from sandbox recovery
+> - nav and admin home now link to the new grouped production surface, and focused regressions live in [`test-w41-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w41-production-approval.ts) and [`test-w41-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w41-production-preflight.ts)
+> - an early live/runtime bug in this slice was real: deployed code was still selecting nonexistent column `manifest_3_key` from `orders`; that column is now removed from grouped preflight selection, and the rebuilt/deployed route now matches local behavior
+> - backend deploy revision [`940d16d6.little-hero-labs-admin.pages.dev`](https://940d16d6.little-hero-labs-admin.pages.dev) carries the corrected grouped preflight slice
+>
+> Live verification from this pass:
+>
+> - local route handler invocation with a real `NextRequest` returned `200` and the expected fail-closed proof result for sibling group `441-0324-161613`
+> - preview deploy [`940d16d6.little-hero-labs-admin.pages.dev`](https://940d16d6.little-hero-labs-admin.pages.dev) and production [`admin.littleherolabs.com`](https://admin.littleherolabs.com) now both return:
+>   - `candidateCount = 0`
+>   - `preflightReady = 0`
+>   - `inspectOnly = 0`
+>   - `safeForProductionPilot = false`
+>   - `recommendedReason = "proof_or_non_production_group"`
+> - no grouped approval token was minted for that proof-like sibling group, and no Lulu sandbox or production job was created during this slice
+>
+> Practical meaning: `W4.1` now has the repo-owned grouped paid-print inspection and approval-token layer needed before any sibling-group paid pilot is even considered. The next grouped production step is still non-billable: lock workflow/export contracts so sandbox responses cannot reach grouped paid Lulu nodes, then add grouped production dry-run support.
+>
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first real paid `W4` pilot is now also proven through post-submit lifecycle normalization after manual cancellation in Lulu.
 >
 > What changed in repo/backend:
@@ -9,6 +33,10 @@
 > - the specific lifecycle bug fixed here was real: the Lulu webhook path could mark `delivered_at` on a mere `SHIPPED` event, while other paths did not; terminal statuses are now normalized consistently and `SHIPPED` no longer backfills `delivered_at`
 > - focused regression coverage now lives in [`test-lulu-status-map.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-lulu-status-map.ts)
 > - backend deploy revision [`9c1ea4a6.little-hero-labs-admin.pages.dev`](https://9c1ea4a6.little-hero-labs-admin.pages.dev) carries the lifecycle-normalization fix
+> - repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) now reads the latest [`lulu_webhook_log`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts) row per `lulu_job_id` and surfaces a redacted webhook freshness signal through [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx)
+> - the new signal reports whether the latest Lulu webhook was received, applied, stale, missing, or failed, without requiring a manual refresh to understand freshness
+> - focused regression coverage for that operator view now lives in [`test-w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-production-preflight.ts)
+> - backend deploy revision [`6e333530.little-hero-labs-admin.pages.dev`](https://6e333530.little-hero-labs-admin.pages.dev) carries the webhook-freshness signal
 >
 > What changed in live/runtime state:
 >
@@ -17,8 +45,16 @@
 > - that same refresh now also records a terminal print timestamp: `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
 > - the order still correctly preserves the successful real submit evidence from the pilot itself: `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`
 > - no new Lulu production job was created during this lifecycle verification
+> - raw Supabase webhook log rows for `2806687` now confirm end-to-end automatic delivery rather than manual-only state refresh:
+>   - `UNPAID` at `2026-03-30T04:30:42.57788+00:00`
+>   - `PRODUCTION_DELAYED` at `2026-03-30T04:30:54.35245+00:00`
+>   - `CANCELED` at `2026-03-30T04:51:58.221333+00:00`
+> - both preview deploy [`6e333530.little-hero-labs-admin.pages.dev`](https://6e333530.little-hero-labs-admin.pages.dev) and production [`admin.littleherolabs.com`](https://admin.littleherolabs.com) now return the same W4 production inspection signal for order `441-0329202-9000007`:
+>   - `webhookSignal.latestStatus = "CANCELED"`
+>   - `webhookSignal.deliveryState = "received"`
+>   - `webhookSignal.deliveryReason = "latest_webhook_applied"`
 >
-> Practical meaning: the repo-centric single-order `W4` path is now proven not only through a real paid Lulu submit, but also through a post-submit cancellation/status-refresh cycle. The next production gap is no longer “can we submit and see Lulu state?” It is process hardening: do the deferred secret rotation, then decide whether a second paid pilot is worth running.
+> Practical meaning: the repo-centric single-order `W4` path is now proven not only through a real paid Lulu submit, but also through automatic post-submit webhook delivery plus a post-cancellation lifecycle update that is visible from the repo-owned admin surface. The next production gap is no longer “can we submit and see Lulu state?” It is process hardening: do the deferred secret rotation, then decide whether a second paid pilot is worth running.
 >
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the second real paid single-order `W4` pilot is now through the real production seam with the shipping-level fix in place, and the production env gate is back off after the run.
 >
@@ -275,7 +311,7 @@
 > - backend deploy revision [3c4a040b.little-hero-labs-admin.pages.dev](https://3c4a040b.little-hero-labs-admin.pages.dev)
 > - production admin views now show historical failed proof jobs `155` / `156` / `157` plus clean successful sandbox proof `158`
 >
-> Practical meaning: `W4.1` is no longer just “sandbox-safe in theory.” The imported repo-centric sibling workflow now has a clean disposable sandbox proof, operator-facing recovery, and shared workflow-job visibility. The next planning item should be a separate production-Lulu cutover plan with explicit paid-job guardrails, not more ad hoc sandbox drift.
+> Practical meaning: `W4.1` is no longer just “sandbox-safe in theory.” The imported repo-centric sibling workflow now has a clean disposable sandbox proof, operator-facing recovery, and shared workflow-job visibility. The follow-on production planning artifact now exists at [w41-production-lulu-cutover-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w41-production-lulu-cutover-plan.md), which keeps grouped paid-submit work explicitly separate from the sandbox proof thread.
 >
 > - that planning artifact now exists at [w4-production-lulu-cutover-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w4-production-lulu-cutover-plan.md)
 >

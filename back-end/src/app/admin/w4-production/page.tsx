@@ -39,6 +39,14 @@ type ProductionInspection = ProductionCandidate & {
   resolvedVia: string;
   safeForProductionPilot: boolean;
   inspectionError: string | null;
+  webhookSignal: {
+    latestReceivedAt: string | null;
+    latestStatus: string | null;
+    latestUpdated: boolean | null;
+    latestErrorMessage: string | null;
+    deliveryState: 'not_applicable' | 'missing' | 'received' | 'error' | 'stale';
+    deliveryReason: string;
+  };
   preflight: {
     submitMode: 'sandbox' | 'skip' | 'production';
     luluApiBase: string;
@@ -123,6 +131,36 @@ function actionClasses(action: ProductionAction): string {
       return 'border-emerald-200 bg-emerald-100 text-emerald-800';
     case 'inspect':
       return 'border-amber-200 bg-amber-100 text-amber-900';
+    default:
+      return 'border-gray-200 bg-gray-100 text-gray-700';
+  }
+}
+
+function webhookStateLabel(state: ProductionInspection['webhookSignal']['deliveryState']): string {
+  switch (state) {
+    case 'received':
+      return 'Webhook received';
+    case 'missing':
+      return 'No webhook yet';
+    case 'stale':
+      return 'Webhook stale';
+    case 'error':
+      return 'Webhook error';
+    default:
+      return 'Not applicable';
+  }
+}
+
+function webhookStateClasses(state: ProductionInspection['webhookSignal']['deliveryState']): string {
+  switch (state) {
+    case 'received':
+      return 'border-emerald-200 bg-emerald-100 text-emerald-800';
+    case 'missing':
+      return 'border-amber-200 bg-amber-100 text-amber-900';
+    case 'stale':
+      return 'border-orange-200 bg-orange-100 text-orange-900';
+    case 'error':
+      return 'border-rose-200 bg-rose-100 text-rose-900';
     default:
       return 'border-gray-200 bg-gray-100 text-gray-700';
   }
@@ -439,6 +477,36 @@ function W4ProductionPageContent() {
                   <div className="rounded-xl border border-gray-200 p-4">
                     <dt className="font-medium text-gray-500">Recommendation</dt>
                     <dd className="mt-1 font-medium text-gray-950">{inspectedOrder.recommendedReason}</dd>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <dt className="font-medium text-gray-500">Lulu webhook freshness</dt>
+                        <dd className="mt-1 text-gray-950">
+                          latest status: {inspectedOrder.webhookSignal.latestStatus ?? 'N/A'}
+                        </dd>
+                        <div className="mt-1 text-xs text-gray-500">
+                          received: {formatTimestamp(inspectedOrder.webhookSignal.latestReceivedAt)} • applied:{' '}
+                          {String(inspectedOrder.webhookSignal.latestUpdated)}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          reason: {inspectedOrder.webhookSignal.deliveryReason}
+                        </div>
+                        {inspectedOrder.webhookSignal.latestErrorMessage ? (
+                          <div className="mt-2 text-xs text-rose-700">
+                            {inspectedOrder.webhookSignal.latestErrorMessage}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div
+                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${webhookStateClasses(
+                          inspectedOrder.webhookSignal.deliveryState,
+                        )}`}
+                      >
+                        {webhookStateLabel(inspectedOrder.webhookSignal.deliveryState)}
+                      </div>
+                    </div>
                   </div>
 
                   {inspectedOrder.inspectionError && (

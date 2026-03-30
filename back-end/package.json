@@ -45,6 +45,8 @@
     "test:w4-print-input": "tsx scripts/test-w4-print-input.ts",
     "test:w4-production-approval": "tsx scripts/test-w4-production-approval.ts",
     "test:w4-production-preflight": "tsx scripts/test-w4-production-preflight.ts",
+    "test:w41-production-approval": "tsx scripts/test-w41-production-approval.ts",
+    "test:w41-production-preflight": "tsx scripts/test-w41-production-preflight.ts",
     "test:w4-recovery": "tsx scripts/test-w4-recovery.ts",
     "test:w41-recovery": "tsx scripts/test-w41-recovery.ts",
     "test:lulu-status-map": "tsx scripts/test-lulu-status-map.ts",

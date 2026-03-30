@@ -81,11 +81,35 @@ export type W4ProductionPreflight = {
   };
 };
 
+export type W4ProductionWebhookDeliveryState =
+  | 'not_applicable'
+  | 'missing'
+  | 'received'
+  | 'error'
+  | 'stale';
+
+export type W4ProductionWebhookSignal = {
+  latestReceivedAt: string | null;
+  latestStatus: string | null;
+  latestUpdated: boolean | null;
+  latestErrorMessage: string | null;
+  deliveryState: W4ProductionWebhookDeliveryState;
+  deliveryReason: string;
+};
+
 export type W4ProductionInspection = W4ProductionCandidate & {
   resolvedVia: 'id' | 'orderId' | 'order_id' | 'root_order_id' | 'amazon_order_id' | 'none';
   safeForProductionPilot: boolean;
   inspectionError: string | null;
   preflight: W4ProductionPreflight | null;
+  webhookSignal: W4ProductionWebhookSignal;
+};
+
+type W4ProductionWebhookLogRow = {
+  received_at?: string | null;
+  status_name?: string | null;
+  updated?: boolean | null;
+  error_message?: string | null;
 };
 
 type ProductionPreflightDependencies = {
@@ -95,6 +119,7 @@ type ProductionPreflightDependencies = {
   buildPrintInput: typeof buildW4PrintInput;
   buildSubmitInput: typeof buildW4SubmitInput;
   headObject: typeof headObject;
+  loadLatestWebhookLog: (printJobId: string) => Promise<W4ProductionWebhookLogRow | null>;
 };
 
 const defaultDependencies: ProductionPreflightDependencies = {
@@ -108,6 +133,21 @@ const defaultDependencies: ProductionPreflightDependencies = {
   buildPrintInput: buildW4PrintInput,
   buildSubmitInput: buildW4SubmitInput,
   headObject,
+  loadLatestWebhookLog: async (printJobId) => {
+    const { data, error } = await supabase
+      .from('lulu_webhook_log')
+      .select('received_at, status_name, updated, error_message')
+      .eq('print_job_id', printJobId)
+      .order('received_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? null) as W4ProductionWebhookLogRow | null;
+  },
 };
 
 export const W4_PRODUCTION_ORDER_SELECT_FIELDS =
@@ -316,6 +356,83 @@ export function buildW4ProductionPreflight(
   };
 }
 
+function buildWebhookSignal(
+  orderRow: W4ProductionOrderRow,
+  webhookLog: W4ProductionWebhookLogRow | null,
+  loadError?: string | null,
+): W4ProductionWebhookSignal {
+  const luluJobId = toTrimmedString(orderRow.lulu_job_id);
+  if (!luluJobId) {
+    return {
+      latestReceivedAt: null,
+      latestStatus: null,
+      latestUpdated: null,
+      latestErrorMessage: null,
+      deliveryState: 'not_applicable',
+      deliveryReason: 'no_lulu_job_id',
+    };
+  }
+
+  if (loadError) {
+    return {
+      latestReceivedAt: null,
+      latestStatus: null,
+      latestUpdated: null,
+      latestErrorMessage: loadError,
+      deliveryState: 'error',
+      deliveryReason: 'webhook_log_lookup_failed',
+    };
+  }
+
+  if (!webhookLog) {
+    return {
+      latestReceivedAt: null,
+      latestStatus: null,
+      latestUpdated: null,
+      latestErrorMessage: null,
+      deliveryState: 'missing',
+      deliveryReason: 'no_webhook_log_entries',
+    };
+  }
+
+  const latestReceivedAt = toIsoString(webhookLog.received_at);
+  const latestStatus = toTrimmedString(webhookLog.status_name);
+  const latestUpdated = typeof webhookLog.updated === 'boolean' ? webhookLog.updated : null;
+  const latestErrorMessage = toTrimmedString(webhookLog.error_message);
+  const currentStatus = toTrimmedString(orderRow.lulu_status);
+
+  if (latestErrorMessage || latestUpdated === false) {
+    return {
+      latestReceivedAt,
+      latestStatus,
+      latestUpdated,
+      latestErrorMessage,
+      deliveryState: 'error',
+      deliveryReason: latestErrorMessage ? 'webhook_update_failed' : 'webhook_not_applied',
+    };
+  }
+
+  if (currentStatus && latestStatus && currentStatus !== latestStatus) {
+    return {
+      latestReceivedAt,
+      latestStatus,
+      latestUpdated,
+      latestErrorMessage,
+      deliveryState: 'stale',
+      deliveryReason: 'order_status_differs_from_latest_webhook',
+    };
+  }
+
+  return {
+    latestReceivedAt,
+    latestStatus,
+    latestUpdated,
+    latestErrorMessage,
+    deliveryState: 'received',
+    deliveryReason: 'latest_webhook_applied',
+  };
+}
+
 async function listMissingPrintAssets(
   printInput: BuildW4PrintInputResult,
   headObjectImpl: typeof headObject,
@@ -389,6 +506,21 @@ export async function inspectW4ProductionRow(
 
   let preflight: W4ProductionPreflight | null = null;
   let inspectionError: string | null = null;
+  let webhookSignal: W4ProductionWebhookSignal = buildWebhookSignal(orderRow, null);
+
+  const luluJobId = toTrimmedString(orderRow.lulu_job_id);
+  if (luluJobId) {
+    try {
+      const latestWebhookLog = await deps.loadLatestWebhookLog(luluJobId);
+      webhookSignal = buildWebhookSignal(orderRow, latestWebhookLog);
+    } catch (error) {
+      webhookSignal = buildWebhookSignal(
+        orderRow,
+        null,
+        error instanceof Error ? error.message : 'Unknown webhook lookup failure',
+      );
+    }
+  }
 
   if (!candidate.hasRealSubmission) {
     try {
@@ -437,6 +569,7 @@ export async function inspectW4ProductionRow(
     ),
     inspectionError,
     preflight,
+    webhookSignal,
   };
 }
 
