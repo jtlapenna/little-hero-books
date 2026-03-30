@@ -152,9 +152,17 @@ async function testBuildGroupedPreflightSummary(): Promise<void> {
     ],
   } as Parameters<typeof buildW41ProductionPreflight>[0];
   const fakeSubmitInput: Parameters<typeof buildW41ProductionPreflight>[1] = {
-    submitMode: 'sandbox',
-    luluApiBase: 'https://api.sandbox.lulu.com',
-    guard: { reason: 'sandbox' },
+    submitMode: 'skip',
+    luluApiBase: 'https://api.lulu.com',
+    guard: { reason: 'production_dry_run' },
+    productionGuard: {
+      requested: true,
+      allowed: true,
+      reason: 'production_ready',
+      checkedAt: '2026-03-30T18:12:00.000Z',
+      envEnabled: false,
+      dryRun: true,
+    },
     shippingLevelRequested: 'STANDARD',
     shippingLevelSent: 'MAIL',
     shippingTierResolvedReason: 'amazon',
@@ -211,9 +219,17 @@ async function testInspectRowsCanMintPaidCandidateState(): Promise<void> {
     ],
   };
   const fakeSubmitInput: Parameters<typeof buildW41ProductionPreflight>[1] = {
-    submitMode: 'sandbox',
-    luluApiBase: 'https://api.sandbox.lulu.com',
-    guard: { reason: 'sandbox' },
+    submitMode: 'skip',
+    luluApiBase: 'https://api.lulu.com',
+    guard: { reason: 'production_dry_run' },
+    productionGuard: {
+      requested: true,
+      allowed: true,
+      reason: 'production_ready',
+      checkedAt: '2026-03-30T18:12:00.000Z',
+      envEnabled: false,
+      dryRun: true,
+    },
     shippingLevelRequested: 'STANDARD',
     shippingLevelSent: 'MAIL',
     shippingTierResolvedReason: 'amazon',
@@ -246,7 +262,8 @@ async function testInspectRowsCanMintPaidCandidateState(): Promise<void> {
   assert(
     inspection.safeForProductionPilot === true &&
       inspection.preflight?.childSummaries.length === 2 &&
-      inspection.preflight?.guard.reason === 'sandbox',
+      inspection.preflight?.guard.reason === 'production_dry_run' &&
+      inspection.preflight?.productionGuard.reason === 'production_ready',
     'Expected grouped W4.1 inspection to mark a fully ready sibling group safe for later paid approval token minting',
   );
 }

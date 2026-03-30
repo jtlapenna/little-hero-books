@@ -70,6 +70,7 @@ export type W41ProductionPreflight = {
   submitMode: BuildW4SiblingSubmitInputResult['submitMode'];
   luluApiBase: string;
   guard: BuildW4SiblingSubmitInputResult['guard'];
+  productionGuard: BuildW4SiblingSubmitInputResult['productionGuard'];
   shippingLevelRequested: string | null;
   shippingLevelSent: string;
   shippingTierResolvedReason: string;
@@ -369,6 +370,7 @@ export function buildW41ProductionPreflight(
     submitMode: submitInput.submitMode,
     luluApiBase: submitInput.luluApiBase,
     guard: submitInput.guard,
+    productionGuard: submitInput.productionGuard,
     shippingLevelRequested: submitInput.shippingLevelRequested,
     shippingLevelSent: submitInput.shippingLevelSent,
     shippingTierResolvedReason: submitInput.shippingTierResolvedReason,
@@ -553,6 +555,8 @@ export async function inspectW41ProductionRows(
       const submitInput = await deps.buildSubmitInput(
         {
           ...printInput,
+          allowProductionLulu: true,
+          productionDryRun: true,
         },
         {
           loadOrder: deps.loadOrder,
@@ -578,8 +582,10 @@ export async function inspectW41ProductionRows(
       !inspectionError &&
         candidate.recommendedAction === 'preflight' &&
         preflight &&
-        preflight.submitMode === 'sandbox' &&
-        preflight.guard.reason === 'sandbox',
+        preflight.submitMode === 'skip' &&
+        preflight.guard.reason === 'production_dry_run' &&
+        preflight.productionGuard.allowed &&
+        preflight.productionGuard.reason === 'production_ready',
     ),
     inspectionError,
     preflight,

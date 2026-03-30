@@ -1,5 +1,26 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 30, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the next grouped `W4.1` paid-cutover slice is now implemented in repo code and export contracts, but still remains non-billable by design.
+>
+> What changed in repo/backend:
+>
+> - grouped sibling submit builder [`w4-sibling-print-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-sibling-print-input.ts) now supports explicit grouped production intent, grouped production dry-run, short-lived grouped approval tokens, and fail-closed grouped production guard reporting
+> - grouped paid preflight helper [`w41-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-production-preflight.ts) now inspects `W4.1` by calling the sibling submit builder in production-dry-run mode instead of plain sandbox mode, so `/admin/w41-production` now reflects grouped production readiness rather than sandbox submit shape
+> - admin page [`/admin/w41-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-production/page.tsx) now shows grouped production guard state directly, including whether the group is dry-run-ready or blocked
+> - repo export [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json) now forwards grouped production metadata (`allowProductionLulu`, `productionDryRun`, `productionApprovalToken`) into the repo-owned sibling submit builder
+> - the active grouped Lulu nodes still fail closed on any non-sandbox `submitMode`: token, validation, and submit nodes now all throw if grouped production metadata tries to reach the live sandbox submit branch
+> - focused regressions now live in [`test-w4-sibling-print-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-sibling-print-input.ts), [`test-w41-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w41-production-preflight.ts), and [`test-book-kernel.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-book-kernel.ts)
+>
+> Verification from this pass:
+>
+> - `test:w4-sibling-print-input`
+> - `test:w41-production-preflight`
+> - `test:w41-production-approval`
+> - `test:book-kernel`
+> - targeted `eslint` on the grouped `W4.1` backend/preflight/export coverage files
+>
+> Practical meaning: grouped `W4.1` production dry-run semantics now exist in repo code and the export contract is locked so the active sibling workflow cannot accidentally reach paid Lulu nodes. The next grouped production step is still non-billable: deploy/import this slice if desired, then inspect one fresh non-proof sibling group through `/admin/w41-production` before any grouped paid pilot is even considered.
+>
 > Update — later on March 30, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first grouped paid-cutover slice for `W4.1` now exists and is live in the admin app, but grouped paid Lulu submit is still intentionally unreachable.
 >
 > What changed in repo/backend:

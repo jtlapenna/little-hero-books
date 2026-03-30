@@ -42,10 +42,20 @@ type ProductionInspection = ProductionCandidate & {
   safeForProductionPilot: boolean;
   inspectionError: string | null;
   preflight: {
-    submitMode: 'sandbox' | 'skip';
+    submitMode: 'sandbox' | 'skip' | 'production';
     luluApiBase: string;
     guard: {
       reason: string;
+      details?: string;
+    };
+    productionGuard: {
+      requested: boolean;
+      allowed: boolean;
+      reason: string;
+      checkedAt: string;
+      envEnabled: boolean;
+      dryRun: boolean;
+      missingShippingFields?: string[];
       details?: string;
     };
     shippingLevelRequested: string | null;
@@ -451,6 +461,14 @@ function W41ProductionPageContent() {
                     <div className="mt-2">submit mode: {inspectedGroup.preflight.submitMode}</div>
                     <div>Lulu base: {inspectedGroup.preflight.luluApiBase}</div>
                     <div>guard: {inspectedGroup.preflight.guard.reason}</div>
+                    <div>
+                      production guard: {inspectedGroup.preflight.productionGuard.reason}
+                      {inspectedGroup.preflight.productionGuard.allowed ? ' (allowed)' : ' (blocked)'}
+                    </div>
+                    <div>
+                      env enabled: {String(inspectedGroup.preflight.productionGuard.envEnabled)} • dry run:{' '}
+                      {String(inspectedGroup.preflight.productionGuard.dryRun)}
+                    </div>
                   </div>
                   <div className="rounded-xl border border-fuchsia-200 bg-white p-4 text-sm text-gray-700">
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">

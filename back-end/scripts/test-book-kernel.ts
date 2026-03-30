@@ -1695,14 +1695,21 @@ assert(
     JSON.stringify(repoCentricW41AggregateNode.parameters).includes(
       '/api/internal/w4/build-sibling-submit-input',
     ) &&
-    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('rootGroupId'),
-  'Repo-centric W4.1 workflow should call the repo-owned sibling submit-input route after per-sibling PDF work completes',
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('rootGroupId') &&
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('allowProductionLulu') &&
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('productionDryRun') &&
+    JSON.stringify(repoCentricW41AggregateNode.parameters).includes('productionApprovalToken'),
+  'Repo-centric W4.1 workflow should call the repo-owned sibling submit-input route after per-sibling PDF work completes and forward grouped production metadata to the repo-owned builder',
 );
 assert(
   repoCentricW41TokenNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW41TokenNode.parameters).includes('https://api.sandbox.lulu.com') &&
-    JSON.stringify(repoCentricW41TokenNode.parameters).includes('if (j.__skipLulu)'),
-  'Repo-centric W4.1 token path should stay sandbox-only and short-circuit skipped sibling groups',
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes('if (j.__skipLulu)') &&
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41TokenNode.parameters).includes(
+      'active Lulu token path only supports sandbox submitMode',
+    ),
+  'Repo-centric W4.1 token path should stay sandbox-only, short-circuit skipped sibling groups, and fail closed if grouped production metadata reaches the active workflow',
 );
 assert(
   normalizeWorkflowCodeSnapshot(
@@ -1713,16 +1720,24 @@ assert(
 assert(
   JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('if (j.__skipLulu)') &&
     JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('https://api.sandbox.lulu.com') &&
+    JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes(
+      'active Lulu validation path only supports sandbox submitMode',
+    ) &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('lulu_job_id=not.is.null') &&
     !JSON.stringify(repoCentricW41ValidateGuardNode?.parameters).includes('cfg.supabase?.projectUrl'),
-  'Repo-centric W4.1 validation node should validate sibling PDFs only against Lulu sandbox and should not re-implement the duplicate-submit guard in n8n',
+  'Repo-centric W4.1 validation node should validate sibling PDFs only against Lulu sandbox, fail closed on grouped production submitMode, and should not re-implement the duplicate-submit guard in n8n',
 );
 assert(
   JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('if (j.__skipLulu)') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('luluSubmitStatusCode: 0') &&
     JSON.stringify(repoCentricW41SubmitNode?.parameters).includes('https://api.sandbox.lulu.com') &&
+    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes("j.submitMode === 'production'") &&
+    JSON.stringify(repoCentricW41SubmitNode?.parameters).includes(
+      'active Lulu submit path only supports sandbox submitMode',
+    ) &&
     repoCentricW41ValidateGuardConnections.includes('"node":"Submit Lulu Print Job"'),
-  'Repo-centric W4.1 submit path should stay sandbox-only and short-circuit cleanly when the repo-owned guard marks the group as skipped',
+  'Repo-centric W4.1 submit path should stay sandbox-only, short-circuit cleanly when the repo-owned guard marks the group as skipped, and reject grouped production submitMode on the active workflow',
 );
 assert(
   repoCentricW41RenderInteriorNode?.type === 'n8n-nodes-base.code' &&

@@ -1,9 +1,13 @@
 import { buildW4PrintInput, type BuildW4PrintInputResult } from '@/lib/books/w4-print-input';
 import type { LoadManifestForW4, LoadOrderForW4 } from '@/lib/books/w4-print-input';
 import { getBucketFromKey } from '@/lib/r2-utils';
+import { verifyW41ProductionApprovalToken } from '@/lib/w41-production-approval';
 
 type JsonRecord = Record<string, unknown>;
 const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
+const DEFAULT_PRODUCTION_LULU_API_BASE = 'https://api.lulu.com';
+const PRODUCTION_SUBMIT_ENV = 'ENABLE_LULU_PRODUCTION_SUBMIT';
+const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
 
 export type SignObjectUrlForW4Sibling = (
   key: string,
@@ -42,7 +46,7 @@ export interface BuildW4SiblingSubmitInputResult {
   siblingCount: number;
   orderIds: string[];
   siblings: BuildW4SiblingSubmitItem[];
-  submitMode: 'sandbox' | 'skip';
+  submitMode: 'sandbox' | 'skip' | 'production';
   luluApiBase: string;
   luluPayload: JsonRecord;
   shippingAddress: JsonRecord;
@@ -53,7 +57,36 @@ export interface BuildW4SiblingSubmitInputResult {
   amazon_shipment_service_level: string | null;
   __skipLulu: boolean;
   guard: {
-    reason: 'test_mode' | 'existing_job' | 'sandbox';
+    reason:
+      | 'test_mode'
+      | 'existing_job'
+      | 'sandbox'
+      | 'production'
+      | 'production_dry_run'
+      | 'production_blocked';
+    details?: string;
+  };
+  productionGuard: {
+    requested: boolean;
+    allowed: boolean;
+    reason:
+      | 'production_not_requested'
+      | 'production_ready'
+      | 'env_disabled'
+      | 'proof_order'
+      | 'missing_order_row'
+      | 'customer_approval_pending'
+      | 'order_not_ready'
+      | 'shipping_address_invalid'
+      | 'page_count_invalid'
+      | 'approval_missing'
+      | 'approval_invalid'
+      | 'existing_job'
+      | 'test_mode';
+    checkedAt: string;
+    envEnabled: boolean;
+    dryRun: boolean;
+    missingShippingFields?: string[];
     details?: string;
   };
   luluJobId: string | null;
@@ -490,7 +523,7 @@ function deriveAmazonShippingLevel(sibling: JsonRecord): string | null {
   );
 }
 
-function withSandboxConfig(input: JsonRecord): JsonRecord {
+function withLuluApiBase(input: JsonRecord, apiBase: string): JsonRecord {
   const currentConfig =
     Object.keys(toRecord(input.CONFIG)).length > 0
       ? toRecord(input.CONFIG)
@@ -500,9 +533,81 @@ function withSandboxConfig(input: JsonRecord): JsonRecord {
     ...currentConfig,
     lulu: {
       ...currentLulu,
-      apiBase: SANDBOX_LULU_API_BASE,
+      apiBase,
     },
   };
+}
+
+function withSandboxConfig(input: JsonRecord): JsonRecord {
+  return withLuluApiBase(input, SANDBOX_LULU_API_BASE);
+}
+
+function isProofOrderIdentifier(value: unknown): boolean {
+  const normalized = toTrimmedString(value);
+  return normalized ? PROOF_ORDER_PATTERN.test(normalized) : false;
+}
+
+function isProductionSubmitEnabled(): boolean {
+  return toBoolean(process.env[PRODUCTION_SUBMIT_ENV]);
+}
+
+function getProductionLuluApiBase(input: JsonRecord): string {
+  const configured =
+    toTrimmedString(toRecord(toRecord(input.CONFIG).lulu).apiBase) ??
+    toTrimmedString(process.env.LULU_API_BASE) ??
+    DEFAULT_PRODUCTION_LULU_API_BASE;
+
+  return configured.replace(/\/+$/, '');
+}
+
+function hasExplicitProductionIntent(input: JsonRecord): boolean {
+  return toBoolean(
+    pickFirstNonEmpty(
+      input.allowProductionLulu,
+      toRecord(input.production).allowProductionLulu,
+      toRecord(input.guard).allowProductionLulu,
+    ),
+  );
+}
+
+function isProductionDryRun(input: JsonRecord): boolean {
+  return toBoolean(
+    pickFirstNonEmpty(
+      input.productionDryRun,
+      input.validateOnly,
+      toRecord(input.production).dryRun,
+      toRecord(input.production).validateOnly,
+    ),
+  );
+}
+
+function resolveProductionApprovalToken(input: JsonRecord): string | null {
+  return toTrimmedString(
+    pickFirstNonEmpty(
+      input.productionApprovalToken,
+      input.production_approval_token,
+      toRecord(input.production).approvalToken,
+      toRecord(input.production).productionApprovalToken,
+      toRecord(input.guard).approvalToken,
+      toRecord(input.guard).productionApprovalToken,
+    ),
+  );
+}
+
+function validateProductionShippingAddress(shippingAddress: JsonRecord): string[] {
+  const requiredFields: Array<[string, unknown]> = [
+    ['name', shippingAddress.name],
+    ['street1', pickFirstNonEmpty(shippingAddress.street1, shippingAddress.address_line_1)],
+    ['city', shippingAddress.city],
+    ['state_code', shippingAddress.state_code],
+    ['postcode', shippingAddress.postcode],
+    ['country_code', shippingAddress.country_code],
+    ['phone_number', pickFirstNonEmpty(shippingAddress.phone_number, shippingAddress.phone)],
+  ];
+
+  return requiredFields
+    .filter(([, value]) => !toTrimmedString(value))
+    .map(([field]) => field);
 }
 
 function toWorkflowJobId(value: unknown): number | null {
@@ -622,6 +727,7 @@ function parseSiblingSubmitInput(input: JsonRecord | unknown[]): {
   rootGroupId: string;
   rootOrderId: string;
   siblings: BuildW4SiblingPrintItem[];
+  requestInput: JsonRecord;
   workflowJobId: number | null;
   workflowJobIdempotencyKey: string | null;
   workflowAttemptId: number | null;
@@ -684,14 +790,26 @@ function parseSiblingSubmitInput(input: JsonRecord | unknown[]): {
     throw new Error('W4.1 sibling submit input could not resolve rootGroupId/rootOrderId');
   }
 
-  return {
-    config: {
-      ...resolveGroupConfig(envelope),
-      ...toRecord(firstSibling.CONFIG),
-    },
+  const requestInput: JsonRecord = {
+    ...payload,
+    ...nested,
+    ...envelope,
+    ...toRecord(firstSibling),
     rootGroupId,
     rootOrderId,
     siblings: sortedSiblings,
+    CONFIG: {
+      ...resolveGroupConfig(envelope),
+      ...toRecord(firstSibling.CONFIG),
+    },
+  };
+
+  return {
+    config: toRecord(requestInput.CONFIG),
+    rootGroupId,
+    rootOrderId,
+    siblings: sortedSiblings,
+    requestInput,
     ...resolveWorkflowFieldsFromSibling(firstSibling),
   };
 }
@@ -858,6 +976,243 @@ async function getExistingLuluSubmission(
   };
 }
 
+type ProductionGuardEvaluation = BuildW4SiblingSubmitInputResult['productionGuard'];
+
+type ProductionPageCountSummary = {
+  valid: boolean;
+  details?: string;
+};
+
+function evaluateSiblingProductionPageCounts(
+  siblings: BuildW4SiblingPrintItem[],
+): ProductionPageCountSummary {
+  const invalid = siblings.filter((sibling) => {
+    const pageCount = toInteger(sibling.expectedPageCount);
+    return pageCount === null || pageCount < 4 || pageCount > 48;
+  });
+
+  if (!invalid.length) {
+    return { valid: true };
+  }
+
+  return {
+    valid: false,
+    details: invalid
+      .map((sibling) => `${sibling.orderId}:${toInteger(sibling.expectedPageCount) ?? 'missing'}`)
+      .join(','),
+  };
+}
+
+async function loadSiblingOrderRecords(
+  siblings: BuildW4SiblingPrintItem[],
+  loadOrder?: LoadOrderForW4,
+): Promise<Map<string, JsonRecord>> {
+  const records = new Map<string, JsonRecord>();
+  if (!loadOrder) {
+    return records;
+  }
+
+  await Promise.all(
+    siblings.map(async (sibling) => {
+      const loaded = await loadOrder(sibling.orderId).catch(() => null);
+      records.set(sibling.orderId, toRecord(loaded));
+    }),
+  );
+
+  return records;
+}
+
+function evaluateGroupedProductionGuard(params: {
+  input: JsonRecord;
+  rootGroupId: string;
+  siblings: BuildW4SiblingPrintItem[];
+  orderRecords: Map<string, JsonRecord>;
+  shippingAddress: JsonRecord;
+  existingSubmission: { luluJobId: string; luluStatus: string | null; details: string } | null;
+  defaults: JsonRecord;
+}): ProductionGuardEvaluation {
+  const requested = hasExplicitProductionIntent(params.input);
+  const dryRun = isProductionDryRun(params.input);
+  const checkedAt = new Date().toISOString();
+  const envEnabled = isProductionSubmitEnabled();
+
+  if (!requested) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'production_not_requested',
+      checkedAt,
+      envEnabled,
+      dryRun,
+    };
+  }
+
+  if (params.existingSubmission) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'existing_job',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: params.existingSubmission.details,
+    };
+  }
+
+  if (toBoolean(params.defaults.testMode)) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'test_mode',
+      checkedAt,
+      envEnabled,
+      dryRun,
+    };
+  }
+
+  const orderIds = params.siblings.map((sibling) => sibling.orderId);
+  if (params.orderRecords.size !== orderIds.length || orderIds.some((orderId) => !params.orderRecords.get(orderId))) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'missing_order_row',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: orderIds.filter((orderId) => !params.orderRecords.get(orderId)).join(','),
+    };
+  }
+
+  const proofMarkers = [
+    params.rootGroupId,
+    ...orderIds,
+    ...params.siblings.map((sibling) => sibling.rootOrderId),
+  ];
+  if (proofMarkers.some((value) => isProofOrderIdentifier(value))) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'proof_order',
+      checkedAt,
+      envEnabled,
+      dryRun,
+    };
+  }
+
+  const pendingApprovals = orderIds.filter((orderId) => {
+    const record = params.orderRecords.get(orderId) ?? {};
+    const approvalRequired = toBoolean(record.customer_approval_required);
+    const approvalStatus = toTrimmedString(record.customer_approval_status);
+    return approvalRequired && approvalStatus !== 'approved';
+  });
+  if (pendingApprovals.length > 0) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'customer_approval_pending',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: pendingApprovals.join(','),
+    };
+  }
+
+  const notReadyOrders = orderIds.filter((orderId) => {
+    const record = params.orderRecords.get(orderId) ?? {};
+    const nextWorkflow = toTrimmedString(record.next_workflow);
+    const workflowStep = toTrimmedString(record.workflow_step);
+    const currentWorkflow = toTrimmedString(record.current_workflow);
+    const status = toTrimmedString(record.status);
+    return !(
+      nextWorkflow === '4' ||
+      nextWorkflow === '4.1' ||
+      workflowStep === 'print_fulfillment' ||
+      workflowStep === 'print_fulfillment_started' ||
+      currentWorkflow === '4.1' ||
+      status === 'pending_print'
+    );
+  });
+  if (notReadyOrders.length > 0) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'order_not_ready',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: notReadyOrders.join(','),
+    };
+  }
+
+  const missingShippingFields = validateProductionShippingAddress(params.shippingAddress);
+  if (missingShippingFields.length > 0) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'shipping_address_invalid',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      missingShippingFields,
+    };
+  }
+
+  const pageCountCheck = evaluateSiblingProductionPageCounts(params.siblings);
+  if (!pageCountCheck.valid) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'page_count_invalid',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: pageCountCheck.details,
+    };
+  }
+
+  if (!envEnabled && !dryRun) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'env_disabled',
+      checkedAt,
+      envEnabled,
+      dryRun,
+    };
+  }
+
+  if (!dryRun) {
+    const approvalVerification = verifyW41ProductionApprovalToken({
+      token: resolveProductionApprovalToken(params.input),
+      rootGroupId: params.rootGroupId,
+    });
+
+    if (!approvalVerification.ok) {
+      return {
+        requested,
+        allowed: false,
+        reason:
+          approvalVerification.reason === 'missing'
+            ? 'approval_missing'
+            : 'approval_invalid',
+        checkedAt,
+        envEnabled,
+        dryRun,
+        details: approvalVerification.details ?? approvalVerification.reason,
+      };
+    }
+  }
+
+  return {
+    requested,
+    allowed: true,
+    reason: 'production_ready',
+    checkedAt,
+    envEnabled,
+    dryRun,
+  };
+}
+
 export async function buildW4SiblingSubmitInput(
   input: JsonRecord | unknown[],
   options: BuildW4SiblingSubmitInputOptions,
@@ -964,7 +1319,20 @@ export async function buildW4SiblingSubmitInput(
     })),
   };
 
+  const orderRecords = await loadSiblingOrderRecords(siblings, options.loadOrder);
   const existingSubmission = await getExistingLuluSubmission(siblings, options.loadOrder);
+  const productionGuard = evaluateGroupedProductionGuard({
+    input: parsed.requestInput,
+    rootGroupId: parsed.rootGroupId,
+    siblings,
+    orderRecords,
+    shippingAddress,
+    existingSubmission,
+    defaults,
+  });
+  const productionApiBase = getProductionLuluApiBase(parsed.requestInput);
+  const productionConfig = withLuluApiBase(parsed.config, productionApiBase);
+
   if (existingSubmission) {
     return {
       rootGroupId: parsed.rootGroupId,
@@ -986,6 +1354,7 @@ export async function buildW4SiblingSubmitInput(
         reason: 'existing_job',
         details: existingSubmission.details,
       },
+      productionGuard,
       luluJobId: existingSubmission.luluJobId,
       luluStatus: existingSubmission.luluStatus ?? 'SUBMITTED',
       workflowJobId: parsed.workflowJobId,
@@ -1016,6 +1385,7 @@ export async function buildW4SiblingSubmitInput(
       guard: {
         reason: 'test_mode',
       },
+      productionGuard,
       luluJobId: `TEST-${parsed.rootGroupId}`,
       luluStatus: 'TEST_MODE',
       workflowJobId: parsed.workflowJobId,
@@ -1023,6 +1393,101 @@ export async function buildW4SiblingSubmitInput(
       workflowAttemptId: parsed.workflowAttemptId,
       workflowJobStatus: parsed.workflowJobStatus,
       CONFIG,
+    };
+  }
+
+  if (productionGuard.requested) {
+    if (!productionGuard.allowed) {
+      return {
+        rootGroupId: parsed.rootGroupId,
+        rootOrderId: parsed.rootOrderId,
+        siblingCount: siblings.length,
+        orderIds: siblings.map((sibling) => sibling.orderId),
+        siblings,
+        submitMode: 'skip',
+        luluApiBase: productionApiBase,
+        luluPayload,
+        shippingAddress,
+        shippingLevelRequested: requestedShippingLevel,
+        shippingLevelSent: normalizedShipping.shippingLevel,
+        shippingTierResolved: normalizedShipping.shippingLevel,
+        shippingTierResolvedReason: productionGuard.reason,
+        amazon_shipment_service_level: amazonShippingLevel,
+        __skipLulu: true,
+        guard: {
+          reason: 'production_blocked',
+          details: productionGuard.details ?? productionGuard.reason,
+        },
+        productionGuard,
+        luluJobId: null,
+        luluStatus: null,
+        workflowJobId: parsed.workflowJobId,
+        workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+        workflowAttemptId: parsed.workflowAttemptId,
+        workflowJobStatus: parsed.workflowJobStatus,
+        CONFIG: productionConfig,
+      };
+    }
+
+    if (productionGuard.dryRun) {
+      return {
+        rootGroupId: parsed.rootGroupId,
+        rootOrderId: parsed.rootOrderId,
+        siblingCount: siblings.length,
+        orderIds: siblings.map((sibling) => sibling.orderId),
+        siblings,
+        submitMode: 'skip',
+        luluApiBase: productionApiBase,
+        luluPayload,
+        shippingAddress,
+        shippingLevelRequested: requestedShippingLevel,
+        shippingLevelSent: normalizedShipping.shippingLevel,
+        shippingTierResolved: normalizedShipping.shippingLevel,
+        shippingTierResolvedReason: 'production_dry_run',
+        amazon_shipment_service_level: amazonShippingLevel,
+        __skipLulu: true,
+        guard: {
+          reason: 'production_dry_run',
+          details: 'validated_without_submit',
+        },
+        productionGuard,
+        luluJobId: null,
+        luluStatus: 'DRY_RUN',
+        workflowJobId: parsed.workflowJobId,
+        workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+        workflowAttemptId: parsed.workflowAttemptId,
+        workflowJobStatus: parsed.workflowJobStatus,
+        CONFIG: productionConfig,
+      };
+    }
+
+    return {
+      rootGroupId: parsed.rootGroupId,
+      rootOrderId: parsed.rootOrderId,
+      siblingCount: siblings.length,
+      orderIds: siblings.map((sibling) => sibling.orderId),
+      siblings,
+      submitMode: 'production',
+      luluApiBase: productionApiBase,
+      luluPayload,
+      shippingAddress,
+      shippingLevelRequested: requestedShippingLevel,
+      shippingLevelSent: normalizedShipping.shippingLevel,
+      shippingTierResolved: normalizedShipping.shippingLevel,
+      shippingTierResolvedReason: normalizedShipping.reason,
+      amazon_shipment_service_level: amazonShippingLevel,
+      __skipLulu: false,
+      guard: {
+        reason: 'production',
+      },
+      productionGuard,
+      luluJobId: null,
+      luluStatus: null,
+      workflowJobId: parsed.workflowJobId,
+      workflowJobIdempotencyKey: parsed.workflowJobIdempotencyKey,
+      workflowAttemptId: parsed.workflowAttemptId,
+      workflowJobStatus: parsed.workflowJobStatus,
+      CONFIG: productionConfig,
     };
   }
 
@@ -1045,6 +1510,7 @@ export async function buildW4SiblingSubmitInput(
     guard: {
       reason: 'sandbox',
     },
+    productionGuard,
     luluJobId: null,
     luluStatus: null,
     workflowJobId: parsed.workflowJobId,

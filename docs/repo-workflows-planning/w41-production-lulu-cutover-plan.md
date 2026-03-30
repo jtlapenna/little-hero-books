@@ -148,7 +148,7 @@
 
 ## Recommended next implementation order
 
-1. Lock workflow/export contracts so sandbox responses cannot reach grouped paid Lulu nodes even if grouped production metadata is present.
-2. Add grouped production dry-run support with no real Lulu submit.
-3. Verify grouped admin preflight + approval flow against a fresh non-proof sibling candidate.
+1. Completed: lock workflow/export contracts so sandbox responses cannot reach grouped paid Lulu nodes even if grouped production metadata is present.
+2. Completed: add grouped production dry-run support with no real Lulu submit.
+3. Next: verify grouped admin preflight + approval flow against a fresh non-proof sibling candidate.
 4. Only then consider a single manually approved paid sibling-group pilot.

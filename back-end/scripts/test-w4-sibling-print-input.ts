@@ -14,12 +14,37 @@ import {
 } from '@/lib/books/w4-sibling-print-input';
 import { buildW4SiblingPrintInputResponse } from '@/app/api/internal/w4/build-sibling-print-input/route';
 import { buildW4SiblingSubmitInputResponse } from '@/app/api/internal/w4/build-sibling-submit-input/route';
+import { issueW41ProductionApprovalToken } from '@/lib/w41-production-approval';
 
 type JsonRecord = Record<string, unknown>;
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
     throw new Error(message);
+  }
+}
+
+async function withW41ProductionEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const originalSubmitEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const originalApprovalSecret = process.env.W41_PRODUCTION_APPROVAL_SECRET;
+
+  process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+  process.env.W41_PRODUCTION_APPROVAL_SECRET = 'test-w41-production-approval-secret';
+
+  try {
+    return await fn();
+  } finally {
+    if (originalSubmitEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalSubmitEnv;
+    }
+
+    if (originalApprovalSecret === undefined) {
+      delete process.env.W41_PRODUCTION_APPROVAL_SECRET;
+    } else {
+      process.env.W41_PRODUCTION_APPROVAL_SECRET = originalApprovalSecret;
+    }
   }
 }
 
@@ -284,8 +309,14 @@ function buildFixtureState(options: {
       product_info: sibling.product_info,
       project: bookId,
       status: 'pending_print',
+      current_workflow: '4.1',
+      workflow_step: 'print_fulfillment',
+      next_workflow: '4.1',
+      customer_approval_required: true,
+      customer_approval_status: 'approved',
       lulu_job_id: options.existingJobFor === orderId ? 'job-existing-123' : null,
       lulu_status: options.existingJobFor === orderId ? 'CREATED' : null,
+      print_submitted_at: null,
     };
     orderMap.set(orderId, orderRow);
     fixture.siblingGroup[index] = siblingInput;
@@ -594,6 +625,70 @@ async function main(): Promise<void> {
     signedKeys.filter((value) => value.includes('little-hero-orders')).length >= 4,
     'Expected W4.1 submit input to sign both interior and cover PDFs for each sibling',
   );
+
+  const originalSubmitEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const dryRunResponse = await buildW4SiblingSubmitInputResponse(
+    {
+      siblings: routerStyle.siblings,
+      rootGroupId: routerStyle.rootGroupId,
+      rootOrderId: routerStyle.rootOrderId,
+      allowProductionLulu: true,
+      productionDryRun: true,
+      CONFIG: buildConfig(false),
+    },
+    {
+      loadOrder: baseState.loadOrder,
+      signObjectUrl,
+    },
+  );
+  assert(
+    dryRunResponse.submitMode === 'skip' &&
+      dryRunResponse.__skipLulu === true &&
+      dryRunResponse.guard.reason === 'production_dry_run' &&
+      dryRunResponse.productionGuard.allowed === true &&
+      dryRunResponse.productionGuard.dryRun === true &&
+      dryRunResponse.luluStatus === 'DRY_RUN' &&
+      dryRunResponse.luluApiBase === 'https://api.lulu.com',
+    'Expected W4.1 sibling submit input to support grouped production dry-runs without creating a Lulu submit',
+  );
+
+  if (originalSubmitEnv === undefined) {
+    delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  } else {
+    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalSubmitEnv;
+  }
+
+  await withW41ProductionEnv(async () => {
+    const approval = issueW41ProductionApprovalToken({
+      rootGroupId: routerStyle.rootGroupId,
+      approvedBy: 'test-suite',
+    });
+
+    const productionShape = await buildW4SiblingSubmitInputResponse(
+      {
+        siblings: routerStyle.siblings,
+        rootGroupId: routerStyle.rootGroupId,
+        rootOrderId: routerStyle.rootOrderId,
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        CONFIG: buildConfig(false),
+      },
+      {
+        loadOrder: baseState.loadOrder,
+        signObjectUrl,
+      },
+    );
+
+    assert(
+      productionShape.submitMode === 'production' &&
+        productionShape.__skipLulu === false &&
+        productionShape.guard.reason === 'production' &&
+        productionShape.productionGuard.allowed === true &&
+        productionShape.productionGuard.reason === 'production_ready' &&
+        productionShape.luluApiBase === 'https://api.lulu.com',
+      'Expected W4.1 sibling submit input to surface a real grouped production submit shape only when env gate and approval token are both present',
+    );
+  });
 
   console.log(
     JSON.stringify(
