@@ -736,14 +736,14 @@
             "version": 1
           },
           "conditions": [
-            {
-              "id": "d6dc7ea2-bd00-4009-a264-b46104cf5d82",
-              "leftValue": "={{$json.qaPassed}}",
-              "rightValue": "true",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
+              {
+                "id": "d6dc7ea2-bd00-4009-a264-b46104cf5d82",
+                "leftValue": "={{$json.qaPassed === true ? 'true' : 'false'}}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
               }
             }
           ],
@@ -1348,14 +1348,14 @@
       "main": [
         [
           {
-            "node": "Aggregate + Signed URLs + Build Lulu Payload",
+            "node": "QA Failed Error Handler (W4.1)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "QA Failed Error Handler (W4.1)",
+            "node": "Aggregate + Signed URLs + Build Lulu Payload",
             "type": "main",
             "index": 0
           }

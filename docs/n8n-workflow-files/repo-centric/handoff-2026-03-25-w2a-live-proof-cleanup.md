@@ -1,5 +1,30 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the imported live `W4` / `W4.1` QA gate wiring is now corrected, and a fresh non-billable `W4` dry-run proves QA failure no longer falls through to completion.
+>
+> What changed in repo/backend:
+>
+> - repo export [`w4-PRODUCTION-Print_Fulfillment.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) now routes `IF QA Passed` false-output to `QA Failed Error Handler` and true-output to Lulu submit prep
+> - repo export [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json) now applies the same corrected branch order for `IF QA Passed (W4.1)` and explicitly coerces `qaPassed` before branching
+> - repo contract test [`test-book-kernel.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-book-kernel.ts) now locks that branch order for both workflows
+> - secret scanner coverage in [`workflow-export-secrets.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-export-secrets.ts) and [`test-workflow-export-secrets.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-workflow-export-secrets.ts) now also catches assignment-style service-role fallback secrets in workflow-export code blocks
+>
+> What changed in live/runtime state:
+>
+> - live workflow `m4qIN9PCgifUcYih` (`w4-PRODUCTION-Print_Fulfillment`) was patched in place with new backups at [before](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/w4-PRODUCTION-Print_Fulfillment.live.before-qa-branch-fix-2026-03-30T03-03-53.750Z.json) and [after](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/w4-PRODUCTION-Print_Fulfillment.live.after-qa-branch-fix-2026-03-30T03-03-53.750Z.json)
+> - live workflow `boWA0mB20qYK2g4x` (`w4.1-Sibling-Aggregation`) was patched in place with new backups at [before](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/w4.1-Sibling-Aggregation.live.before-qa-branch-fix-2026-03-30T03-03-53.750Z.json) and [after](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/live-backups/2026-03-29/w4.1-Sibling-Aggregation.live.after-qa-branch-fix-2026-03-30T03-03-53.750Z.json)
+> - fresh non-billable dry-run on disposable order `441-0329202-9000002` created `workflow_jobs.id = 166` / `workflow_job_attempts.id = 127`
+> - the fixed behavior is now correct from the admin workflow-jobs view: job `166` ended `failed`, latest event is `qa-failed`, and recent event types end at `qa-failed` instead of later `completed`
+> - the prior bad dry-runs `164` and `165` remain visible as historical evidence of the old bug: both recorded `qa-failed` and still ended `succeeded`
+> - no new Lulu production job was created during this verification; the replay remained non-billable dry-run only
+>
+> Verification from this pass:
+>
+> - repo checks passed: `test:book-kernel`, `test:workflow-export-secrets`, `check:workflow-export-secrets -- --staged`, and targeted `eslint`
+> - admin monitor [`/api/admin/workflow-jobs`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/workflow-jobs/route.ts) is now the source of truth for the fix: order `441-0329202-9000002` shows `workflow_jobs.id = 166` with `status = failed` and `latestEventType = qa-failed`
+>
+> Practical meaning: the remaining `W4` dry-run issue is no longer “QA failed but the stage still completed.” That safety bug is fixed. The next paid-pilot blocker is now just candidate quality and operator approval, not the QA branch itself.
+
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the rejected real paid `W4` pilot now has a confirmed root cause, and repo-side production shaping blocks that exact bad payload before Lulu.
 >
 > What was confirmed from live data:

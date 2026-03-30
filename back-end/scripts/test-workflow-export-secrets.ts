@@ -87,6 +87,18 @@ function testEscapedSecretFinding() {
   );
 }
 
+function testAssignedServiceRoleFinding() {
+  const findings = scanWorkflowExportText(
+    "/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json",
+    "const supabaseServiceRoleKey = cfg.supabase?.serviceRoleKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def';",
+  );
+
+  assert(
+    findings.some((finding) => finding.ruleId === "assigned-service-role"),
+    "assigned Supabase service role fallback should be detected",
+  );
+}
+
 function testRedactedContentPasses() {
   const findings = scanWorkflowExportText(
     "/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json",
@@ -115,6 +127,7 @@ function main() {
   testPlainSecretFinding();
   testHardcodedBearerFinding();
   testEscapedSecretFinding();
+  testAssignedServiceRoleFinding();
   testRedactedContentPasses();
   testPresignedUrlFinding();
   console.log("workflow export secret scan tests passed");

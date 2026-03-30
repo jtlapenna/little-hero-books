@@ -45,6 +45,11 @@ const CONTENT_RULES: ContentRule[] = [
     pattern: /serviceRoleKey:\s*'(?!REDACTED_)[^']+'/g,
   },
   {
+    id: "assigned-service-role",
+    message: "Found a non-redacted Supabase service role key in a code-node variable assignment.",
+    pattern: /supabaseServiceRoleKey\s*=\s*[\s\S]{0,120}?\|\|\s*'(?!REDACTED_)[^']+'/g,
+  },
+  {
     id: "plain-access-key-id",
     message: "Found a non-redacted R2 access key id in code-node config.",
     pattern: /accessKeyId:\s*'(?!REDACTED_)[^']+'/g,

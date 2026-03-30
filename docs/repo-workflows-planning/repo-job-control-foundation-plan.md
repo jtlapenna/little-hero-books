@@ -466,6 +466,13 @@ Current status:
     - corrected dry-run replay on the imported live workflow finished cleanly as execution `34798`
     - that replay created `workflow_jobs.id = 163` / attempt `124`, both `succeeded`, with terminal event `2140` `completed`
     - the corrected dry-run remained non-billable by contract: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, `lulu_job_id = null`, and `print_submitted_at = null`
+    - the next live dry-run on disposable candidate `441-0329202-9000002` exposed a safety bug in the imported workflow wiring itself: QA-failed runs were still reaching terminal `completed`
+    - repo exports now correct that branch order for both `W4` and `W4.1`:
+      - `IF QA Passed` / `IF QA Passed (W4.1)` now route false-output to the dedicated QA-failure handler and true-output to submit aggregation
+      - `W4.1` now also explicitly coerces `qaPassed` before the IF comparison so the sibling path follows the same boolean contract as `W4`
+      - live workflows `m4qIN9PCgifUcYih` and `boWA0mB20qYK2g4x` were patched in place from those corrected exports
+    - the regression proof is dry-run `workflow_jobs.id = 166` / attempt `127` on order `441-0329202-9000002`: it ended `failed` with latest event `qa-failed`, while earlier bad runs `164` and `165` had incorrectly ended `succeeded` after recording `qa-failed`
+    - no new Lulu production job was created during that verification
     - repo helper [`w4-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-approval.ts) now issues short-lived order-scoped approval tokens, and [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks any real paid `W4` submit without one (`approval_missing` / `approval_invalid`)
     - admin API/page [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) now mint those short-lived approval tokens for safe inspected orders without contacting Lulu
     - deploy revision [`654dc7eb.little-hero-labs-admin.pages.dev`](https://654dc7eb.little-hero-labs-admin.pages.dev) is live, and a smoke POST minted a 30-minute approval token for disposable candidate `441-0329202-9000002`

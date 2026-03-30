@@ -1136,6 +1136,20 @@ const repoCentricW4MaterializeCoverNode = repoCentricW4Workflow.nodes?.find(
 const repoCentricW4QaNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Prepare Renderer QA Inputs',
 );
+const repoCentricW4QaGateNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'IF QA Passed',
+);
+const repoCentricW4QaGateOutputs = (
+  repoCentricW4Workflow.connections?.['IF QA Passed'] as
+    | { main?: Array<Array<{ node?: string }>> }
+    | undefined
+)?.main ?? [];
+const repoCentricW4QaFailedNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'QA Failed Error Handler',
+);
+const repoCentricW4ErrorContextNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'Build Error Context',
+);
 const repoCentricW4BuildSubmitNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build Lulu Print Job Payload',
 );
@@ -1247,6 +1261,14 @@ const repoCentricW41MaterializeCoverNode = repoCentricW41Workflow.nodes?.find(
 const repoCentricW41QaNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Guard QA Inputs',
 );
+const repoCentricW41QaGateNode = repoCentricW41Workflow.nodes?.find(
+  (candidate) => candidate.name === 'IF QA Passed (W4.1)',
+);
+const repoCentricW41QaGateOutputs = (
+  repoCentricW41Workflow.connections?.['IF QA Passed (W4.1)'] as
+    | { main?: Array<Array<{ node?: string }>> }
+    | undefined
+)?.main ?? [];
 const repoCentricW41InteriorPassThroughNode = repoCentricW41Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build Pages HTML (8.75in)',
 );
@@ -1513,6 +1535,20 @@ assert(
   'Repo-centric W4 workflow should run print QA through the repo-owned run-print-qa route',
 );
 assert(
+  repoCentricW4QaGateNode?.type === 'n8n-nodes-base.if' &&
+    JSON.stringify(repoCentricW4QaGateNode.parameters).includes("$json.qaPassed === true ? 'true' : 'false'") &&
+    repoCentricW4QaGateOutputs[0]?.[0]?.node === 'QA Failed Error Handler' &&
+    repoCentricW4QaGateOutputs[1]?.[0]?.node === 'Decide Lulu Source URLs (NO PROXY)' &&
+    repoCentricW4QaFailedNode?.type === 'n8n-nodes-base.code',
+  'Repo-centric W4 QA gate should coerce qaPassed explicitly and route false->QA failure, true->Lulu submit prep',
+);
+assert(
+  repoCentricW4ErrorContextNode?.type === 'n8n-nodes-base.code' &&
+    JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('CONFIG.supabase && CONFIG.supabase.serviceRoleKey') &&
+    !JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'),
+  'Repo-centric W4 generic error context should use runtime Supabase credentials only and must not embed a service-role fallback secret',
+);
+assert(
   repoCentricW4BuildSubmitNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4BuildSubmitNode.parameters).includes(
       '/api/internal/w4/build-submit-input',
@@ -1723,6 +1759,14 @@ assert(
     repoCentricW41QaPassThroughNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW41QaPassThroughNode.parameters).includes('item?.json || {}'),
   'Repo-centric W4.1 workflow should route sibling QA through the repo-owned run-print-qa route and keep the surrounding QA-prep node as a pass-through adapter',
+);
+assert(
+  repoCentricW41QaGateNode?.type === 'n8n-nodes-base.if' &&
+    JSON.stringify(repoCentricW41QaGateNode.parameters).includes("$json.qaPassed === true ? 'true' : 'false'") &&
+    repoCentricW41QaGateOutputs[0]?.[0]?.node === 'QA Failed Error Handler (W4.1)' &&
+    repoCentricW41QaGateOutputs[1]?.[0]?.node === 'Aggregate + Signed URLs + Build Lulu Payload' &&
+    repoCentricW41QaFailedNode?.type === 'n8n-nodes-base.code',
+  'Repo-centric W4.1 QA gate should coerce qaPassed explicitly and route false->QA failure, true->sibling submit aggregation',
 );
 assert(
   repoCentricW41BuildManifestNode?.type === 'n8n-nodes-base.code' &&
