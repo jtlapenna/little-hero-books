@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
-import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
+import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,18 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : null;
+}
+
+function getString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
 
 // Handle CORS preflight requests
 export async function OPTIONS() {
@@ -35,7 +47,7 @@ export async function OPTIONS() {
  * Extract tracking information from line item statuses.
  * Lulu nests tracking data under `messages` (status endpoint) or `status.messages` (print job detail).
  */
-function extractTrackingInfo(lineItemStatuses: any[]): {
+function extractTrackingInfo(lineItemStatuses: unknown[]): {
   trackingNumber: string | null;
   trackingUrl: string | null;
   carrier: string | null;
@@ -44,13 +56,23 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
     return { trackingNumber: null, trackingUrl: null, carrier: null };
   }
 
-  const firstItem = lineItemStatuses[0];
-  const msgs = firstItem.messages || firstItem.status?.messages || {};
+  const firstItem = asRecord(lineItemStatuses[0]);
+  if (!firstItem) {
+    return { trackingNumber: null, trackingUrl: null, carrier: null };
+  }
+  const nestedStatus = asRecord(firstItem.status);
+  const msgs = asRecord(firstItem.messages) || asRecord(nestedStatus?.messages) || {};
 
-  const trackingUrls = msgs.tracking_urls || firstItem.tracking_urls;
-  const trackingUrl = Array.isArray(trackingUrls) ? trackingUrls[0] || null
-    : firstItem.tracking_url || firstItem.trackingUrl || null;
-  const carrierRaw = msgs.CARRIER_NAME || msgs.carrier_name || firstItem.CARRIER_NAME || firstItem.carrier_name || firstItem.carrier || null;
+  const trackingUrls = msgs.tracking_urls ?? firstItem.tracking_urls;
+  const trackingUrl = Array.isArray(trackingUrls)
+    ? getString(trackingUrls[0])
+    : getString(firstItem.tracking_url) || getString(firstItem.trackingUrl);
+  const carrierRaw =
+    getString(msgs.CARRIER_NAME) ||
+    getString(msgs.carrier_name) ||
+    getString(firstItem.CARRIER_NAME) ||
+    getString(firstItem.carrier_name) ||
+    getString(firstItem.carrier);
 
   // Lulu sometimes omits carrier_name for OSM. Infer from tracking URL to avoid "Other/Unknown".
   const inferredCarrier =
@@ -59,7 +81,10 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
       : null;
 
   return {
-    trackingNumber: msgs.tracking_id || firstItem.tracking_id || firstItem.trackingId || null,
+    trackingNumber:
+      getString(msgs.tracking_id) ||
+      getString(firstItem.tracking_id) ||
+      getString(firstItem.trackingId),
     trackingUrl,
     carrier: carrierRaw || inferredCarrier,
   };
@@ -68,32 +93,42 @@ function extractTrackingInfo(lineItemStatuses: any[]): {
 /**
  * Extract error details from line item statuses (for REJECTED status)
  */
-function extractErrorDetails(lineItemStatuses: any[]): string | null {
+function extractErrorDetails(lineItemStatuses: unknown[]): string | null {
   if (!lineItemStatuses || lineItemStatuses.length === 0) {
     return null;
   }
 
-  const firstItem = lineItemStatuses[0];
-  const messages = firstItem.messages || {};
+  const firstItem = asRecord(lineItemStatuses[0]);
+  const messages = asRecord(firstItem?.messages) || {};
   
-  if (messages.error_message) {
-    return messages.error_message;
+  if (getString(messages.error_message)) {
+    return getString(messages.error_message);
   }
   
   if (Array.isArray(messages.errors) && messages.errors.length > 0) {
-    return messages.errors.map((e: any) => e.message || e.field).join(', ');
+    const details = messages.errors
+      .map((entry) => {
+        const errorRecord = asRecord(entry);
+        return getString(errorRecord?.message) || getString(errorRecord?.field);
+      })
+      .filter((value): value is string => Boolean(value));
+    return details.length > 0 ? details.join(', ') : null;
   }
   
   return null;
 }
 
 /** Unwrap nested payload (e.g. Lulu sends { data: { print_job_id, name, ... } }) */
-function unwrapPayload(raw: any): any {
-  if (!raw || typeof raw !== 'object') return raw;
-  const hasId = (o: any) => o && typeof o === 'object' && (o.print_job_id != null || o.id != null || o.printJobId != null);
+function unwrapPayload(raw: unknown): unknown {
+  const rawRecord = asRecord(raw);
+  if (!rawRecord) return raw;
+  const hasId = (value: unknown) => {
+    const record = asRecord(value);
+    return !!record && (record.print_job_id != null || record.id != null || record.printJobId != null);
+  };
   if (hasId(raw)) return raw;
   for (const key of ['data', 'body', 'event', 'payload']) {
-    const inner = raw[key];
+    const inner = rawRecord[key];
     if (hasId(inner)) return inner;
   }
   return raw;
@@ -111,7 +146,7 @@ async function auditLog(entry: {
   try {
     await supabase.from('lulu_webhook_log').insert({
       print_job_id: entry.printJobId,
-      status_name: typeof entry.statusName === 'object' ? JSON.stringify(entry.statusName) : entry.statusName,
+      status_name: entry.statusName,
       order_found: entry.orderFound,
       order_id: entry.orderId,
       updated: entry.updated,
@@ -128,7 +163,14 @@ export async function POST(request: NextRequest) {
   try {
     // Parse and unwrap (Lulu may send nested payload)
     const raw = await request.json();
-    const payload = unwrapPayload(raw);
+    const payload = asRecord(unwrapPayload(raw));
+    if (!payload) {
+      await auditLog({ printJobId: null, statusName: null, orderFound: false, orderId: null, updated: false, errorMessage: 'Invalid webhook payload' });
+      return NextResponse.json(
+        { received: true, error: 'Invalid webhook payload' },
+        { status: 200, headers: corsHeaders }
+      );
+    }
     console.log('[LULU WEBHOOK] Received payload:', JSON.stringify(payload, null, 2));
 
     // Extract print job ID (Lulu may use different field names)
@@ -158,7 +200,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract line item statuses — webhook sends print job detail (`line_items`) not status endpoint format (`line_item_statuses`)
-    const lineItemStatuses = payload.line_item_statuses || payload.lineItemStatuses || payload.line_items || [];
+    const lineItemStatusesRaw = payload.line_item_statuses ?? payload.lineItemStatuses ?? payload.line_items ?? [];
+    const lineItemStatuses = Array.isArray(lineItemStatusesRaw) ? lineItemStatusesRaw : [];
     
     // Find all orders with this lulu_job_id (sibling orders share one job)
     const { data: orders, error: findError } = await supabase
@@ -192,35 +235,20 @@ export async function POST(request: NextRequest) {
           : null;
     const terminalAt = changedAt || nowIso;
 
-    const updateData: any = {
-      lulu_status: statusName,
-      updated_at: nowIso,
-      status: LULU_TO_ORDER_STATUS[statusName] ?? 'pending_print',
-    };
-
     let shippingTrackingUrl: string | null = null;
     let shippingTrackingNumber: string | null = null;
-    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
-      updateData.print_fulfillment_finished_at = terminalAt;
-      updateData.workflow_step = 'done';
-      updateData.execution_status = 'done';
-      if (lineItemStatuses.length > 0) {
-        const trackingInfo = extractTrackingInfo(lineItemStatuses);
-        shippingTrackingUrl = trackingInfo.trackingUrl;
-        shippingTrackingNumber = trackingInfo.trackingNumber;
-        if (trackingInfo.trackingNumber) updateData.tracking_number = trackingInfo.trackingNumber;
-        if (trackingInfo.trackingUrl) updateData.tracking_url = trackingInfo.trackingUrl;
-        if (trackingInfo.carrier) updateData.carrier = trackingInfo.carrier;
-      }
+    let shippingCarrier: string | null = null;
+    if (lineItemStatuses.length > 0) {
+      const trackingInfo = extractTrackingInfo(lineItemStatuses);
+      shippingTrackingUrl = trackingInfo.trackingUrl;
+      shippingTrackingNumber = trackingInfo.trackingNumber;
+      shippingCarrier = trackingInfo.carrier;
     }
 
-    
     // Handle error states
+    const errorDetails = statusName === 'REJECTED' ? extractErrorDetails(lineItemStatuses) : null;
     if (statusName === 'REJECTED') {
-      const errorDetails = extractErrorDetails(lineItemStatuses);
       console.error(`[LULU WEBHOOK] REJECTED for lulu_job_id ${printJobId}:`, errorDetails);
-      // Error details could be stored in a separate field if needed
-      // For now, we just log it and set the status
     }
     
     if (statusName === 'CANCELED') {
@@ -230,20 +258,16 @@ export async function POST(request: NextRequest) {
     // Update each order (per-order: do not overwrite shipped_at on DELIVERED)
     let updateCount = 0;
     for (const ord of orderList) {
-      const rowUpdate = { ...updateData };
-      if (ord.error_type === 'workflow_timeout') {
-        rowUpdate.error_type = null;
-        rowUpdate.error_message = null;
-      }
-      if (statusName === 'SHIPPED') {
-        if (!ord.shipped_at) rowUpdate.shipped_at = terminalAt;
-        if (!ord.delivered_at) rowUpdate.delivered_at = terminalAt;
-      }
-      if (statusName === 'DELIVERED') {
-        if (!ord.delivered_at) rowUpdate.delivered_at = terminalAt;
-        rowUpdate.lifecycle_status = 'recently_delivered';
-        rowUpdate.assumed_delivered_at = terminalAt;
-      }
+      const rowUpdate = buildLuluOrderUpdate({
+        statusName,
+        order: ord,
+        changedAt: terminalAt,
+        errorMessage: errorDetails,
+        trackingNumber: shippingTrackingNumber,
+        trackingUrl: shippingTrackingUrl,
+        carrier: shippingCarrier,
+        now: nowIso,
+      });
       const { error: updateErr } = await supabase.from('orders').update(rowUpdate).eq('id', ord.id);
       if (updateErr) {
         console.error('[LULU WEBHOOK] Error updating order', ord.orderId || ord.order_id || ord.amazon_order_id, updateErr.message);
@@ -284,7 +308,7 @@ export async function POST(request: NextRequest) {
             amazonOrderId,
             order,
             trackingNumber: shippingTrackingNumber ?? undefined,
-            carrier: updateData.carrier ?? undefined,
+            carrier: shippingCarrier ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
           });
           await supabase.from('notification_logs').insert({
@@ -297,8 +321,9 @@ export async function POST(request: NextRequest) {
           });
           if (result.success) console.log(`[LULU WEBHOOK] Amazon shipment confirmed for ${amazonOrderId}`);
           else console.warn(`[LULU WEBHOOK] Amazon confirmShipment failed for ${amazonOrderId}:`, result.error);
-        } catch (err: any) {
-          console.warn('[LULU WEBHOOK] confirmShipment error:', err?.message ?? err);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.warn('[LULU WEBHOOK] confirmShipment error:', message);
         }
       }
     }
@@ -324,7 +349,7 @@ export async function POST(request: NextRequest) {
             childName: childName ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
             trackingNumber: shippingTrackingNumber ?? undefined,
-            carrier: updateData.carrier ?? undefined,
+            carrier: shippingCarrier ?? undefined,
             orderId: orderIdForLog,
           });
           await supabase.from('notification_logs').insert({
@@ -337,8 +362,9 @@ export async function POST(request: NextRequest) {
           });
           if (result.success) console.log(`[LULU WEBHOOK] D2C shipped email sent for order ${orderIdForLog}`);
           else console.warn(`[LULU WEBHOOK] D2C shipped email failed for ${orderIdForLog}:`, result.error);
-        } catch (notifyErr: any) {
-          console.warn('[LULU WEBHOOK] D2C shipped notification error:', notifyErr?.message ?? notifyErr);
+        } catch (notifyErr: unknown) {
+          const message = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
+          console.warn('[LULU WEBHOOK] D2C shipped notification error:', message);
         }
       }
     }
@@ -349,11 +375,12 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: corsHeaders }
     );
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[LULU WEBHOOK] Unexpected error:', error);
-    await auditLog({ printJobId: printJobId ?? null, statusName: statusName ?? null, orderFound: false, orderId: null, updated: false, errorMessage: error?.message || 'Unknown error' });
+    await auditLog({ printJobId: printJobId ?? null, statusName: statusName ?? null, orderFound: false, orderId: null, updated: false, errorMessage: message });
     return NextResponse.json(
-      { received: true, error: 'Internal server error', details: error?.message || 'Unknown error' },
+      { received: true, error: 'Internal server error', details: message },
       { status: 200, headers: corsHeaders }
     );
   }

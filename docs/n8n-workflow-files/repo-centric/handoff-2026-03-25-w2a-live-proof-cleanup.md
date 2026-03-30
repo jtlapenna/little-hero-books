@@ -1,5 +1,25 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first real paid `W4` pilot is now also proven through post-submit lifecycle normalization after manual cancellation in Lulu.
+>
+> What changed in repo/backend:
+>
+> - new shared helper [`buildLuluOrderUpdate(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/lulu-status-map.ts) now centralizes how Lulu status transitions map into order-row patches
+> - admin refresh route [`/api/admin/orders/[orderId]/refresh-lulu-status`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/refresh-lulu-status/route.ts), webhook route [`/api/webhooks/lulu/status`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/lulu/status/route.ts), and admin cancel route [`/api/admin/orders/[orderId]/cancel-lulu-order`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/orders/[orderId]/cancel-lulu-order/route.ts) now all use that shared lifecycle mapping
+> - the specific lifecycle bug fixed here was real: the Lulu webhook path could mark `delivered_at` on a mere `SHIPPED` event, while other paths did not; terminal statuses are now normalized consistently and `SHIPPED` no longer backfills `delivered_at`
+> - focused regression coverage now lives in [`test-lulu-status-map.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-lulu-status-map.ts)
+> - backend deploy revision [`9c1ea4a6.little-hero-labs-admin.pages.dev`](https://9c1ea4a6.little-hero-labs-admin.pages.dev) carries the lifecycle-normalization fix
+>
+> What changed in live/runtime state:
+>
+> - Lulu dashboard shows real paid print job `2806687` was canceled manually
+> - fresh live admin refresh on order `441-0329202-9000007` now returns `luluStatus = "CANCELED"` and `status = "cancelled"`
+> - that same refresh now also records a terminal print timestamp: `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
+> - the order still correctly preserves the successful real submit evidence from the pilot itself: `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`
+> - no new Lulu production job was created during this lifecycle verification
+>
+> Practical meaning: the repo-centric single-order `W4` path is now proven not only through a real paid Lulu submit, but also through a post-submit cancellation/status-refresh cycle. The next production gap is no longer “can we submit and see Lulu state?” It is process hardening: do the deferred secret rotation, then decide whether a second paid pilot is worth running.
+>
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the second real paid single-order `W4` pilot is now through the real production seam with the shipping-level fix in place, and the production env gate is back off after the run.
 >
 > What changed in repo/backend:

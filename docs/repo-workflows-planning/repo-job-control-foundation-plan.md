@@ -482,7 +482,11 @@ Current status:
     - fresh candidate `441-0329202-9000007` was then created from `441-0329202-9000006` with the corrected address and full print assets, keeping all Lulu submission state clear
     - after re-enabling `ENABLE_LULU_PRODUCTION_SUBMIT`, deploying revision [`4157307b.little-hero-labs-admin.pages.dev`](https://4157307b.little-hero-labs-admin.pages.dev), minting a short-lived approval token, and keeping the gate enabled until the async stage crossed submit, live webhook `w4-pdf-print-repo` accepted the second paid pilot and `workflow_jobs.id = 175` / attempt `136` finished `succeeded`
     - terminal workflow telemetry now proves the real paid seam after the shipping fix: `submitMode = "production"`, `nonProduction = false`, `externalProvider = "lulu"`, `luluJobId = "2806687"`, and `luluStatus = "CREATED"`
-    - order `441-0329202-9000007` now records `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`; fresh admin refresh currently returns `luluStatus = "PRODUCTION_DELAYED"`
+    - order `441-0329202-9000007` now records `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`
+    - after manual cancellation in Lulu, shared helper [`buildLuluOrderUpdate(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/lulu-status-map.ts) now normalizes post-submit status patches across the refresh route, Lulu webhook route, and admin cancel route:
+      - `SHIPPED` no longer backfills `delivered_at`
+      - terminal `CANCELED` / `REJECTED` states now set `print_fulfillment_finished_at`
+      - fresh live admin refresh on `441-0329202-9000007` now returns `luluStatus = "CANCELED"`, `status = "cancelled"`, and `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
     - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or

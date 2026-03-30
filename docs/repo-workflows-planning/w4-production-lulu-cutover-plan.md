@@ -59,7 +59,11 @@
   - fresh candidate `441-0329202-9000007` was then created from `441-0329202-9000006` with the corrected address and full print assets, keeping all Lulu submission fields clear
   - after re-enabling `ENABLE_LULU_PRODUCTION_SUBMIT`, deploying revision [`4157307b.little-hero-labs-admin.pages.dev`](https://4157307b.little-hero-labs-admin.pages.dev), minting a short-lived approval token, and keeping the env gate open until the async run crossed submit, live webhook `w4-pdf-print-repo` accepted the second paid pilot and durable stage job `workflow_jobs.id = 175` / attempt `136` finished `succeeded`
   - terminal workflow telemetry now proves the real paid seam after the shipping fix: `submitMode = "production"`, `nonProduction = false`, `externalProvider = "lulu"`, `luluJobId = "2806687"`, and `luluStatus = "CREATED"`
-  - order `441-0329202-9000007` now records `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`; a fresh admin refresh currently returns `luluStatus = "PRODUCTION_DELAYED"`
+  - order `441-0329202-9000007` now records `lulu_job_id = 2806687` and `print_submitted_at = 2026-03-30T04:30:34.193`
+  - after manual cancellation in Lulu, shared helper [`buildLuluOrderUpdate(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/lulu-status-map.ts) now normalizes refresh/webhook/cancel lifecycle patches so:
+    - `SHIPPED` does not incorrectly set `delivered_at`
+    - terminal `CANCELED` / `REJECTED` states stamp `print_fulfillment_finished_at`
+    - fresh live admin refresh on `441-0329202-9000007` now returns `luluStatus = "CANCELED"`, `status = "cancelled"`, and `print_fulfillment_finished_at = 2026-03-30T04:51:57.067486+00:00`
   - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
 - The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
 - The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.

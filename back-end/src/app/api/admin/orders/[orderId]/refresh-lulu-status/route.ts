@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
-import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
+import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -122,6 +122,11 @@ export async function GET(
 
     const statusData = await statusResponse.json();
     const newStatus = statusData.name || statusData.status || null;
+    const changedAt = typeof statusData.changed === 'string'
+      ? statusData.changed
+      : typeof statusData.status?.changed === 'string'
+        ? statusData.status.changed
+        : null;
     
     console.log('[Refresh Lulu Status] Lulu API response:', {
       jobId: order.lulu_job_id,
@@ -152,58 +157,19 @@ export async function GET(
     }
 
     // Step 3: Update order in Supabase
-    const updates: any = {
-      lulu_status: newStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (trackingNumber) {
-      updates.tracking_number = trackingNumber;
-    }
-    if (trackingUrl) {
-      updates.tracking_url = trackingUrl;
-    }
-    if (carrier) {
-      updates.carrier = carrier;
-    }
-    // When SHIPPED/DELIVERED, set timestamps (but never overwrite shipped_at on delivery).
-    if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
-      const now = new Date().toISOString();
-      if (newStatus === 'SHIPPED' && !order.shipped_at) {
-        updates.shipped_at = now;
-      }
-      if (newStatus === 'DELIVERED') {
-        if (!order.delivered_at) updates.delivered_at = now;
-        updates.lifecycle_status = 'recently_delivered';
-        updates.assumed_delivered_at = now;
-      }
-      updates.print_fulfillment_finished_at = now;
-    }
-
-    // Handle error messages based on status
-    if (newStatus === 'REJECTED' && errorMessage) {
-      updates.error_message = errorMessage;
-      updates.error_type = 'lulu_rejected';
-    } else if (newStatus === 'CANCELED') {
-      updates.error_message = null;
-      updates.error_type = null;
-    }
-
-    // Recalculate display status from Lulu status
-    if (newStatus) {
-      updates.status = LULU_TO_ORDER_STATUS[newStatus] ?? 'pending_print';
-      if (newStatus === 'SHIPPED' || newStatus === 'DELIVERED') {
-        updates.workflow_step = 'done';
-        updates.execution_status = 'done';
-        if (order.error_type === 'workflow_timeout') {
-          updates.error_type = null;
-          updates.error_message = null;
-        }
-      }
-    }
+    const updates = buildLuluOrderUpdate({
+      statusName: String(newStatus || ''),
+      order,
+      changedAt,
+      errorMessage,
+      trackingNumber,
+      trackingUrl,
+      carrier,
+    });
 
     // Purpose: update per-book row safely (amazon_order_id can be a sibling group key).
-    const perBookId = (order as any).orderId || (order as any).order_id || orderId;
+    const orderRecord = order as Record<string, unknown>;
+    const perBookId = orderRecord.orderId || orderRecord.order_id || orderId;
     await updateOrderInSupabase(String(perBookId), updates);
     const updatedOrder = await getOrderFromSupabase(String(perBookId)).catch(() => null);
     if (!updatedOrder) {
@@ -255,8 +221,9 @@ export async function GET(
             error_message: result.error ?? null,
             sent_at: result.success ? new Date().toISOString() : null,
           });
-        } catch (err: any) {
-          console.warn('[Refresh Lulu Status] confirmShipment error:', err?.message ?? err);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.warn('[Refresh Lulu Status] confirmShipment error:', message);
         }
       }
     }
@@ -271,10 +238,11 @@ export async function GET(
         carrier,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Refresh Lulu Status] Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: message },
       { status: 500 }
     );
   }

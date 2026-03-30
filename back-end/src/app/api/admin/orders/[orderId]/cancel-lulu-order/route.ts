@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
 import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
+import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -142,8 +143,18 @@ export async function POST(
     const cancelData = await cancelResponse.json();
 
     // Step 3: Update order in Supabase
-    const now = new Date().toISOString();
-    await updateOrderInSupabase(orderId, { lulu_status: 'CANCELED', updated_at: now });
+    const cancelChangedAt =
+      typeof cancelData?.changed === 'string'
+        ? cancelData.changed
+        : typeof cancelData?.status?.changed === 'string'
+          ? cancelData.status.changed
+          : null;
+    const updates = buildLuluOrderUpdate({
+      statusName: 'CANCELED',
+      order,
+      changedAt: cancelChangedAt,
+    });
+    await updateOrderInSupabase(orderId, updates);
     const updatedOrder = await getOrderFromSupabase(orderId).catch(() => null);
 
     return NextResponse.json({
@@ -152,12 +163,12 @@ export async function POST(
       order: updatedOrder,
       luluResponse: cancelData,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Cancel Lulu Order] Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: message },
       { status: 500 }
     );
   }
 }
-
