@@ -43,6 +43,7 @@
     "test:w3-manifest": "tsx scripts/test-w3-manifest.ts",
     "test:w3-manifest-publish": "tsx scripts/test-w3-manifest-publish.ts",
     "test:w4-print-input": "tsx scripts/test-w4-print-input.ts",
+    "test:w4-production-approval": "tsx scripts/test-w4-production-approval.ts",
     "test:w4-production-preflight": "tsx scripts/test-w4-production-preflight.ts",
     "test:w4-recovery": "tsx scripts/test-w4-recovery.ts",
     "test:w41-recovery": "tsx scripts/test-w41-recovery.ts",

@@ -1,5 +1,6 @@
 import { getBucketFromKey } from '@/lib/r2-utils';
 import type { LoadOrderForW4 } from '@/lib/books/w4-print-input';
+import { verifyW4ProductionApprovalToken } from '@/lib/w4-production-approval';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -60,6 +61,8 @@ export interface BuildW4SubmitInputResult extends JsonRecord {
       | 'order_not_ready'
       | 'shipping_address_invalid'
       | 'page_count_invalid'
+      | 'approval_missing'
+      | 'approval_invalid'
       | 'existing_job'
       | 'test_mode';
     checkedAt: string;
@@ -483,6 +486,19 @@ function isProductionDryRun(input: JsonRecord): boolean {
   );
 }
 
+function resolveProductionApprovalToken(input: JsonRecord): string | null {
+  return toTrimmedString(
+    pickFirstNonEmpty(
+      input.productionApprovalToken,
+      input.production_approval_token,
+      toRecord(input.production).approvalToken,
+      toRecord(input.production).productionApprovalToken,
+      toRecord(input.guard).approvalToken,
+      toRecord(input.guard).productionApprovalToken,
+    ),
+  );
+}
+
 function validateProductionShippingAddress(shippingAddress: JsonRecord): string[] {
   const requiredFields: Array<[string, unknown]> = [
     ['name', shippingAddress.name],
@@ -781,6 +797,36 @@ function evaluateProductionGuard(params: {
       envEnabled,
       dryRun,
     };
+  }
+
+  if (!dryRun) {
+    const approvalVerification = verifyW4ProductionApprovalToken({
+      token: resolveProductionApprovalToken(params.input),
+      orderId:
+        toTrimmedString(
+          pickFirstNonEmpty(
+            params.input.orderId,
+            params.input.amazonOrderId,
+            params.input.amazon_order_id,
+            params.loadedOrder.orderId,
+          ),
+        ) ?? '',
+    });
+
+    if (!approvalVerification.ok) {
+      return {
+        requested,
+        allowed: false,
+        reason:
+          approvalVerification.reason === 'missing'
+            ? 'approval_missing'
+            : 'approval_invalid',
+        checkedAt,
+        envEnabled,
+        dryRun,
+        details: approvalVerification.details ?? approvalVerification.reason,
+      };
+    }
   }
 
   return {

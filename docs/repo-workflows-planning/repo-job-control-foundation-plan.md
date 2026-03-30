@@ -466,6 +466,9 @@ Current status:
     - corrected dry-run replay on the imported live workflow finished cleanly as execution `34798`
     - that replay created `workflow_jobs.id = 163` / attempt `124`, both `succeeded`, with terminal event `2140` `completed`
     - the corrected dry-run remained non-billable by contract: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, `lulu_job_id = null`, and `print_submitted_at = null`
+    - repo helper [`w4-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-approval.ts) now issues short-lived order-scoped approval tokens, and [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks any real paid `W4` submit without one (`approval_missing` / `approval_invalid`)
+    - admin API/page [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) now mint those short-lived approval tokens for safe inspected orders without contacting Lulu
+    - deploy revision [`654dc7eb.little-hero-labs-admin.pages.dev`](https://654dc7eb.little-hero-labs-admin.pages.dev) is live, and a smoke POST minted a 30-minute approval token for disposable candidate `441-0329202-9000002`
 - the next decision is no longer whether `W2A` / `W2B` instrumentation works; it is whether to:
   - investigate why `HduzTWm0ekmrvwrn` was found inactive unexpectedly on March 25, 2026 and had to be reactivated, and/or
   - finish the remaining `W4` / `W4.1` repo-worker extraction and operator tooling while keeping Lulu production cutover explicitly out of scope

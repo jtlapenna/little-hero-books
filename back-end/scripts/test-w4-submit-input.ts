@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 
 import { buildW4SubmitInputResponse } from '@/app/api/internal/w4/build-submit-input/route';
+import { issueW4ProductionApprovalToken } from '@/lib/w4-production-approval';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -76,6 +77,28 @@ function createReadyProductionOrder(orderId: string): JsonRecord {
       phone_number: '+1-206-555-0100',
     },
   };
+}
+
+function withApprovalEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const originalSubmitEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const originalApprovalSecret = process.env.W4_PRODUCTION_APPROVAL_SECRET;
+
+  process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+  process.env.W4_PRODUCTION_APPROVAL_SECRET = 'test-w4-production-approval-secret';
+
+  return fn().finally(() => {
+    if (originalSubmitEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalSubmitEnv;
+    }
+
+    if (originalApprovalSecret === undefined) {
+      delete process.env.W4_PRODUCTION_APPROVAL_SECRET;
+    } else {
+      process.env.W4_PRODUCTION_APPROVAL_SECRET = originalApprovalSecret;
+    }
+  });
 }
 
 async function testSandboxSubmitShape(): Promise<void> {
@@ -231,15 +254,17 @@ async function testProductionRejectsProofOrders(): Promise<void> {
 }
 
 async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
-  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-
-  try {
-    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+  await withApprovalEnv(async () => {
     const orderId = 'REAL-W4-PILOT-003';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
     const response = await buildW4SubmitInputResponse(
       {
         ...createBaseInput(orderId),
         allowProductionLulu: true,
+        productionApprovalToken: approval.token,
       },
       {
         loadOrder: async () => createReadyProductionOrder(orderId),
@@ -257,13 +282,32 @@ async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
         ((response.CONFIG.lulu as JsonRecord)?.apiBase === 'https://api.lulu.com'),
       'Expected explicit W4 production requests to emit a real production submit contract only when every repo-side guard passes',
     );
-  } finally {
-    if (originalEnv === undefined) {
-      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-    } else {
-      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
-    }
-  }
+  });
+}
+
+async function testProductionRequiresApprovalToken(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-PILOT-003A';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'approval_missing' &&
+        response.productionGuard.allowed === false,
+      'Expected real W4 production submit shaping to stay blocked until an explicit approval token is provided',
+    );
+  });
 }
 
 async function testProductionRequiresRealShippingPhone(): Promise<void> {
@@ -312,17 +356,19 @@ async function testProductionRequiresRealShippingPhone(): Promise<void> {
 }
 
 async function testProductionBlocksInvalidInteriorPageCount(): Promise<void> {
-  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-
-  try {
-    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+  await withApprovalEnv(async () => {
     const orderId = 'REAL-W4-PILOT-005';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
     const response = await buildW4SubmitInputResponse(
       {
         ...createBaseInput(orderId),
         expectedPageCount: 2,
         pageLabels: ['p00', 'p01'],
         allowProductionLulu: true,
+        productionApprovalToken: approval.token,
       },
       {
         loadOrder: async () => createReadyProductionOrder(orderId),
@@ -341,25 +387,21 @@ async function testProductionBlocksInvalidInteriorPageCount(): Promise<void> {
         response.productionGuard.requiredMultipleOf === null,
       'Expected W4 production submit shaping to fail closed when the interior page count is outside the Lulu product range',
     );
-  } finally {
-    if (originalEnv === undefined) {
-      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-    } else {
-      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
-    }
-  }
+  });
 }
 
 async function testProductionHonorsRecommendedAddressOverride(): Promise<void> {
-  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-
-  try {
-    process.env.ENABLE_LULU_PRODUCTION_SUBMIT = 'true';
+  await withApprovalEnv(async () => {
     const orderId = 'REAL-W4-PILOT-006';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
     const response = await buildW4SubmitInputResponse(
       {
         ...createBaseInput(orderId),
         allowProductionLulu: true,
+        productionApprovalToken: approval.token,
         shippingAddressRecommended: {
           name: 'Sibling Parent',
           address_line_1: '123 SW Main Street',
@@ -387,13 +429,7 @@ async function testProductionHonorsRecommendedAddressOverride(): Promise<void> {
         shippingAddress.state_code === 'OR',
       'Expected W4 production submit shaping to honor an explicit recommended-address override for the next paid pilot',
     );
-  } finally {
-    if (originalEnv === undefined) {
-      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
-    } else {
-      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
-    }
-  }
+  });
 }
 
 async function testExistingJobSkipsLulu(): Promise<void> {
@@ -487,6 +523,7 @@ async function main(): Promise<void> {
   await testProductionRequestStaysBlockedWithoutEnvGate();
   await testProductionDryRunValidatesWithoutSubmit();
   await testProductionRejectsProofOrders();
+  await testProductionRequiresApprovalToken();
   await testProductionSubmitShapeWhenGateEnabled();
   await testProductionRequiresRealShippingPhone();
   await testProductionBlocksInvalidInteriorPageCount();

@@ -5,6 +5,7 @@ import {
   inspectW4ProductionOrder,
   listRecentW4ProductionCandidates,
 } from '@/lib/w4-production-preflight';
+import { issueW4ProductionApprovalToken } from '@/lib/w4-production-approval';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,11 @@ const QuerySchema = z.object({
   orderId: z.string().trim().min(1).optional(),
   hours: z.coerce.number().int().min(1).max(24 * 30).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const ApprovalRequestSchema = z.object({
+  orderId: z.string().trim().min(1),
+  ttlMinutes: z.coerce.number().int().min(1).max(120).optional(),
 });
 
 function buildSummary(
@@ -75,6 +81,51 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[GET /api/admin/w4-production] Error:', error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Internal Server Error',
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const adminAuth = requireAdminAuth(request);
+  if (!adminAuth.ok) {
+    return adminAuth.response;
+  }
+
+  try {
+    const body = ApprovalRequestSchema.parse(await request.json());
+    const inspection = await inspectW4ProductionOrder(body.orderId, {
+      adminBaseUrl: resolvePreflightAdminBaseUrl(request.url),
+    });
+
+    if (!inspection.safeForProductionPilot || !inspection.preflight) {
+      return NextResponse.json(
+        {
+          error: 'Order is not eligible for paid W4 approval',
+          inspection,
+        },
+        { status: 400 },
+      );
+    }
+
+    const approvedBy = adminAuth.mode === 'same_origin' ? 'same-origin-admin' : 'token-admin';
+    const approval = issueW4ProductionApprovalToken({
+      orderId: inspection.orderId,
+      approvedBy,
+      ttlMinutes: body.ttlMinutes,
+    });
+
+    return NextResponse.json({
+      success: true,
+      approval,
+      inspection,
+    });
+  } catch (error) {
+    console.error('[POST /api/admin/w4-production] Error:', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal Server Error',

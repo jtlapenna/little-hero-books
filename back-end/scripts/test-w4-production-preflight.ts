@@ -226,6 +226,7 @@ async function testInspectRowUsesDryRunDependencies(): Promise<void> {
     dependencies: {
       buildPrintInput: async () => createPrintInput(),
       buildSubmitInput: async () => createSubmitInput(),
+      headObject: async () => new Response(null, { status: 200 }),
     },
   });
 
@@ -235,6 +236,28 @@ async function testInspectRowUsesDryRunDependencies(): Promise<void> {
       inspection.preflight?.luluApiBase === 'https://api.lulu.com' &&
       inspection.resolvedVia === 'orderId',
     'Expected inspection to report production readiness from dry-run repo dependencies without submitting to Lulu',
+  );
+}
+
+async function testInspectRowBlocksMissingPrintAssets(): Promise<void> {
+  const inspection = await inspectW4ProductionRow(createOrderRow(), 'orderId', {
+    adminBaseUrl: 'https://admin.littleherolabs.com',
+    dependencies: {
+      buildPrintInput: async () => createPrintInput(),
+      buildSubmitInput: async () => createSubmitInput(),
+      headObject: async (_bucket, key) =>
+        new Response(null, {
+          status: key.endsWith('/cover.png') ? 404 : 200,
+        }),
+    },
+  });
+
+  assert(
+    inspection.safeForProductionPilot === false &&
+      inspection.preflight?.productionGuard.reason === 'production_ready' &&
+      inspection.inspectionError ===
+        'missing_print_assets:book/orders/REAL-W4-CANDIDATE-601/cover.png',
+    'Expected W4 production inspection to fail closed when required preview or PDF assets are missing from R2',
   );
 }
 
@@ -283,6 +306,7 @@ async function main(): Promise<void> {
   await testSiblingSandboxProofOrdersAreExcluded();
   await testBuildPreflightRedactsSignedUrls();
   await testInspectRowUsesDryRunDependencies();
+  await testInspectRowBlocksMissingPrintAssets();
   await testInspectRowCarriesPreflightErrors();
   await testSelectFieldsAndRouteHelper();
   console.log('W4 production preflight tests passed');

@@ -55,8 +55,11 @@
 > - terminal event `2140` is `completed` with payload `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `nonProduction = true`, and `externalProvider = "lulu-sandbox"`
 > - recovery view [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx) now reports `recommendedAction = "none"` and `safeToReplay = false` for `441-0329202-9000003`
 > - the order row stayed non-production: `lulu_job_id = null`, `print_submitted_at = null`, `luluStatus = "DRY_RUN"`, and `status = pending_print`
+> - repo helper [`w4-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-approval.ts) now issues short-lived approval tokens for one order, and [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks any non-dry-run paid `W4` submit without one
+> - admin API/page [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) now expose that approval step without sending anything to Lulu
+> - backend deploy revision [`654dc7eb.little-hero-labs-admin.pages.dev`](https://654dc7eb.little-hero-labs-admin.pages.dev) is live, and a smoke POST minted a 30-minute approval token for disposable candidate `441-0329202-9000002`
 >
-> Practical meaning: the live imported single-order `W4` path is now proven again on a corrected full-book candidate after the rejected paid pilot, and the remaining work before any second paid pilot is no longer dry-run plumbing. It is operator approval, secret rotation, and deciding whether to re-open production submit at all.
+> Practical meaning: the live imported single-order `W4` path is now proven again on a corrected full-book candidate after the rejected paid pilot, and the remaining work before any second paid pilot is no longer dry-run plumbing. It is secret rotation, choosing a fresh approved candidate, and deciding whether to re-open production submit at all.
 
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the first real paid single-order `W4` pilot reached Lulu production, exposed a post-submit persistence bug, and is now reconciled.
 >

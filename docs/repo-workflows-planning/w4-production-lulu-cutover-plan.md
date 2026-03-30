@@ -46,6 +46,11 @@
   - corrected live production dry-run replay then finished cleanly as execution `34798`
   - that replay completed `workflow_jobs.id = 163` / attempt `124` with terminal event `2140` `completed`
   - the corrected dry-run stayed non-billable: `submitMode = "skip"`, `luluStatus = "DRY_RUN"`, `externalProvider = "lulu-sandbox"`, and the order row still has `lulu_job_id = null` / `print_submitted_at = null`
+- Latest March 29, 2026 operator-approval checkpoint:
+  - repo helper [`w4-production-approval.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-approval.ts) now issues and verifies short-lived production approval tokens for one specific W4 order
+  - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now blocks any non-dry-run `submitMode = "production"` request unless a valid approval token is present, with fail-closed reasons `approval_missing` / `approval_invalid`
+  - admin API [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) now supports `POST` token minting for a safe inspected order, and admin page [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx) exposes that token creation flow without submitting to Lulu
+  - backend deploy revision [`654dc7eb.little-hero-labs-admin.pages.dev`](https://654dc7eb.little-hero-labs-admin.pages.dev) is live, and a smoke POST minted a 30-minute approval token for disposable candidate `441-0329202-9000002`
 - The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
 - The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.
 - The repo export is now hardened for that later cutover:

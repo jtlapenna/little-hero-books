@@ -85,6 +85,20 @@ type ProductionResponse = {
   error?: string;
 };
 
+type ProductionApprovalResponse = {
+  success: boolean;
+  approval?: {
+    token: string;
+    orderId: string;
+    approvedAt: string;
+    expiresAt: string;
+    approvedBy: string;
+    ttlMinutes: number;
+    secretSource: string;
+  };
+  error?: string;
+};
+
 function formatTimestamp(value: string | null): string {
   if (!value) {
     return 'N/A';
@@ -126,6 +140,8 @@ function W4ProductionPageContent() {
   const [banner, setBanner] = useState<{ tone: 'success' | 'error'; message: string } | null>(
     null,
   );
+  const [approval, setApproval] = useState<ProductionApprovalResponse['approval'] | null>(null);
+  const [approvalLoading, setApprovalLoading] = useState(false);
 
   const fetchData = async (orderId: string) => {
     setLoading(true);
@@ -162,6 +178,7 @@ function W4ProductionPageContent() {
 
   useEffect(() => {
     setDraftOrderId(selectedOrderId);
+    setApproval(null);
     fetchData(selectedOrderId);
 
     const interval = window.setInterval(() => {
@@ -190,6 +207,52 @@ function W4ProductionPageContent() {
 
   const inspectedOrder = data?.inspectedOrder ?? null;
 
+  const handleGenerateApproval = async () => {
+    if (!inspectedOrder?.safeForProductionPilot) {
+      setBanner({
+        tone: 'error',
+        message: 'This order is not eligible for a paid W4 approval token.',
+      });
+      return;
+    }
+
+    setApprovalLoading(true);
+    setBanner(null);
+    try {
+      const response = await fetch('/api/admin/w4-production', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: inspectedOrder.orderId,
+        }),
+      });
+
+      const payload = (await response.json()) as ProductionApprovalResponse;
+      if (!response.ok || !payload.success || !payload.approval) {
+        throw new Error(payload.error || 'Failed to create W4 production approval token');
+      }
+
+      setApproval(payload.approval);
+      setBanner({
+        tone: 'success',
+        message: `Created a short-lived paid-submit approval token for ${payload.approval.orderId}.`,
+      });
+    } catch (error) {
+      console.error('Failed to create W4 production approval token:', error);
+      setBanner({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create W4 production approval token',
+      });
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -200,11 +263,12 @@ function W4ProductionPageContent() {
               W4 Paid Print Preflight
             </div>
             <h1 className="text-3xl font-semibold text-gray-950">
-              Read-only production readiness
+              Paid print preflight and approval
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              This view never submits to Lulu. It only shows whether a single-order W4 order is
-              eligible for a paid pilot and what would still block it.
+              This view never submits to Lulu. It shows whether a single-order W4 order is eligible
+              for a paid pilot and can mint the short-lived approval token that production submit
+              now requires.
             </p>
           </div>
 
@@ -406,6 +470,37 @@ function W4ProductionPageContent() {
                           <div className="mt-2 text-xs text-amber-800">
                             Missing shipping fields:{' '}
                             {inspectedOrder.preflight.productionGuard.missingShippingFields.join(', ')}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="rounded-xl border border-gray-200 p-4">
+                        <dt className="font-medium text-gray-500">Paid submit approval</dt>
+                        <dd className="mt-1 text-gray-950">
+                          {inspectedOrder.safeForProductionPilot
+                            ? 'Eligible for short-lived approval token'
+                            : 'Not eligible for approval token'}
+                        </dd>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleGenerateApproval}
+                            disabled={!inspectedOrder.safeForProductionPilot || approvalLoading}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+                          >
+                            {approvalLoading ? 'Creating…' : 'Create approval token'}
+                          </button>
+                          <span className="text-xs text-gray-500">
+                            Required for any real paid W4 submit. Dry-runs do not need it.
+                          </span>
+                        </div>
+                        {approval && approval.orderId === inspectedOrder.orderId ? (
+                          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950">
+                            <div className="font-medium">Approval token ready</div>
+                            <div className="mt-1 break-all font-mono">{approval.token}</div>
+                            <div className="mt-2 text-emerald-900">
+                              approved {formatTimestamp(approval.approvedAt)} • expires{' '}
+                              {formatTimestamp(approval.expiresAt)} • source {approval.secretSource}
+                            </div>
                           </div>
                         ) : null}
                       </div>

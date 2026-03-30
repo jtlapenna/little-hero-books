@@ -1,6 +1,8 @@
 import { buildW4PrintInput, buildW4SubmitInput, type BuildW4PrintInputResult, type BuildW4SubmitInputResult } from '@/lib/books';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { downloadManifest } from '@/lib/r2-service';
+import { headObject } from '@/lib/r2-client';
+import { getBucketFromKey } from '@/lib/r2-utils';
 import { supabase, getOrderFromSupabase } from '@/lib/supabase-client';
 
 type JsonRecord = Record<string, unknown>;
@@ -92,6 +94,7 @@ type ProductionPreflightDependencies = {
   signObjectUrl: (key: string, bucket: string, expiresIn: number) => Promise<string>;
   buildPrintInput: typeof buildW4PrintInput;
   buildSubmitInput: typeof buildW4SubmitInput;
+  headObject: typeof headObject;
 };
 
 const defaultDependencies: ProductionPreflightDependencies = {
@@ -104,6 +107,7 @@ const defaultDependencies: ProductionPreflightDependencies = {
       .join('/')}`,
   buildPrintInput: buildW4PrintInput,
   buildSubmitInput: buildW4SubmitInput,
+  headObject,
 };
 
 export const W4_PRODUCTION_ORDER_SELECT_FIELDS =
@@ -312,6 +316,30 @@ export function buildW4ProductionPreflight(
   };
 }
 
+async function listMissingPrintAssets(
+  printInput: BuildW4PrintInputResult,
+  headObjectImpl: typeof headObject,
+): Promise<string[]> {
+  const keys = [
+    printInput.pdfR2Key,
+    printInput.coverPdfR2Key,
+    printInput.coverPreviewImageKey,
+    ...printInput.pagePreviewImageKeys,
+  ]
+    .map((value) => toTrimmedString(value))
+    .filter((value): value is string => Boolean(value));
+
+  const uniqueKeys = [...new Set(keys)];
+  const results = await Promise.all(
+    uniqueKeys.map(async (key) => {
+      const response = await headObjectImpl(getBucketFromKey(key), key).catch(() => null);
+      return response?.ok ? null : key;
+    }),
+  );
+
+  return results.filter((value): value is string => Boolean(value));
+}
+
 async function fetchRecentCandidateRows(hours: number, limit: number): Promise<W4ProductionOrderRow[]> {
   const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
@@ -389,6 +417,10 @@ export async function inspectW4ProductionRow(
       );
 
       preflight = buildW4ProductionPreflight(printInput, submitInput);
+      const missingAssets = await listMissingPrintAssets(printInput, deps.headObject);
+      if (missingAssets.length > 0) {
+        inspectionError = `missing_print_assets:${missingAssets.slice(0, 3).join(',')}`;
+      }
     } catch (error) {
       inspectionError =
         error instanceof Error ? error.message : 'Unknown W4 production preflight failure';
@@ -399,7 +431,9 @@ export async function inspectW4ProductionRow(
     ...candidate,
     resolvedVia,
     safeForProductionPilot: Boolean(
-      preflight?.productionGuard.allowed && preflight.productionGuard.reason === 'production_ready',
+      !inspectionError &&
+        preflight?.productionGuard.allowed &&
+        preflight.productionGuard.reason === 'production_ready',
     ),
     inspectionError,
     preflight,
