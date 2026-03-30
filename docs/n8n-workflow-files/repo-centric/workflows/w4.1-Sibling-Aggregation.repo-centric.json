@@ -1348,14 +1348,14 @@
       "main": [
         [
           {
-            "node": "QA Failed Error Handler (W4.1)",
+            "node": "Aggregate + Signed URLs + Build Lulu Payload",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Aggregate + Signed URLs + Build Lulu Payload",
+            "node": "QA Failed Error Handler (W4.1)",
             "type": "main",
             "index": 0
           }

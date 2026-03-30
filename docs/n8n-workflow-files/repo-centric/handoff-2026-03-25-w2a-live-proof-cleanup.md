@@ -1,5 +1,37 @@
 # Repo-Centric Workflow Handoff — 2026-03-25 — W2A Live Proof Complete / Route Cleanup
 
+> Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the second real paid single-order `W4` pilot is now through the real production seam with the shipping-level fix in place, and the production env gate is back off after the run.
+>
+> What changed in repo/backend:
+>
+> - repo helper [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now maps Amazon-style `STANDARD` shipping to Lulu `MAIL` instead of unsupported `GROUND`, while still preserving explicit ground requests as `GROUND`
+> - focused regression coverage in [`test-w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/test-w4-submit-input.ts) now locks both behaviors: `STANDARD -> MAIL` and explicit `GROUND_HOME -> GROUND`
+> - backend deploy revision [`4ee26696.little-hero-labs-admin.pages.dev`](https://4ee26696.little-hero-labs-admin.pages.dev) carries the shipping-level fix
+>
+> Fresh live production-cutover sequence:
+>
+> - fresh candidate `441-0329202-9000006` was created from known-good full-book source `441-0329202-9000004`, with the corrected shipping address `123 SW Main St, Portland, OR 97204, US`, a copied full order asset subtree, rewritten `3-manifest`, and exact-key `interior_441-0329202-9000006.pdf` / `cover_441-0329202-9000006.pdf`
+> - `/api/admin/w4-production?orderId=441-0329202-9000006` then proved the repo-side fix live: `safeForProductionPilot = true`, `productionGuard.reason = "production_ready"`, and `shippingLevelSent = "MAIL"`
+> - first retry attempt on `441-0329202-9000006` did **not** become a real paid submit because the env gate was turned back off immediately after webhook acceptance; by the time the async workflow reached the repo submit seam it had already fallen back to the non-production path
+> - admin views confirm that fallback precisely:
+>   - `workflow_jobs.id = 174` / attempt `135` ended `succeeded`
+>   - terminal payload recorded `submitMode = "skip"`, `nonProduction = true`, `externalProvider = "lulu-sandbox"`, and no real `luluJobId`
+> - fresh candidate `441-0329202-9000007` was then created from `441-0329202-9000006`, preserving the corrected shipping address and full print assets while clearing all Lulu submission state
+> - `/api/admin/w4-production?orderId=441-0329202-9000007` again returned `safeForProductionPilot = true`, `productionGuard.reason = "production_ready"`, and `shippingLevelSent = "MAIL"`
+> - after re-enabling `ENABLE_LULU_PRODUCTION_SUBMIT`, deploying revision [`4157307b.little-hero-labs-admin.pages.dev`](https://4157307b.little-hero-labs-admin.pages.dev), minting a short-lived approval token from [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts), and keeping the gate enabled until the async stage crossed submit, live webhook `w4-pdf-print-repo` accepted the second paid pilot at `claimedAt = 2026-03-30T04:29:09.828Z`
+> - admin workflow telemetry then showed the real paid seam working correctly:
+>   - `workflow_jobs.id = 175`
+>   - `workflow_job_attempts.id = 136`
+>   - `status = succeeded`
+>   - terminal event `completed` with `submitMode = "production"`, `nonProduction = false`, `externalProvider = "lulu"`, `luluJobId = "2806687"`, and `luluStatus = "CREATED"`
+> - order `441-0329202-9000007` now records real production submit state:
+>   - `lulu_job_id = 2806687`
+>   - `print_submitted_at = 2026-03-30T04:30:34.193`
+>   - admin refresh route `/api/admin/orders/441-0329202-9000007/refresh-lulu-status` currently returns `luluStatus = "PRODUCTION_DELAYED"`
+> - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
+>
+> Practical meaning: the repo-centric single-order `W4` path is now proven all the way through a real paid Lulu production submit after fixing the shipping-level mapping. The remaining work is no longer “can repo-owned `W4` submit to production?” It is operational follow-through: confirm/cancel live job `2806687` in Lulu, do the deferred secret rotation, and decide whether to attempt any further paid pilots.
+
 > Update — later on March 29, 2026 in Los Angeles time latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest-latest: the imported live `W4` / `W4.1` QA gate wiring is now corrected, and a fresh non-billable `W4` dry-run proves QA failure no longer falls through to completion.
 >
 > What changed in repo/backend:

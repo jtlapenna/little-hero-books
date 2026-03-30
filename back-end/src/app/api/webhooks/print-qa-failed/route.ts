@@ -19,6 +19,54 @@ const PayloadSchema = z.object({
   failedPages: z.array(z.number()).optional(),
 });
 
+type PrintQaFailedDependencies = {
+  getOrder: typeof getOrderFromSupabase;
+  updateOrderStatus: typeof updateOrderStatus;
+};
+
+const defaultDependencies: PrintQaFailedDependencies = {
+  getOrder: getOrderFromSupabase,
+  updateOrderStatus,
+};
+
+type PrintQaFailedPayload = z.infer<typeof PayloadSchema>;
+
+export async function handlePrintQaFailed(
+  payload: PrintQaFailedPayload,
+  dependencies: PrintQaFailedDependencies = defaultDependencies,
+) {
+  const { orderId, reasonCode, reason, failedPages } = payload;
+  const order = await dependencies.getOrder(orderId).catch(() => null);
+  if (!order) {
+    return {
+      ok: false as const,
+      status: 404,
+      body: { error: 'Order not found', orderId },
+    };
+  }
+
+  const pagesLabel = Array.isArray(failedPages) && failedPages.length ? failedPages.join(', ') : 'n/a';
+  const summary = `Print QA failed (${reasonCode || 'unknown'}): ${reason || 'no reason provided'}; pages=${pagesLabel}`;
+
+  await dependencies.updateOrderStatus(orderId, {
+    execution_status: 'error',
+    error_type: 'print_qa_failed',
+    workflow_step: 'print_fulfillment',
+    error_message: summary,
+  });
+
+  return {
+    ok: true as const,
+    status: 200,
+    body: {
+      success: true,
+      orderId,
+      error_type: 'print_qa_failed',
+      message: summary,
+    },
+  };
+}
+
 export async function POST(request: NextRequest) {
   const auth = verifyBearerAuth(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -28,29 +76,6 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
   }
-
-  const { orderId, reasonCode, reason, failedPages } = parsed.data;
-  const order = await getOrderFromSupabase(orderId).catch(() => null);
-  if (!order) return NextResponse.json({ error: 'Order not found', orderId }, { status: 404 });
-
-  const pagesLabel = Array.isArray(failedPages) && failedPages.length ? failedPages.join(', ') : 'n/a';
-  const summary = `Print QA failed (${reasonCode || 'unknown'}): ${reason || 'no reason provided'}; pages=${pagesLabel}`;
-
-  await updateOrderStatus(orderId, {
-    execution_status: 'error',
-    error_type: 'print_qa_failed',
-    workflow_step: 'print_fulfillment',
-    error_message: summary,
-    printFulfillmentStatus: 'error',
-    printFulfillmentErrorPhase: 'qa_gate',
-    printFulfillmentErrorMessage: summary,
-  });
-
-  return NextResponse.json({
-    success: true,
-    orderId,
-    error_type: 'print_qa_failed',
-    message: summary,
-  });
+  const response = await handlePrintQaFailed(parsed.data);
+  return NextResponse.json(response.body, { status: response.status });
 }
-

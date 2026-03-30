@@ -346,8 +346,11 @@ function mapAmazonShippingToLulu(amazonShipping: string | null): string | null {
   if (shipping.includes('EXPEDITED') || shipping.includes('2-DAY') || shipping.includes('2DAY')) {
     return 'EXPEDITED';
   }
-  if (shipping.includes('STANDARD') || shipping.includes('STD') || shipping.includes('GROUND')) {
+  if (shipping.includes('GROUND')) {
     return 'GROUND';
+  }
+  if (shipping.includes('STANDARD') || shipping.includes('STD')) {
+    return 'MAIL';
   }
 
   return 'MAIL';

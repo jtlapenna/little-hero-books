@@ -1075,9 +1075,7 @@ const repoCentricW41WorkflowPath = path.resolve(
 );
 const validateW4InputCode = getWorkflowNodeCode(w4WorkflowPath, 'Validate & Normalize W4 Input');
 const build4ManifestCode = getWorkflowNodeCode(w4WorkflowPath, 'Build 4-Manifest JSON');
-const build4ErrorContextCode = getWorkflowNodeCode(w4WorkflowPath, 'Build Error Context');
 const buildCoverHtmlCode = getWorkflowNodeCode(w4WorkflowPath, 'Build Cover HTML');
-const qaFailedCode = getWorkflowNodeCode(w4WorkflowPath, 'QA Failed Error Handler');
 const w4Workflow = JSON.parse(readFileSync(w4WorkflowPath, 'utf8')) as {
   nodes?: Array<{
     name?: string;
@@ -1112,6 +1110,14 @@ const repoCentricW4Workflow = JSON.parse(
   }>;
   connections?: Record<string, unknown>;
 };
+const repoCentricBuild4ErrorContextCode = getWorkflowNodeCode(
+  repoCentricW4WorkflowPath,
+  'Build Error Context',
+);
+const repoCentricQaFailedCode = getWorkflowNodeCode(
+  repoCentricW4WorkflowPath,
+  'QA Failed Error Handler',
+);
 const repoCentricW4FetchNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Fetch Repo W4 Print Input',
 );
@@ -1420,8 +1426,9 @@ assert(
   'W4 manifest writer should keep the canonical 4-manifest filename on the resolved order root',
 );
 assert(
-  build4ErrorContextCode.includes('orderPrefix') &&
-    build4ErrorContextCode.includes('extractOrderPrefix'),
+  repoCentricBuild4ErrorContextCode.includes('orderPrefix') &&
+    repoCentricBuild4ErrorContextCode.includes('extractOrderPrefix') &&
+    !repoCentricBuild4ErrorContextCode.includes('printFulfillmentErrorMessage'),
   'W4 error handling should recover the resolved order root when persisting failure manifests',
 );
 assert(
@@ -1430,8 +1437,11 @@ assert(
   'W4 cover HTML should resolve the cover fallback from the normalized order root',
 );
 assert(
-  qaFailedCode.includes('orderPrefix') &&
-    qaFailedCode.includes('4-qa-fail-manifest.json'),
+  repoCentricQaFailedCode.includes('orderPrefix') &&
+    repoCentricQaFailedCode.includes('4-qa-fail-manifest.json') &&
+    !repoCentricQaFailedCode.includes('printFulfillmentErrorMessage') &&
+    !repoCentricQaFailedCode.includes('printFulfillmentErrorPhase') &&
+    !repoCentricQaFailedCode.includes('printFulfillmentStatus'),
   'W4 QA failure handling should persist manifests on the resolved order root',
 );
 assert(
@@ -1537,10 +1547,10 @@ assert(
 assert(
   repoCentricW4QaGateNode?.type === 'n8n-nodes-base.if' &&
     JSON.stringify(repoCentricW4QaGateNode.parameters).includes("$json.qaPassed === true ? 'true' : 'false'") &&
-    repoCentricW4QaGateOutputs[0]?.[0]?.node === 'QA Failed Error Handler' &&
-    repoCentricW4QaGateOutputs[1]?.[0]?.node === 'Decide Lulu Source URLs (NO PROXY)' &&
+    repoCentricW4QaGateOutputs[0]?.[0]?.node === 'Decide Lulu Source URLs (NO PROXY)' &&
+    repoCentricW4QaGateOutputs[1]?.[0]?.node === 'QA Failed Error Handler' &&
     repoCentricW4QaFailedNode?.type === 'n8n-nodes-base.code',
-  'Repo-centric W4 QA gate should coerce qaPassed explicitly and route false->QA failure, true->Lulu submit prep',
+  'Repo-centric W4 QA gate should coerce qaPassed explicitly and route true->Lulu submit prep, false->QA failure',
 );
 assert(
   repoCentricW4ErrorContextNode?.type === 'n8n-nodes-base.code' &&
@@ -1580,9 +1590,11 @@ assert(
     JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes(
       '/api/internal/w4/publish-print-manifest',
     ) &&
-    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes("current.backendUrl || 'https://admin.littleherolabs.com'") &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes('QA Failed Error Handler') &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes('Build Error Context') &&
+    JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes("merged.backendUrl || 'https://admin.littleherolabs.com'") &&
     JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes(
-      'current.CONFIG?.backendApiToken',
+      'merged.CONFIG?.backendApiToken',
     ) &&
     JSON.stringify(repoCentricW4BuildErrorManifestNode.parameters).includes('this.helpers.httpRequest') &&
     repoCentricW4BuildErrorManifestConnections.includes('"node":"Upload 4-Manifest (Error) to R2"') &&
@@ -1763,10 +1775,10 @@ assert(
 assert(
   repoCentricW41QaGateNode?.type === 'n8n-nodes-base.if' &&
     JSON.stringify(repoCentricW41QaGateNode.parameters).includes("$json.qaPassed === true ? 'true' : 'false'") &&
-    repoCentricW41QaGateOutputs[0]?.[0]?.node === 'QA Failed Error Handler (W4.1)' &&
-    repoCentricW41QaGateOutputs[1]?.[0]?.node === 'Aggregate + Signed URLs + Build Lulu Payload' &&
+    repoCentricW41QaGateOutputs[0]?.[0]?.node === 'Aggregate + Signed URLs + Build Lulu Payload' &&
+    repoCentricW41QaGateOutputs[1]?.[0]?.node === 'QA Failed Error Handler (W4.1)' &&
     repoCentricW41QaFailedNode?.type === 'n8n-nodes-base.code',
-  'Repo-centric W4.1 QA gate should coerce qaPassed explicitly and route false->QA failure, true->sibling submit aggregation',
+  'Repo-centric W4.1 QA gate should coerce qaPassed explicitly and route true->sibling submit aggregation, false->QA failure',
 );
 assert(
   repoCentricW41BuildManifestNode?.type === 'n8n-nodes-base.code' &&

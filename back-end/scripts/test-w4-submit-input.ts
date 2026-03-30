@@ -432,6 +432,68 @@ async function testProductionHonorsRecommendedAddressOverride(): Promise<void> {
   });
 }
 
+async function testProductionMapsAmazonStandardShippingToMail(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-PILOT-006A';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        amazon_shipment_service_level: 'STANDARD',
+        ShipmentServiceLevelCategory: 'Standard',
+        ShipServiceLevel: 'Standard',
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.shippingLevelSent === 'MAIL' &&
+        response.shippingTierResolved === 'MAIL' &&
+        response.shippingTierResolvedReason === 'amazon',
+      'Expected W4 production submit shaping to map Amazon standard shipping to Lulu MAIL instead of unsupported GROUND',
+    );
+  });
+}
+
+async function testProductionPreservesExplicitGroundShipping(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-PILOT-006B';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        amazon_shipment_service_level: 'GROUND_HOME',
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.shippingLevelSent === 'GROUND' &&
+        response.shippingTierResolved === 'GROUND' &&
+        response.shippingTierResolvedReason === 'amazon',
+      'Expected W4 production submit shaping to preserve explicit ground shipping requests when the source order really asks for ground',
+    );
+  });
+}
+
 async function testExistingJobSkipsLulu(): Promise<void> {
   const response = await buildW4SubmitInputResponse(createBaseInput(), {
     loadOrder: async () => ({
@@ -528,6 +590,8 @@ async function main(): Promise<void> {
   await testProductionRequiresRealShippingPhone();
   await testProductionBlocksInvalidInteriorPageCount();
   await testProductionHonorsRecommendedAddressOverride();
+  await testProductionMapsAmazonStandardShippingToMail();
+  await testProductionPreservesExplicitGroundShipping();
   console.log('W4 submit input tests passed');
 }
 
