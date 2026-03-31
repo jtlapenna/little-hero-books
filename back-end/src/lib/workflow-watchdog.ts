@@ -145,6 +145,49 @@ async function appendProviderSignalEventIfChanged(
   });
 }
 
+async function mirrorLatestProviderStatusIfChanged(
+  job: WorkflowJobRecord,
+  signal: ReturnType<typeof buildLuluWebhookSignal>,
+) {
+  const snapshot = toJsonRecord(job.result_snapshot);
+  const previousStatus = toTrimmedString(snapshot.luluStatus);
+  const latestStatus = toTrimmedString(signal.latestStatus);
+  const luluJobId =
+    toTrimmedString(snapshot.luluJobId) ??
+    toTrimmedString(snapshot.externalRequestId) ??
+    toTrimmedString(job.external_request_id);
+
+  if (!latestStatus || latestStatus === previousStatus) {
+    return { mirrored: false };
+  }
+
+  await updateWorkflowJobResultSnapshot(job.id, {
+    luluStatus: latestStatus,
+    luluStatusUpdatedAt: signal.latestReceivedAt ?? new Date().toISOString(),
+  });
+
+  await appendWorkflowJobEvent({
+    jobId: job.id,
+    eventType: 'provider-status-updated',
+    payload: {
+      providerStatus: latestStatus,
+      previousProviderStatus: previousStatus,
+      mirroredFromWebhookLog: true,
+      latestReceivedAt: signal.latestReceivedAt,
+    },
+    correlation: {
+      sourceSystem: 'cron',
+      orderId: job.order_id,
+      rootGroupId: job.root_order_id,
+      externalProvider: 'lulu',
+      externalRequestId: luluJobId,
+      luluJobId,
+    },
+  });
+
+  return { mirrored: true, latestStatus };
+}
+
 export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary> {
   const jobs = await loadRecentWorkflowJobs();
   const now = Date.now();
@@ -282,19 +325,29 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
             webhookLog,
           });
 
+          const mirroredStatus = await mirrorLatestProviderStatusIfChanged(job, signal);
+          const effectiveDeliveryState =
+            signal.deliveryState === 'stale' && mirroredStatus.mirrored
+              ? 'received'
+              : signal.deliveryState;
+          const effectiveDeliveryReason =
+            signal.deliveryState === 'stale' && mirroredStatus.mirrored
+              ? 'latest_webhook_mirrored_into_job_snapshot'
+              : signal.deliveryReason;
+
           await updateWorkflowJobResultSnapshot(job.id, {
-            webhookDeliveryState: signal.deliveryState,
-            webhookDeliveryReason: signal.deliveryReason,
+            webhookDeliveryState: effectiveDeliveryState,
+            webhookDeliveryReason: effectiveDeliveryReason,
             webhookLatestStatus: signal.latestStatus,
             webhookLatestReceivedAt: signal.latestReceivedAt,
           });
 
-          if (signal.deliveryState === 'missing') {
+          if (effectiveDeliveryState === 'missing') {
             await appendProviderSignalEventIfChanged(
               job,
               'provider-status-missing',
               'missing',
-              signal.deliveryReason,
+              effectiveDeliveryReason,
               signal,
             );
             await upsertAlert({
@@ -305,17 +358,17 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
               summary: `Job ${job.id} has a real Lulu submission but no webhook delivery`,
               details: {
                 luluJobId,
-                deliveryReason: signal.deliveryReason,
+                deliveryReason: effectiveDeliveryReason,
               },
             });
           }
 
-          if (signal.deliveryState === 'stale') {
+          if (effectiveDeliveryState === 'stale') {
             await appendProviderSignalEventIfChanged(
               job,
               'provider-status-stale',
               'stale',
-              signal.deliveryReason,
+              effectiveDeliveryReason,
               signal,
             );
             await upsertAlert({
@@ -327,12 +380,12 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
               details: {
                 luluJobId,
                 latestStatus: signal.latestStatus,
-                deliveryReason: signal.deliveryReason,
+                deliveryReason: effectiveDeliveryReason,
               },
             });
           }
 
-          if (signal.deliveryState === 'error') {
+          if (effectiveDeliveryState === 'error') {
             await upsertAlert({
               dedupeKey: `workflow-job:${job.id}:provider-error`,
               job,
@@ -343,7 +396,7 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
                 luluJobId,
                 latestStatus: signal.latestStatus,
                 latestErrorMessage: signal.latestErrorMessage,
-                deliveryReason: signal.deliveryReason,
+                deliveryReason: effectiveDeliveryReason,
               },
             });
           }
