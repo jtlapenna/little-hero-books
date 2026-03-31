@@ -2,6 +2,21 @@ import { supabase } from '@/lib/supabase-client';
 
 type SupabaseLike = typeof supabase;
 
+function isMissingWorkflowAlertsTableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const code = toTrimmedString((error as { code?: unknown }).code);
+  const message = toTrimmedString((error as { message?: unknown }).message) ?? '';
+  const details = toTrimmedString((error as { details?: unknown }).details) ?? '';
+  return (
+    code === '42P01' ||
+    message.includes('workflow_alerts') ||
+    details.includes('workflow_alerts')
+  );
+}
+
 function toTrimmedString(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return String(value);
@@ -92,6 +107,27 @@ export async function upsertWorkflowAlert(
     .eq('dedupe_key', dedupeKey)
     .maybeSingle();
   if (existingQuery.error) {
+    if (isMissingWorkflowAlertsTableError(existingQuery.error)) {
+      return {
+        id: 0,
+        dedupe_key: dedupeKey,
+        job_id: input.jobId ?? null,
+        attempt_id: input.attemptId ?? null,
+        stage: toTrimmedString(input.stage),
+        alert_type: alertType,
+        severity: input.severity,
+        status: 'open',
+        summary,
+        details: input.details ?? {},
+        first_seen_at: nowIso,
+        last_seen_at: nowIso,
+        acknowledged_at: null,
+        acknowledged_by: null,
+        resolved_at: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      };
+    }
     throw existingQuery.error;
   }
 
@@ -127,6 +163,27 @@ export async function upsertWorkflowAlert(
         .maybeSingle();
 
   if (error || !data) {
+    if (error && isMissingWorkflowAlertsTableError(error)) {
+      return {
+        id: existing?.id ?? 0,
+        dedupe_key: dedupeKey,
+        job_id: input.jobId ?? null,
+        attempt_id: input.attemptId ?? null,
+        stage: toTrimmedString(input.stage),
+        alert_type: alertType,
+        severity: input.severity,
+        status: patch.status as WorkflowAlertStatus,
+        summary,
+        details: input.details ?? {},
+        first_seen_at: existing?.first_seen_at ?? nowIso,
+        last_seen_at: nowIso,
+        acknowledged_at: patch.acknowledged_at,
+        acknowledged_by: patch.acknowledged_by,
+        resolved_at: null,
+        created_at: existing?.created_at ?? nowIso,
+        updated_at: nowIso,
+      };
+    }
     throw error ?? new Error('Failed to persist workflow alert');
   }
   return data as WorkflowAlertRecord;
@@ -154,6 +211,9 @@ export async function acknowledgeWorkflowAlert(
     .maybeSingle();
 
   if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return null;
+    }
     throw error;
   }
   return (data as WorkflowAlertRecord | null) ?? null;
@@ -178,6 +238,9 @@ export async function resolveWorkflowAlertsByDedupeKeys(
     .neq('status', 'resolved');
 
   if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return;
+    }
     throw error;
   }
 }
@@ -206,6 +269,9 @@ export async function listWorkflowAlerts(
 
   const { data, error } = await query;
   if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return [];
+    }
     throw error;
   }
   return (data as WorkflowAlertRecord[] | null) ?? [];
@@ -228,6 +294,9 @@ export async function listOpenWorkflowAlertsByJobIds(
     .order('last_seen_at', { ascending: false });
 
   if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return new Map();
+    }
     throw error;
   }
 
