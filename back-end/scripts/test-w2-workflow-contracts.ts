@@ -332,10 +332,12 @@ async function main(): Promise<void> {
       w2aSw0RestoreFinalizedCode.includes(
         "Could not parse finalized W2A base result",
       ) &&
+      w2aSw0RestoreFinalizedCode.includes("extractStreamText") &&
+      w2aSw0RestoreFinalizedCode.includes("Buffer.concat") &&
       w2aSw0RestoreUploadedCode.includes(
         "Restore Finalized Base Envelope",
       ),
-    "Repo-centric W2A SW0 should rehydrate the extracted binary after finalization and restore the finalized envelope after upload",
+    "Repo-centric W2A SW0 should unwrap stream-backed finalizer responses, rehydrate the extracted binary after finalization, and restore the finalized envelope after upload",
   );
   assert(
     !w2aSw0Workflow.nodes?.some(

@@ -90,6 +90,7 @@ export type W2ARecoveryInspection = W2ARecoveryCandidate & {
   } | null;
   matchedExecution: {
     id: string;
+    workflowId: string;
     status: string;
     startedAt: string;
     finished: boolean;
@@ -108,6 +109,7 @@ export type W2AReplayActionResult = {
   };
   newExecution: {
     id: string;
+    workflowId: string;
     status: string;
     startedAt: string;
     finished: boolean;
@@ -419,11 +421,17 @@ function getN8NBaseUrl(): string {
 }
 
 async function listExecutions(
-  workflowId: string,
   executionLimit: number,
+  workflowId?: string | null,
 ): Promise<ExecutionListEntry[]> {
+  const url = new URL(`${getN8NBaseUrl()}/api/v1/executions`);
+  url.searchParams.set('limit', String(executionLimit));
+  if (workflowId) {
+    url.searchParams.set('workflowId', workflowId);
+  }
+
   const response = await fetch(
-    `${getN8NBaseUrl()}/api/v1/executions?workflowId=${encodeURIComponent(workflowId)}&limit=${executionLimit}`,
+    url.toString(),
     {
       headers: {
         'X-N8N-API-KEY': requireEnv('N8N_API_KEY'),
@@ -479,20 +487,56 @@ async function fetchWorkflow(workflowId: string): Promise<WorkflowResponse> {
   return JSON.parse(text) as WorkflowResponse;
 }
 
-async function findExecutionWithPayload(orderId: string, executionLimit: number) {
-  const executions = await listExecutions(TOP_WORKFLOW_ID, executionLimit);
+async function findExecutionWithPayload(
+  orderId: string,
+  executionLimit: number,
+  preferredWorkflowId: string | null = TOP_WORKFLOW_ID,
+) {
+  const seenExecutionIds = new Set<string>();
+  const searchScopes = preferredWorkflowId ? [preferredWorkflowId, null] : [null];
+
+  for (const workflowId of searchScopes) {
+    const executions = await listExecutions(executionLimit, workflowId);
+
+    for (const execution of executions) {
+      if (seenExecutionIds.has(execution.id)) {
+        continue;
+      }
+      seenExecutionIds.add(execution.id);
+
+      const fullExecution = await getExecution(execution.id);
+      const payload = extractExecutionPayload(fullExecution, orderId);
+      if (!payload) {
+        continue;
+      }
+
+      return {
+        listEntry: execution,
+        payload,
+      };
+    }
+  }
+
+  return null;
+}
+
+async function findNewExecutionWithPayload(options: {
+  orderId: string;
+  executionLimit: number;
+  beforeExecutionIds: Set<string>;
+}): Promise<ExecutionListEntry | null> {
+  const executions = await listExecutions(options.executionLimit);
 
   for (const execution of executions) {
-    const fullExecution = await getExecution(execution.id);
-    const payload = extractExecutionPayload(fullExecution, orderId);
-    if (!payload) {
+    if (options.beforeExecutionIds.has(execution.id)) {
       continue;
     }
 
-    return {
-      listEntry: execution,
-      payload,
-    };
+    const fullExecution = await getExecution(execution.id);
+    const payload = extractExecutionPayload(fullExecution, options.orderId);
+    if (payload) {
+      return execution;
+    }
   }
 
   return null;
@@ -727,15 +771,23 @@ export async function inspectW2ARecoveryOrder(
 
   if (options.includeExecutionLookup !== false) {
     try {
-      const [topWorkflow, matched] = await Promise.all([
-        fetchWorkflow(TOP_WORKFLOW_ID),
-        findExecutionWithPayload(orderId, Math.max(5, options.executionLimit ?? 40)),
-      ]);
+      const matched = await findExecutionWithPayload(
+        orderId,
+        Math.max(5, options.executionLimit ?? 40),
+      );
+      let resolvedWorkflow: WorkflowResponse | null = null;
+      if (matched) {
+        resolvedWorkflow = await fetchWorkflow(matched.listEntry.workflowId).catch(() => null);
+      }
+      if (!resolvedWorkflow) {
+        resolvedWorkflow = await fetchWorkflow(TOP_WORKFLOW_ID).catch(() => null);
+      }
 
-      workflow = summarizeWorkflow(topWorkflow);
+      workflow = resolvedWorkflow ? summarizeWorkflow(resolvedWorkflow) : null;
       matchedExecution = matched
         ? {
             id: matched.listEntry.id,
+            workflowId: matched.listEntry.workflowId,
             status: matched.listEntry.status,
             startedAt: matched.listEntry.startedAt,
             finished: matched.listEntry.finished,
@@ -884,15 +936,8 @@ export async function replayW2ARecoveryOrder(
     );
   }
 
-  const workflow = await fetchWorkflow(TOP_WORKFLOW_ID);
-  if (!workflow.active) {
-    throw new Error(
-      `W2A recovery replay refused: top-level workflow ${TOP_WORKFLOW_ID} is inactive`,
-    );
-  }
-
   const beforeExecutionIds = new Set(
-    (await listExecutions(TOP_WORKFLOW_ID, Math.max(5, options.executionLimit ?? 40))).map(
+    (await listExecutions(Math.max(20, options.executionLimit ?? 40))).map(
       (execution) => execution.id,
     ),
   );
@@ -913,14 +958,15 @@ export async function replayW2ARecoveryOrder(
   if (waitSeconds > 0) {
     const deadline = Date.now() + waitSeconds * 1000;
     while (Date.now() < deadline) {
-      const executions = await listExecutions(
-        TOP_WORKFLOW_ID,
-        Math.max(5, options.executionLimit ?? 40),
-      );
-      const observed = executions.find((execution) => !beforeExecutionIds.has(execution.id));
+      const observed = await findNewExecutionWithPayload({
+        orderId: inspection.orderId,
+        executionLimit: Math.max(20, options.executionLimit ?? 40),
+        beforeExecutionIds,
+      });
       if (observed) {
         newExecution = {
           id: observed.id,
+          workflowId: observed.workflowId,
           status: observed.status,
           startedAt: observed.startedAt,
           finished: observed.finished,
