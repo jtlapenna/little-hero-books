@@ -195,6 +195,19 @@ type WorkflowAlertsResponse = {
   error?: string;
 };
 
+type WorkflowWatchdogRunResponse = {
+  success: boolean;
+  ranAt: string;
+  storageMode: 'durable' | 'fallback';
+  summary: {
+    scannedJobCount: number;
+    openAlertCount: number;
+    resolvedAlertCount: number;
+    byAlertType: Record<string, number>;
+  };
+  error?: string;
+};
+
 const STAGE_OPTIONS = [
   { value: '', label: 'All stages' },
   { value: '2a', label: '2A' },
@@ -346,6 +359,8 @@ function WorkflowJobsPageContent() {
   const [alertsLoading, setAlertsLoading] = useState(true);
   const [alertsData, setAlertsData] = useState<WorkflowAlertsResponse | null>(null);
   const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<number | null>(null);
+  const [runningWatchdog, setRunningWatchdog] = useState(false);
+  const [lastWatchdogRun, setLastWatchdogRun] = useState<WorkflowWatchdogRunResponse | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [banner, setBanner] = useState<{ tone: 'error' | 'info'; message: string } | null>(null);
 
@@ -517,6 +532,49 @@ function WorkflowJobsPageContent() {
     }
   };
 
+  const handleRunWatchdog = async () => {
+    setRunningWatchdog(true);
+    try {
+      const response = await fetch('/api/admin/workflow-jobs/watchdog', {
+        method: 'POST',
+      });
+      const payload = (await response.json()) as WorkflowWatchdogRunResponse;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to run workflow watchdog');
+      }
+
+      setLastWatchdogRun(payload);
+      await Promise.all([
+        fetchAlerts({ stage: selectedStage }),
+        fetchData({
+          orderId: selectedOrderId,
+          stage: selectedStage,
+          status: selectedStatus,
+        }),
+      ]);
+
+      const storageModeMessage =
+        payload.storageMode === 'fallback'
+          ? ' Alerts are still in fallback mode until the workflow_alerts table migration is applied.'
+          : '';
+      setBanner({
+        tone: 'info',
+        message:
+          `Ran repo workflow watchdog: scanned ${payload.summary.scannedJobCount} jobs, ` +
+          `opened ${payload.summary.openAlertCount} alerts, resolved ${payload.summary.resolvedAlertCount}.` +
+          storageModeMessage,
+      });
+    } catch (error) {
+      console.error('Failed to run workflow watchdog:', error);
+      setBanner({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Failed to run workflow watchdog',
+      });
+    } finally {
+      setRunningWatchdog(false);
+    }
+  };
+
   const attentionCount =
     (data?.summary.failedCount ?? 0) +
     (data?.summary.retryWaitingCount ?? 0) +
@@ -542,6 +600,14 @@ function WorkflowJobsPageContent() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleRunWatchdog}
+              disabled={runningWatchdog}
+              className="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-800 shadow-sm hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <CheckCircle2 className={`mr-2 h-4 w-4 ${runningWatchdog ? 'animate-pulse' : ''}`} />
+              {runningWatchdog ? 'Running Watchdog…' : 'Run Watchdog'}
+            </button>
             <button
               onClick={() =>
                 fetchData({
@@ -639,6 +705,13 @@ function WorkflowJobsPageContent() {
                   : 'Loading alert summary...'}
               </div>
             </div>
+            {lastWatchdogRun && (
+              <div className="mt-3 text-xs text-gray-500">
+                Last manual watchdog run {formatTimestamp(lastWatchdogRun.ranAt)} • scanned{' '}
+                {lastWatchdogRun.summary.scannedJobCount} • opened {lastWatchdogRun.summary.openAlertCount} •
+                resolved {lastWatchdogRun.summary.resolvedAlertCount}
+              </div>
+            )}
           </div>
 
           {alertsData?.storageMode === 'fallback' && (

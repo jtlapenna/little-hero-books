@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase-client';
 
 type SupabaseLike = typeof supabase;
+const WORKFLOW_ALERT_BATCH_SIZE = 100;
 
 function isMissingWorkflowAlertsTableError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
@@ -243,20 +244,23 @@ export async function resolveWorkflowAlertsByDedupeKeys(
     return;
   }
 
-  const { error } = await client
-    .from('workflow_alerts')
-    .update({
-      status: 'resolved',
-      resolved_at: new Date().toISOString(),
-    })
-    .in('dedupe_key', keys)
-    .neq('status', 'resolved');
+  for (let index = 0; index < keys.length; index += WORKFLOW_ALERT_BATCH_SIZE) {
+    const chunk = keys.slice(index, index + WORKFLOW_ALERT_BATCH_SIZE);
+    const { error } = await client
+      .from('workflow_alerts')
+      .update({
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+      })
+      .in('dedupe_key', chunk)
+      .neq('status', 'resolved');
 
-  if (error) {
-    if (isMissingWorkflowAlertsTableError(error)) {
-      return;
+    if (error) {
+      if (isMissingWorkflowAlertsTableError(error)) {
+        return;
+      }
+      throw error;
     }
-    throw error;
   }
 }
 
