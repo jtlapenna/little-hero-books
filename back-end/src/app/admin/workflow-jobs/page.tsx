@@ -4,9 +4,10 @@ import { Suspense, startTransition, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Activity,
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  CheckCheck,
   Clock3,
   Layers3,
   RefreshCw,
@@ -151,6 +152,48 @@ type WorkflowJobsResponse = {
   error?: string;
 };
 
+type WorkflowAlertItem = {
+  id: number;
+  dedupe_key: string;
+  job_id: number | null;
+  attempt_id: number | null;
+  stage: string | null;
+  alert_type: string;
+  severity: 'info' | 'warning' | 'critical';
+  status: 'open' | 'acknowledged' | 'resolved';
+  summary: string;
+  details: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+  job: {
+    id: number;
+    stage: string;
+    orderId: string | null;
+    rootOrderId: string | null;
+    amazonOrderId: string | null;
+    status: string;
+    updatedAt: string;
+    jobType: string;
+  } | null;
+};
+
+type WorkflowAlertsResponse = {
+  success: boolean;
+  summary: {
+    openCount: number;
+    criticalCount: number;
+    warningCount: number;
+    infoCount: number;
+  };
+  alerts: WorkflowAlertItem[];
+  error?: string;
+};
+
 const STAGE_OPTIONS = [
   { value: '', label: 'All stages' },
   { value: '2a', label: '2A' },
@@ -237,12 +280,53 @@ function stageClasses(stage: string): string {
   }
 }
 
+function stageDisplayLabel(stage: string | null): string {
+  switch ((stage || '').toLowerCase()) {
+    case '2a':
+      return '2A';
+    case '2b':
+      return '2B';
+    case '3':
+      return 'W3';
+    case '4':
+      return 'W4';
+    case '4.1':
+      return 'W4.1';
+    default:
+      return stage || 'Unknown';
+  }
+}
+
 function summarizeCounts(counts: Record<string, number>): string {
   const entries = Object.entries(counts);
   if (entries.length === 0) {
     return 'None';
   }
   return entries.map(([key, value]) => `${key}:${value}`).join(' • ');
+}
+
+function alertSeverityClasses(severity: WorkflowAlertItem['severity']): string {
+  switch (severity) {
+    case 'critical':
+      return 'border-red-200 bg-red-50 text-red-800';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50 text-amber-800';
+    case 'info':
+    default:
+      return 'border-blue-200 bg-blue-50 text-blue-800';
+  }
+}
+
+function alertStatusClasses(status: WorkflowAlertItem['status']): string {
+  switch (status) {
+    case 'acknowledged':
+      return 'border-indigo-200 bg-indigo-50 text-indigo-800';
+    case 'resolved':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+    case 'open':
+    default:
+      return 'border-rose-200 bg-rose-50 text-rose-800';
+  }
 }
 
 function WorkflowJobsPageContent() {
@@ -258,6 +342,9 @@ function WorkflowJobsPageContent() {
   const [draftStatus, setDraftStatus] = useState(selectedStatus);
   const [data, setData] = useState<WorkflowJobsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsData, setAlertsData] = useState<WorkflowAlertsResponse | null>(null);
+  const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<number | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [banner, setBanner] = useState<{ tone: 'error' | 'info'; message: string } | null>(null);
 
@@ -305,6 +392,39 @@ function WorkflowJobsPageContent() {
     }
   };
 
+  const fetchAlerts = async (params: { stage: string }) => {
+    setAlertsLoading(true);
+    try {
+      const query = new URLSearchParams({
+        hours: '168',
+        limit: '12',
+        status: 'open',
+      });
+      if (params.stage) {
+        query.set('stage', params.stage);
+      }
+
+      const response = await fetch(`/api/admin/workflow-alerts?${query.toString()}`);
+      const payload = (await response.json()) as WorkflowAlertsResponse;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to load workflow alerts');
+      }
+
+      setAlertsData(payload);
+    } catch (error) {
+      console.error('Failed to load workflow alerts:', error);
+      setAlertsData(null);
+      setBanner((previous) =>
+        previous ?? {
+          tone: 'error',
+          message: error instanceof Error ? error.message : 'Failed to load workflow alerts',
+        },
+      );
+    } finally {
+      setAlertsLoading(false);
+    }
+  };
+
   useEffect(() => {
     setDraftOrderId(selectedOrderId);
     setDraftStage(selectedStage);
@@ -315,12 +435,18 @@ function WorkflowJobsPageContent() {
       stage: selectedStage,
       status: selectedStatus,
     });
+    fetchAlerts({
+      stage: selectedStage,
+    });
 
     const interval = window.setInterval(() => {
       fetchData({
         orderId: selectedOrderId,
         stage: selectedStage,
         status: selectedStatus,
+      });
+      fetchAlerts({
+        stage: selectedStage,
       });
     }, 60000);
 
@@ -354,6 +480,40 @@ function WorkflowJobsPageContent() {
       stage: draftStage,
       status: draftStatus,
     });
+  };
+
+  const handleAcknowledgeAlert = async (alertId: number) => {
+    setAcknowledgingAlertId(alertId);
+    try {
+      const response = await fetch(`/api/admin/workflow-alerts/${alertId}/acknowledge`, {
+        method: 'POST',
+      });
+      const payload = (await response.json()) as { success?: boolean; error?: string };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to acknowledge alert');
+      }
+
+      await Promise.all([
+        fetchAlerts({ stage: selectedStage }),
+        fetchData({
+          orderId: selectedOrderId,
+          stage: selectedStage,
+          status: selectedStatus,
+        }),
+      ]);
+      setBanner({
+        tone: 'info',
+        message: `Acknowledged workflow alert ${alertId}.`,
+      });
+    } catch (error) {
+      console.error('Failed to acknowledge alert:', error);
+      setBanner({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Failed to acknowledge alert',
+      });
+    } finally {
+      setAcknowledgingAlertId(null);
+    }
   };
 
   const attentionCount =
@@ -462,6 +622,103 @@ function WorkflowJobsPageContent() {
             </div>
           </div>
         )}
+
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-5 py-4">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Open workflow alerts</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Durable alerts from the watchdog and provider lifecycle checks. Acknowledge them here once an operator has reviewed the issue.
+                </p>
+              </div>
+              <div className="text-sm text-gray-500">
+                {alertsData
+                  ? `${alertsData.summary.openCount} open • ${alertsData.summary.criticalCount} critical • ${alertsData.summary.warningCount} warning`
+                  : 'Loading alert summary...'}
+              </div>
+            </div>
+          </div>
+
+          {alertsLoading && !alertsData ? (
+            <div className="px-5 py-10 text-center text-sm text-gray-500">
+              <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-gray-400" />
+              Loading workflow alerts...
+            </div>
+          ) : alertsData && alertsData.alerts.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-gray-500">
+              No open workflow alerts for the current filter.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {alertsData?.alerts.map((alert) => (
+                <div key={alert.id} className="px-5 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${alertSeverityClasses(alert.severity)}`}>
+                          {alert.severity}
+                        </span>
+                        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${alertStatusClasses(alert.status)}`}>
+                          {alert.status}
+                        </span>
+                        {alert.stage && (
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${stageClasses(stageDisplayLabel(alert.stage))}`}>
+                            {stageDisplayLabel(alert.stage)}
+                          </span>
+                        )}
+                        <span className="text-sm font-medium text-gray-900">{alert.alert_type}</span>
+                      </div>
+                      <div className="mt-2 text-sm font-medium text-gray-900">{alert.summary}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        first seen {formatTimestamp(alert.first_seen_at)} • last seen {formatRelativeAge(alert.last_seen_at)}
+                      </div>
+                      {alert.job && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          job {alert.job.id} • {alert.job.jobType} • {alert.job.orderId || alert.job.rootOrderId || 'no order id'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {(alert.job?.orderId || alert.job?.rootOrderId || alert.job?.amazonOrderId) && (
+                        <button
+                          onClick={() =>
+                            replaceUrl({
+                              orderId:
+                                alert.job?.orderId ||
+                                alert.job?.rootOrderId ||
+                                alert.job?.amazonOrderId ||
+                                '',
+                              stage: selectedStage,
+                              status: selectedStatus,
+                            })
+                          }
+                          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                        >
+                          Inspect Job
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleAcknowledgeAlert(alert.id)}
+                        disabled={acknowledgingAlertId === alert.id}
+                        className="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 shadow-sm hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {acknowledgingAlertId === alert.id ? (
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCheck className="mr-2 h-4 w-4" />
+                        )}
+                        Acknowledge
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <form className="grid gap-4 lg:grid-cols-[1.6fr_0.7fr_0.7fr_auto]" onSubmit={handleSubmit}>
@@ -884,7 +1141,7 @@ function WorkflowJobsPageContent() {
 
         <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
           <div className="flex items-start gap-3">
-            <Activity className="mt-0.5 h-5 w-5 text-indigo-700" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-indigo-700" />
             <div className="text-sm text-indigo-900">
               <div className="font-semibold">What this page is for</div>
               <p className="mt-1">

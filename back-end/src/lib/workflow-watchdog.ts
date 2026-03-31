@@ -45,8 +45,17 @@ function toJsonRecord(value: unknown): Record<string, unknown> {
 
 function isRealLuluJob(job: WorkflowJobRecord): boolean {
   const snapshot = toJsonRecord(job.result_snapshot);
+  const provider =
+    toTrimmedString(snapshot.externalProvider) ??
+    toTrimmedString(snapshot.provider) ??
+    toTrimmedString(job.external_provider);
+  if (provider !== 'lulu') {
+    return false;
+  }
   const luluJobId =
-    toTrimmedString(snapshot.luluJobId) ?? toTrimmedString(job.external_request_id);
+    toTrimmedString(snapshot.luluJobId) ??
+    toTrimmedString(snapshot.externalRequestId) ??
+    toTrimmedString(job.external_request_id);
   const luluStatus = toTrimmedString(snapshot.luluStatus);
   if (!luluJobId) {
     return false;
@@ -100,7 +109,9 @@ async function appendProviderSignalEventIfChanged(
   const previousState = toTrimmedString(snapshot.webhookDeliveryState);
   const previousReason = toTrimmedString(snapshot.webhookDeliveryReason);
   const luluJobId =
-    toTrimmedString(snapshot.luluJobId) ?? toTrimmedString(job.external_request_id);
+    toTrimmedString(snapshot.luluJobId) ??
+    toTrimmedString(snapshot.externalRequestId) ??
+    toTrimmedString(job.external_request_id);
 
   await updateWorkflowJobResultSnapshot(job.id, {
     webhookDeliveryState: deliveryState,
@@ -258,7 +269,9 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
 
     if ((job.stage === '4' || job.stage === '4.1') && isRealLuluJob(job)) {
       const luluJobId =
-        toTrimmedString(snapshot.luluJobId) ?? toTrimmedString(job.external_request_id);
+        toTrimmedString(snapshot.luluJobId) ??
+        toTrimmedString(snapshot.externalRequestId) ??
+        toTrimmedString(job.external_request_id);
       const currentStatus = toTrimmedString(snapshot.luluStatus);
       if (luluJobId) {
         try {

@@ -353,26 +353,32 @@ function extractProviderSummary(
     luluJobId,
     currentStatus: latestStatus,
   });
+  const provider =
+    toTrimmedString(resultSnapshot.externalProvider) ??
+    toTrimmedString(latestPayload.externalProvider) ??
+    toTrimmedString(resultSnapshot.provider) ??
+    job.external_provider;
+  const luluLikeProvider = provider?.toLowerCase().startsWith('lulu') ?? false;
 
   const summary: WorkflowJobsMonitorProviderSummary = {
-    provider:
-      toTrimmedString(resultSnapshot.externalProvider) ??
-      toTrimmedString(latestPayload.externalProvider) ??
-      toTrimmedString(resultSnapshot.provider) ??
-      job.external_provider,
-    luluJobId,
+    provider,
+    luluJobId: luluLikeProvider ? luluJobId : null,
     latestStatus,
     latestStatusUpdatedAt:
       toTrimmedString(resultSnapshot.luluStatusUpdatedAt) ??
       toTrimmedString(latestPayload.changedAt),
-    webhookDeliveryState: nonProduction
-      ? 'not_applicable'
-      : toTrimmedString(resultSnapshot.webhookDeliveryState) ??
-        toTrimmedString(latestPayload.deliveryState),
-    webhookDeliveryReason: nonProduction
-      ? 'non_production_submission'
-      : toTrimmedString(resultSnapshot.webhookDeliveryReason) ??
-        toTrimmedString(latestPayload.deliveryReason),
+    webhookDeliveryState: !luluLikeProvider
+      ? null
+      : nonProduction
+        ? 'not_applicable'
+        : toTrimmedString(resultSnapshot.webhookDeliveryState) ??
+          toTrimmedString(latestPayload.deliveryState),
+    webhookDeliveryReason: !luluLikeProvider
+      ? null
+      : nonProduction
+        ? 'non_production_submission'
+        : toTrimmedString(resultSnapshot.webhookDeliveryReason) ??
+          toTrimmedString(latestPayload.deliveryReason),
   };
 
   return Object.values(summary).some((value) => Boolean(value)) ? summary : null;
