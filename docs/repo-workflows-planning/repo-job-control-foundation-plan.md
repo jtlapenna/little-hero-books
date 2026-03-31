@@ -235,6 +235,7 @@ As of March 30, 2026 in Los Angeles time, the repo-centric control-plane buildou
 - single-order `W4` and grouped `W4.1` have both crossed real paid Lulu submit plus cancel/reconcile
 - the backend now owns the durable job semantics, replay state, and most business logic, while `n8n` is primarily acting as orchestration and thin transport glue
 - the remaining high-value work is observability convergence, operator runbooks, and security cleanup, not more core stage extraction
+- the operator-facing runbook now exists at [`repo-centric-operator-runbook.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-centric-operator-runbook.md)
 
 The detailed milestone log below is preserved for traceability.
 

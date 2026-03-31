@@ -1,5 +1,9 @@
 # Repo-Centric Observability Hardening Plan
 
+Operator guide:
+
+- [`repo-centric-operator-runbook.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-centric-operator-runbook.md)
+
 ## Summary
 
 - The repo-centric workflow path is now proven across `W2A`, `W2B`, `W3`, `W4`, and `W4.1`.
@@ -193,7 +197,7 @@ Recommendation:
 2. Mirror Lulu webhook lifecycle changes into `workflow_job_events`.
 3. Add grouped `W4.1` webhook freshness parity.
 4. Add a scheduled watchdog for stale or terminally unhealthy repo-centric jobs.
-5. Publish a short operator runbook that tells people which surface to use first and when to escalate.
+5. Keep the operator runbook current so the shared console and print-specific pages remain easy to use during real operations.
 
 ## Practical takeaway
 
