@@ -184,9 +184,11 @@ function buildDisposableInput(): {
     clothingStyle: 'dress',
   };
   const bookSpecs = {
+    bookId: 'book-mvp-simple-adventure',
     title: 'Avery and the Adventure Compass',
     totalPages: 16,
     format: '8.5x8.5_softcover',
+    formatId: 'amazon',
     bookType: 'adventure',
   };
 
@@ -214,6 +216,11 @@ function buildDisposableInput(): {
       root_order_id: rootOrderId,
       amazonOrderId: rootOrderId,
       amazon_order_id: rootOrderId,
+      bookId: 'book-mvp-simple-adventure',
+      book_id: 'book-mvp-simple-adventure',
+      project: 'book-mvp-simple-adventure',
+      formatId: 'amazon',
+      format_id: 'amazon',
       marketplaceId: 'ATVPDKIKX0DER',
       orderDate: now,
       purchaseDate: now,

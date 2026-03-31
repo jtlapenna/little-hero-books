@@ -29,6 +29,8 @@
     "test:book-replay:book2:published": "dotenv -e .env.local -- tsx scripts/test-book-replay.ts --stage w0 --source published --fixture book2-standard-single",
     "test:book-replay:w3": "dotenv -e .env.local -- tsx scripts/test-book-replay.ts --stage w3",
     "test:book-replay:w3:book2": "dotenv -e .env.local -- tsx scripts/test-book-replay.ts --stage w3 --fixture book2-standard-example",
+    "test:w2a-base-input": "tsx scripts/test-w2a-base-input.ts",
+    "test:w2a-base-result": "tsx scripts/test-w2a-base-result.ts",
     "test:w2a-pose-input": "tsx scripts/test-w2a-pose-input.ts",
     "test:w2b-worklist": "tsx scripts/test-w2b-worklist.ts",
     "test:w2b-pose-input": "tsx scripts/test-w2b-pose-input.ts",

@@ -83,6 +83,10 @@ async function main(): Promise<void> {
     repoRoot,
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
   );
+  const w2aSw0WorkflowPath = path.join(
+    repoRoot,
+    "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
+  );
   const w2bWorkflowPath = path.join(
     repoRoot,
     "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
@@ -99,6 +103,7 @@ async function main(): Promise<void> {
   const w2aTopLevelWorkflow = readWorkflow(w2aTopLevelWorkflowPath);
   const w2bTopLevelWorkflow = readWorkflow(w2bTopLevelWorkflowPath);
   const w2aWorkflow = readWorkflow(w2aWorkflowPath);
+  const w2aSw0Workflow = readWorkflow(w2aSw0WorkflowPath);
   const w2bWorkflow = readWorkflow(w2bWorkflowPath);
   const w3Workflow = readWorkflow(w3WorkflowPath);
   const siblingW11Workflow = readWorkflow(siblingW11WorkflowPath);
@@ -106,6 +111,7 @@ async function main(): Promise<void> {
   compileAllCodeNodes(w2aTopLevelWorkflowPath, w2aTopLevelWorkflow);
   compileAllCodeNodes(w2bTopLevelWorkflowPath, w2bTopLevelWorkflow);
   compileAllCodeNodes(w2aWorkflowPath, w2aWorkflow);
+  compileAllCodeNodes(w2aSw0WorkflowPath, w2aSw0Workflow);
   compileAllCodeNodes(w2bWorkflowPath, w2bWorkflow);
   compileAllCodeNodes(w3WorkflowPath, w3Workflow);
   compileAllCodeNodes(siblingW11WorkflowPath, siblingW11Workflow);
@@ -208,6 +214,161 @@ async function main(): Promise<void> {
         (connection) => connection.node === "Set Environment Defaults",
       ),
     "Repo-centric W2A loop should keep manifest finalization on the batch-complete branch and per-pose execution on the iteration branch",
+  );
+
+  assert(
+    w2aSw0Workflow.name === "REPO - w2A-SW0-Base_Character_Generation",
+    "Repo-centric W2A SW0 subworkflow should carry the repo-centric workflow name",
+  );
+  const w2aSw0FetchNode = getNode(w2aSw0Workflow, "Fetch Repo W2A Base Input");
+  const w2aSw0SchemaNode = getNode(w2aSw0Workflow, "Schema Check + Defaults");
+  const w2aSw0BuildRequestCode = getCode(
+    w2aSw0Workflow,
+    "Build Repo Gemini Base Request",
+  );
+  const w2aSw0GenerateNode = getNode(
+    w2aSw0Workflow,
+    "Generate Custom Base Character1",
+  );
+  const w2aSw0ExtractNode = getNode(
+    w2aSw0Workflow,
+    "Process Gemini API response and extract generated image1",
+  );
+  const w2aSw0FinalizeNode = getNode(
+    w2aSw0Workflow,
+    "Finalize Repo W2A Base Result",
+  );
+  const w2aSw0RestoreFinalizedCode = getCode(
+    w2aSw0Workflow,
+    "Restore Finalized Base Envelope",
+  );
+  const w2aSw0UploadNode = getNode(w2aSw0Workflow, "Upload a file1");
+  const w2aSw0RestoreUploadedCode = getCode(
+    w2aSw0Workflow,
+    "Restore Uploaded Base Envelope",
+  );
+  const w2aSw0FetchConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Fetch Repo W2A Base Input"] ?? {},
+  );
+  const w2aSw0SchemaConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Schema Check + Defaults"] ?? {},
+  );
+  const w2aSw0MergeConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Merge Base & Hair Refs1"] ?? {},
+  );
+  const w2aSw0BuildConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Build Repo Gemini Base Request"] ?? {},
+  );
+  const w2aSw0IfConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["IF: Test Mode? (1)1"] ?? {},
+  );
+  const w2aSw0MockConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["🧪 MOCK: Generate Custom Base Character1"] ?? {},
+  );
+  const w2aSw0GenerateConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Generate Custom Base Character1"] ?? {},
+  );
+  const w2aSw0ExtractConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Process Gemini API response and extract generated image1"] ?? {},
+  );
+  const w2aSw0FinalizeConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Finalize Repo W2A Base Result"] ?? {},
+  );
+  const w2aSw0RestoreFinalizedConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Restore Finalized Base Envelope"] ?? {},
+  );
+  const w2aSw0UploadConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Upload a file1"] ?? {},
+  );
+  const w2aSw0RestoreUploadedConnections = JSON.stringify(
+    w2aSw0Workflow.connections?.["Restore Uploaded Base Envelope"] ?? {},
+  );
+
+  assert(
+    w2aSw0FetchNode.type === "n8n-nodes-base.httpRequest" &&
+      JSON.stringify(w2aSw0FetchNode.parameters).includes(
+        "/api/internal/w2a/build-base-input",
+      ) &&
+      JSON.stringify(w2aSw0FetchNode.parameters).includes("$json.backendUrl"),
+    "Repo-centric W2A SW0 should call the repo-owned base-input route through the payload-selected backendUrl",
+  );
+  assert(
+    w2aSw0SchemaNode.type === "n8n-nodes-base.code" &&
+      JSON.stringify(w2aSw0SchemaNode.parameters).includes(
+        "Could not parse W2A base input response",
+      ) &&
+      JSON.stringify(w2aSw0SchemaNode.parameters).includes(
+        "baseInputSource: 'repo'",
+      ),
+    "Repo-centric W2A SW0 schema node should unwrap the repo-owned base-input response and add compatibility test flags",
+  );
+  assert(
+    w2aSw0BuildRequestCode.includes("repo-w2a-base-input@v1") &&
+      w2aSw0BuildRequestCode.includes("requestParts?.baseLabel") &&
+      w2aSw0BuildRequestCode.includes("systemInstructionText") &&
+      !w2aSw0BuildRequestCode.includes("CRITICAL — DRESS COLOR") &&
+      !w2aSw0BuildRequestCode.includes("BOOK STYLE: flat, clean vector-like forms"),
+    "Repo-centric W2A SW0 request builder should trust the repo-owned prompt contract instead of rebuilding the large inline prompt block",
+  );
+  assert(
+    w2aSw0GenerateNode.onError === "continueRegularOutput" &&
+      w2aSw0ExtractNode.onError === "continueRegularOutput" &&
+      w2aSw0UploadNode.type === "n8n-nodes-base.s3" &&
+      JSON.stringify(w2aSw0UploadNode.parameters).includes("$json.__meta.storageKey"),
+    "Repo-centric W2A SW0 should keep Gemini submit, extraction, and upload as thin workflow-owned transport steps",
+  );
+  assert(
+    w2aSw0FinalizeNode.type === "n8n-nodes-base.httpRequest" &&
+      JSON.stringify(w2aSw0FinalizeNode.parameters).includes(
+        "/api/internal/w2a/finalize-base-result",
+      ) &&
+      JSON.stringify(w2aSw0FinalizeNode.parameters).includes("$json.backendUrl"),
+    "Repo-centric W2A SW0 should call the repo-owned finalizer route before upload",
+  );
+  assert(
+    w2aSw0RestoreFinalizedCode.includes(
+      "Process Gemini API response and extract generated image1",
+    ) &&
+      w2aSw0RestoreFinalizedCode.includes(
+        "Could not parse finalized W2A base result",
+      ) &&
+      w2aSw0RestoreUploadedCode.includes(
+        "Restore Finalized Base Envelope",
+      ),
+    "Repo-centric W2A SW0 should rehydrate the extracted binary after finalization and restore the finalized envelope after upload",
+  );
+  assert(
+    !w2aSw0Workflow.nodes?.some(
+      (node) =>
+        node.name === "Resolve Skin Tone & Base Path1" ||
+        node.name === "Resolve Hairstyle Key & Asset Path1" ||
+        node.name === "Build Dynamic Hairstyle Prompt1" ||
+        node.name === "Compute Upload Keys" ||
+        node.name === "SW0 Out — Pack Envelope" ||
+        node.name === "Preserve Character Specs for SW1",
+    ),
+    "Repo-centric W2A SW0 export should retire the legacy inline prep/packaging nodes in favor of repo-owned base input and finalization routes",
+  );
+  assert(
+    w2aSw0FetchConnections.includes('"node":"Schema Check + Defaults"') &&
+      w2aSw0SchemaConnections.includes("Load Base Character Image1") &&
+      w2aSw0SchemaConnections.includes("Load Hairstyle Reference (R2/S3)1") &&
+      w2aSw0MergeConnections.includes("Build Repo Gemini Base Request") &&
+      w2aSw0BuildConnections.includes("IF: Test Mode? (1)1") &&
+      w2aSw0IfConnections.includes("🧪 MOCK: Generate Custom Base Character1") &&
+      w2aSw0IfConnections.includes("Generate Custom Base Character1") &&
+      w2aSw0MockConnections.includes(
+        "Process Gemini API response and extract generated image1",
+      ) &&
+      w2aSw0GenerateConnections.includes(
+        "Process Gemini API response and extract generated image1",
+      ) &&
+      w2aSw0ExtractConnections.includes("Finalize Repo W2A Base Result") &&
+      w2aSw0FinalizeConnections.includes("Restore Finalized Base Envelope") &&
+      w2aSw0RestoreFinalizedConnections.includes("Upload a file1") &&
+      w2aSw0UploadConnections.includes("Restore Uploaded Base Envelope") &&
+      w2aSw0RestoreUploadedConnections.includes("Return Generated Image1"),
+    "Repo-centric W2A SW0 should route base-generation work through repo-owned prep/finalization while leaving the provider, extraction, and upload seam in the workflow",
   );
 
   const w2bTopLevelNormalizeNode = getNode(

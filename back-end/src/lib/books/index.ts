@@ -8,6 +8,8 @@ export * from '@/lib/books/normalize-w0-manifest';
 export * from '@/lib/books/read-2b-manifest';
 export * from '@/lib/books/review-page-plan';
 export * from '@/lib/books/w2a-manifest';
+export * from '@/lib/books/w2a-base-input';
+export * from '@/lib/books/w2a-base-result';
 export * from '@/lib/books/w2a-pose-input';
 export * from '@/lib/books/w2b-worklist';
 export * from '@/lib/books/w2b-pose-input';

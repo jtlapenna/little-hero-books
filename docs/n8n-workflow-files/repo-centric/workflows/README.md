@@ -6,6 +6,7 @@ Current files:
 
 - [w0-Order_Intake_Validation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json)
 - [w2A-Orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json)
+- [w2A-SW0-Base_Character_Generation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json)
 - [w2A-SW1-Pose_Generation.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json)
 - [w2B-main-orchestrator.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2B-main-orchestrator.repo-centric.json)
 - [w2B-sw1-single-pose.repo-centric.json](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json)
@@ -34,5 +35,5 @@ Purpose:
 
 Subworkflow note:
 
-- the new `W2A-SW1` and `W2B-sw1` repo-centric copies are execute-workflow subflows, not webhook entrypoints
-- importing them into n8n will still require a one-time rebind from the repo-centric top-level orchestrators so `Execute SW1 - Pose Generation` and `Execute Workflow: s2B-sw` point at the new subworkflow copies
+- the new `W2A-SW0`, `W2A-SW1`, and `W2B-sw1` repo-centric copies are execute-workflow subflows, not webhook entrypoints
+- importing them into n8n will still require a one-time rebind from the repo-centric top-level orchestrators so `Execute SW0 - Base Character Gen`, `Execute SW1 - Pose Generation`, and `Execute Workflow: s2B-sw` point at the imported repo-centric subworkflow copies

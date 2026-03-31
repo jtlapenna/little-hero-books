@@ -6,6 +6,7 @@ Companion docs:
 
 - [repo-job-control-foundation-plan.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-job-control-foundation-plan.md)
 - [REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md](/Users/jeff/Projects/little-hero-books/docs/book-2-planning/REPO-CENTRIC-W2A-W2B-EXPANSION-PLAN.md)
+- [repo-centric-workflow-ownership-audit.md](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-centric-workflow-ownership-audit.md)
 
 ## Summary recommendation
 
