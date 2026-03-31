@@ -471,6 +471,14 @@ function W4ProductionPageContent() {
                       {inspectedOrder.safeForProductionPilot ? 'Ready for paid pilot' : 'Not ready'}
                     </div>
                   </div>
+                  <div className="mt-3">
+                    <Link
+                      href={`/admin/workflow-jobs?orderId=${encodeURIComponent(inspectedOrder.orderId)}`}
+                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                      Open Shared Run Console
+                    </Link>
+                  </div>
                 </div>
 
                 <dl className="grid gap-3 text-sm text-gray-700">

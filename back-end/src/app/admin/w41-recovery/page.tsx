@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, startTransition, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   RefreshCw,
@@ -364,14 +365,22 @@ function W41RecoveryPageContent() {
                 </p>
               </div>
 
-              <button
-                onClick={runReplay}
-                disabled={!inspectedOrder.safeToReplay || acting}
-                className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                Replay Safe Group
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/admin/workflow-jobs?orderId=${encodeURIComponent(inspectedOrder.rootGroupId)}`}
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  Open Shared Run Console
+                </Link>
+                <button
+                  onClick={runReplay}
+                  disabled={!inspectedOrder.safeToReplay || acting}
+                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Replay Safe Group
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
