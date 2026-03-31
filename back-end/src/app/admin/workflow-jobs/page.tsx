@@ -184,6 +184,7 @@ type WorkflowAlertItem = {
 
 type WorkflowAlertsResponse = {
   success: boolean;
+  storageMode: 'durable' | 'fallback';
   summary: {
     openCount: number;
     criticalCount: number;
@@ -639,6 +640,13 @@ function WorkflowJobsPageContent() {
               </div>
             </div>
           </div>
+
+          {alertsData?.storageMode === 'fallback' && (
+            <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
+              Alert persistence is running in fallback mode because the `workflow_alerts` table is not available yet.
+              Apply the database migration before relying on durable acknowledgements or alert history.
+            </div>
+          )}
 
           {alertsLoading && !alertsData ? (
             <div className="px-5 py-10 text-center text-sm text-gray-500">

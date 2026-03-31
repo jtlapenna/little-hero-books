@@ -69,12 +69,27 @@ export type WorkflowAlertSummary = {
   infoCount: number;
 };
 
+export type WorkflowAlertStorageMode = 'durable' | 'fallback';
+
 export type WorkflowAlertListFilters = {
   status?: WorkflowAlertStatus | null;
   stage?: string | null;
   limit?: number;
   hours?: number;
 };
+
+export async function getWorkflowAlertStorageMode(
+  client: SupabaseLike = supabase,
+): Promise<WorkflowAlertStorageMode> {
+  const { error } = await client.from('workflow_alerts').select('id').limit(1);
+  if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return 'fallback';
+    }
+    throw error;
+  }
+  return 'durable';
+}
 
 export type UpsertWorkflowAlertInput = {
   dedupeKey: string;

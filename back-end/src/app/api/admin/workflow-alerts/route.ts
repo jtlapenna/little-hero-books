@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase-client';
-import { listWorkflowAlerts, summarizeWorkflowAlerts } from '@/lib/workflow-alerts';
+import {
+  getWorkflowAlertStorageMode,
+  listWorkflowAlerts,
+  summarizeWorkflowAlerts,
+} from '@/lib/workflow-alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +42,15 @@ export async function GET(request: NextRequest) {
       status: request.nextUrl.searchParams.get('status') ?? undefined,
     });
 
-    const alerts = await listWorkflowAlerts({
-      hours: query.hours ?? 24 * 7,
-      limit: query.limit ?? 100,
-      stage: query.stage ?? null,
-      status: query.status ?? null,
-    });
+    const [alerts, storageMode] = await Promise.all([
+      listWorkflowAlerts({
+        hours: query.hours ?? 24 * 7,
+        limit: query.limit ?? 100,
+        stage: query.stage ?? null,
+        status: query.status ?? null,
+      }),
+      getWorkflowAlertStorageMode(),
+    ]);
     const jobIds = [...new Set(alerts.map((alert) => alert.job_id).filter((value): value is number => Number.isFinite(value)))];
     const jobsById = new Map<number, AlertJobRow>();
 
@@ -70,6 +77,7 @@ export async function GET(request: NextRequest) {
         stage: query.stage ?? null,
         status: query.status ?? null,
       },
+      storageMode,
       summary: summarizeWorkflowAlerts(alerts),
       alerts: alerts.map((alert) => {
         const job = alert.job_id ? jobsById.get(alert.job_id) ?? null : null;
