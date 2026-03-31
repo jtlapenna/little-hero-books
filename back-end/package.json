@@ -34,6 +34,7 @@
     "test:w2b-pose-input": "tsx scripts/test-w2b-pose-input.ts",
     "test:w2-workflow-contracts": "tsx scripts/test-w2-workflow-contracts.ts",
     "test:workflow-jobs": "tsx scripts/test-workflow-jobs.ts",
+    "test:workflow-watchdog": "tsx scripts/test-workflow-watchdog.ts",
     "test:workflow-export-secrets": "tsx scripts/test-workflow-export-secrets.ts",
     "test:w3-assembly-input": "tsx scripts/test-w3-assembly-input.ts",
     "test:w3-assembly-worker": "tsx scripts/test-w3-assembly-worker.ts",

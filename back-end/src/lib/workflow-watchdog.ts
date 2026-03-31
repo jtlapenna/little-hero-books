@@ -8,7 +8,9 @@ import {
   buildLuluWebhookSignal,
   isNonProductionLuluSubmission,
   loadLatestLuluWebhookLog,
+  type LuluWebhookSignal,
 } from '@/lib/lulu-webhook-signal';
+import { isTerminalLuluStatus } from '@/lib/lulu-status-map';
 import {
   resolveWorkflowAlertsByDedupeKeys,
   upsertWorkflowAlert,
@@ -19,6 +21,8 @@ const STALE_CLAIMED_MS = 15 * 60 * 1000;
 const STALE_RUNNING_MS = 45 * 60 * 1000;
 const STALE_POLLING_MS = 90 * 60 * 1000;
 const OVERDUE_RETRY_GRACE_MS = 15 * 60 * 1000;
+const TERMINAL_WORKFLOW_JOB_STATUSES = new Set(['succeeded', 'failed', 'dead_lettered', 'canceled']);
+
 type WorkflowWatchdogSummary = {
   scannedJobCount: number;
   openAlertCount: number;
@@ -41,6 +45,49 @@ function toJsonRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isTerminalWorkflowJobStatus(status: string | null | undefined): boolean {
+  const normalized = toTrimmedString(status);
+  return normalized ? TERMINAL_WORKFLOW_JOB_STATUSES.has(normalized) : false;
+}
+
+export function deriveEffectiveWatchdogProviderSignal(input: {
+  jobStatus: string | null | undefined;
+  currentProviderStatus?: string | null;
+  signal: LuluWebhookSignal;
+}): Pick<LuluWebhookSignal, 'deliveryState' | 'deliveryReason'> {
+  const latestStatus = toTrimmedString(input.signal.latestStatus);
+  const currentProviderStatus = toTrimmedString(input.currentProviderStatus);
+
+  if (
+    input.signal.deliveryState === 'stale' &&
+    latestStatus &&
+    currentProviderStatus === latestStatus
+  ) {
+    return {
+      deliveryState: 'received',
+      deliveryReason: 'latest_webhook_mirrored_into_job_snapshot',
+    };
+  }
+
+  if (
+    input.signal.deliveryState === 'error' &&
+    isTerminalWorkflowJobStatus(input.jobStatus) &&
+    latestStatus &&
+    currentProviderStatus === latestStatus &&
+    isTerminalLuluStatus(latestStatus)
+  ) {
+    return {
+      deliveryState: 'received',
+      deliveryReason: 'terminal_provider_state_already_converged',
+    };
+  }
+
+  return {
+    deliveryState: input.signal.deliveryState,
+    deliveryReason: input.signal.deliveryReason,
+  };
 }
 
 function isRealLuluJob(job: WorkflowJobRecord): boolean {
@@ -326,14 +373,15 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
           });
 
           const mirroredStatus = await mirrorLatestProviderStatusIfChanged(job, signal);
-          const effectiveDeliveryState =
-            signal.deliveryState === 'stale' && mirroredStatus.mirrored
-              ? 'received'
-              : signal.deliveryState;
-          const effectiveDeliveryReason =
-            signal.deliveryState === 'stale' && mirroredStatus.mirrored
-              ? 'latest_webhook_mirrored_into_job_snapshot'
-              : signal.deliveryReason;
+          const effectiveSignal = deriveEffectiveWatchdogProviderSignal({
+            jobStatus: job.status,
+            currentProviderStatus: mirroredStatus.mirrored
+              ? mirroredStatus.latestStatus
+              : currentStatus,
+            signal,
+          });
+          const effectiveDeliveryState = effectiveSignal.deliveryState;
+          const effectiveDeliveryReason = effectiveSignal.deliveryReason;
 
           await updateWorkflowJobResultSnapshot(job.id, {
             webhookDeliveryState: effectiveDeliveryState,
