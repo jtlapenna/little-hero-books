@@ -1,7 +1,10 @@
 #!/usr/bin/env tsx
 
 import { buildLuluWebhookSignal } from '@/lib/lulu-webhook-signal';
-import { deriveEffectiveWatchdogProviderSignal } from '@/lib/workflow-watchdog';
+import {
+  buildWorkflowWatchdogSummary,
+  deriveEffectiveWatchdogProviderSignal,
+} from '@/lib/workflow-watchdog';
 
 function assertEqual<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) {
@@ -124,11 +127,41 @@ function testActiveJobProviderErrorStaysOpen(): void {
   );
 }
 
+function testWatchdogSummarySeparatesConditionsFromOpenAlerts(): void {
+  const summary = buildWorkflowWatchdogSummary({
+    scannedJobCount: 25,
+    conditionCount: 7,
+    openAlertCountAfterRun: 0,
+    resolvedAlertCount: 7,
+    byAlertType: {
+      'stale-running': 6,
+      'stale-polling': 1,
+    },
+  });
+
+  assertEqual(
+    summary.conditionCount,
+    7,
+    'watchdog summary should expose detected condition count explicitly',
+  );
+  assertEqual(
+    summary.openAlertCountAfterRun,
+    0,
+    'watchdog summary should expose true open alert count after the run',
+  );
+  assertEqual(
+    summary.openAlertCount,
+    7,
+    'legacy openAlertCount alias should continue to reflect detected condition count',
+  );
+}
+
 function main(): void {
   testMirroredStaleSignalBecomesReceived();
   testTerminalConvergedErrorBecomesReceived();
   testNonTerminalProviderErrorStaysOpen();
   testActiveJobProviderErrorStaysOpen();
+  testWatchdogSummarySeparatesConditionsFromOpenAlerts();
   console.log('test-workflow-watchdog: ok');
 }
 

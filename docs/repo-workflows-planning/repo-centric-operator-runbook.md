@@ -115,7 +115,9 @@ This refreshes the repo-centric alert picture for:
 
 Important:
 
-- the watchdog summary tells you how many unhealthy conditions it saw
+- the watchdog summary now distinguishes:
+  - `condition count`: how many unhealthy conditions it detected during this run
+  - `open alert count`: how many alerts are still unresolved after the run
 - the `open alerts` list tells you how many issues still require review
 - those numbers are not always the same
 
@@ -260,6 +262,12 @@ Do not acknowledge on pattern match alone. First confirm:
 - the order/group is old
 - the shared console shows no current customer-impacting active path
 - the order/group already reflects the expected terminal business state
+
+Important:
+
+- the March 25 `W2A` / `W2B` zombie proof rows now have a dedicated one-time cleanup path in [`ops-cleanup-historical-workflow-zombies.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/ops-cleanup-historical-workflow-zombies.ts)
+- do not manually “repair” those rows ad hoc in SQL or by editing alerts first
+- if those rows are still present, use the scripted cleanup path so the workflow history stays auditable
 
 ## When not to acknowledge
 

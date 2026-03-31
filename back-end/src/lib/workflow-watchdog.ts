@@ -12,6 +12,7 @@ import {
 } from '@/lib/lulu-webhook-signal';
 import { isTerminalLuluStatus } from '@/lib/lulu-status-map';
 import {
+  getWorkflowOpenAlertSummary,
   resolveWorkflowAlertsByDedupeKeys,
   upsertWorkflowAlert,
 } from '@/lib/workflow-alerts';
@@ -23,12 +24,31 @@ const STALE_POLLING_MS = 90 * 60 * 1000;
 const OVERDUE_RETRY_GRACE_MS = 15 * 60 * 1000;
 const TERMINAL_WORKFLOW_JOB_STATUSES = new Set(['succeeded', 'failed', 'dead_lettered', 'canceled']);
 
-type WorkflowWatchdogSummary = {
+export type WorkflowWatchdogSummary = {
   scannedJobCount: number;
+  conditionCount: number;
   openAlertCount: number;
+  openAlertCountAfterRun: number;
   resolvedAlertCount: number;
   byAlertType: Record<string, number>;
 };
+
+export function buildWorkflowWatchdogSummary(input: {
+  scannedJobCount: number;
+  conditionCount: number;
+  openAlertCountAfterRun: number;
+  resolvedAlertCount: number;
+  byAlertType: Record<string, number>;
+}): WorkflowWatchdogSummary {
+  return {
+    scannedJobCount: input.scannedJobCount,
+    conditionCount: input.conditionCount,
+    openAlertCount: input.conditionCount,
+    openAlertCountAfterRun: input.openAlertCountAfterRun,
+    resolvedAlertCount: input.resolvedAlertCount,
+    byAlertType: input.byAlertType,
+  };
+}
 
 function toTrimmedString(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -468,11 +488,15 @@ export async function runRepoWorkflowWatchdog(): Promise<WorkflowWatchdogSummary
 
   const keysToResolve = [...dedupeKeysSeen].filter((key) => !dedupeKeysTriggered.has(key));
   await resolveWorkflowAlertsByDedupeKeys(keysToResolve);
+  const openAlertSummary = await getWorkflowOpenAlertSummary({
+    hours: WATCHDOG_JOB_LOOKBACK_HOURS,
+  });
 
-  return {
+  return buildWorkflowWatchdogSummary({
     scannedJobCount: jobs.length,
-    openAlertCount: dedupeKeysTriggered.size,
+    conditionCount: dedupeKeysTriggered.size,
+    openAlertCountAfterRun: openAlertSummary.openCount,
     resolvedAlertCount: keysToResolve.length,
     byAlertType: Object.fromEntries(byAlertType),
-  };
+  });
 }

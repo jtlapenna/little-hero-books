@@ -201,7 +201,9 @@ type WorkflowWatchdogRunResponse = {
   storageMode: 'durable' | 'fallback';
   summary: {
     scannedJobCount: number;
+    conditionCount: number;
     openAlertCount: number;
+    openAlertCountAfterRun: number;
     resolvedAlertCount: number;
     byAlertType: Record<string, number>;
   };
@@ -561,7 +563,9 @@ function WorkflowJobsPageContent() {
         tone: 'info',
         message:
           `Ran repo workflow watchdog: scanned ${payload.summary.scannedJobCount} jobs, ` +
-          `opened ${payload.summary.openAlertCount} alerts, resolved ${payload.summary.resolvedAlertCount}.` +
+          `detected ${payload.summary.conditionCount} alert conditions, ` +
+          `${payload.summary.openAlertCountAfterRun} alerts currently open, ` +
+          `resolved ${payload.summary.resolvedAlertCount}.` +
           storageModeMessage,
       });
     } catch (error) {
@@ -708,8 +712,9 @@ function WorkflowJobsPageContent() {
             {lastWatchdogRun && (
               <div className="mt-3 text-xs text-gray-500">
                 Last manual watchdog run {formatTimestamp(lastWatchdogRun.ranAt)} • scanned{' '}
-                {lastWatchdogRun.summary.scannedJobCount} • opened {lastWatchdogRun.summary.openAlertCount} •
-                resolved {lastWatchdogRun.summary.resolvedAlertCount}
+                {lastWatchdogRun.summary.scannedJobCount} • detected {lastWatchdogRun.summary.conditionCount}{' '}
+                conditions • open now {lastWatchdogRun.summary.openAlertCountAfterRun} • resolved{' '}
+                {lastWatchdogRun.summary.resolvedAlertCount}
               </div>
             )}
           </div>

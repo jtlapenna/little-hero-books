@@ -10,6 +10,15 @@ Operator guide:
 - The next observability problem is not “do we have any logs?” It is “do operators have one canonical, durable run history that joins repo jobs, `n8n` orchestration, and provider lifecycle changes?”
 - The best strategy is to make `workflow_jobs` the shared event spine, keep the dedicated `W4` / `W4.1` pages as curated operational views, and mirror external lifecycle signals into the same canonical timeline.
 
+## Current landed refinements
+
+- The shared watchdog/admin surface now distinguishes:
+  - `condition count`: alert conditions detected in the latest watchdog pass
+  - `open alert count`: alerts still unresolved after the pass
+- A one-time repo-owned cleanup path now exists for the historical March 25 `W2A` / `W2B` zombie proof rows:
+  - [`ops-cleanup-historical-workflow-zombies.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/ops-cleanup-historical-workflow-zombies.ts)
+- That cleanup path cancels the stale workflow-job history with durable audit events instead of leaving those rows as permanent conceptual noise.
+
 ## Current surfaces
 
 ### 1. Durable repo job records

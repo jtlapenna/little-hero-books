@@ -79,6 +79,12 @@ export type WorkflowAlertListFilters = {
   hours?: number;
 };
 
+export type WorkflowAlertSummaryFilters = {
+  stage?: string | null;
+  hours?: number;
+  jobIds?: number[] | null;
+};
+
 export async function getWorkflowAlertStorageMode(
   client: SupabaseLike = supabase,
 ): Promise<WorkflowAlertStorageMode> {
@@ -329,6 +335,66 @@ export async function listOpenWorkflowAlertsByJobIds(
     alertsByJobId.set(row.job_id, existing);
   }
   return alertsByJobId;
+}
+
+async function countOpenWorkflowAlerts(
+  input: {
+    severity?: WorkflowAlertSeverity;
+    stage?: string | null;
+    hours?: number;
+    jobIds?: number[] | null;
+  },
+  client: SupabaseLike = supabase,
+): Promise<number> {
+  const hours = Math.max(1, Math.min(24 * 30, Math.floor(input.hours ?? 24 * 30)));
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const jobIds = [...new Set((input.jobIds ?? []).filter((id) => Number.isFinite(id) && id > 0))];
+
+  let query = client
+    .from('workflow_alerts')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'open')
+    .gte('last_seen_at', since);
+
+  if (input.stage) {
+    query = query.eq('stage', input.stage);
+  }
+
+  if (jobIds.length > 0) {
+    query = query.in('job_id', jobIds);
+  }
+
+  if (input.severity) {
+    query = query.eq('severity', input.severity);
+  }
+
+  const { count, error } = await query;
+  if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return 0;
+    }
+    throw error;
+  }
+
+  return Number.isFinite(count) ? Math.max(0, Number(count)) : 0;
+}
+
+export async function getWorkflowOpenAlertSummary(
+  filters: WorkflowAlertSummaryFilters = {},
+  client: SupabaseLike = supabase,
+): Promise<WorkflowAlertSummary> {
+  const [criticalCount, warningCount, infoCount] = await Promise.all([
+    countOpenWorkflowAlerts({ ...filters, severity: 'critical' }, client),
+    countOpenWorkflowAlerts({ ...filters, severity: 'warning' }, client),
+    countOpenWorkflowAlerts({ ...filters, severity: 'info' }, client),
+  ]);
+
+  return {
+    openCount: criticalCount + warningCount + infoCount,
+    criticalCount,
+    warningCount,
+    infoCount,
+  };
 }
 
 export function summarizeWorkflowAlerts(alerts: WorkflowAlertRecord[]): WorkflowAlertSummary {

@@ -236,6 +236,8 @@ As of March 30, 2026 in Los Angeles time, the repo-centric control-plane buildou
 - the backend now owns the durable job semantics, replay state, and most business logic, while `n8n` is primarily acting as orchestration and thin transport glue
 - the remaining high-value work is observability convergence, operator runbooks, and security cleanup, not more core stage extraction
 - the operator-facing runbook now exists at [`repo-centric-operator-runbook.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/repo-centric-operator-runbook.md)
+- the watchdog/admin surfaces now explicitly distinguish detected alert conditions from alerts still open after the run
+- the old March 25 `W2A` / `W2B` zombie proof rows now have a one-time repo-owned cleanup path at [`ops-cleanup-historical-workflow-zombies.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/ops-cleanup-historical-workflow-zombies.ts)
 
 The detailed milestone log below is preserved for traceability.
 
