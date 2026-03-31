@@ -2,6 +2,9 @@ import { supabase } from '@/lib/supabase-client';
 
 type SupabaseLike = typeof supabase;
 
+const NON_PRODUCTION_LULU_STATUS_PATTERN = /^(SKIPPED|DRY_RUN|TEST_MODE|SANDBOX(?:[_-].+)?)$/i;
+const NON_PRODUCTION_LULU_JOB_ID_PATTERN = /^(SKIPPED|DRY_RUN|TEST[-_].+)$/i;
+
 export type LuluWebhookDeliveryState =
   | 'not_applicable'
   | 'missing'
@@ -46,6 +49,19 @@ function toIsoString(value: unknown): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+export function isNonProductionLuluSubmission(input: {
+  luluJobId?: string | null;
+  currentStatus?: string | null;
+}): boolean {
+  const luluJobId = toTrimmedString(input.luluJobId);
+  const currentStatus = toTrimmedString(input.currentStatus);
+
+  return Boolean(
+    (luluJobId && NON_PRODUCTION_LULU_JOB_ID_PATTERN.test(luluJobId)) ||
+      (currentStatus && NON_PRODUCTION_LULU_STATUS_PATTERN.test(currentStatus)),
+  );
+}
+
 export function buildLuluWebhookSignal(input: {
   luluJobId?: string | null;
   currentStatus?: string | null;
@@ -61,6 +77,17 @@ export function buildLuluWebhookSignal(input: {
       latestErrorMessage: null,
       deliveryState: 'not_applicable',
       deliveryReason: 'no_lulu_job_id',
+    };
+  }
+
+  if (isNonProductionLuluSubmission(input)) {
+    return {
+      latestReceivedAt: null,
+      latestStatus: toTrimmedString(input.currentStatus),
+      latestUpdated: null,
+      latestErrorMessage: null,
+      deliveryState: 'not_applicable',
+      deliveryReason: 'non_production_submission',
     };
   }
 

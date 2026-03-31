@@ -1,4 +1,5 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { isNonProductionLuluSubmission } from '@/lib/lulu-webhook-signal';
 import { supabase } from '@/lib/supabase-client';
 import type { WorkflowJobRecord } from '@/lib/workflow-jobs';
 
@@ -362,14 +363,10 @@ function choosePrimaryGroupRow(rootGroupId: string, rows: W41RecoveryOrderRow[])
 }
 
 function isSyntheticSandboxSubmission(row: W41RecoveryOrderRow): boolean {
-  const luluJobId = toTrimmedString(row.lulu_job_id)?.toUpperCase() ?? null;
-  const luluStatus = toTrimmedString(row.lulu_status)?.toUpperCase() ?? null;
-
-  return Boolean(
-    (luluJobId && luluJobId.startsWith('TEST-')) ||
-      luluStatus === 'TEST_MODE' ||
-      luluStatus === 'SANDBOX',
-  );
+  return isNonProductionLuluSubmission({
+    luluJobId: toTrimmedString(row.lulu_job_id),
+    currentStatus: toTrimmedString(row.lulu_status),
+  });
 }
 
 function hasRealSubmissionSignal(rows: W41RecoveryOrderRow[]): boolean {

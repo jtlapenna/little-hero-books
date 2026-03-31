@@ -128,6 +128,24 @@ async function testRealSubmissionBlocksGroupedPreflight(): Promise<void> {
   );
 }
 
+async function testDryRunMarkersDoNotCountAsRealGroupedSubmission(): Promise<void> {
+  const candidate = buildW41ProductionCandidate(
+    'REAL-W41-GROUP-701',
+    createGroupRows({
+      lulu_job_id: 'SKIPPED',
+      lulu_status: 'DRY_RUN',
+      print_submitted_at: null,
+    }),
+  );
+
+  assert(
+    candidate.recommendedAction === 'none' &&
+      candidate.proofLike === true &&
+      candidate.hasRealSubmission === false,
+    'Expected SKIPPED/DRY_RUN sibling groups to remain non-production and outside paid W4.1 candidates',
+  );
+}
+
 async function testBuildGroupedPreflightSummary(): Promise<void> {
   const fakePrintInput: Parameters<typeof buildW41ProductionPreflight>[0] = {
     rootGroupId: 'REAL-W41-GROUP-701',
@@ -304,6 +322,7 @@ async function main(): Promise<void> {
   await testCandidateReadyForGroupedPreflight();
   await testProofLikeGroupIsBlocked();
   await testRealSubmissionBlocksGroupedPreflight();
+  await testDryRunMarkersDoNotCountAsRealGroupedSubmission();
   await testBuildGroupedPreflightSummary();
   await testInspectRowsCanMintPaidCandidateState();
   await testInspectRowsLoadsGroupedWebhookSignal();

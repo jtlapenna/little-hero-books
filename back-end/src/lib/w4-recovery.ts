@@ -1,4 +1,5 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { isNonProductionLuluSubmission } from '@/lib/lulu-webhook-signal';
 import { supabase } from '@/lib/supabase-client';
 import type { WorkflowJobRecord } from '@/lib/workflow-jobs';
 
@@ -310,6 +311,15 @@ function sortJobsLatestFirst(jobs: WorkflowJobRecord[]): WorkflowJobRecord[] {
 }
 
 function hasRealSubmissionSignal(orderRow: W4RecoveryOrderRow): boolean {
+  if (
+    isNonProductionLuluSubmission({
+      luluJobId: toTrimmedString(orderRow.lulu_job_id),
+      currentStatus: toTrimmedString(orderRow.lulu_status),
+    })
+  ) {
+    return false;
+  }
+
   return Boolean(
     toTrimmedString(orderRow.lulu_job_id) ||
       toTrimmedString(orderRow.lulu_status) ||

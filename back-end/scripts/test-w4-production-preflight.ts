@@ -209,6 +209,23 @@ async function testSiblingSandboxProofOrdersAreExcluded(): Promise<void> {
   );
 }
 
+async function testDryRunMarkersDoNotCountAsRealSubmission(): Promise<void> {
+  const candidate = buildW4ProductionCandidate(
+    createOrderRow({
+      lulu_job_id: 'SKIPPED',
+      lulu_status: 'DRY_RUN',
+      print_submitted_at: null,
+    }),
+  );
+
+  assert(
+    candidate.recommendedAction === 'none' &&
+      candidate.proofLike === true &&
+      candidate.hasRealSubmission === false,
+    'Expected SKIPPED/DRY_RUN rows to remain non-production and outside paid W4 candidates',
+  );
+}
+
 async function testBuildPreflightRedactsSignedUrls(): Promise<void> {
   const preflight = buildW4ProductionPreflight(createPrintInput(), createSubmitInput());
   assert(
@@ -357,6 +374,7 @@ async function main(): Promise<void> {
   await testCandidatePreflightRecommendation();
   await testProofLikeOrdersAreExcluded();
   await testSiblingSandboxProofOrdersAreExcluded();
+  await testDryRunMarkersDoNotCountAsRealSubmission();
   await testBuildPreflightRedactsSignedUrls();
   await testInspectRowUsesDryRunDependencies();
   await testInspectRowBlocksMissingPrintAssets();

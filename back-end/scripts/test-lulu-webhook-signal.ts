@@ -35,6 +35,25 @@ function testMissingWebhookDelivery(): void {
   assertEqual(signal.deliveryState, 'missing', 'missing webhook row should be reported');
 }
 
+function testNonProductionSubmissionIsNotApplicable(): void {
+  const signal = buildLuluWebhookSignal({
+    luluJobId: 'SKIPPED',
+    currentStatus: 'DRY_RUN',
+    webhookLog: null,
+  });
+
+  assertEqual(
+    signal.deliveryState,
+    'not_applicable',
+    'dry-run submissions should not be treated as missing Lulu webhook delivery',
+  );
+  assertEqual(
+    signal.deliveryReason,
+    'non_production_submission',
+    'non-production webhook state should explain why it is ignored',
+  );
+}
+
 function testWebhookErrorSignal(): void {
   const signal = buildLuluWebhookSignal({
     luluJobId: '2807941',
@@ -90,6 +109,7 @@ function testReceivedWebhookSignal(): void {
 function main(): void {
   testNotApplicableWithoutJob();
   testMissingWebhookDelivery();
+  testNonProductionSubmissionIsNotApplicable();
   testWebhookErrorSignal();
   testStaleWebhookSignal();
   testReceivedWebhookSignal();

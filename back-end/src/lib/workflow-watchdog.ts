@@ -4,7 +4,11 @@ import {
   updateWorkflowJobResultSnapshot,
   type WorkflowJobRecord,
 } from '@/lib/workflow-jobs';
-import { buildLuluWebhookSignal, loadLatestLuluWebhookLog } from '@/lib/lulu-webhook-signal';
+import {
+  buildLuluWebhookSignal,
+  isNonProductionLuluSubmission,
+  loadLatestLuluWebhookLog,
+} from '@/lib/lulu-webhook-signal';
 import {
   resolveWorkflowAlertsByDedupeKeys,
   upsertWorkflowAlert,
@@ -15,8 +19,6 @@ const STALE_CLAIMED_MS = 15 * 60 * 1000;
 const STALE_RUNNING_MS = 45 * 60 * 1000;
 const STALE_POLLING_MS = 90 * 60 * 1000;
 const OVERDUE_RETRY_GRACE_MS = 15 * 60 * 1000;
-const NON_PRODUCTION_LULU_STATUS_PATTERN = /^(TEST_MODE|SANDBOX(?:[_-].+)?)$/i;
-
 type WorkflowWatchdogSummary = {
   scannedJobCount: number;
   openAlertCount: number;
@@ -49,10 +51,7 @@ function isRealLuluJob(job: WorkflowJobRecord): boolean {
   if (!luluJobId) {
     return false;
   }
-  if (/^TEST[-_]/i.test(luluJobId)) {
-    return false;
-  }
-  if (luluStatus && NON_PRODUCTION_LULU_STATUS_PATTERN.test(luluStatus)) {
+  if (isNonProductionLuluSubmission({ luluJobId, currentStatus: luluStatus })) {
     return false;
   }
   return true;

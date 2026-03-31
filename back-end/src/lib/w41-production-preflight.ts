@@ -6,6 +6,7 @@ import {
 } from '@/lib/books';
 import {
   buildLuluWebhookSignal,
+  isNonProductionLuluSubmission,
   loadLatestLuluWebhookLog,
   type LuluWebhookLogRow,
   type LuluWebhookSignal,
@@ -20,8 +21,6 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
-const NON_PRODUCTION_LULU_STATUS_PATTERN = /^(TEST_MODE|SANDBOX(?:[_-].+)?)$/i;
-
 export type W41ProductionAction = 'preflight' | 'inspect' | 'none';
 
 export type W41ProductionOrderRow = {
@@ -212,12 +211,10 @@ function getAdminBaseUrl(preferred?: string | null): string {
 }
 
 function isSandboxSubmissionMarker(row: W41ProductionOrderRow): boolean {
-  const luluJobId = toTrimmedString(row.lulu_job_id);
-  const luluStatus = toTrimmedString(row.lulu_status);
-  return Boolean(
-    (luluJobId && /^TEST[-_]/i.test(luluJobId)) ||
-      (luluStatus && NON_PRODUCTION_LULU_STATUS_PATTERN.test(luluStatus)),
-  );
+  return isNonProductionLuluSubmission({
+    luluJobId: toTrimmedString(row.lulu_job_id),
+    currentStatus: toTrimmedString(row.lulu_status),
+  });
 }
 
 function hasRealSubmission(rows: W41ProductionOrderRow[]): boolean {

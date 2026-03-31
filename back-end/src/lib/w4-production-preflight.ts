@@ -1,6 +1,7 @@
 import { buildW4PrintInput, buildW4SubmitInput, type BuildW4PrintInputResult, type BuildW4SubmitInputResult } from '@/lib/books';
 import {
   buildLuluWebhookSignal,
+  isNonProductionLuluSubmission,
   loadLatestLuluWebhookLog,
   type LuluWebhookLogRow,
   type LuluWebhookSignal,
@@ -16,8 +17,6 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
-const NON_PRODUCTION_LULU_STATUS_PATTERN = /^(TEST_MODE|SANDBOX(?:[_-].+)?)$/i;
-
 export type W4ProductionAction = 'preflight' | 'inspect' | 'none';
 
 export type W4ProductionOrderRow = {
@@ -204,13 +203,10 @@ function isProofLikeOrderRow(orderRow: W4ProductionOrderRow): boolean {
 }
 
 function hasSandboxSubmissionMarker(orderRow: W4ProductionOrderRow): boolean {
-  const luluJobId = toTrimmedString(orderRow.lulu_job_id);
-  const luluStatus = toTrimmedString(orderRow.lulu_status);
-
-  return Boolean(
-    (luluJobId && /^TEST[-_]/i.test(luluJobId)) ||
-      (luluStatus && NON_PRODUCTION_LULU_STATUS_PATTERN.test(luluStatus)),
-  );
+  return isNonProductionLuluSubmission({
+    luluJobId: toTrimmedString(orderRow.lulu_job_id),
+    currentStatus: toTrimmedString(orderRow.lulu_status),
+  });
 }
 
 function isSiblingItemOrder(orderRow: W4ProductionOrderRow): boolean {

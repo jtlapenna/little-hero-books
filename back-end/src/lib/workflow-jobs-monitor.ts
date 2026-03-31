@@ -1,4 +1,5 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { isNonProductionLuluSubmission } from '@/lib/lulu-webhook-signal';
 import { supabase } from '@/lib/supabase-client';
 import {
   listOpenWorkflowAlertsByJobIds,
@@ -340,6 +341,18 @@ function extractProviderSummary(
 ): WorkflowJobsMonitorProviderSummary | null {
   const latestPayload = toJsonRecord(recentEvents[0]?.payload) ?? {};
   const resultSnapshot = toJsonRecord(job.result_snapshot) ?? {};
+  const luluJobId =
+    toTrimmedString(resultSnapshot.luluJobId) ??
+    toTrimmedString(latestPayload.luluJobId) ??
+    toTrimmedString(latestPayload.externalRequestId);
+  const latestStatus =
+    toTrimmedString(resultSnapshot.luluStatus) ??
+    toTrimmedString(latestPayload.providerStatus) ??
+    toTrimmedString(latestPayload.luluStatus);
+  const nonProduction = isNonProductionLuluSubmission({
+    luluJobId,
+    currentStatus: latestStatus,
+  });
 
   const summary: WorkflowJobsMonitorProviderSummary = {
     provider:
@@ -347,23 +360,19 @@ function extractProviderSummary(
       toTrimmedString(latestPayload.externalProvider) ??
       toTrimmedString(resultSnapshot.provider) ??
       job.external_provider,
-    luluJobId:
-      toTrimmedString(resultSnapshot.luluJobId) ??
-      toTrimmedString(latestPayload.luluJobId) ??
-      toTrimmedString(latestPayload.externalRequestId),
-    latestStatus:
-      toTrimmedString(resultSnapshot.luluStatus) ??
-      toTrimmedString(latestPayload.providerStatus) ??
-      toTrimmedString(latestPayload.luluStatus),
+    luluJobId,
+    latestStatus,
     latestStatusUpdatedAt:
       toTrimmedString(resultSnapshot.luluStatusUpdatedAt) ??
       toTrimmedString(latestPayload.changedAt),
-    webhookDeliveryState:
-      toTrimmedString(latestPayload.deliveryState) ??
-      toTrimmedString(resultSnapshot.webhookDeliveryState),
-    webhookDeliveryReason:
-      toTrimmedString(latestPayload.deliveryReason) ??
-      toTrimmedString(resultSnapshot.webhookDeliveryReason),
+    webhookDeliveryState: nonProduction
+      ? 'not_applicable'
+      : toTrimmedString(resultSnapshot.webhookDeliveryState) ??
+        toTrimmedString(latestPayload.deliveryState),
+    webhookDeliveryReason: nonProduction
+      ? 'non_production_submission'
+      : toTrimmedString(resultSnapshot.webhookDeliveryReason) ??
+        toTrimmedString(latestPayload.deliveryReason),
   };
 
   return Object.values(summary).some((value) => Boolean(value)) ? summary : null;
