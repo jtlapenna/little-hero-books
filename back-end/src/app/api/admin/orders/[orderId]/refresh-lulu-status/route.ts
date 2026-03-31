@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
+import { recordLuluLifecycleWorkflowEvents } from '@/lib/workflow-jobs';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -184,6 +185,39 @@ export async function GET(
       oldStatus: order.lulu_status,
       newStatus
     });
+
+    try {
+      const { data: matchingOrders, error: matchingOrdersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('lulu_job_id', order.lulu_job_id);
+      if (matchingOrdersError) {
+        throw matchingOrdersError;
+      }
+      await recordLuluLifecycleWorkflowEvents({
+        printJobId: String(order.lulu_job_id),
+        statusName: String(newStatus || ''),
+        changedAt,
+        errorMessage,
+        trackingNumber,
+        trackingUrl,
+        carrier,
+        orders:
+          Array.isArray(matchingOrders) && matchingOrders.length > 0
+            ? matchingOrders
+            : [updatedOrder as Record<string, unknown>],
+        sourceSystem: 'admin',
+        statusDetail:
+          statusData && typeof statusData === 'object'
+            ? (statusData as Record<string, unknown>)
+            : null,
+      });
+    } catch (providerEventError) {
+      console.error(
+        '[Refresh Lulu Status] Failed to mirror provider lifecycle into workflow jobs:',
+        providerEventError,
+      );
+    }
 
     // Confirm shipment in Seller Central when SHIPPED/DELIVERED and it's an Amazon order
     const orderIdentifier = updatedOrder.orderId || updatedOrder.order_id || updatedOrder.amazon_order_id;

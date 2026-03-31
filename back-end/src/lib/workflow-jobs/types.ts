@@ -97,6 +97,28 @@ export interface WorkflowJobEventRecord {
   created_at: string;
 }
 
+export const WORKFLOW_JOB_CORRELATION_SOURCES = [
+  'n8n',
+  'repo-worker',
+  'cron',
+  'webhook',
+  'admin',
+] as const;
+
+export type WorkflowJobCorrelationSource = (typeof WORKFLOW_JOB_CORRELATION_SOURCES)[number];
+
+export interface WorkflowJobCorrelationEnvelope {
+  sourceSystem?: WorkflowJobCorrelationSource | null;
+  sourceExecutionId?: string | null;
+  orderId?: string | null;
+  rootGroupId?: string | null;
+  externalProvider?: string | null;
+  externalRequestId?: string | null;
+  luluJobId?: string | null;
+  manifestKeys?: string[] | null;
+  artifactKeys?: string[] | null;
+}
+
 export interface WorkflowJobErrorSummary {
   name?: string;
   message: string;
@@ -146,6 +168,7 @@ export interface AppendWorkflowJobEventInput {
   attemptId?: number | null;
   eventType: string;
   payload?: Record<string, unknown> | null;
+  correlation?: WorkflowJobCorrelationEnvelope | null;
   createdAt?: string | Date | null;
 }
 

@@ -50,6 +50,7 @@
     "test:w4-recovery": "tsx scripts/test-w4-recovery.ts",
     "test:w41-recovery": "tsx scripts/test-w41-recovery.ts",
     "test:lulu-status-map": "tsx scripts/test-lulu-status-map.ts",
+    "test:lulu-webhook-signal": "tsx scripts/test-lulu-webhook-signal.ts",
     "test:w4-submit-input": "tsx scripts/test-w4-submit-input.ts",
     "test:w4-print-worker": "tsx scripts/test-w4-print-worker.ts",
     "test:w4-print-qa-failed": "tsx scripts/test-w4-print-qa-failed.ts",

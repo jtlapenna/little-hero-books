@@ -178,13 +178,44 @@ function testReplayAndEventShape() {
     attemptId: 7,
     eventType: 'provider-submitted',
     payload: { requestId: 'pdf-123' },
+    correlation: {
+      sourceSystem: 'n8n',
+      sourceExecutionId: 'exec-123',
+      orderId: '112-7311035-1437035',
+      luluJobId: 'job-123',
+      manifestKeys: ['orders/112/manifests/3-manifest.json'],
+    },
     createdAt: '2026-03-24T19:56:45.000Z',
   });
   const errorSummary = summarizeWorkflowJobError(new Error('boom'));
 
   assertEqual(replay.identity.orderId ?? null, '112-7311035-1437035', 'replay payload should preserve order id');
   assertEqual(replay.identity.idempotencyKey, job.idempotency_key, 'replay payload should preserve idempotency key');
-  assertDeepEqual(eventRow.payload, { requestId: 'pdf-123' }, 'event row should preserve payload');
+  assertEqual(
+    (eventRow.payload.correlation as Record<string, unknown>).sourceSystem,
+    'n8n',
+    'event row should preserve correlation source system',
+  );
+  assertEqual(
+    (eventRow.payload.correlation as Record<string, unknown>).sourceExecutionId,
+    'exec-123',
+    'event row should preserve correlation execution id',
+  );
+  assertEqual(
+    (eventRow.payload.correlation as Record<string, unknown>).orderId,
+    '112-7311035-1437035',
+    'event row should preserve correlation order id',
+  );
+  assertEqual(
+    (eventRow.payload.correlation as Record<string, unknown>).luluJobId,
+    'job-123',
+    'event row should preserve correlation lulu job id',
+  );
+  assertDeepEqual(
+    (eventRow.payload.correlation as Record<string, unknown>).manifestKeys,
+    ['orders/112/manifests/3-manifest.json'],
+    'event row should preserve correlation manifest keys',
+  );
   assertEqual(eventRow.event_type, 'provider-submitted', 'event row should preserve event type');
   assertEqual(errorSummary.message, 'boom', 'error summary should preserve message');
 }
@@ -396,7 +427,13 @@ async function testWorkflowJobEventRoute() {
       externalStatusUrl: 'https://bria.example/status/bria-123',
       resultSnapshot: { poseNumber: 7, bgRemovedKey: 'book/orders/112/bg.png' },
       payload: { briaStatus: 'completed' },
-      context: { poseNumber: 7, passthrough: true },
+      context: {
+        poseNumber: 7,
+        passthrough: true,
+        sourceSystem: 'repo-worker',
+        sourceExecutionId: 'exec-77',
+        luluJobId: 'job-777',
+      },
     },
     {
       getWorkflowJobAttemptById: async () => null,
@@ -441,6 +478,24 @@ async function testWorkflowJobEventRoute() {
   assert(
     calls.some((entry) => entry.fn === 'appendWorkflowJobEvent'),
     'workflow job event route should append an event row',
+  );
+  const appendedEvent = calls.find((entry) => entry.fn === 'appendWorkflowJobEvent')?.payload as
+    | { correlation?: { sourceSystem?: string; sourceExecutionId?: string; luluJobId?: string } }
+    | undefined;
+  assertEqual(
+    appendedEvent?.correlation?.sourceSystem ?? null,
+    'repo-worker',
+    'workflow job event route should backfill correlation source system from context',
+  );
+  assertEqual(
+    appendedEvent?.correlation?.sourceExecutionId ?? null,
+    'exec-77',
+    'workflow job event route should backfill correlation execution id from context',
+  );
+  assertEqual(
+    appendedEvent?.correlation?.luluJobId ?? null,
+    'job-777',
+    'workflow job event route should backfill correlation lulu job id from context',
   );
 }
 

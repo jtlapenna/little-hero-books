@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
+import { recordLuluLifecycleWorkflowEvents } from '@/lib/workflow-jobs';
 
 // Force dynamic rendering - this route should never be statically generated
 export const dynamic = 'force-dynamic';
@@ -279,6 +280,26 @@ export async function POST(request: NextRequest) {
     const firstOrderId = orderList[0].orderId || orderList[0].order_id || orderList[0].amazon_order_id;
     await auditLog({ printJobId, statusName, orderFound: true, orderId: firstOrderId, updated: updateCount > 0, errorMessage: updateCount < orderList.length ? `Updated ${updateCount}/${orderList.length}` : null });
     console.log(`[LULU WEBHOOK] Updated ${updateCount} order(s) for lulu_job_id ${printJobId} with status ${statusName}`);
+
+    try {
+      await recordLuluLifecycleWorkflowEvents({
+        printJobId,
+        statusName,
+        changedAt: terminalAt,
+        errorMessage: errorDetails,
+        trackingNumber: shippingTrackingNumber,
+        trackingUrl: shippingTrackingUrl,
+        carrier: shippingCarrier,
+        orders: orderList,
+        sourceSystem: 'webhook',
+        statusDetail: payload,
+      });
+    } catch (providerEventError) {
+      console.error(
+        '[LULU WEBHOOK] Failed to mirror provider lifecycle into workflow jobs:',
+        providerEventError,
+      );
+    }
 
     // Confirm shipment in Seller Central: once per distinct Amazon order (siblings share one Lulu job)
     if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {

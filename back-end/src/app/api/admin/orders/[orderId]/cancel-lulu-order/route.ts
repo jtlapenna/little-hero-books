@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-client';
 import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
+import { recordLuluLifecycleWorkflowEvents } from '@/lib/workflow-jobs';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -156,6 +157,37 @@ export async function POST(
     });
     await updateOrderInSupabase(orderId, updates);
     const updatedOrder = await getOrderFromSupabase(orderId).catch(() => null);
+
+    try {
+      const { data: matchingOrders, error: matchingOrdersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('lulu_job_id', order.lulu_job_id);
+      if (matchingOrdersError) {
+        throw matchingOrdersError;
+      }
+      await recordLuluLifecycleWorkflowEvents({
+        printJobId: String(order.lulu_job_id),
+        statusName: 'CANCELED',
+        changedAt: cancelChangedAt,
+        orders:
+          Array.isArray(matchingOrders) && matchingOrders.length > 0
+            ? matchingOrders
+            : updatedOrder
+              ? [updatedOrder as Record<string, unknown>]
+              : [order as Record<string, unknown>],
+        sourceSystem: 'admin',
+        statusDetail:
+          cancelData && typeof cancelData === 'object'
+            ? (cancelData as Record<string, unknown>)
+            : null,
+      });
+    } catch (providerEventError) {
+      console.error(
+        '[Cancel Lulu Order] Failed to mirror provider lifecycle into workflow jobs:',
+        providerEventError,
+      );
+    }
 
     return NextResponse.json({
       success: true,

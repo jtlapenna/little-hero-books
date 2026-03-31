@@ -4,6 +4,7 @@ export * from "./claiming";
 export * from "./retries";
 export * from "./polling";
 export * from "./logging";
+export * from "./provider-events";
 export * from "./replay";
 export * from "./repository";
 export * from "./w2a-pose-jobs";

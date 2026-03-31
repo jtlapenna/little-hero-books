@@ -229,7 +229,16 @@ First landed foundation slice:
 
 ## Current landed status
 
-As of the March 25, 2026 cleanup state in Los Angeles time:
+As of March 30, 2026 in Los Angeles time, the repo-centric control-plane buildout is no longer a foundation-only exercise. The current end state is:
+
+- repo-centric execution is proven live across `W2A`, `W2B`, `W3`, `W4`, and `W4.1`
+- single-order `W4` and grouped `W4.1` have both crossed real paid Lulu submit plus cancel/reconcile
+- the backend now owns the durable job semantics, replay state, and most business logic, while `n8n` is primarily acting as orchestration and thin transport glue
+- the remaining high-value work is observability convergence, operator runbooks, and security cleanup, not more core stage extraction
+
+The detailed milestone log below is preserved for traceability.
+
+Historical milestone summary:
 
 - the user has already applied [`migration-add-workflow-jobs.sql`](/Users/jeff/Projects/little-hero-books/docs/database/migration-add-workflow-jobs.sql) to the real database
 - the backend `workflow_jobs` foundation is live in repo code under [`back-end/src/lib/workflow-jobs/`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/)
@@ -389,7 +398,7 @@ Recommended stage-facing workers:
 
 ## Migration sequence
 
-## Phase A: Instrumentation without orchestration cutover
+## Phase A: Durable instrumentation and thin `n8n` orchestration
 
 Keep `n8n` as the active orchestrator, but start writing backend job records for:
 
@@ -403,7 +412,15 @@ Keep `n8n` as the active orchestrator, but start writing backend job records for
 
 This builds visibility and replay metadata without changing live control flow yet.
 
-Current status:
+Current end state:
+
+- this phase is effectively complete for the active Book 1 repo-centric path
+- shared durable logging exists through `workflow_jobs`, `workflow_job_attempts`, and `workflow_job_events`
+- the backend owns the stage-facing seams for `W2A`, `W2B`, `W3`, `W4`, and `W4.1`
+- `n8n` still orchestrates waits, fan-out, and transport, but no longer owns most of the important business logic on the proven repo-centric path
+- the main remaining gap is not extraction; it is making the operator experience more unified and alertable
+
+Historical proof details:
 
 - foundation tables and repo primitives are landed
 - repo-centric `W2B` proof is now complete through the real provider-backed path and `workflow_jobs`
@@ -434,9 +451,9 @@ Current status:
   - disposable live rerun `34291` confirmed that the extracted preview transport path itself works live end to end, and the stale failed proof attempts were closed so the order now shows `activeCount = 0`
   - disposable live rerun `34304` confirmed that the extracted preview-planning + manifest-assembly path itself also works live end to end
   - router-driven disposable rerun `34315` confirmed that the real backend-router -> sibling `W1.1` -> repo-`W3` path now also works live end to end after the W1.1 manifest-context and webhook-path follow-up fixes
-- single-order `W4` sandbox-only extraction is now also proven live on the current imported repo-centric workflow:
+- single-order `W4` repo-centric extraction is now proven live on the current imported workflow, including sandbox proofing, production dry-run, and a real paid submit/cancel cycle:
   - stage `4` now has durable job type `w4-print-fulfillment` and repo-owned pre-submit routes for render, PDF materialization, QA, manifest publish, and submit-input build
-  - the currently imported live `W4` proof path is still sandbox-only by contract, but the repo submit builder is no longer hardcoded sandbox-only:
+  - the currently imported live `W4` path is still fail-closed by default, but the repo submit builder now supports sandbox, production dry-run, and explicitly approved paid submit:
     - [`build-submit-input/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w4/build-submit-input/route.ts) and [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts) now support guarded `submitMode = "production"` and `production_dry_run` responses behind explicit `allowProductionLulu: true`
     - paid submit still fails closed unless env gate `ENABLE_LULU_PRODUCTION_SUBMIT=true` is enabled
     - proof/test/disposable ids and invalid production shipping addresses are rejected before submit shaping
@@ -520,22 +537,22 @@ After W2A/W2B worker semantics are proven:
   - PDFMonkey preview submit/poll work now runs in repo code behind [`/api/internal/w3/render-preview-document`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/internal/w3/render-preview-document/route.ts), with `n8n` reduced to thin transport adapters for that slice
   - the remaining `W3` gap is now narrower: page/cover preview planning, manifest assembly, and full stage orchestration still execute inside `n8n` rather than repo workers
 
-## Phase D: Evaluate W4 / W4.1 orchestration extraction
+## Phase D: W4 / W4.1 paid-print cutover and operational hardening
 
 Do not move paid-print submission out of `n8n` until the backend job-control path is already trusted on lower-risk stages.
 
 Current status:
 
-- the single-order `W4` sandbox-only proof path is now trusted enough to continue extraction work:
+- the single-order `W4` path is now proven through sandbox proofing, production dry-run, and one real paid submit/cancel cycle:
   - durable job control exists
   - repo-owned render / materialize / QA / manifest / submit-input seams are live
   - live execution `34451` ended `success` with `workflow_jobs.id = 154` / attempt `115` both `succeeded`
-  - the proof stayed sandbox-only and did not create a production Lulu submission or customer-facing lifecycle change
+  - the original sandbox proof stayed non-production and did not create a customer-facing lifecycle change
   - a separate read-only paid-pilot console now exists at [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx), backed by [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts)
   - that console never submits to Lulu; it only dry-runs repo-owned `W4` print + submit shaping with redacted URL signing and exposes whether a real paid pilot is blocked by approval, shipping, env gates, proof-order markers, or existing submission state
   - backend deploy revision [`152bbb34.little-hero-labs-admin.pages.dev`](https://152bbb34.little-hero-labs-admin.pages.dev) now serves that page/API, and token-auth smoke reads succeeded on both the preview deploy and `admin.littleherolabs.com`
   - operator-facing W4 recovery now exists at [`/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-recovery/page.tsx), backed by [`/api/admin/w4-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-recovery/route.ts) and [`w4-recovery.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-recovery.ts)
-  - that recovery surface is intentionally fail-closed for paid-print safety: it only replays through live webhook `w4-pdf-print-repo`, refuses any order with `lulu_job_id` / `lulu_status` / `print_submitted_at`, and relies on the extracted sandbox-only W4 submit path
+  - that recovery surface is intentionally fail-closed for paid-print safety: it only replays through live webhook `w4-pdf-print-repo`, refuses any order with `lulu_job_id` / `lulu_status` / `print_submitted_at`, and relies on the extracted repo-owned W4 submit path remaining non-production by default
   - the repo export [`w4-PRODUCTION-Print_Fulfillment.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json) is now safer for the future paid cutover:
     - internal route-adapter nodes now read `CONFIG.backendApiToken` instead of embedding a literal backend bearer token
     - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false
@@ -549,7 +566,7 @@ Current status:
     - cleanup re-ran only the repo-owned manifest publish step, persisted `lulu_job_id = 2806186` / `lulu_status = "CREATED"`, and explicitly completed `workflow_jobs.id = 160` / attempt `121` without invoking customer notifications
     - a fresh admin Lulu refresh then showed the real job had already moved to `REJECTED`, so the order now sits at `status = action_required`, `error_type = lulu_rejected`, and `print_submitted_at = null`
     - practical meaning: the paid single-order `W4` seam is proven through Lulu acceptance, the post-submit persistence gap is closed, and the next paid pilot should be a deliberate second pilot only after both the new page-count guard and Lulu-recommended address override are applied
-- `W4.1` now has the first operator-facing sibling recovery surface and a clean sandbox-only live proof:
+- `W4.1` now has operator-facing sibling recovery plus proven sandbox, grouped production dry-run, and real paid grouped submit/cancel behavior:
   - admin page [`/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w41-recovery/page.tsx) is backed by [`/api/admin/w41-recovery`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w41-recovery/route.ts) and repo helper [`w41-recovery.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w41-recovery.ts)
   - it inspects stage-`4.1` durable jobs by sibling root group, blocks replay when any sibling already has real Lulu submission state, and replays only through live webhook `w4-1-sibling-aggregation-repo`
   - webhook [`print-submitted/route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/webhooks/print-submitted/route.ts) is now hardened for grouped fallback too: if a `W4.1` callback ever arrives without shared workflow-job ids but still includes `rootGroupId` + `orderIds`, the shared sibling job still closes once via [`completeW4SiblingJobForGroup(...)`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/workflow-jobs/w4-sibling-jobs.ts)
@@ -583,17 +600,17 @@ Current status:
 
 ---
 
-## Recommended first implementation batch
+## Recommended next hardening batch
 
-The first implementation batch for this foundation should be narrow:
+The next implementation batch should focus on operating the proven repo-centric path safely:
 
-1. define durable job types and status enums in repo code
-2. add repository helpers plus idempotency-key helpers
-3. add local tests for claim/retry/replay state transitions
-4. instrument the next repo-centric `W2A` / `W2B` seams to emit stable logical ids and external tracking ids
-5. keep `n8n` as the live caller until visibility is good enough to trust replay
+1. make the shared [`/admin/workflow-jobs`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/workflow-jobs/page.tsx) surface first-class for `W4` and `W4.1`, not just `W2A` / `W2B` / `W3`
+2. mirror external lifecycle changes, especially Lulu webhook transitions, into the shared `workflow_job_events` timeline so operators can inspect one canonical event stream
+3. add explicit alerting/watchdog coverage for `retry_waiting`, `dead_lettered`, stale polling, and missing/stale Lulu webhook delivery
+4. publish an operator runbook for dry-run, paid pilot, cancel, and webhook/admin convergence verification
+5. finish the deferred security cleanup for the March 27 secret exposure
 
-This avoids a big-bang control-plane rewrite.
+This keeps the project focused on reliability instead of starting another migration for its own sake.
 
 ---
 
@@ -612,8 +629,8 @@ This foundation should be considered good enough for the first real orchestratio
 
 ## Practical takeaway
 
-The next phase is not “rewrite everything in the backend.”
+The repo-centric cutover is effectively complete for the current Book 1 workflow path.
 
-It is:
+The next phase is:
 
-**build the backend job-control primitives that make a larger repo-centric migration safe, then use `W2A` and `W2B` as the first serious execution slices on top of that foundation.**
+**treat `workflow_jobs` as the canonical control plane, unify the operator observability surfaces around it, document the operating procedure, and avoid further core-plumbing churn unless a real bug demands it.**

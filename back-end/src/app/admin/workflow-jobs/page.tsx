@@ -26,6 +26,10 @@ type WorkflowJobsSummary = {
   canceledCount: number;
   byStage: Record<string, number>;
   byStatus: Record<string, number>;
+  openAlertCount: number;
+  criticalAlertCount: number;
+  warningAlertCount: number;
+  infoAlertCount: number;
 };
 
 type WorkflowAttempt = {
@@ -44,6 +48,36 @@ type WorkflowEvent = {
   eventType: string;
   createdAt: string;
   payload: Record<string, unknown>;
+};
+
+type WorkflowProviderSummary = {
+  provider: string | null;
+  luluJobId: string | null;
+  latestStatus: string | null;
+  latestStatusUpdatedAt: string | null;
+  webhookDeliveryState: string | null;
+  webhookDeliveryReason: string | null;
+};
+
+type WorkflowCorrelation = {
+  sourceSystem: string | null;
+  sourceExecutionId: string | null;
+  orderId: string | null;
+  rootGroupId: string | null;
+  externalProvider: string | null;
+  externalRequestId: string | null;
+  luluJobId: string | null;
+  manifestKeys: string[];
+  artifactKeys: string[];
+};
+
+type WorkflowAlertSummary = {
+  openCount: number;
+  criticalCount: number;
+  warningCount: number;
+  infoCount: number;
+  latestSummary: string | null;
+  latestSeverity: string | null;
 };
 
 type WorkflowJobListItem = {
@@ -71,6 +105,9 @@ type WorkflowJobListItem = {
   latestAttempt: WorkflowAttempt | null;
   latestEvent: WorkflowEvent | null;
   recentEventTypes: string[];
+  providerSummary: WorkflowProviderSummary | null;
+  correlation: WorkflowCorrelation | null;
+  openAlertSummary: WorkflowAlertSummary;
 };
 
 type WorkflowInspectionJob = WorkflowJobListItem & {
@@ -119,6 +156,8 @@ const STAGE_OPTIONS = [
   { value: '2a', label: '2A' },
   { value: '2b', label: '2B' },
   { value: '3', label: 'W3' },
+  { value: '4', label: 'W4' },
+  { value: '4.1', label: 'W4.1' },
 ];
 
 const STATUS_OPTIONS = [
@@ -189,6 +228,10 @@ function stageClasses(stage: string): string {
       return 'border-cyan-200 bg-cyan-50 text-cyan-800';
     case 'W3':
       return 'border-indigo-200 bg-indigo-50 text-indigo-800';
+    case 'W4':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+    case 'W4.1':
+      return 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800';
     default:
       return 'border-slate-200 bg-slate-50 text-slate-700';
   }
@@ -317,6 +360,7 @@ function WorkflowJobsPageContent() {
     (data?.summary.failedCount ?? 0) +
     (data?.summary.retryWaitingCount ?? 0) +
     (data?.summary.deadLetteredCount ?? 0);
+  const openAlertCount = data?.summary.openAlertCount ?? 0;
   const inspectedOrder = data?.inspectedOrder ?? null;
   const inspectedHasW2A = inspectedOrder?.jobs.some((job) => job.stage === '2A') ?? false;
 
@@ -329,11 +373,10 @@ function WorkflowJobsPageContent() {
               <Workflow className="h-4 w-4" />
               Workflow Jobs Console
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Inspect stage jobs without raw SQL</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Inspect repo-centric jobs without raw SQL</h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              This console shows recent `workflow_jobs` across `W2A`, `W2B`, and `W3`, lets you drill into a
-              specific order, and surfaces recent attempts and events so operators can see what the control plane
-              thinks happened.
+              This console shows recent `workflow_jobs` across `W2A`, `W2B`, `W3`, `W4`, and `W4.1`, with provider
+              status, webhook freshness, and open alerts pulled from the shared repo-centric logging spine.
             </p>
           </div>
 
@@ -371,7 +414,7 @@ function WorkflowJobsPageContent() {
         )}
 
         {data && (
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="mb-6 grid gap-4 md:grid-cols-5">
             <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
                 Active
@@ -397,6 +440,15 @@ function WorkflowJobsPageContent() {
               <div className="mt-3 text-3xl font-bold text-gray-900">{attentionCount}</div>
               <p className="mt-2 text-sm text-gray-600">
                 Failed, dead-lettered, or retry-waiting jobs in the current 72 hour window.
+              </p>
+            </div>
+            <div className="rounded-xl border border-rose-200 bg-white p-5 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
+                Open Alerts
+              </div>
+              <div className="mt-3 text-3xl font-bold text-gray-900">{openAlertCount}</div>
+              <p className="mt-2 text-sm text-gray-600">
+                Durable workflow alerts from the watchdog and provider lifecycle checks.
               </p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
@@ -607,6 +659,13 @@ function WorkflowJobsPageContent() {
                                   {job.lastErrorMessage}
                                 </div>
                               )}
+                              {job.openAlertSummary.openCount > 0 && (
+                                <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+                                  {job.openAlertSummary.openCount} open alert
+                                  {job.openAlertSummary.openCount !== 1 ? 's' : ''} •{' '}
+                                  {job.openAlertSummary.latestSummary || 'workflow attention required'}
+                                </div>
+                              )}
                             </div>
 
                             <div className="text-sm text-gray-600 lg:text-right">
@@ -618,9 +677,25 @@ function WorkflowJobsPageContent() {
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <div className="rounded-lg bg-gray-50 p-3">
                               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                                Attempts
+                                Attempts / Provider
                               </div>
                               <div className="space-y-2 text-sm text-gray-700">
+                                {job.providerSummary && (
+                                  <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                                    <div className="font-medium text-gray-900">
+                                      {job.providerSummary.provider || 'provider'} •{' '}
+                                      {job.providerSummary.latestStatus || 'no status'}
+                                    </div>
+                                    <div className="mt-1 text-xs text-gray-500">
+                                      {job.providerSummary.luluJobId
+                                        ? `job ${job.providerSummary.luluJobId}`
+                                        : 'no provider request id'}
+                                      {job.providerSummary.webhookDeliveryState
+                                        ? ` • webhook ${job.providerSummary.webhookDeliveryState}`
+                                        : ''}
+                                    </div>
+                                  </div>
+                                )}
                                 {job.attempts.length === 0 ? (
                                   <div>No attempts recorded.</div>
                                 ) : (
@@ -643,9 +718,20 @@ function WorkflowJobsPageContent() {
 
                             <div className="rounded-lg bg-gray-50 p-3">
                               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                                Recent Events
+                                Recent Events / Correlation
                               </div>
                               <div className="space-y-2 text-sm text-gray-700">
+                                {job.correlation && (
+                                  <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+                                    source {job.correlation.sourceSystem || 'n/a'}
+                                    {job.correlation.sourceExecutionId
+                                      ? ` • exec ${job.correlation.sourceExecutionId}`
+                                      : ''}
+                                    {job.correlation.rootGroupId
+                                      ? ` • group ${job.correlation.rootGroupId}`
+                                      : ''}
+                                  </div>
+                                )}
                                 {job.recentEvents.length === 0 ? (
                                   <div>No events recorded.</div>
                                 ) : (
@@ -704,7 +790,7 @@ function WorkflowJobsPageContent() {
                       Order / Job
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      Attempts / Provider
+                      Attempts / Provider / Alerts
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
                       Latest Event
@@ -740,7 +826,23 @@ function WorkflowJobsPageContent() {
                           {job.attemptCount} / {job.maxAttempts} attempts
                         </div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {job.externalProvider || 'No provider'}{job.externalRequestId ? ` • ${job.externalRequestId}` : ''}
+                          {job.providerSummary?.provider || job.externalProvider || 'No provider'}
+                          {job.providerSummary?.luluJobId
+                            ? ` • ${job.providerSummary.luluJobId}`
+                            : job.externalRequestId
+                              ? ` • ${job.externalRequestId}`
+                              : ''}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {job.providerSummary?.latestStatus || 'No provider status'}
+                          {job.providerSummary?.webhookDeliveryState
+                            ? ` • webhook ${job.providerSummary.webhookDeliveryState}`
+                            : ''}
+                        </div>
+                        <div className="mt-1 text-xs text-rose-700">
+                          {job.openAlertSummary.openCount > 0
+                            ? `${job.openAlertSummary.openCount} open alert${job.openAlertSummary.openCount !== 1 ? 's' : ''}`
+                            : 'No open alerts'}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">
@@ -786,9 +888,9 @@ function WorkflowJobsPageContent() {
             <div className="text-sm text-indigo-900">
               <div className="font-semibold">What this page is for</div>
               <p className="mt-1">
-                Use this as the first stop for recent `workflow_jobs` across stages. If the inspected order is a
-                `2A` case that needs replay or finalize actions, jump to the existing `W2A Recovery` page from here.
-                This page is intentionally read-only for now.
+                Use this as the first stop for repo-centric workflow runs across all active stages. Dedicated
+                `W4` and `W4.1` pages still provide curated operational actions, but the canonical run history,
+                provider state, and watchdog alerts now converge here.
               </p>
             </div>
           </div>

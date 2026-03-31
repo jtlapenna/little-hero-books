@@ -3,17 +3,17 @@
 ## Summary
 
 - Scope this plan to paid single-order `W4` first.
-- Keep `W4.1` and sibling-group paid submission out of the first cutover batch.
-- Treat sandbox proofing as complete enough to plan production, but not as permission to blend sandbox and paid paths.
-- Goal: enable repo-owned `W4` production submit only behind explicit hard guardrails, with rollback defined before rollout.
+- Keep `W4.1` and sibling-group paid submission tracked separately in [`w41-production-lulu-cutover-plan.md`](/Users/jeff/Projects/little-hero-books/docs/repo-workflows-planning/w41-production-lulu-cutover-plan.md).
+- The paid single-order seam is now proven through real submit plus cancel/reconcile.
+- Goal now: keep the proven `W4` production path fail-closed, observable, and operationally safe rather than continuing cutover-by-experiment.
 
 ## Current baseline
 
-- Single-order `W4` sandbox-only repo extraction is proven live.
-- `W4.1` sandbox-only sibling recovery and disposable proof are now proven live too.
-- Admin recovery exists for `W4` and `W4.1`, but both are intentionally fail-closed and sandbox-only today.
+- Single-order `W4` repo extraction is proven live through sandbox proofing, production dry-run, and real paid submit/cancel.
+- `W4.1` grouped paid flow is tracked separately and is no longer just sandbox-only, but this plan remains single-order `W4` specific.
+- Admin recovery exists for `W4`, and the paid path remains intentionally fail-closed unless explicit repo approval and production gates are present.
 - A separate read-only paid-pilot console now exists at [`/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/w4-production/page.tsx), backed by [`/api/admin/w4-production`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/admin/w4-production/route.ts) and repo helper [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts).
-- Production Lulu nodes still exist in `n8n`, but the extracted proof paths do not use them.
+- Production Lulu nodes still exist in `n8n`, but repo-owned submit shaping, approval, and telemetry now decide whether the paid seam is even reachable.
 - Phase 1 repo-side gating is now implemented in [`w4-submit-input.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/books/w4-submit-input.ts):
   - default behavior stays sandbox-only unless `allowProductionLulu: true` is present
   - paid submit still fails closed unless `ENABLE_LULU_PRODUCTION_SUBMIT=true`
@@ -71,8 +71,8 @@
     - both return `webhookSignal.deliveryState = "received"` with `deliveryReason = "latest_webhook_applied"`
     - the newest raw webhook log rows for `2806687` are `CANCELED`, `PRODUCTION_DELAYED`, then `UNPAID`, all with `updated = true`
   - the env gate was then turned back off and redeployed to revision [`e597d018.little-hero-labs-admin.pages.dev`](https://e597d018.little-hero-labs-admin.pages.dev)
-- The live imported single-order `W4` workflow is now proven for production dry-run, but a real paid pilot still needs explicit operator approval plus the env gate.
-- The real paid-pilot seam is now also proven through Lulu acceptance, but the next paid pilot should still wait for the deferred secret rotation and an explicit operator approval action.
+- The live imported single-order `W4` workflow is now proven for production dry-run and real paid submit.
+- The paid seam itself is no longer the open question; the remaining work is observability hardening, operator runbook clarity, and security cleanup before any further paid pilot.
 - The repo export is now hardened for that later cutover:
   - internal route-adapter nodes no longer embed a literal backend bearer token; they read `CONFIG.backendApiToken`
   - the legacy `Lulu PRODUCTION` token + submit nodes now fail closed unless `submitMode = "production"` and `__skipLulu` is false
@@ -191,7 +191,8 @@
 
 ## Recommended next implementation order
 
-1. Add a separate operator approval surface for paid submit.
-2. Lock workflow/export contracts so sandbox responses cannot reach production nodes and `submitMode = "production"` is the only path that can reach paid Lulu nodes.
-3. Run a production dry-run validation pass with no submit against one explicitly approved single-order `W4` candidate.
-4. Only then schedule a single manually approved paid-order pilot.
+1. Unify `W4` production telemetry into the shared [`/admin/workflow-jobs`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/workflow-jobs/page.tsx) timeline so operators do not have to hop between the shared job console and the dedicated `W4` pages to reconstruct a failure.
+2. Mirror Lulu webhook lifecycle transitions into shared `workflow_job_events`, not just `lulu_webhook_log`, so post-submit state is part of the canonical run history.
+3. Add alerting/watchdog coverage for stuck `retry_waiting`, stale polling, and stale/missing Lulu webhook delivery.
+4. Publish and use a short single-order `W4` operator runbook for dry-run, approval, paid pilot, cancel, and convergence verification.
+5. Avoid more paid single-order pilots unless a real business or operational question remains unanswered.

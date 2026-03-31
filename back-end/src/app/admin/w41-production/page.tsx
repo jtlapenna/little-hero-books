@@ -41,6 +41,14 @@ type ProductionInspection = ProductionCandidate & {
   resolvedVia: string;
   safeForProductionPilot: boolean;
   inspectionError: string | null;
+  webhookSignal: {
+    latestReceivedAt: string | null;
+    latestStatus: string | null;
+    latestUpdated: boolean | null;
+    latestErrorMessage: string | null;
+    deliveryState: 'not_applicable' | 'missing' | 'received' | 'error' | 'stale';
+    deliveryReason: string;
+  };
   preflight: {
     submitMode: 'sandbox' | 'skip' | 'production';
     luluApiBase: string;
@@ -398,10 +406,16 @@ function W41ProductionPageContent() {
                 >
                   Open Sandbox Recovery
                 </Link>
+                <Link
+                  href={`/admin/workflow-jobs?orderId=${encodeURIComponent(inspectedGroup.rootGroupId)}`}
+                  className="inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  Open Shared Run Console
+                </Link>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-4">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Group State
@@ -440,6 +454,18 @@ function W41ProductionPageContent() {
                   <div>statuses: {inspectedGroup.luluStatuses.length ? inspectedGroup.luluStatuses.join(', ') : 'N/A'}</div>
                   <div>amazon/root id: {inspectedGroup.amazonOrderId ?? 'N/A'}</div>
                   <div>row ids: {inspectedGroup.orderRowIds.join(', ')}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Webhook Freshness
+                </div>
+                <div className="mt-3 space-y-2 text-sm text-gray-700">
+                  <div>delivery state: {inspectedGroup.webhookSignal.deliveryState}</div>
+                  <div>reason: {inspectedGroup.webhookSignal.deliveryReason}</div>
+                  <div>latest status: {inspectedGroup.webhookSignal.latestStatus ?? 'N/A'}</div>
+                  <div>latest received: {formatTimestamp(inspectedGroup.webhookSignal.latestReceivedAt)}</div>
                 </div>
               </div>
             </div>

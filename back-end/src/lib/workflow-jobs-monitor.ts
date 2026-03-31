@@ -1,5 +1,11 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { supabase } from '@/lib/supabase-client';
+import {
+  listOpenWorkflowAlertsByJobIds,
+  summarizeWorkflowAlerts,
+  type WorkflowAlertRecord,
+  type WorkflowAlertSummary,
+} from '@/lib/workflow-alerts';
 import type {
   WorkflowJobAttemptRecord,
   WorkflowJobEventRecord,
@@ -55,6 +61,36 @@ export type WorkflowJobsMonitorSummary = {
   canceledCount: number;
   byStage: Record<string, number>;
   byStatus: Record<string, number>;
+  openAlertCount: number;
+  criticalAlertCount: number;
+  warningAlertCount: number;
+  infoAlertCount: number;
+};
+
+export type WorkflowJobsMonitorCorrelation = {
+  sourceSystem: string | null;
+  sourceExecutionId: string | null;
+  orderId: string | null;
+  rootGroupId: string | null;
+  externalProvider: string | null;
+  externalRequestId: string | null;
+  luluJobId: string | null;
+  manifestKeys: string[];
+  artifactKeys: string[];
+};
+
+export type WorkflowJobsMonitorProviderSummary = {
+  provider: string | null;
+  luluJobId: string | null;
+  latestStatus: string | null;
+  latestStatusUpdatedAt: string | null;
+  webhookDeliveryState: string | null;
+  webhookDeliveryReason: string | null;
+};
+
+export type WorkflowJobsMonitorAlertSummary = WorkflowAlertSummary & {
+  latestSummary: string | null;
+  latestSeverity: string | null;
 };
 
 export type WorkflowJobsMonitorLatestAttempt = {
@@ -100,6 +136,9 @@ export type WorkflowJobsMonitorListItem = {
   latestAttempt: WorkflowJobsMonitorLatestAttempt | null;
   latestEvent: WorkflowJobsMonitorEvent | null;
   recentEventTypes: string[];
+  providerSummary: WorkflowJobsMonitorProviderSummary | null;
+  correlation: WorkflowJobsMonitorCorrelation | null;
+  openAlertSummary: WorkflowJobsMonitorAlertSummary;
 };
 
 export type WorkflowJobsMonitorInspectionJob = WorkflowJobsMonitorListItem & {
@@ -141,6 +180,21 @@ function toTrimmedString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function toJsonRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => toTrimmedString(entry))
+    .filter((entry): entry is string => Boolean(entry));
 }
 
 function clampInteger(value: number | undefined, min: number, max: number, fallback: number): number {
@@ -230,10 +284,97 @@ function stageLabel(stage: string | null): string {
   if (normalized === '3') {
     return 'W3';
   }
+  if (normalized === '4') {
+    return 'W4';
+  }
+  if (normalized === '4.1') {
+    return 'W4.1';
+  }
   return normalized.toUpperCase();
 }
 
-function buildSummary(jobs: WorkflowJobRecord[], visibleJobCount: number, windowHours: number): WorkflowJobsMonitorSummary {
+function buildAlertSummary(alerts: WorkflowAlertRecord[]): WorkflowJobsMonitorAlertSummary {
+  const summary = summarizeWorkflowAlerts(alerts);
+  return {
+    ...summary,
+    latestSummary: alerts[0]?.summary ?? null,
+    latestSeverity: alerts[0]?.severity ?? null,
+  };
+}
+
+function extractCorrelation(
+  job: WorkflowJobRecord,
+  recentEvents: WorkflowJobEventRecord[],
+): WorkflowJobsMonitorCorrelation | null {
+  const eventCorrelation = recentEvents
+    .map((event) => toJsonRecord(event.payload)?.correlation)
+    .map((value) => toJsonRecord(value))
+    .find((value) => Boolean(value));
+
+  const correlation: WorkflowJobsMonitorCorrelation = {
+    sourceSystem: toTrimmedString(eventCorrelation?.sourceSystem),
+    sourceExecutionId: toTrimmedString(eventCorrelation?.sourceExecutionId),
+    orderId: toTrimmedString(eventCorrelation?.orderId) ?? job.order_id,
+    rootGroupId: toTrimmedString(eventCorrelation?.rootGroupId) ?? job.root_order_id,
+    externalProvider:
+      toTrimmedString(eventCorrelation?.externalProvider) ?? job.external_provider,
+    externalRequestId:
+      toTrimmedString(eventCorrelation?.externalRequestId) ?? job.external_request_id,
+    luluJobId:
+      toTrimmedString(eventCorrelation?.luluJobId) ??
+      toTrimmedString(job.result_snapshot?.luluJobId),
+    manifestKeys: toStringArray(eventCorrelation?.manifestKeys),
+    artifactKeys: toStringArray(eventCorrelation?.artifactKeys),
+  };
+
+  return Object.values(correlation).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  )
+    ? correlation
+    : null;
+}
+
+function extractProviderSummary(
+  job: WorkflowJobRecord,
+  recentEvents: WorkflowJobEventRecord[],
+): WorkflowJobsMonitorProviderSummary | null {
+  const latestPayload = toJsonRecord(recentEvents[0]?.payload) ?? {};
+  const resultSnapshot = toJsonRecord(job.result_snapshot) ?? {};
+
+  const summary: WorkflowJobsMonitorProviderSummary = {
+    provider:
+      toTrimmedString(resultSnapshot.externalProvider) ??
+      toTrimmedString(latestPayload.externalProvider) ??
+      toTrimmedString(resultSnapshot.provider) ??
+      job.external_provider,
+    luluJobId:
+      toTrimmedString(resultSnapshot.luluJobId) ??
+      toTrimmedString(latestPayload.luluJobId) ??
+      toTrimmedString(latestPayload.externalRequestId),
+    latestStatus:
+      toTrimmedString(resultSnapshot.luluStatus) ??
+      toTrimmedString(latestPayload.providerStatus) ??
+      toTrimmedString(latestPayload.luluStatus),
+    latestStatusUpdatedAt:
+      toTrimmedString(resultSnapshot.luluStatusUpdatedAt) ??
+      toTrimmedString(latestPayload.changedAt),
+    webhookDeliveryState:
+      toTrimmedString(latestPayload.deliveryState) ??
+      toTrimmedString(resultSnapshot.webhookDeliveryState),
+    webhookDeliveryReason:
+      toTrimmedString(latestPayload.deliveryReason) ??
+      toTrimmedString(resultSnapshot.webhookDeliveryReason),
+  };
+
+  return Object.values(summary).some((value) => Boolean(value)) ? summary : null;
+}
+
+function buildSummary(
+  jobs: WorkflowJobRecord[],
+  visibleJobCount: number,
+  windowHours: number,
+  alertsByJobId: Map<number, WorkflowAlertRecord[]>,
+): WorkflowJobsMonitorSummary {
   const byStage = new Map<string, number>();
   const byStatus = new Map<string, number>();
   let activeCount = 0;
@@ -242,6 +383,10 @@ function buildSummary(jobs: WorkflowJobRecord[], visibleJobCount: number, window
   let deadLetteredCount = 0;
   let succeededCount = 0;
   let canceledCount = 0;
+  let openAlertCount = 0;
+  let criticalAlertCount = 0;
+  let warningAlertCount = 0;
+  let infoAlertCount = 0;
 
   for (const job of jobs) {
     const stage = stageLabel(job.stage);
@@ -266,6 +411,12 @@ function buildSummary(jobs: WorkflowJobRecord[], visibleJobCount: number, window
     if (job.status === 'canceled') {
       canceledCount += 1;
     }
+
+    const alertSummary = buildAlertSummary(alertsByJobId.get(job.id) ?? []);
+    openAlertCount += alertSummary.openCount;
+    criticalAlertCount += alertSummary.criticalCount;
+    warningAlertCount += alertSummary.warningCount;
+    infoAlertCount += alertSummary.infoCount;
   }
 
   return {
@@ -280,6 +431,10 @@ function buildSummary(jobs: WorkflowJobRecord[], visibleJobCount: number, window
     canceledCount,
     byStage: Object.fromEntries(byStage),
     byStatus: Object.fromEntries(byStatus),
+    openAlertCount,
+    criticalAlertCount,
+    warningAlertCount,
+    infoAlertCount,
   };
 }
 
@@ -316,6 +471,7 @@ async function loadAttemptsAndEvents(jobIds: number[]) {
     return {
       attemptsByJobId: new Map<number, WorkflowJobAttemptRecord[]>(),
       eventsByJobId: new Map<number, WorkflowJobEventRecord[]>(),
+      alertsByJobId: new Map<number, WorkflowAlertRecord[]>(),
     };
   }
 
@@ -355,13 +511,16 @@ async function loadAttemptsAndEvents(jobIds: number[]) {
     eventsByJobId.set(event.job_id, current);
   }
 
-  return { attemptsByJobId, eventsByJobId };
+  const alertsByJobId = await listOpenWorkflowAlertsByJobIds(jobIds);
+
+  return { attemptsByJobId, eventsByJobId, alertsByJobId };
 }
 
 function buildListItem(
   job: WorkflowJobRecord,
   attempts: WorkflowJobAttemptRecord[],
   recentEvents: WorkflowJobEventRecord[],
+  alerts: WorkflowAlertRecord[],
 ): WorkflowJobsMonitorListItem {
   const latestAttempt = attempts[0] ? buildAttemptView(attempts[0]) : null;
   const latestEvent = recentEvents[0] ? buildEventView(recentEvents[0]) : null;
@@ -391,6 +550,9 @@ function buildListItem(
     latestAttempt,
     latestEvent,
     recentEventTypes: recentEvents.map((event) => event.event_type),
+    providerSummary: extractProviderSummary(job, recentEvents),
+    correlation: extractCorrelation(job, recentEvents),
+    openAlertSummary: buildAlertSummary(alerts),
   };
 }
 
@@ -433,14 +595,20 @@ export async function listWorkflowJobsMonitorData(filters: WorkflowJobsMonitorFi
   const windowHours = clampInteger(filters.hours, 1, 24 * 30, 72);
   const jobs = sortJobsDescending(await queryMonitorJobs(filters));
   const visibleJobs = jobs.slice(0, limit);
+  const alertsByJobId = await listOpenWorkflowAlertsByJobIds(jobs.map((job) => job.id));
   const { attemptsByJobId, eventsByJobId } = await loadAttemptsAndEvents(
     visibleJobs.map((job) => job.id),
   );
 
   return {
-    summary: buildSummary(jobs, visibleJobs.length, windowHours),
+    summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId),
     jobs: visibleJobs.map((job) =>
-      buildListItem(job, attemptsByJobId.get(job.id) ?? [], eventsByJobId.get(job.id) ?? []),
+      buildListItem(
+        job,
+        attemptsByJobId.get(job.id) ?? [],
+        eventsByJobId.get(job.id) ?? [],
+        alertsByJobId.get(job.id) ?? [],
+      ),
     ),
   };
 }
@@ -473,6 +641,7 @@ export async function inspectWorkflowJobsOrder(rawOrderId: string): Promise<Work
     return null;
   }
 
+  const alertsByJobId = await listOpenWorkflowAlertsByJobIds(jobs.map((job) => job.id));
   const { attemptsByJobId, eventsByJobId } = await loadAttemptsAndEvents(
     jobs.map((job) => job.id),
   );
@@ -489,7 +658,8 @@ export async function inspectWorkflowJobsOrder(rawOrderId: string): Promise<Work
   const inspectionJobs = jobs.map((job) => {
     const attempts = attemptsByJobId.get(job.id) ?? [];
     const recentEvents = eventsByJobId.get(job.id) ?? [];
-    const listItem = buildListItem(job, attempts, recentEvents);
+    const alerts = alertsByJobId.get(job.id) ?? [];
+    const listItem = buildListItem(job, attempts, recentEvents, alerts);
 
     statusCounts.set(job.status, (statusCounts.get(job.status) ?? 0) + 1);
     const stage = stageLabel(job.stage);

@@ -4,12 +4,12 @@
 
 - Scope this plan to paid sibling-group `W4.1`.
 - Keep single-order `W4` production logic and approvals separate from sibling-group paid submit.
-- Treat `W4.1` sandbox proofing as complete enough to plan production, but not as permission to send grouped paid Lulu jobs yet.
-- Goal: enable repo-owned sibling-group paid submission only behind stricter guardrails than single-order `W4`, because one bad grouped submit can affect multiple child orders at once.
+- The grouped paid seam is now proven through one real paid pilot plus cancel/reconcile.
+- Goal now: keep grouped paid submit guarded, observable, and operationally safe, because one bad grouped submit can affect multiple child orders at once.
 
 ## Current baseline
 
-- `W4.1` sandbox-only repo extraction is proven live on imported workflow [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json).
+- `W4.1` repo extraction is proven live on imported workflow [`w4.1-Sibling-Aggregation.repo-centric.json`](/Users/jeff/Projects/little-hero-books/docs/n8n-workflow-files/repo-centric/workflows/w4.1-Sibling-Aggregation.repo-centric.json), including sandbox proofing, grouped production dry-run, and one real paid grouped pilot.
 - Grouped production dry-run is now also proven live on a fresh non-proof sibling group:
   - root group `441-03302026-9000018`
   - durable grouped job `workflow_jobs.id = 181`
@@ -33,7 +33,13 @@
   - `candidateCount = 0`
   - `safeForProductionPilot = false`
   - `recommendedReason = "proof_or_non_production_group"`
-- `W4.1` is still intentionally out of scope for paid production submit itself. The new grouped approval token exists, but no grouped paid Lulu branch has been enabled yet.
+- The grouped paid seam is now proven too:
+  - fresh non-proof sibling group `441-03302026-9000020` passed grouped production preflight and short-lived approval-token minting
+  - durable grouped job `workflow_jobs.id = 184` finished `succeeded`
+  - the run created real Lulu job `2807941`
+  - after manual cancellation in Lulu, live webhook/admin state converged to grouped order status `cancelled` with `luluStatuses = ["CANCELED"]`
+  - later hardening normalized structured Lulu status values before they are written into shared workflow-job telemetry, preventing `"[object Object]"` terminal payloads on future grouped runs
+- The open work is no longer “can grouped paid submit happen?” It is observability convergence, operator procedure, and deciding whether any additional paid grouped pilots are worth the risk.
 
 ## Why W4.1 needs its own cutover
 
@@ -158,7 +164,8 @@
 
 ## Recommended next implementation order
 
-1. Completed: lock workflow/export contracts so sandbox responses cannot reach grouped paid Lulu nodes even if grouped production metadata is present.
-2. Completed: add grouped production dry-run support with no real Lulu submit.
-3. Completed: verify grouped admin preflight + approval flow plus one grouped production dry-run against a fresh non-proof sibling candidate.
-4. Next: choose a fresh non-proof sibling group, inspect it in `/admin/w41-production`, mint a short-lived grouped approval token, and run one manually approved paid sibling-group pilot.
+1. Unify grouped `W4.1` production telemetry into the shared [`/admin/workflow-jobs`](/Users/jeff/Projects/little-hero-books/back-end/src/app/admin/workflow-jobs/page.tsx) timeline so grouped failures can be inspected in one canonical view.
+2. Add grouped webhook freshness visibility, parallel to single-order [`w4-production-preflight.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/lib/w4-production-preflight.ts), so operators can see whether Lulu lifecycle state arrived automatically or only by manual refresh.
+3. Mirror Lulu webhook lifecycle transitions into shared `workflow_job_events` for grouped paid runs, not just grouped order rows and `lulu_webhook_log`.
+4. Publish and use a grouped operator runbook for preflight, approval, paid pilot, cancel, and webhook/admin convergence verification.
+5. Avoid further paid grouped pilots unless a specific business or operational question still requires one.

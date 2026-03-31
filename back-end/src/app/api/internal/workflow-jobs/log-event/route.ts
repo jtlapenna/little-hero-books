@@ -16,6 +16,7 @@ import {
   summarizeWorkflowJobError,
   updateWorkflowJobAttempt,
 } from '@/lib/workflow-jobs';
+import { normalizeWorkflowJobCorrelation } from '@/lib/workflow-jobs/logging';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,20 @@ const PayloadSchema = z.object({
   nextRetryAt: z.string().datetime().optional(),
   payload: z.record(z.string(), z.unknown()).nullable().optional(),
   context: z.record(z.string(), z.unknown()).nullable().optional(),
+  correlation: z
+    .object({
+      sourceSystem: z.enum(['n8n', 'repo-worker', 'cron', 'webhook', 'admin']).optional(),
+      sourceExecutionId: z.string().min(1).nullable().optional(),
+      orderId: z.string().min(1).nullable().optional(),
+      rootGroupId: z.string().min(1).nullable().optional(),
+      externalProvider: z.string().min(1).nullable().optional(),
+      externalRequestId: z.string().min(1).nullable().optional(),
+      luluJobId: z.string().min(1).nullable().optional(),
+      manifestKeys: z.array(z.string().min(1)).nullable().optional(),
+      artifactKeys: z.array(z.string().min(1)).nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 const TERMINAL_JOB_STATUSES = new Set(['succeeded', 'failed', 'dead_lettered', 'canceled']);
@@ -134,9 +149,36 @@ export async function recordWorkflowJobEventResponse(
     typeof payload.attemptId === 'number'
       ? await dependencies.getWorkflowJobAttemptById(payload.attemptId)
       : null;
+  const context = toJsonRecord(payload.context);
   const eventPayload: JsonRecord = {
     ...(payload.payload ?? {}),
   };
+  const correlation = normalizeWorkflowJobCorrelation({
+    ...(payload.correlation ?? {}),
+    sourceSystem:
+      payload.correlation?.sourceSystem ??
+      context.sourceSystem,
+    sourceExecutionId:
+      payload.correlation?.sourceExecutionId ??
+      (typeof context.sourceExecutionId === 'string' ? context.sourceExecutionId : null),
+    orderId:
+      payload.correlation?.orderId ??
+      (typeof context.orderId === 'string' ? context.orderId : null),
+    rootGroupId:
+      payload.correlation?.rootGroupId ??
+      (typeof context.rootGroupId === 'string' ? context.rootGroupId : null),
+    externalProvider: payload.correlation?.externalProvider ?? payload.externalProvider,
+    externalRequestId: payload.correlation?.externalRequestId ?? payload.externalRequestId,
+    luluJobId:
+      payload.correlation?.luluJobId ??
+      (typeof context.luluJobId === 'string' ? context.luluJobId : null),
+    manifestKeys:
+      payload.correlation?.manifestKeys ??
+      (Array.isArray(context.manifestKeys) ? (context.manifestKeys as string[]) : null),
+    artifactKeys:
+      payload.correlation?.artifactKeys ??
+      (Array.isArray(context.artifactKeys) ? (context.artifactKeys as string[]) : null),
+  });
 
   if (payload.externalProvider !== undefined) {
     eventPayload.externalProvider = payload.externalProvider;
@@ -248,9 +290,9 @@ export async function recordWorkflowJobEventResponse(
     attemptId: payload.attemptId ?? null,
     eventType: payload.eventType,
     payload: eventPayload,
+    correlation,
   });
 
-  const context = toJsonRecord(payload.context);
   return {
     success: true,
     jobId: updatedJob.id,

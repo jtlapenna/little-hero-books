@@ -433,6 +433,28 @@ export async function markWorkflowJobSucceeded(
   );
 }
 
+export async function updateWorkflowJobResultSnapshot(
+  jobId: number,
+  patch: Record<string, unknown>,
+  client: SupabaseLike = supabase,
+): Promise<WorkflowJobRecord | null> {
+  const job = await getWorkflowJobById(jobId, client);
+  if (!job) {
+    return null;
+  }
+
+  return patchWorkflowJob(
+    jobId,
+    {
+      result_snapshot: {
+        ...toJsonRecord(job.result_snapshot),
+        ...toJsonRecord(patch),
+      },
+    },
+    client,
+  );
+}
+
 export async function markWorkflowJobFailed(
   jobId: number,
   input: FailWorkflowJobInput = {},

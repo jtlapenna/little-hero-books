@@ -1,0 +1,270 @@
+import { supabase } from '@/lib/supabase-client';
+
+type SupabaseLike = typeof supabase;
+
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toIsoString(value?: string | Date | null): string {
+  if (!value) {
+    return new Date().toISOString();
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+export const WORKFLOW_ALERT_SEVERITIES = ['info', 'warning', 'critical'] as const;
+export type WorkflowAlertSeverity = (typeof WORKFLOW_ALERT_SEVERITIES)[number];
+
+export const WORKFLOW_ALERT_STATUSES = ['open', 'acknowledged', 'resolved'] as const;
+export type WorkflowAlertStatus = (typeof WORKFLOW_ALERT_STATUSES)[number];
+
+export type WorkflowAlertRecord = {
+  id: number;
+  dedupe_key: string;
+  job_id: number | null;
+  attempt_id: number | null;
+  stage: string | null;
+  alert_type: string;
+  severity: WorkflowAlertSeverity;
+  status: WorkflowAlertStatus;
+  summary: string;
+  details: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkflowAlertSummary = {
+  openCount: number;
+  criticalCount: number;
+  warningCount: number;
+  infoCount: number;
+};
+
+export type WorkflowAlertListFilters = {
+  status?: WorkflowAlertStatus | null;
+  stage?: string | null;
+  limit?: number;
+  hours?: number;
+};
+
+export type UpsertWorkflowAlertInput = {
+  dedupeKey: string;
+  jobId?: number | null;
+  attemptId?: number | null;
+  stage?: string | null;
+  alertType: string;
+  severity: WorkflowAlertSeverity;
+  summary: string;
+  details?: Record<string, unknown> | null;
+  now?: string | Date | null;
+};
+
+export async function upsertWorkflowAlert(
+  input: UpsertWorkflowAlertInput,
+  client: SupabaseLike = supabase,
+): Promise<WorkflowAlertRecord> {
+  const nowIso = toIsoString(input.now);
+  const dedupeKey = toTrimmedString(input.dedupeKey);
+  const alertType = toTrimmedString(input.alertType);
+  const summary = toTrimmedString(input.summary);
+
+  if (!dedupeKey || !alertType || !summary) {
+    throw new Error('Workflow alert dedupeKey, alertType, and summary are required');
+  }
+
+  const existingQuery = await client
+    .from('workflow_alerts')
+    .select('*')
+    .eq('dedupe_key', dedupeKey)
+    .maybeSingle();
+  if (existingQuery.error) {
+    throw existingQuery.error;
+  }
+
+  const existing = (existingQuery.data as WorkflowAlertRecord | null) ?? null;
+  const patch = {
+    dedupe_key: dedupeKey,
+    job_id: input.jobId ?? null,
+    attempt_id: input.attemptId ?? null,
+    stage: toTrimmedString(input.stage),
+    alert_type: alertType,
+    severity: input.severity,
+    status: existing?.status === 'resolved' ? 'open' : existing?.status ?? 'open',
+    summary,
+    details: input.details ?? {},
+    first_seen_at: existing?.first_seen_at ?? nowIso,
+    last_seen_at: nowIso,
+    acknowledged_at: existing?.status === 'resolved' ? null : existing?.acknowledged_at ?? null,
+    acknowledged_by: existing?.status === 'resolved' ? null : existing?.acknowledged_by ?? null,
+    resolved_at: null,
+  };
+
+  const { data, error } = existing
+    ? await client
+        .from('workflow_alerts')
+        .update(patch)
+        .eq('id', existing.id)
+        .select('*')
+        .maybeSingle()
+    : await client
+        .from('workflow_alerts')
+        .insert(patch)
+        .select('*')
+        .maybeSingle();
+
+  if (error || !data) {
+    throw error ?? new Error('Failed to persist workflow alert');
+  }
+  return data as WorkflowAlertRecord;
+}
+
+export async function acknowledgeWorkflowAlert(
+  id: number,
+  acknowledgedBy: string,
+  client: SupabaseLike = supabase,
+): Promise<WorkflowAlertRecord | null> {
+  const actor = toTrimmedString(acknowledgedBy);
+  if (!actor) {
+    throw new Error('Workflow alert acknowledgement requires acknowledgedBy');
+  }
+
+  const { data, error } = await client
+    .from('workflow_alerts')
+    .update({
+      status: 'acknowledged',
+      acknowledged_at: new Date().toISOString(),
+      acknowledged_by: actor,
+    })
+    .eq('id', id)
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return (data as WorkflowAlertRecord | null) ?? null;
+}
+
+export async function resolveWorkflowAlertsByDedupeKeys(
+  dedupeKeys: string[],
+  client: SupabaseLike = supabase,
+): Promise<void> {
+  const keys = [...new Set(dedupeKeys.map((key) => toTrimmedString(key)).filter((key): key is string => Boolean(key)))];
+  if (keys.length === 0) {
+    return;
+  }
+
+  const { error } = await client
+    .from('workflow_alerts')
+    .update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+    })
+    .in('dedupe_key', keys)
+    .neq('status', 'resolved');
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function listWorkflowAlerts(
+  filters: WorkflowAlertListFilters = {},
+  client: SupabaseLike = supabase,
+): Promise<WorkflowAlertRecord[]> {
+  const limit = Math.max(1, Math.min(200, Math.floor(filters.limit ?? 50)));
+  const hours = Math.max(1, Math.min(24 * 30, Math.floor(filters.hours ?? 24 * 7)));
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  let query = client
+    .from('workflow_alerts')
+    .select('*')
+    .gte('last_seen_at', since)
+    .order('last_seen_at', { ascending: false })
+    .limit(limit);
+
+  if (filters.status) {
+    query = query.eq('status', filters.status);
+  }
+  if (filters.stage) {
+    query = query.eq('stage', filters.stage);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+  return (data as WorkflowAlertRecord[] | null) ?? [];
+}
+
+export async function listOpenWorkflowAlertsByJobIds(
+  jobIds: number[],
+  client: SupabaseLike = supabase,
+): Promise<Map<number, WorkflowAlertRecord[]>> {
+  const uniqueIds = [...new Set(jobIds.filter((id) => Number.isFinite(id) && id > 0))];
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await client
+    .from('workflow_alerts')
+    .select('*')
+    .eq('status', 'open')
+    .in('job_id', uniqueIds)
+    .order('last_seen_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const alertsByJobId = new Map<number, WorkflowAlertRecord[]>();
+  for (const row of ((data as WorkflowAlertRecord[] | null) ?? [])) {
+    if (!row.job_id) {
+      continue;
+    }
+    const existing = alertsByJobId.get(row.job_id) ?? [];
+    existing.push(row);
+    alertsByJobId.set(row.job_id, existing);
+  }
+  return alertsByJobId;
+}
+
+export function summarizeWorkflowAlerts(alerts: WorkflowAlertRecord[]): WorkflowAlertSummary {
+  let criticalCount = 0;
+  let warningCount = 0;
+  let infoCount = 0;
+
+  for (const alert of alerts) {
+    if (alert.status !== 'open') {
+      continue;
+    }
+    if (alert.severity === 'critical') {
+      criticalCount += 1;
+    } else if (alert.severity === 'warning') {
+      warningCount += 1;
+    } else {
+      infoCount += 1;
+    }
+  }
+
+  return {
+    openCount: criticalCount + warningCount + infoCount,
+    criticalCount,
+    warningCount,
+    infoCount,
+  };
+}

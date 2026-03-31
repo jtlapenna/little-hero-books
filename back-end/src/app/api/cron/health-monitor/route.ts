@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { runRepoWorkflowWatchdog } from '@/lib/workflow-watchdog';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -8,6 +9,33 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 const cronSecret = process.env.CRON_SECRET;
 const n8nWebhookUrl = process.env.N8N_HEALTH_MONITOR_WEBHOOK_URL;
+
+type StuckOrderRow = {
+  id: number;
+  amazon_order_id?: string | null;
+  current_workflow?: string | null;
+  started_at?: string | null;
+  retry_count?: number | null;
+};
+
+type RetryOrderRow = {
+  id: number;
+  amazon_order_id?: string | null;
+  next_workflow?: string | null;
+  retry_count?: number | null;
+  error_type?: string | null;
+  character_hash?: string | null;
+  one_manifest_url?: string | null;
+};
+
+type OrphanedOrderRow = {
+  id: number;
+  amazon_order_id?: string | null;
+  orphan_reason?: string | null;
+  execution_status?: string | null;
+  next_workflow?: string | null;
+  current_workflow?: string | null;
+};
 
 /**
  * GET /api/cron/health-monitor
@@ -54,6 +82,7 @@ export async function GET(request: NextRequest) {
     stuckQueryMs: 0,
     retryQueryMs: 0,
     orphanedQueryMs: 0,
+    watchdogMs: 0,
     webhookCallMs: 0,
     totalMs: 0
   };
@@ -81,7 +110,7 @@ export async function GET(request: NextRequest) {
         duration: `${metrics.stuckQueryMs}ms`
       });
     } else {
-      const stuckDetails = (stuckOrders || []).map((o: any) => ({
+      const stuckDetails = ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => ({
         orderId: o.amazon_order_id,
         workflow: o.current_workflow,
         startedAt: o.started_at,
@@ -115,7 +144,7 @@ export async function GET(request: NextRequest) {
         duration: `${metrics.retryQueryMs}ms`
       });
     } else {
-      const retryDetails = (retryOrders || []).map((o: any) => ({
+      const retryDetails = ((retryOrders as RetryOrderRow[] | null) || []).map((o) => ({
         orderId: o.amazon_order_id,
         workflow: o.next_workflow,
         retryCount: o.retry_count,
@@ -137,8 +166,8 @@ export async function GET(request: NextRequest) {
     
     // Filter out orders that are already being processed as stuck
     // This prevents orders stuck 30-60 minutes from being processed by both paths
-    const stuckOrderIds = new Set((stuckOrders || []).map((o: any) => o.id));
-    const orphanedOrders = (orphanedOrdersRaw || []).filter((o: any) => {
+    const stuckOrderIds = new Set(((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.id));
+    const orphanedOrders = ((orphanedOrdersRaw as OrphanedOrderRow[] | null) || []).filter((o) => {
       // Exclude processing orders that are already in stuck query
       // (orphaned query catches processing orders > 1 hour, but stuck query catches > 30 minutes)
       if (o.execution_status === 'processing' && stuckOrderIds.has(o.id)) {
@@ -156,7 +185,7 @@ export async function GET(request: NextRequest) {
         duration: `${metrics.orphanedQueryMs}ms`
       });
     } else {
-      const orphanedDetails = (orphanedOrders || []).map((o: any) => ({
+      const orphanedDetails = (orphanedOrders || []).map((o) => ({
         orderId: o.amazon_order_id,
         orphanReason: o.orphan_reason,
         executionStatus: o.execution_status,
@@ -174,6 +203,22 @@ export async function GET(request: NextRequest) {
     const retryCount = retryOrders?.length || 0;
     const orphanedCount = orphanedOrders?.length || 0;
     const totalWork = stuckCount + retryCount + orphanedCount;
+
+    let workflowWatchdog: Awaited<ReturnType<typeof runRepoWorkflowWatchdog>> | null = null;
+    try {
+      const watchdogStart = Date.now();
+      workflowWatchdog = await runRepoWorkflowWatchdog();
+      metrics.watchdogMs = Date.now() - watchdogStart;
+      console.log(`[Cron Health Monitor] [${executionId}] Workflow watchdog summary:`, {
+        ...workflowWatchdog,
+        duration: `${metrics.watchdogMs}ms`,
+      });
+    } catch (watchdogError: unknown) {
+      metrics.watchdogMs = 0;
+      console.error(`[Cron Health Monitor] [${executionId}] Workflow watchdog failed:`, {
+        error: watchdogError instanceof Error ? watchdogError.message : String(watchdogError),
+      });
+    }
 
     // 5. If no work, return early (0 n8n executions)
     if (totalWork === 0) {
@@ -193,6 +238,7 @@ export async function GET(request: NextRequest) {
         stuckCount: 0,
         retryCount: 0,
         orphanedCount: 0,
+        workflowWatchdog,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -210,9 +256,9 @@ export async function GET(request: NextRequest) {
       retries: retryCount,
       orphaned: orphanedCount,
       total: totalWork,
-      stuckOrderIds: stuckOrders?.map((o: any) => o.amazon_order_id) || [],
-      retryOrderIds: retryOrders?.map((o: any) => o.amazon_order_id) || [],
-      orphanedOrderIds: orphanedOrders?.map((o: any) => o.amazon_order_id) || [],
+      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
       webhookUrl: n8nWebhookUrl
     });
 
@@ -254,6 +300,7 @@ export async function GET(request: NextRequest) {
             orphanedCount,
             total: totalWork
           },
+          workflowWatchdog,
           metrics
         },
         { status: 502 }
@@ -270,9 +317,9 @@ export async function GET(request: NextRequest) {
         orphaned: orphanedCount,
         total: totalWork
       },
-      stuckOrderIds: stuckOrders?.map((o: any) => o.amazon_order_id) || [],
-      retryOrderIds: retryOrders?.map((o: any) => o.amazon_order_id) || [],
-      orphanedOrderIds: orphanedOrders?.map((o: any) => o.amazon_order_id) || [],
+      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
       webhookStatus: webhookResponse.status,
       webhookDuration: `${metrics.webhookCallMs}ms`,
       totalDuration: `${metrics.totalMs}ms`,
@@ -289,21 +336,23 @@ export async function GET(request: NextRequest) {
         orphanedCount,
         total: totalWork
       },
-      stuckOrderIds: stuckOrders?.map((o: any) => o.amazon_order_id) || [],
-      retryOrderIds: retryOrders?.map((o: any) => o.amazon_order_id) || [],
-      orphanedOrderIds: orphanedOrders?.map((o: any) => o.amazon_order_id) || [],
+      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
+      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
+      workflowWatchdog,
       metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),
       webhookResponse: webhookData
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     metrics.totalMs = Date.now() - startTime;
+    const message = error instanceof Error ? error.message : String(error);
     console.error(`[Cron Health Monitor] [${executionId}] Unexpected error:`, {
-      error: error.message,
-      stack: error.stack,
-      name: error.name,
+      error: message,
+      stack: error instanceof Error ? error.stack : null,
+      name: error instanceof Error ? error.name : 'UnknownError',
       metrics,
       totalDuration: `${metrics.totalMs}ms`
     });
@@ -311,7 +360,7 @@ export async function GET(request: NextRequest) {
       {
         error: 'Internal server error',
         executionId,
-        details: error.message,
+        details: message,
         metrics,
         timestamp: new Date().toISOString()
       },
@@ -319,4 +368,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

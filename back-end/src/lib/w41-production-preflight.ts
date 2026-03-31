@@ -4,6 +4,12 @@ import {
   type BuildW4SiblingPrintInputResult,
   type BuildW4SiblingSubmitInputResult,
 } from '@/lib/books';
+import {
+  buildLuluWebhookSignal,
+  loadLatestLuluWebhookLog,
+  type LuluWebhookLogRow,
+  type LuluWebhookSignal,
+} from '@/lib/lulu-webhook-signal';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { downloadManifest } from '@/lib/r2-service';
 import { headObject } from '@/lib/r2-client';
@@ -91,11 +97,14 @@ export type W41ProductionPreflight = {
   }>;
 };
 
+export type W41ProductionWebhookSignal = LuluWebhookSignal;
+
 export type W41ProductionInspection = W41ProductionCandidate & {
   resolvedVia: 'id' | 'orderId' | 'order_id' | 'root_order_id' | 'amazon_order_id' | 'none';
   safeForProductionPilot: boolean;
   inspectionError: string | null;
   preflight: W41ProductionPreflight | null;
+  webhookSignal: W41ProductionWebhookSignal;
 };
 
 type ProductionPreflightDependencies = {
@@ -105,6 +114,7 @@ type ProductionPreflightDependencies = {
   buildPrintInput: typeof buildW4SiblingPrintInput;
   buildSubmitInput: typeof buildW4SiblingSubmitInput;
   headObject: typeof headObject;
+  loadLatestWebhookLog: (printJobId: string) => Promise<LuluWebhookLogRow | null>;
 };
 
 const defaultDependencies: ProductionPreflightDependencies = {
@@ -118,6 +128,7 @@ const defaultDependencies: ProductionPreflightDependencies = {
   buildPrintInput: buildW4SiblingPrintInput,
   buildSubmitInput: buildW4SiblingSubmitInput,
   headObject,
+  loadLatestWebhookLog: async (printJobId) => loadLatestLuluWebhookLog(printJobId, supabase),
 };
 
 export const W41_PRODUCTION_ORDER_SELECT_FIELDS = [
@@ -397,6 +408,19 @@ export function buildW41ProductionPreflight(
   };
 }
 
+function buildWebhookSignal(
+  candidate: W41ProductionCandidate,
+  webhookLog: LuluWebhookLogRow | null,
+  loadError?: string | null,
+): W41ProductionWebhookSignal {
+  return buildLuluWebhookSignal({
+    luluJobId: candidate.luluJobIds[0] ?? null,
+    currentStatus: candidate.luluStatuses[0] ?? null,
+    webhookLog,
+    loadError,
+  });
+}
+
 async function listMissingPrintAssets(
   printInput: BuildW4SiblingPrintInputResult,
   headObjectImpl: typeof headObject,
@@ -536,6 +560,7 @@ export async function inspectW41ProductionRows(
 
   let preflight: W41ProductionPreflight | null = null;
   let inspectionError: string | null = null;
+  let webhookSignal: W41ProductionWebhookSignal = buildWebhookSignal(candidate, null);
 
   if (!candidate.hasRealSubmission && !candidate.proofLike) {
     try {
@@ -575,6 +600,18 @@ export async function inspectW41ProductionRows(
     }
   }
 
+  const luluJobId = candidate.luluJobIds[0] ?? null;
+  if (luluJobId) {
+    try {
+      const latestWebhookLog = await deps.loadLatestWebhookLog(luluJobId);
+      webhookSignal = buildWebhookSignal(candidate, latestWebhookLog);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to load latest Lulu webhook log';
+      webhookSignal = buildWebhookSignal(candidate, null, message);
+    }
+  }
+
   return {
     ...candidate,
     resolvedVia,
@@ -589,5 +626,6 @@ export async function inspectW41ProductionRows(
     ),
     inspectionError,
     preflight,
+    webhookSignal,
   };
 }

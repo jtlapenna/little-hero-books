@@ -36,14 +36,23 @@ const resolvedSupabaseServiceKey = requireEnv(
   'SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY',
 );
 
-const sqlFile = path.resolve(
-  repoRoot,
-  '..',
-  'docs',
-  'database',
-  'migration-add-workflow-jobs.sql',
-);
-const sql = fs.readFileSync(sqlFile, 'utf8');
+const sqlFiles = [
+  path.resolve(
+    repoRoot,
+    '..',
+    'docs',
+    'database',
+    'migration-add-workflow-jobs.sql',
+  ),
+  path.resolve(
+    repoRoot,
+    '..',
+    'docs',
+    'database',
+    'migration-add-workflow-alerts.sql',
+  ),
+];
+const sql = sqlFiles.map((filePath) => fs.readFileSync(filePath, 'utf8')).join('\n\n');
 const supabase = createClient(resolvedSupabaseUrl, resolvedSupabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -57,7 +66,7 @@ function truncate(value: string, max = 500): string {
 }
 
 async function verifyTables() {
-  const tables = ['workflow_jobs', 'workflow_job_attempts', 'workflow_job_events'] as const;
+  const tables = ['workflow_jobs', 'workflow_job_attempts', 'workflow_job_events', 'workflow_alerts'] as const;
 
   for (const table of tables) {
     const { error } = await supabase.from(table).select('*').limit(1);
@@ -115,7 +124,7 @@ async function applyViaManagementApi(): Promise<void> {
 }
 
 async function main() {
-  console.log(`Applying migration from ${sqlFile}`);
+  console.log(`Applying migrations from ${sqlFiles.join(', ')}`);
 
   const attempts: Array<{ mode: string; error: string }> = [];
 
@@ -147,7 +156,7 @@ async function main() {
   for (const attempt of attempts) {
     console.error(`- ${attempt.mode}: ${attempt.error}`);
   }
-  console.error(`Run this SQL manually in Supabase SQL Editor: ${sqlFile}`);
+  console.error(`Run these SQL files manually in Supabase SQL Editor: ${sqlFiles.join(', ')}`);
   process.exit(1);
 }
 

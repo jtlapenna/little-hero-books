@@ -263,8 +263,40 @@ async function testInspectRowsCanMintPaidCandidateState(): Promise<void> {
     inspection.safeForProductionPilot === true &&
       inspection.preflight?.childSummaries.length === 2 &&
       inspection.preflight?.guard.reason === 'production_dry_run' &&
-      inspection.preflight?.productionGuard.reason === 'production_ready',
+      inspection.preflight?.productionGuard.reason === 'production_ready' &&
+      inspection.webhookSignal.deliveryState === 'not_applicable',
     'Expected grouped W4.1 inspection to mark a fully ready sibling group safe for later paid approval token minting',
+  );
+}
+
+async function testInspectRowsLoadsGroupedWebhookSignal(): Promise<void> {
+  const rows = createGroupRows({
+    lulu_job_id: '2807941',
+    lulu_status: 'CANCELED',
+    print_submitted_at: '2026-03-30T20:10:00.000Z',
+  });
+
+  const inspection = await inspectW41ProductionRows(
+    'REAL-W41-GROUP-701',
+    rows,
+    'root_order_id',
+    {
+      dependencies: {
+        loadLatestWebhookLog: async () => ({
+          received_at: '2026-03-30T20:11:00.000Z',
+          status_name: 'CANCELED',
+          updated: true,
+          error_message: null,
+        }),
+      },
+    },
+  );
+
+  assert(
+    inspection.safeForProductionPilot === false &&
+      inspection.webhookSignal.deliveryState === 'received' &&
+      inspection.webhookSignal.latestStatus === 'CANCELED',
+    'Expected grouped W4.1 inspection to expose shared Lulu webhook freshness for existing submissions',
   );
 }
 
@@ -274,6 +306,7 @@ async function main(): Promise<void> {
   await testRealSubmissionBlocksGroupedPreflight();
   await testBuildGroupedPreflightSummary();
   await testInspectRowsCanMintPaidCandidateState();
+  await testInspectRowsLoadsGroupedWebhookSignal();
   console.log('W4.1 production preflight tests passed');
 }
 
