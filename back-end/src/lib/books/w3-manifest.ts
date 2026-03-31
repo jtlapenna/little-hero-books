@@ -1,10 +1,12 @@
 import type { BookPageConfig } from '@/lib/books/types';
-import { buildManifestKeyFromOrderPrefix } from '@/lib/order-paths';
+import {
+  buildManifestKeyFromOrderPrefix,
+  inferBookIdFromPathLikes,
+} from '@/lib/order-paths';
 
 type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
-const DEFAULT_BOOK_ID = 'book-mvp-simple-adventure';
 
 export interface BuildW3ManifestResult extends JsonRecord {
   manifest: JsonRecord;
@@ -78,8 +80,48 @@ function resolveOrderId(input: JsonRecord): string {
   );
 }
 
-function resolveBookId(input: JsonRecord): string {
-  return toTrimmedString(input.bookId) ?? DEFAULT_BOOK_ID;
+function collectBookPathLikes(input: JsonRecord): Array<string | null | undefined> {
+  const pagePreviewImages = Array.isArray(input.pagePreviewImages)
+    ? input.pagePreviewImages.map(toRecord)
+    : [];
+
+  return [
+    toTrimmedString(input.orderR2BaseKey),
+    toTrimmedString(input.orderPrefix),
+    toTrimmedString(input.manifest3Key),
+    toTrimmedString(input.manifest3Url),
+    toTrimmedString(input.manifestKey),
+    toTrimmedString(input.oneManifestKey),
+    toTrimmedString(input.oneManifestUrl),
+    toTrimmedString(input.coverPngR2Key),
+    toTrimmedString(input.coverImageR2Key),
+    toTrimmedString(input.coverPdfR2Key),
+    toTrimmedString(input.r2Key),
+    toTrimmedString(input.path),
+    ...pagePreviewImages.flatMap((preview) => [
+      toTrimmedString(preview.r2Key),
+      toTrimmedString(preview.pageImageR2Key),
+      toTrimmedString(preview.imageR2Key),
+      toTrimmedString(preview.key),
+      toTrimmedString(preview.path),
+      toTrimmedString(preview.imageUrl),
+      toTrimmedString(preview.cloudflareImageUrl),
+    ]),
+  ];
+}
+
+function resolveBookId(input: JsonRecord, orderId: string): string {
+  const explicitBookId = toTrimmedString(input.bookId);
+  if (explicitBookId) {
+    return explicitBookId;
+  }
+
+  const inferredBookId = inferBookIdFromPathLikes(...collectBookPathLikes(input));
+  if (inferredBookId) {
+    return inferredBookId;
+  }
+
+  throw new Error(`W3 manifest assembly requires bookId or per-book path context for ${orderId}`);
 }
 
 function resolveOrderR2BaseKey(input: JsonRecord, orderId: string, bookId: string): string {
@@ -133,7 +175,7 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
   const backendUrl = resolveBackendUrl(input);
   const amazonOrderId = toTrimmedString(input.amazonOrderId);
   const rootOrderId = toTrimmedString(input.rootOrderId) ?? amazonOrderId ?? orderId;
-  const bookId = resolveBookId(input);
+  const bookId = resolveBookId(input, orderId);
   const formatId = toTrimmedString(input.formatId);
   const orderR2BaseKey = resolveOrderR2BaseKey(input, orderId, bookId);
   const manifest3Key = resolveManifestKey(input, orderR2BaseKey);

@@ -10,8 +10,7 @@ import {
   buildAssetApiUrl,
   buildManifestApiUrl,
   buildPoseReferenceAssetKey,
-  normalizeBookId,
-  normalizeOrderPrefix,
+  resolveOrderPathContext,
 } from '@/lib/order-paths';
 
 interface PreBriaStageProps {
@@ -42,12 +41,22 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
     return `${u}${u.includes('?') ? '&' : '?'}v=${token}`;
   }
 
-  const orderPrefix = normalizeOrderPrefix(
-    order.bookContext?.orderPrefix ?? order.assetPrefix,
-    orderId,
-    order.bookContext?.bookId ?? order.project,
-  );
-  const referenceBookId = normalizeBookId(order.bookContext?.bookId ?? order.project);
+  const orderPathContext = resolveOrderPathContext(orderId, {
+    bookId: order.bookContext?.bookId ?? order.project,
+    orderPrefix: order.bookContext?.orderPrefix ?? order.assetPrefix,
+    pathLikes: [
+      order.bookContext?.orderPrefix,
+      order.assetPrefix,
+      order.oneManifestUrl,
+      order.manifest2aUrl,
+      order.manifest2bUrl,
+      order.manifest3Url,
+      order.finalBookUrl,
+      order.finalCoverUrl,
+    ],
+  });
+  const orderPrefix = orderPathContext.orderPrefix;
+  const referenceBookId = orderPathContext.bookId;
   const manifestContext = {
     bookId: referenceBookId,
     orderPrefix,

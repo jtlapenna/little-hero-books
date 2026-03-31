@@ -69,7 +69,7 @@ function create2BManifest(options: {
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
   const expected = previewFixture.expected;
-  const orderPrefix = buildOrderPrefix(expected.orderId);
+  const orderPrefix = buildOrderPrefix(expected.orderId, expected.bookId);
   const oneManifest = buildW0RunManifest({
     orderId: expected.orderId,
     rootOrderId: expected.rootOrderId,

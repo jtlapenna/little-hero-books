@@ -13,8 +13,9 @@ import {
   loadRuntimeBookConfig,
   read2BManifestWithPoseRequirements,
   resolveReviewPageContext,
+  resolveReviewPageContextFromConfig,
 } from '@/lib/books';
-import { DEFAULT_BOOK_ID, resolveOrderPathContext } from '@/lib/order-paths';
+import { resolveOrderPathContext } from '@/lib/order-paths';
 
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
@@ -187,14 +188,39 @@ async function getOrder(
   }
 
   const fallbackFormatId = toTrimmedString(order.bookSpecs?.formatId);
-  let reviewPageContext = resolveReviewPageContext({
-    bookId: toTrimmedString(order.project) ?? manifestPathContext.bookId ?? DEFAULT_BOOK_ID,
-    formatId: fallbackFormatId,
-    isAmazonOrder:
-      fallbackFormatId === 'amazon' ||
-      order.platform === 'amazon' ||
-      Boolean(order.amazonOrderId),
-  });
+  const reviewBookIdHint =
+    toTrimmedString(order.bookContext?.bookId) ??
+    toTrimmedString(order.project) ??
+    manifestPathContext.bookId;
+  const isAmazonReviewOrder =
+    fallbackFormatId === 'amazon' ||
+    order.platform === 'amazon' ||
+    Boolean(order.amazonOrderId);
+  let reviewPageContext: ReturnType<typeof resolveReviewPageContext>;
+
+  if (reviewBookIdHint) {
+    try {
+      const runtimeBookConfig = await loadRuntimeBookConfig({
+        bookId: reviewBookIdHint,
+      });
+      reviewPageContext = resolveReviewPageContextFromConfig(
+        runtimeBookConfig,
+        fallbackFormatId,
+      );
+    } catch {
+      reviewPageContext = resolveReviewPageContext({
+        bookId: reviewBookIdHint,
+        formatId: fallbackFormatId,
+        isAmazonOrder: isAmazonReviewOrder,
+      });
+    }
+  } else {
+    reviewPageContext = resolveReviewPageContext({
+      bookId: null,
+      formatId: fallbackFormatId,
+      isAmazonOrder: isAmazonReviewOrder,
+    });
+  }
 
   order.bookContext = {
     bookId: reviewPageContext.bookId,
@@ -351,7 +377,26 @@ async function getOrder(
   
   if (order.characterHash) {
     try {
-      characterAssets = await getCharacterAssets(order.characterHash);
+      const characterBookId = (() => {
+        try {
+          return resolveOrderPathContext(order.orderId, {
+            bookId: toTrimmedString(order.project),
+            orderPrefix: toTrimmedString(order.assetPrefix),
+            pathLikes: [
+              order.oneManifestUrl,
+              order.manifest2aUrl,
+              order.manifest2bUrl,
+              order.manifest3Url,
+              order.finalBookUrl,
+              order.finalCoverUrl,
+            ],
+          }).bookId;
+        } catch {
+          return toTrimmedString(order.project);
+        }
+      })();
+
+      characterAssets = await getCharacterAssets(order.characterHash, characterBookId);
       
       // Check if this character hash belongs to other orders (images are being reused)
       // This happens when orders have identical character specs (before the fix) or when images are intentionally shared
@@ -470,7 +515,20 @@ async function getOrder(
   order.bookContext = {
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
-    orderPrefix: `${reviewPageContext.bookId || 'book-mvp-simple-adventure'}/orders/${order.orderId}`,
+    orderPrefix: resolveOrderPathContext(order.orderId, {
+      bookId: reviewPageContext.bookId ?? manifestPathContext.bookId ?? null,
+      orderPrefix:
+        order.bookContext?.orderPrefix ??
+        order.assetPrefix ??
+        manifestOrderPrefix,
+      pathLikes: [
+        order.manifest2aUrl,
+        order.manifest2bUrl,
+        order.manifest3Url,
+        order.finalBookUrl,
+        order.finalCoverUrl,
+      ],
+    }).orderPrefix,
     pagePlanSource: reviewPageContext.pagePlanSource,
     expectedPageCount: reviewPageContext.expectedPageCount,
     pageLabels: reviewPageContext.pageLabels,
@@ -485,12 +543,20 @@ async function getOrder(
   );
   let backgroundAssetBySlot: Record<string, string> = {};
 
-  try {
-    const bundledBookConfig = await loadRuntimeBookConfig({
-      bookId: reviewPageContext.bookId || manifestPathContext.bookId || DEFAULT_BOOK_ID,
-    });
-    backgroundAssetBySlot = bundledBookConfig.assets.backgrounds;
-  } catch {
+  const backgroundBookId =
+    reviewPageContext.bookId ??
+    manifestPathContext.bookId ??
+    toTrimmedString(order.project);
+  if (backgroundBookId) {
+    try {
+      const bundledBookConfig = await loadRuntimeBookConfig({
+        bookId: backgroundBookId,
+      });
+      backgroundAssetBySlot = bundledBookConfig.assets.backgrounds;
+    } catch {
+      backgroundAssetBySlot = {};
+    }
+  } else {
     backgroundAssetBySlot = {};
   }
 

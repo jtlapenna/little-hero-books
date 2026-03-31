@@ -1,4 +1,5 @@
 import { headObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { resolveOrderPathContext } from '@/lib/order-paths';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 import { getBucketFromKey, extractR2Key } from '@/lib/r2-utils';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
@@ -626,9 +627,17 @@ function resolveManifestKey(input: PublishW4PrintManifestInput, orderId: string,
     return explicit;
   }
 
-  const orderPrefix =
-    firstString(input.orderPrefix, input.orderR2BaseKey, `book-mvp-simple-adventure/orders/${orderId}`) ??
-    `book-mvp-simple-adventure/orders/${orderId}`;
+  const orderPrefix = resolveOrderPathContext(orderId, {
+    bookId: toTrimmedString(input.bookId),
+    orderPrefix: firstString(input.orderPrefix, input.orderR2BaseKey),
+    pathLikes: [
+      toTrimmedString(input.orderPrefix),
+      toTrimmedString(input.orderR2BaseKey),
+      toTrimmedString(input.manifestKey),
+      toTrimmedString(input.pdfR2Key),
+      toTrimmedString(input.coverPdfR2Key),
+    ],
+  }).orderPrefix;
 
   if (manifestStatus === 'error') {
     return `${orderPrefix}/manifests/4-qa-fail-manifest.json`;

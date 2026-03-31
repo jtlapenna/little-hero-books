@@ -21,11 +21,13 @@ function create2BManifest(options: {
   rootOrderId?: string | null;
   amazonOrderId?: string | null;
   characterHash: string;
+  bookId?: string;
   publicR2Url?: string | null;
   characterSpecs?: JsonRecord;
   bookSpecs?: JsonRecord;
   orderDetails?: JsonRecord;
 }): JsonRecord {
+  const bookId = options.bookId ?? 'book-mvp-simple-adventure';
   return {
     schema: 'lhb.run-manifest@v2.0',
     stage: '2b',
@@ -52,14 +54,14 @@ function create2BManifest(options: {
     entries: [
       {
         poseNumber: 1,
-        bgRemovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/characters_${options.characterHash}_pose01_nobg.png`,
-        sourceApprovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose01.png`,
+        bgRemovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/characters_${options.characterHash}_pose01_nobg.png`,
+        sourceApprovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose01.png`,
         briaStatus: 'completed',
       },
       {
         poseNumber: 2,
-        sourceApprovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
-        approvedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
+        sourceApprovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
+        approvedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
         bgRemovedKey: null,
         briaStatus: 'pending',
         flipped: true,
@@ -74,6 +76,7 @@ async function buildAssemblyInput(options: {
   rootOrderId: string;
   amazonOrderId: string | null;
   formatId: 'standard' | 'amazon';
+  bookId?: string;
   characterHash: string;
   childName: string;
   animalGuide: string;
@@ -83,13 +86,14 @@ async function buildAssemblyInput(options: {
   testModePages?: number;
 }) {
   const backendUrl = 'https://admin.littleherolabs.com';
-  const orderPrefix = buildOrderPrefix(options.orderId);
+  const bookId = options.bookId ?? 'book-mvp-simple-adventure';
+  const orderPrefix = buildOrderPrefix(options.orderId, bookId);
   const oneManifest = buildW0RunManifest({
     orderId: options.orderId,
     rootOrderId: options.rootOrderId,
     amazonOrderId: options.amazonOrderId,
     platform: options.formatId === 'amazon' ? 'amazon' : 'd2c',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: options.formatId,
     characterHash: options.characterHash,
     input: {
@@ -113,6 +117,7 @@ async function buildAssemblyInput(options: {
     rootOrderId: options.rootOrderId,
     amazonOrderId: options.amazonOrderId,
     characterHash: options.characterHash,
+    bookId,
     characterSpecs: {
       childName: options.childName,
       animalGuide: options.animalGuide,
@@ -220,6 +225,30 @@ async function main(): Promise<void> {
       amazonPreview.coverPreviewItem.coverHTML.includes('A Story Made for') &&
       amazonPreview.coverPreviewItem.coverHTML.includes('front-amazon-personalization'),
     'Expected amazon preview plan to emit the repo-owned amazon cover personalization HTML',
+  );
+
+  const bookTwoAssemblyInput = await buildAssemblyInput({
+    orderId: 'TEST-W3-PREVIEW-BOOK2-001',
+    rootOrderId: 'TEST-W3-PREVIEW-BOOK2-001',
+    amazonOrderId: null,
+    formatId: 'standard',
+    bookId: 'book-2-example',
+    characterHash: 'previewhashbook2001',
+    childName: 'Nova',
+    animalGuide: 'fox',
+    title: 'Nova and the Starlit Map',
+    dedicationText: 'For Nova',
+  });
+  const bookTwoPreview = buildW3PreviewPlanResponse(bookTwoAssemblyInput);
+  assert(bookTwoPreview.success === true, 'Expected Book 2 preview plan to return success');
+  assert(
+    bookTwoPreview.coverPreviewItem.coverPngR2Key ===
+      'book-2-example/orders/TEST-W3-PREVIEW-BOOK2-001/preview-images/cover-spread.png',
+    'Expected Book 2 preview plan to preserve the Book 2 order root',
+  );
+  assert(
+    bookTwoPreview.pagePreviewItems.every((item) => item.pageImageR2Key.startsWith('book-2-example/orders/TEST-W3-PREVIEW-BOOK2-001/')),
+    'Expected all Book 2 preview images to stay under the Book 2 order root',
   );
 
   console.log('W3 preview plan tests passed');

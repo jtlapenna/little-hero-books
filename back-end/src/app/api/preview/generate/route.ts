@@ -9,7 +9,7 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
+import { getObject, putObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { loadRuntimeBookConfig } from '@/lib/books';
 import {
   resolvePreviewCanonicalsForConfig,
@@ -18,7 +18,7 @@ import {
 import { buildPreviewGeminiRequest } from '@/lib/preview-gemini';
 import { calculatePreviewHash } from '@/lib/character-hash';
 import { resolveReusablePreviewAsset } from '@/lib/preview-cache';
-import { normalizeBookId } from '@/lib/order-paths';
+import { buildCharacterAssetPrefix } from '@/lib/order-paths';
 
 // CORS: allow D2C frontend (e.g. localhost:4321) to call this API
 const corsHeaders = {
@@ -73,15 +73,23 @@ export async function POST(request: NextRequest) {
     if (!specs || typeof specs !== 'object') {
       return NextResponse.json({ error: 'Missing character_specs' }, { status: 400, headers: corsHeaders });
     }
+    if (typeof requestedBookId !== 'string' || requestedBookId.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'bookId is required for preview generation' },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    const resolvedBookId = requestedBookId.trim();
 
     // Compute preview hash from visual traits
     const previewHash = calculatePreviewHash(specs as Record<string, unknown>);
-    const previewKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
+    const previewKey = `${buildCharacterAssetPrefix(previewHash, resolvedBookId)}/preview.png`;
 
     // Check cache first (unless force regenerate)
     if (!forceRegenerate) {
       try {
-        const cachedAsset = await resolveReusablePreviewAsset(previewHash);
+        const cachedAsset = await resolveReusablePreviewAsset(previewHash, resolvedBookId);
         if (cachedAsset) {
           console.log('[Preview Generate] Cache hit:', previewHash, 'source:', cachedAsset.source);
           return NextResponse.json(
@@ -102,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Resolve canonicals and asset keys
     const bookConfig = await loadRuntimeBookConfig({
-      bookId: normalizeBookId(requestedBookId),
+      bookId: resolvedBookId,
     });
     const resolved = resolvePreviewCanonicalsForConfig(specs, bookConfig);
     

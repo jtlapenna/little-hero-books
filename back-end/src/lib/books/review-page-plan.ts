@@ -1,4 +1,5 @@
-import type { BookPageConfig, BookPageType } from '@/lib/books/types';
+import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
+import type { BookConfig, BookPageConfig, BookPageType } from '@/lib/books/types';
 import type { NormalizedW0Manifest } from '@/lib/books/normalize-w0-manifest';
 
 export interface ReviewPageContext {
@@ -6,7 +7,7 @@ export interface ReviewPageContext {
   formatId: string | null;
   pagePlan: BookPageConfig[];
   pageLabels: string[];
-  pagePlanSource: 'w0-v3' | 'legacy-default';
+  pagePlanSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   expectedPageCount: number;
 }
 
@@ -143,6 +144,22 @@ export function normalizeManifestPageLabel(value: unknown): string | null {
   return match[1].toLowerCase();
 }
 
+export function resolveReviewPageContextFromConfig(
+  config: BookConfig,
+  formatId?: string | null,
+): ReviewPageContext {
+  const resolvedPlan = resolvePagePlan(config, formatId ?? undefined);
+
+  return {
+    bookId: config.bookId,
+    formatId: formatId ?? null,
+    pagePlan: resolvedPlan.pagePlan,
+    pageLabels: resolvedPlan.pageLabels,
+    pagePlanSource: 'runtime-config',
+    expectedPageCount: resolvedPlan.expectedPageCount,
+  };
+}
+
 export function resolveReviewPageContext(options: {
   snapshot?: NormalizedW0Manifest | null;
   bookId?: string | null;
@@ -170,7 +187,7 @@ export function resolveReviewPageContext(options: {
   const pagePlan = buildLegacyReviewPagePlan(useAmazonPlan);
 
   return {
-    bookId: options.bookId ?? snapshot?.bookId ?? 'book-mvp-simple-adventure',
+    bookId: options.bookId ?? snapshot?.bookId ?? null,
     formatId,
     pagePlan,
     pageLabels: pagePlan.map((page) => page.label),

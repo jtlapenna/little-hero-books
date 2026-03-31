@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
 import { listObjects, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { normalizeBookId } from '@/lib/order-paths';
 
 /**
  * Test endpoint to debug order detection issues
@@ -10,7 +9,10 @@ import { normalizeBookId } from '@/lib/order-paths';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const specificOrderId = searchParams.get('orderId');
-  const bookId = normalizeBookId(searchParams.get('bookId'));
+  const bookId = searchParams.get('bookId')?.trim() || '';
+  if (!bookId) {
+    return NextResponse.json({ error: 'bookId query parameter is required' }, { status: 400 });
+  }
   
   const result: any = {
     timestamp: new Date().toISOString(),

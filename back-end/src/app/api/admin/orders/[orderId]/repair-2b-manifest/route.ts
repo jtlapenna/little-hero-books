@@ -9,7 +9,10 @@ import {
   sync2BManifestEntries,
   type TwoBManifestEntry,
 } from '@/lib/books';
-import { buildManifestKeyCandidates } from '@/lib/order-paths';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,11 +66,18 @@ export async function POST(
   }
 
   const orderRow = (await getOrderFromSupabase(orderIdValue).catch(() => null)) as RepairOrderRow | null;
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(orderRow);
 
   // Purpose: Repair requires a valid 2A manifest to base off.
   const manifest2aKey =
     buildManifestKeyCandidates(orderIdValue, '2a', {
-      pathLikes: [orderRow?.manifest_2a_url, orderRow?.one_manifest_url],
+      bookId: manifestHints.bookId,
+      orderPrefix: manifestHints.orderPrefix,
+      pathLikes: [
+        orderRow?.manifest_2a_url,
+        orderRow?.one_manifest_url,
+        ...(manifestHints.pathLikes ?? []),
+      ],
     })[0];
   const m2a = await downloadManifest(manifest2aKey).catch(() => null);
   if (!m2a?.schema || !Array.isArray(m2a.entries) || !m2a.characterHash) {
@@ -84,7 +94,7 @@ export async function POST(
 
   // Prefer R2 inventory keys when available so manifest matches what's actually in R2
   // (fixes Pose 11 "Image not found" when 2B wrote a different key or aggregation missed it)
-  const assets = await getCharacterAssets(characterHash).catch(() => []);
+  const assets = await getCharacterAssets(characterHash, manifestHints.bookId).catch(() => []);
   const bgRemovedByPose = buildBgRemovedAssetMap(assets);
   const now = new Date().toISOString();
   const manifestSnapshot = await read2BManifestWithPoseRequirements({
@@ -189,7 +199,13 @@ export async function POST(
 
   const manifest2bKey =
     buildManifestKeyCandidates(orderIdValue, '2b', {
-      pathLikes: [orderRow?.manifest_2a_url, orderRow?.one_manifest_url],
+      bookId: manifestHints.bookId,
+      orderPrefix: manifestHints.orderPrefix,
+      pathLikes: [
+        orderRow?.manifest_2a_url,
+        orderRow?.one_manifest_url,
+        ...(manifestHints.pathLikes ?? []),
+      ],
     })[0];
   const ok = await putObject(
     R2_ORDERS_BUCKET,

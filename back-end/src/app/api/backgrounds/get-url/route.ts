@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackgroundImageUrlForConfig } from '@/lib/background-images';
 import { getBookFormatConfig, loadRuntimeBookConfig } from '@/lib/books';
-import { normalizeBookId } from '@/lib/order-paths';
 
 /**
  * Get Cloudflare Images URL for a background image by page number
@@ -31,7 +30,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const bookId = normalizeBookId(requestedBookId);
+    if (!requestedBookId || !requestedBookId.trim()) {
+      return NextResponse.json(
+        { error: 'bookId query parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    const bookId = requestedBookId.trim();
     const config = await loadRuntimeBookConfig({ bookId });
     const format = getBookFormatConfig(config, requestedFormatId ?? undefined);
 

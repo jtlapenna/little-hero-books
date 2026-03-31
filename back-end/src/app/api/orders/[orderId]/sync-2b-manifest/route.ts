@@ -88,7 +88,7 @@ export async function POST(
     );
   }
 
-  const assets = await getCharacterAssets(characterHash).catch(() => []);
+  const assets = await getCharacterAssets(characterHash, manifestHints.bookId).catch(() => []);
   const bgRemovedByPose = buildBgRemovedAssetMap(assets);
   const nowIso = new Date().toISOString();
   const r2PoseNumbers = Array.from(bgRemovedByPose.keys()).sort((a, b) => a - b);

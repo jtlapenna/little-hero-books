@@ -5,9 +5,8 @@ import {
   validateRunManifest,
 } from '@/lib/books';
 import type { BookConfigRuntimeSource } from '@/lib/books/runtime-book-config';
+import { inferBookIdFromPathLikes } from '@/lib/order-paths';
 import { Platform, RunManifestV3 } from '@/lib/books/types';
-
-const DEFAULT_BOOK_ID = 'book-mvp-simple-adventure';
 
 export type W0ManifestSchemaVersion = 'v2.1' | 'v3';
 
@@ -199,13 +198,29 @@ function resolveBookId(
   bookSpecs: Record<string, unknown>,
   options: BuildOrderIntakeManifestOptions,
 ): string {
-  return (
+  const resolved =
     options.bookId ??
     toStringValue(bookSpecs.bookId) ??
     toStringValue(productInfo.bookId) ??
     toStringValue(order.book_id) ??
-    DEFAULT_BOOK_ID
-  );
+    toStringValue(order.project) ??
+    inferBookIdFromPathLikes(
+      toStringValue(order.asset_prefix) ?? null,
+      toStringValue(order.one_manifest_url) ?? null,
+      toStringValue(order.manifest_2a_url) ?? null,
+      toStringValue(order.manifest_2b_url) ?? null,
+      toStringValue(order.manifest_3_url) ?? null,
+      toStringValue(order.final_book_url) ?? null,
+      toStringValue(order.final_cover_url) ?? null,
+    );
+
+  if (!resolved) {
+    throw new Error(
+      'W0 manifest build requires bookId; provide options.bookId or persist book_id/project on the order record',
+    );
+  }
+
+  return resolved;
 }
 
 function resolveFormatId(

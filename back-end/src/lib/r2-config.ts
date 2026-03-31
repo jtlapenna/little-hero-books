@@ -59,5 +59,5 @@ export function validateR2Config(): { valid: boolean; missing: string[] } {
 
 export const R2_PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET_NAME || process.env.R2_ASSETS_BUCKET_NAME || process.env.R2_PUBLIC_BUCKET || 'little-hero-assets';
 export const R2_ORDERS_BUCKET = process.env.R2_ORDERS_BUCKET_NAME || process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
-// Match actual R2 structure: book-mvp-simple-adventure/order-generated-assets/characters/
-export const R2_CHARACTERS_PREFIX = process.env.R2_CHARACTERS_PREFIX || 'book-mvp-simple-adventure/order-generated-assets/characters/';
+// Deprecated global prefix. New code should derive per-book paths via buildCharacterAssetPrefix().
+export const R2_CHARACTERS_PREFIX = process.env.R2_CHARACTERS_PREFIX || '';

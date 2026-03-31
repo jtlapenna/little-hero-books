@@ -58,9 +58,10 @@ export const R2_PUBLIC_BUCKET =
   'little-hero-assets';
 export const R2_ORDERS_BUCKET =
   process.env.R2_ORDERS_BUCKET_NAME || process.env.R2_ORDERS_BUCKET || 'little-hero-orders';
+// Deprecated global prefix. New code should derive per-book paths via buildCharacterAssetPrefix().
 export const R2_CHARACTERS_PREFIX =
   process.env.R2_CHARACTERS_PREFIX ||
-  'book-mvp-simple-adventure/order-generated-assets/characters/';
+  '';
 
 const EMPTY_PAYLOAD_SHA256 =
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';

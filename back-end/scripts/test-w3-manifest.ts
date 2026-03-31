@@ -25,11 +25,13 @@ function create2BManifest(options: {
   rootOrderId?: string | null;
   amazonOrderId?: string | null;
   characterHash: string;
+  bookId?: string;
   publicR2Url?: string | null;
   characterSpecs?: JsonRecord;
   bookSpecs?: JsonRecord;
   orderDetails?: JsonRecord;
 }): JsonRecord {
+  const bookId = options.bookId ?? 'book-mvp-simple-adventure';
   return {
     schema: 'lhb.run-manifest@v2.0',
     stage: '2b',
@@ -56,14 +58,14 @@ function create2BManifest(options: {
     entries: [
       {
         poseNumber: 1,
-        bgRemovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/characters_${options.characterHash}_pose01_nobg.png`,
-        sourceApprovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose01.png`,
+        bgRemovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/characters_${options.characterHash}_pose01_nobg.png`,
+        sourceApprovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose01.png`,
         briaStatus: 'completed',
       },
       {
         poseNumber: 2,
-        sourceApprovedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
-        approvedKey: `book-mvp-simple-adventure/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
+        sourceApprovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
+        approvedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose02.png`,
         bgRemovedKey: null,
         briaStatus: 'pending',
       },
@@ -74,7 +76,7 @@ function create2BManifest(options: {
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
   const expected = previewFixture.expected;
-  const orderPrefix = buildOrderPrefix(expected.orderId);
+  const orderPrefix = buildOrderPrefix(expected.orderId, expected.bookId);
   const oneManifest = buildW0RunManifest({
     orderId: expected.orderId,
     rootOrderId: expected.rootOrderId,
@@ -104,6 +106,7 @@ async function main(): Promise<void> {
     rootOrderId: expected.rootOrderId,
     amazonOrderId: expected.amazonOrderId,
     characterHash: 'manifesthashstd01',
+    bookId: expected.bookId,
   });
 
   const assemblyInput = await buildW3AssemblyInput(
@@ -200,6 +203,94 @@ async function main(): Promise<void> {
   assert(
     manifestResult.pageImageUrls.length === expected.previewImageKeys.length,
     'Expected W3 manifest builder to surface all preview image URLs for downstream review tooling',
+  );
+
+  const bookTwoOrderId = 'TEST-W3-MANIFEST-BOOK2-001';
+  const bookTwoOrderPrefix = buildOrderPrefix(bookTwoOrderId, 'book-2-example');
+  const bookTwoOneManifest = buildW0RunManifest({
+    orderId: bookTwoOrderId,
+    rootOrderId: bookTwoOrderId,
+    amazonOrderId: null,
+    platform: 'd2c',
+    bookId: 'book-2-example',
+    formatId: 'standard',
+    characterHash: 'manifesthashbook2001',
+    input: {
+      characterSpecs: {
+        childName: 'Nova',
+        animalGuide: 'fox',
+      },
+      bookSpecs: {
+        title: 'Nova and the Starlit Map',
+      },
+      orderDetails: {
+        quantity: 1,
+      },
+      dedicationText: 'For Nova',
+    },
+  });
+  const bookTwoOneManifestKey = buildManifestKeyFromOrderPrefix(bookTwoOrderPrefix, '1');
+  const bookTwoTwoBManifestKey = buildManifestKeyFromOrderPrefix(bookTwoOrderPrefix, '2b');
+  const bookTwoTwoBManifest = create2BManifest({
+    orderId: bookTwoOrderId,
+    characterHash: 'manifesthashbook2001',
+    bookId: 'book-2-example',
+    characterSpecs: {
+      childName: 'Nova',
+      animalGuide: 'fox',
+    },
+    bookSpecs: {
+      title: 'Nova and the Starlit Map',
+    },
+  });
+  const bookTwoAssemblyInput = await buildW3AssemblyInput(
+    {
+      orderId: bookTwoOrderId,
+      rootOrderId: bookTwoOrderId,
+      amazonOrderId: null,
+      orderPrefix: bookTwoOrderPrefix,
+      backendUrl,
+      dedicationText: 'For Nova',
+    },
+    {
+      loadManifest: async (manifestKey) => {
+        if (manifestKey === bookTwoOneManifestKey) {
+          return bookTwoOneManifest;
+        }
+        if (manifestKey === bookTwoTwoBManifestKey) {
+          return bookTwoTwoBManifest;
+        }
+        return null;
+      },
+    },
+  );
+  const bookTwoPreviewPlan = buildW3PreviewPlanResponse(bookTwoAssemblyInput);
+  const bookTwoPagePreviewImages = bookTwoPreviewPlan.pagePreviewItems.map((item) => ({
+    orderId: item.orderId,
+    amazonOrderId: item.amazonOrderId,
+    rootOrderId: item.rootOrderId,
+    pageNumber: item.pageNumber,
+    r2Key: item.pageImageR2Key,
+    filename: item.pageImageFilename,
+    imageUrl: `${backendUrl}/api/assets/${item.pageImageR2Key}`,
+  }));
+  const bookTwoManifestResult = buildW3ManifestResponse({
+    ...bookTwoPreviewPlan,
+    pagePreviewImages: bookTwoPagePreviewImages,
+    coverPngR2Key: bookTwoPreviewPlan.coverPreviewItem.coverPngR2Key,
+    pageType: 'cover-spread',
+    r2Key: bookTwoPreviewPlan.coverPreviewItem.coverPngR2Key,
+  });
+  assert(bookTwoManifestResult.success === true, 'Expected Book 2 W3 manifest build to succeed');
+  assert(
+    bookTwoManifestResult.manifest3Key ===
+      'book-2-example/orders/TEST-W3-MANIFEST-BOOK2-001/manifests/3-manifest.json',
+    'Expected Book 2 W3 manifest key to stay under the Book 2 order root',
+  );
+  assert(
+    bookTwoManifestResult.coverPngR2Key ===
+      'book-2-example/orders/TEST-W3-MANIFEST-BOOK2-001/preview-images/cover-spread.png',
+    'Expected Book 2 W3 preview assets to stay under the Book 2 order root',
   );
 
   console.log('W3 manifest tests passed');

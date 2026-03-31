@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAvailableOrderIds, downloadManifest, buildManifestKey } from '@/lib/r2-service';
-import { normalizeBookId } from '@/lib/order-paths';
 
 /**
  * Simple endpoint to test order detection and loading
  * GET /api/debug/orders-simple
  */
 export async function GET(request: NextRequest) {
-  const bookId = normalizeBookId(request.nextUrl.searchParams.get('bookId'));
+  const bookId = request.nextUrl.searchParams.get('bookId')?.trim() || '';
+  if (!bookId) {
+    return NextResponse.json({ error: 'bookId query parameter is required' }, { status: 400 });
+  }
   const testOrderId = request.nextUrl.searchParams.get('testOrderId')?.trim() || 'TEST-ORDER-006';
   const result: any = {
     timestamp: new Date().toISOString(),

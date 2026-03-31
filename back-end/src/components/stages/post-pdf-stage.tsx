@@ -23,7 +23,7 @@ import {
   normalizeManifestPageLabel,
   resolveReviewPageContext,
 } from '@/lib/books/review-page-plan';
-import { DEFAULT_BOOK_ID, resolveOrderPathContext } from '@/lib/order-paths';
+import { resolveOrderPathContext } from '@/lib/order-paths';
 
 const PDFJS_VERSION = '5.4.394';
 let pdfjsLibSingleton: typeof import('pdfjs-dist') | null = null;
@@ -287,7 +287,7 @@ export function PostPdfStage({
   const showPrintAction = isApproved && customerRevisionUsed;
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
   const reviewPageContext = resolveReviewPageContext({
-    bookId: order.bookContext?.bookId ?? order.project ?? DEFAULT_BOOK_ID,
+    bookId: order.bookContext?.bookId ?? order.project ?? null,
     formatId: order.bookContext?.formatId ?? null,
     isAmazonOrder:
       order.bookContext?.formatId === 'amazon' ||
@@ -305,7 +305,7 @@ export function PostPdfStage({
       order.bookContext?.bookId ??
       reviewPageContext.bookId ??
       order.project ??
-      DEFAULT_BOOK_ID,
+      null,
     orderPrefix: order.bookContext?.orderPrefix ?? order.assetPrefix ?? null,
     pathLikes: [
       order.manifest2aUrl,

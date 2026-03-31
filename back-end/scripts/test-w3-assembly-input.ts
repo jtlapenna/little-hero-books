@@ -71,16 +71,17 @@ function create2BManifest(options: {
 
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
+  const bookId = 'book-mvp-simple-adventure';
 
   const amazonOrderId = '111-2222222-3333333';
   const siblingOrderId = 'TEST-W3-ITEM-001';
-  const siblingOrderPrefix = buildOrderPrefix(siblingOrderId);
+  const siblingOrderPrefix = buildOrderPrefix(siblingOrderId, bookId);
   const siblingOneManifest = buildW0RunManifest({
     orderId: siblingOrderId,
     rootOrderId: amazonOrderId,
     amazonOrderId,
     platform: 'amazon',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: 'amazon',
     characterHash: 'charhash123456',
     input: {
@@ -202,13 +203,13 @@ async function main(): Promise<void> {
   );
 
   const standardOrderId = 'TEST-W3-STANDARD-001';
-  const standardOrderPrefix = buildOrderPrefix(standardOrderId);
+  const standardOrderPrefix = buildOrderPrefix(standardOrderId, bookId);
   const standardOneManifest = buildW0RunManifest({
     orderId: standardOrderId,
     rootOrderId: standardOrderId,
     amazonOrderId: null,
     platform: 'd2c',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: 'standard',
     characterHash: 'charhash7890ab',
     input: {

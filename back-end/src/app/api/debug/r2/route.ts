@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listR2Objects } from '@/lib/r2-service';
-import { buildCharacterAssetPrefix, normalizeBookId } from '@/lib/order-paths';
+import { buildCharacterAssetPrefix } from '@/lib/order-paths';
 
 export async function GET(request: NextRequest) {
   try {
-    const bookId = normalizeBookId(request.nextUrl.searchParams.get('bookId'));
+    const bookId = request.nextUrl.searchParams.get('bookId')?.trim() || '';
+    if (!bookId) {
+      return NextResponse.json({ error: 'bookId query parameter is required' }, { status: 400 });
+    }
     const characterPrefix = `${buildCharacterAssetPrefix('__debug__', bookId).replace(/__debug__$/, '')}`;
     console.log('Debug: Testing R2 connection...');
     

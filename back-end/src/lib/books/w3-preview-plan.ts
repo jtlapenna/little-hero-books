@@ -1,10 +1,13 @@
-import { buildOrderPrefix, buildPreviewImageAssetKey } from '@/lib/order-paths';
+import {
+  buildOrderPrefix,
+  buildPreviewImageAssetKey,
+  inferBookIdFromPathLikes,
+} from '@/lib/order-paths';
 import type { BookPageConfig } from '@/lib/books/types';
 
 type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
-const DEFAULT_BOOK_ID = 'book-mvp-simple-adventure';
 const DEFAULT_PAGE_PREVIEW_TEMPLATE_ID = '23277725-4AB0-446A-98C5-CB99C21822B3';
 const DEFAULT_STANDARD_COVER_PREVIEW_TEMPLATE_ID = 'D0F07D93-9267-47BB-A6AF-D6EC5ACDF476';
 const DEFAULT_AMAZON_COVER_PREVIEW_TEMPLATE_ID = '8DB1D274-AA3C-4E14-B051-65B6F872B013';
@@ -357,8 +360,40 @@ function resolveBackendUrl(input: JsonRecord): string {
   return (toTrimmedString(input.backendUrl) ?? DEFAULT_BACKEND_URL).replace(/\/$/, '');
 }
 
-function resolveBookId(input: JsonRecord): string {
-  return toTrimmedString(input.bookId) ?? DEFAULT_BOOK_ID;
+function collectBookPathLikes(input: JsonRecord): Array<string | null | undefined> {
+  return [
+    toTrimmedString(input.orderR2BaseKey),
+    toTrimmedString(input.orderPrefix),
+    toTrimmedString(input.assetPrefix),
+    toTrimmedString(input.oneManifestKey),
+    toTrimmedString(input.oneManifestUrl),
+    toTrimmedString(input.manifest2bKey),
+    toTrimmedString(input.manifest2bUrl),
+    toTrimmedString(input.manifest3Key),
+    toTrimmedString(input.manifest3Url),
+    toTrimmedString(input.coverPngR2Key),
+    toTrimmedString(input.coverImageR2Key),
+    toTrimmedString(input.coverPdfR2Key),
+    toTrimmedString(input.r2Key),
+    toTrimmedString(input.path),
+    toTrimmedString(input.imageUrl),
+    toTrimmedString(input.cloudflareImageUrl),
+  ];
+}
+
+function resolveBookId(input: JsonRecord, orderId?: string | null): string {
+  const explicitBookId = toTrimmedString(input.bookId);
+  if (explicitBookId) {
+    return explicitBookId;
+  }
+
+  const inferredBookId = inferBookIdFromPathLikes(...collectBookPathLikes(input));
+  if (inferredBookId) {
+    return inferredBookId;
+  }
+
+  const orderLabel = orderId ?? resolveOrderId(input) ?? 'unknown-order';
+  throw new Error(`W3 preview planning requires bookId or per-book path context for ${orderLabel}`);
 }
 
 function resolveOrderId(input: JsonRecord): string {
@@ -393,7 +428,7 @@ function buildCanonicalAssets(
     throw new Error('Order ID is required for W3 preview planning');
   }
 
-  const bookId = resolveBookId(input);
+  const bookId = resolveBookId(input, orderId);
   const assetRoot = bookId;
   const backgroundFileByType = {
     title: 'page00-title-page.png',
@@ -703,7 +738,7 @@ function buildStoryContext(input: JsonRecord, backendUrl: string): StoryContext 
           const poseNumber = index + 1;
           const padded = String(poseNumber).padStart(2, '0');
           const fileName = `characters_${characterHash}_pose${padded}_nobg.png`;
-          const r2Path = `${resolveBookId(order)}/order-generated-assets/characters/${characterHash}/${fileName}`;
+          const r2Path = `${resolveBookId(order, resolveOrderId(order))}/order-generated-assets/characters/${characterHash}/${fileName}`;
           const publicUrl = publicR2Url ? `${publicR2Url}/${r2Path}` : null;
 
           return {
@@ -733,7 +768,7 @@ function buildStoryContext(input: JsonRecord, backendUrl: string): StoryContext 
   ];
 
   const characterImages = {
-    base: `${backendUrl}/api/assets/${resolveBookId(order)}/order-generated-assets/characters/${characterHash}/base-character.png`,
+    base: `${backendUrl}/api/assets/${resolveBookId(order, resolveOrderId(order))}/order-generated-assets/characters/${characterHash}/base-character.png`,
     poses: processedImages
       .filter((entry) => {
         const poseNumber = toInteger(entry.poseNumber);
@@ -883,7 +918,7 @@ function buildInteriorHtml(
       toTrimmedString(order.runId) ??
       Date.now().toString(),
   );
-  const assetRoot = resolveBookId(order);
+  const assetRoot = resolveBookId(order, resolveOrderId(order));
 
   const toAbsoluteAsset = (value: unknown): string => {
     const raw = String(value || '').trim();
@@ -1291,7 +1326,7 @@ function buildCoverPreviewItem(
     toTrimmedString(renderContext.orderId) ??
     resolveOrderId(orderContext) ??
     'ORDER';
-  const bookId = resolveBookId(orderContext);
+  const bookId = resolveBookId(orderContext, orderId);
   const orderR2BaseKey = resolveOrderR2BaseKey(orderContext, orderId, bookId);
   const childName =
     toTrimmedString(inputs.childName) ??
@@ -1557,7 +1592,7 @@ function buildPagePreviewItems(
   const orderId = resolveOrderId(input);
   const amazonOrderId = toTrimmedString(input.amazonOrderId);
   const rootOrderId = toTrimmedString(input.rootOrderId) ?? amazonOrderId ?? orderId;
-  const bookId = resolveBookId(input);
+  const bookId = resolveBookId(input, orderId);
   const backendUrl = resolveBackendUrl(input);
   const orderR2BaseKey = resolveOrderR2BaseKey(input, orderId, bookId);
 
@@ -1619,7 +1654,7 @@ export function buildW3PreviewPlan(input: JsonRecord): BuildW3PreviewPlanResult 
     throw new Error('W3 preview planning requires orderId');
   }
 
-  const bookId = resolveBookId(input);
+  const bookId = resolveBookId(input, orderId);
   const amazonOrderId = resolveAmazonOrderId(input, orderId);
   const rootOrderId = resolveRootOrderId(input, amazonOrderId, orderId);
   const pagePlan =

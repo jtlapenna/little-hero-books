@@ -24,7 +24,7 @@ export interface OrderBookContext {
   bookId?: string | null;
   formatId?: string | null;
   orderPrefix: string;
-  pagePlanSource: 'w0-v3' | 'legacy-default';
+  pagePlanSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   expectedPageCount: number;
   pageLabels: string[];
   pagePlan: OrderBookPagePlanEntry[];

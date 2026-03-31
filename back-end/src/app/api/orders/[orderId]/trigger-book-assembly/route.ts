@@ -92,7 +92,7 @@ async function triggerBookAssembly(
           null;
 
         if (manifestSnapshot && characterHash) {
-          const assets = await getCharacterAssets(characterHash).catch(() => []);
+          const assets = await getCharacterAssets(characterHash, manifestHints.bookId).catch(() => []);
           const bgRemovedByPose = buildBgRemovedAssetMap(assets);
           const nowIso = new Date().toISOString();
           const {

@@ -60,7 +60,11 @@ function normalizePathLike(value: unknown): string {
 
 export function normalizeBookId(bookId: string | null | undefined): string {
   const trimmed = trimToString(bookId);
-  return trimmed || DEFAULT_BOOK_ID;
+  if (trimmed) {
+    return trimmed;
+  }
+
+  throw new Error('bookId is required');
 }
 
 export function isOrderAssetKey(key: string): boolean {
@@ -351,11 +355,17 @@ export function resolveOrderPathContext(
     orderId,
     hintedBookId || null,
   );
+  const resolvedBookId =
+    extractBookIdFromOrderPathLike(orderPrefix) || hintedBookId;
+
+  if (!resolvedBookId) {
+    throw new Error(
+      `Unable to resolve bookId for order ${trimToString(orderId) || '<unknown>'}`,
+    );
+  }
 
   return {
-    bookId: normalizeBookId(
-      extractBookIdFromOrderPathLike(orderPrefix) || hintedBookId,
-    ),
+    bookId: normalizeBookId(resolvedBookId),
     orderPrefix,
   };
 }
@@ -394,7 +404,6 @@ export function buildManifestKeyCandidates(
           stage,
         )
       : null,
-    buildManifestKeyFromOrderPrefix(buildOrderPrefix(orderId), stage),
   ];
 
   return candidates.filter(

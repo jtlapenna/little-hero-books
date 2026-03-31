@@ -1,9 +1,9 @@
-import { listObjects, getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX } from './r2-client';
+import { listObjects, getObject, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET } from './r2-client';
 import { AwsClient } from 'aws4fetch';
 import {
+  buildCharacterAssetPrefix,
   buildManifestKeyFromOrderPrefix,
   buildOrderPrefix,
-  DEFAULT_BOOK_ID,
   normalizeBookId,
 } from './order-paths';
 import type { ManifestStage } from './order-paths';
@@ -15,23 +15,89 @@ export interface CharacterAsset {
   assetType: "original" | "background-removed" | "final";
 }
 
-export async function getCharacterAssets(characterHash: string): Promise<CharacterAsset[]> {
-  const prefix = `${R2_CHARACTERS_PREFIX}${characterHash}/`;
-  const res = await listObjects(R2_PUBLIC_BUCKET, { prefix });
+function trimToString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
 
-  const items = (res.Contents || [])
-    .filter(o => !!o.Key)
-    .map(o => o.Key as string)
-    .filter((key) => {
-      const lower = key.toLowerCase();
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
 
-      // SW3 pre-flip source objects are temporary workflow artifacts, not review assets.
-      // Excluding them prevents Tab 1 from showing the pre-flipped source instead of
-      // the canonical pose file when both share the same pose number.
-      if (lower.includes('/sw3-preflip-source/')) return false;
+async function listTopLevelBookIds(bucket: string): Promise<string[]> {
+  const response = await listObjects(bucket, { delimiter: '/' });
+  const prefixes = (response.CommonPrefixes || [])
+    .map((prefix) => trimToString(prefix.Prefix))
+    .map((prefix) => prefix.replace(/\/$/, ''))
+    .filter(Boolean);
 
-      return true;
-    });
+  return uniqueStrings(prefixes);
+}
+
+async function resolveBookIdsForPublicBucket(bookId?: string | null): Promise<string[]> {
+  const explicitBookId = trimToString(bookId);
+  if (explicitBookId) {
+    return [normalizeBookId(explicitBookId)];
+  }
+
+  return listTopLevelBookIds(R2_PUBLIC_BUCKET);
+}
+
+async function resolveBookIdsForOrdersBucket(bookId?: string | null): Promise<string[]> {
+  const explicitBookId = trimToString(bookId);
+  if (explicitBookId) {
+    return [normalizeBookId(explicitBookId)];
+  }
+
+  return listTopLevelBookIds(R2_ORDERS_BUCKET);
+}
+
+function filterReviewAssetKeys(keys: string[]): string[] {
+  return keys.filter((key) => {
+    const lower = key.toLowerCase();
+
+    // SW3 pre-flip source objects are temporary workflow artifacts, not review assets.
+    // Excluding them prevents Tab 1 from showing the pre-flipped source instead of
+    // the canonical pose file when both share the same pose number.
+    if (lower.includes('/sw3-preflip-source/')) return false;
+
+    return true;
+  });
+}
+
+export async function getCharacterAssets(
+  characterHash: string,
+  bookId?: string | null,
+): Promise<CharacterAsset[]> {
+  const normalizedCharacterHash = trimToString(characterHash);
+  if (!normalizedCharacterHash) {
+    throw new Error('characterHash is required');
+  }
+
+  const bookIds = await resolveBookIdsForPublicBucket(bookId);
+  const itemsByBook = await Promise.all(
+    bookIds.map(async (resolvedBookId) => {
+      const prefix = `${buildCharacterAssetPrefix(normalizedCharacterHash, resolvedBookId)}/`;
+      const res = await listObjects(R2_PUBLIC_BUCKET, { prefix }).catch((error) => {
+        if (trimToString(bookId)) {
+          throw error;
+        }
+        console.warn('[R2] Skipping character asset listing for book:', {
+          bookId: resolvedBookId,
+          characterHash: normalizedCharacterHash,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
+
+      return filterReviewAssetKeys(
+        (res?.Contents || [])
+          .filter((object) => !!object.Key)
+          .map((object) => object.Key as string),
+      );
+    }),
+  );
+
+  const items = uniqueStrings(itemsByBook.flat());
 
   // Generate URLs using API proxy endpoint (works for both public and private buckets)
   const assets: CharacterAsset[] = items.map((key) => {
@@ -64,29 +130,38 @@ export async function getCharacterAssets(characterHash: string): Promise<Charact
     // This avoids needing public URLs or signed URLs
     const url = `/api/assets/${key}`;
 
-    return { characterHash, poseNumber, url, assetType: type };
+    return { characterHash: normalizedCharacterHash, poseNumber, url, assetType: type };
   });
 
   return assets;
 }
 
-export async function getAvailableCharacterHashes(): Promise<string[]> {
+export async function getAvailableCharacterHashes(bookId?: string | null): Promise<string[]> {
+  const bookIds = await resolveBookIdsForPublicBucket(bookId);
+
   try {
-    console.log('[R2] Listing character hashes from bucket:', R2_PUBLIC_BUCKET, 'prefix:', R2_CHARACTERS_PREFIX);
-    const res = await listObjects(R2_PUBLIC_BUCKET, {
-      prefix: R2_CHARACTERS_PREFIX,
-      delimiter: '/',
-    });
-    console.log('[R2] Response:', {
-      hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
-      prefixCount: res.CommonPrefixes?.length || 0,
-      prefixes: res.CommonPrefixes?.map(p => p.Prefix).slice(0, 5)
-    });
-    const prefixes = (res.CommonPrefixes || []).map(p => (p.Prefix || ''));
-    const hashes = prefixes
-      .map(p => p.replace(R2_CHARACTERS_PREFIX, ''))
-      .map(p => p.replace(/\/$/, ''))
-      .filter(Boolean);
+    const prefixResults = await Promise.all(
+      bookIds.map(async (resolvedBookId) => {
+        const prefix = `${normalizeBookId(resolvedBookId)}/order-generated-assets/characters/`;
+        console.log('[R2] Listing character hashes from bucket:', R2_PUBLIC_BUCKET, 'prefix:', prefix);
+        const res = await listObjects(R2_PUBLIC_BUCKET, {
+          prefix,
+          delimiter: '/',
+        });
+        console.log('[R2] Response:', {
+          bookId: resolvedBookId,
+          hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
+          prefixCount: res.CommonPrefixes?.length || 0,
+          prefixes: res.CommonPrefixes?.map((p) => p.Prefix).slice(0, 5),
+        });
+        const prefixes = (res.CommonPrefixes || []).map((p) => p.Prefix || '');
+        return prefixes
+          .map((value) => value.replace(prefix, ''))
+          .map((value) => value.replace(/\/$/, ''))
+          .filter(Boolean);
+      }),
+    );
+    const hashes = uniqueStrings(prefixResults.flat());
     console.log('[R2] Extracted', hashes.length, 'character hashes');
     return hashes;
   } catch (error: any) {
@@ -94,7 +169,7 @@ export async function getAvailableCharacterHashes(): Promise<string[]> {
       message: error?.message,
       name: error?.name,
       bucket: R2_PUBLIC_BUCKET,
-      prefix: R2_CHARACTERS_PREFIX
+      bookId: trimToString(bookId) || null,
     });
     throw error;
   }
@@ -109,28 +184,35 @@ export async function listR2Objects(prefix?: string): Promise<any[]> {
  * List order IDs from the orders bucket by finding all order directories
  * Orders are stored at: {bookId}/orders/{orderId}/
  */
-export async function getAvailableOrderIds(bookId: string = DEFAULT_BOOK_ID): Promise<string[]> {
+export async function getAvailableOrderIds(bookId?: string | null): Promise<string[]> {
   try {
-    const PROJECT_NS = normalizeBookId(bookId);
-    const prefix = `${PROJECT_NS}/orders/`;
-    console.log('[R2] Listing order IDs from bucket:', R2_ORDERS_BUCKET, 'prefix:', prefix);
-    
-    const res = await listObjects(R2_ORDERS_BUCKET, {
-      prefix,
-      delimiter: '/',
-    });
-    
-    console.log('[R2] Orders response:', {
-      hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
-      prefixCount: res.CommonPrefixes?.length || 0,
-      prefixes: res.CommonPrefixes?.map(p => p.Prefix).slice(0, 5)
-    });
-    
-    const prefixes = (res.CommonPrefixes || []).map(p => (p.Prefix || ''));
-    const orderIds = prefixes
-      .map(p => p.replace(prefix, ''))
-      .map(p => p.replace(/\/$/, ''))
-      .filter(Boolean);
+    const bookIds = await resolveBookIdsForOrdersBucket(bookId);
+    const prefixResults = await Promise.all(
+      bookIds.map(async (resolvedBookId) => {
+        const prefix = `${normalizeBookId(resolvedBookId)}/orders/`;
+        console.log('[R2] Listing order IDs from bucket:', R2_ORDERS_BUCKET, 'prefix:', prefix);
+
+        const res = await listObjects(R2_ORDERS_BUCKET, {
+          prefix,
+          delimiter: '/',
+        });
+
+        console.log('[R2] Orders response:', {
+          bookId: resolvedBookId,
+          hasCommonPrefixes: !!(res.CommonPrefixes && res.CommonPrefixes.length > 0),
+          prefixCount: res.CommonPrefixes?.length || 0,
+          prefixes: res.CommonPrefixes?.map((p) => p.Prefix).slice(0, 5),
+        });
+
+        const prefixes = (res.CommonPrefixes || []).map((p) => p.Prefix || '');
+        return prefixes
+          .map((value) => value.replace(prefix, ''))
+          .map((value) => value.replace(/\/$/, ''))
+          .filter(Boolean);
+      }),
+    );
+
+    const orderIds = uniqueStrings(prefixResults.flat());
     
     console.log('[R2] Extracted', orderIds.length, 'order IDs');
     return orderIds;

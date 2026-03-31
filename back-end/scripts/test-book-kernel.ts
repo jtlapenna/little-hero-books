@@ -9,6 +9,7 @@ import {
   normalizeW0Manifest,
   read2BManifestWithPoseRequirements,
   resolveReviewPageContext,
+  resolveReviewPageContextFromConfig,
   resolvePagePlan,
   RunManifestV3,
   sync2BManifestEntries,
@@ -111,6 +112,13 @@ assert(
   bookTwoStandardPlan.qaPolicy.pose.requiredPoseNumbers.length === 10,
   'Book 2 page plan should preserve its distinct required pose count',
 );
+const bookTwoReviewContext = resolveReviewPageContextFromConfig(bookTwoConfig, 'standard');
+assert(
+  bookTwoReviewContext.bookId === 'book-2-example' &&
+    bookTwoReviewContext.pagePlanSource === 'runtime-config' &&
+    bookTwoReviewContext.pageLabels[0] === 'p00',
+  'Book 2 review page context should resolve directly from runtime config without falling back to the legacy Book 1 plan',
+);
 
 const standardManifest = validateRunManifest(
   buildW0RunManifest({
@@ -182,6 +190,7 @@ assert(
 const recoveryOrder = {
   id: 42,
   orderId: 'TEST-BOOK-KERNEL-003',
+  book_id: 'book-mvp-simple-adventure',
   root_order_id: '111-2222222-3333333',
   amazon_order_id: '111-2222222-3333333',
   marketplace_id: 'ATVPDKIKX0DER',
@@ -336,6 +345,7 @@ const normalizedWorkflowInput = {
     clothingStyle: 'tee-shorts',
   },
   bookSpecs: {
+    bookId: 'book-mvp-simple-adventure',
     title: 'Drew and the Quiet Trail',
     formatId: 'amazon',
     channel: 'amazon',

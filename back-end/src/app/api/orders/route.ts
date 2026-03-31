@@ -61,6 +61,9 @@ function attachListSiblingMetadata(orders: Order[]): Order[] {
 function createErrorOrder(record: any, error: any): Order {
   const orderId = record.orderId || record.order_id || record.amazon_order_id || (record.id ? String(record.id) : 'unknown');
   const errorMessage = error?.message || String(error) || 'Unknown mapping error';
+  const manifestHints = buildManifestKeyHintOptionsFromOrderLike(record);
+  const project = manifestHints.bookId || record.project || 'unknown-book';
+  const assetPrefix = manifestHints.orderPrefix || `${project}/orders/${orderId}`;
   
   return {
     orderId,
@@ -83,7 +86,7 @@ function createErrorOrder(record: any, error: any): Order {
             return Number.isFinite(parsed) ? parsed : undefined;
           })()
         : undefined,
-    project: record.project || 'book-mvp-simple-adventure',
+    project,
     customer: {
       firstName: record.customer_name ? String(record.customer_name).split(' ')[0] || 'Unknown' : 'Unknown',
       lastName: record.customer_name ? String(record.customer_name).split(' ').slice(1).join(' ') || '' : '',
@@ -100,7 +103,7 @@ function createErrorOrder(record: any, error: any): Order {
       format: '8.5x8.5_softcover',
       shippingAddress: record.shipping_address || {},
     },
-    assetPrefix: `book-mvp-simple-adventure/orders/${orderId}/`,
+    assetPrefix: `${assetPrefix.replace(/\/+$/, '')}/`,
     reviewStages: {
       preBria: { status: ReviewStageStatus.PENDING },
       postBria: { status: ReviewStageStatus.PENDING },
@@ -442,7 +445,7 @@ async function buildOrdersFromR2(): Promise<{
               pages: 16,
           format: '8.5x8.5_softcover',
             },
-        assetPrefix: `book-mvp-simple-adventure/orders/book-${String(index + 1).padStart(3, '0')}/`,
+        assetPrefix: `unknown-book/orders/book-${String(index + 1).padStart(3, '0')}/`,
             reviewStages: {
               preBria: { status: ReviewStageStatus.PENDING },
               postBria: { status: ReviewStageStatus.PENDING },

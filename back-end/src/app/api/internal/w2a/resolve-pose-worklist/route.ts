@@ -16,6 +16,7 @@ import {
 import {
   buildManifestKeyCandidates,
   extractManifestKey,
+  inferBookIdFromPathLikes,
 } from "@/lib/order-paths";
 
 export const dynamic = "force-dynamic";
@@ -212,11 +213,13 @@ export async function resolveW2APoseWorklistResponse(
     toPositiveInt(body.configVersion) ??
     toPositiveInt(body.version) ??
     undefined;
+  const inferredBookIdFromHints = inferBookIdFromPathLikes(...resolveManifestHints(body));
   const resolvedBookId =
     oneManifestSnapshot?.bookId ??
     toTrimmedString(body.bookId) ??
     toTrimmedString(orderContext.bookId) ??
-    "book-mvp-simple-adventure";
+    inferredBookIdFromHints ??
+    "unknown-book";
   const resolvedFormatId =
     oneManifestSnapshot?.formatId ?? resolveFormatId(body);
 

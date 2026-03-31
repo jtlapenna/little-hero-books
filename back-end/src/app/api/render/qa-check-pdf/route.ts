@@ -3,8 +3,8 @@ import { PNG } from 'pngjs';
 
 import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { resolveOrderPathContext } from '@/lib/order-paths';
 import { getSignedUrlForObject } from '@/lib/r2-service';
-import { buildOrderPrefix } from '@/lib/r2-utils';
 
 type PdfType = 'interior' | 'cover';
 
@@ -149,7 +149,11 @@ function parseInput(body: unknown): { ok: true; data: QaRequestBody } | { ok: fa
       pdfUrl: pdfUrl || null,
       expectedPageCount,
       type: typeRaw,
-      orderPrefix: orderPrefix || buildOrderPrefix(orderId),
+      orderPrefix:
+        orderPrefix ||
+        resolveOrderPathContext(orderId, {
+          pathLikes: [pdfR2Key, pdfUrl],
+        }).orderPrefix,
       pageLabels: pageLabels.length > 0 ? pageLabels : buildInteriorPageLabels(expectedPageCount),
       previewImageUrls,
     },

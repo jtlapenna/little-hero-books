@@ -6,7 +6,6 @@ import {
   buildManifestKeyFromOrderPrefix,
   extractBookIdFromOrderPathLike,
   extractOrderPrefixFromPathLike,
-  normalizeBookId,
   normalizeOrderPrefix,
 } from './order-paths';
 
@@ -73,7 +72,7 @@ export async function mapSupabaseOrderToOrder(
   const characterSpecs = record.character_specs || {};
   const bookSpecs = record.book_specs || {};
   const orderDetailsRaw = record.order_details || {};
-  const defaultProject = normalizeBookId(
+  const defaultProject =
     firstNonEmptyString(
       record.project,
       extractBookIdFromOrderPathLike(record.asset_prefix),
@@ -83,8 +82,7 @@ export async function mapSupabaseOrderToOrder(
       extractBookIdFromOrderPathLike(record.manifest_3_url),
       extractBookIdFromOrderPathLike(record.final_book_url),
       extractBookIdFromOrderPathLike(record.final_cover_url),
-    ),
-  );
+    ) ?? 'unknown-book';
   const resolvedOrderPrefix = normalizeOrderPrefix(
     typeof record.asset_prefix === 'string' ? record.asset_prefix : null,
     orderId,
@@ -247,7 +245,7 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
   const workflow = manifest?.workflow || {};
   const characterHash = manifest?.characterHash;
   const resolvedOrderId = orderData.orderId || orderId;
-  const inferredProject = normalizeBookId(
+  const inferredProject =
     firstNonEmptyString(
       orderData.project,
       manifest?.book?.bookConfigRef?.bookId,
@@ -258,8 +256,7 @@ export function mapManifestToOrder(orderId: string, manifest: any): Order {
       extractBookIdFromOrderPathLike(manifest?.manifestUrl),
       extractBookIdFromOrderPathLike(manifest?.artifacts?.interiorPdfR2Key),
       extractBookIdFromOrderPathLike(manifest?.artifacts?.coverPdfR2Key),
-    ),
-  );
+    ) ?? 'unknown-book';
   const resolvedOrderPrefix = normalizeOrderPrefix(
     firstNonEmptyString(
       orderData.assetPrefix,

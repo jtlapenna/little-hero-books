@@ -1,3 +1,5 @@
+import { inferBookIdFromPathLikes } from '@/lib/order-paths';
+
 type JsonRecord = Record<string, unknown>;
 
 export type W3PreviewDocumentKind = 'page-preview' | 'cover-preview';
@@ -189,7 +191,16 @@ function resolveOrderR2BaseKey(input: W3RenderPreviewDocumentInput, orderId: str
   return (
     toTrimmedString(input.orderR2BaseKey) ??
     (() => {
-      const bookId = toTrimmedString(input.bookId) ?? 'book-mvp-simple-adventure';
+      const bookId =
+        toTrimmedString(input.bookId) ??
+        inferBookIdFromPathLikes(
+          toTrimmedString(input.pageImageR2Key),
+          toTrimmedString(input.coverPngR2Key),
+          toTrimmedString(input.coverImageR2Key),
+        );
+      if (!bookId) {
+        throw new Error('W3 preview rendering requires bookId or per-book R2 path hints');
+      }
       return `${bookId}/orders/${orderId}`;
     })()
   );

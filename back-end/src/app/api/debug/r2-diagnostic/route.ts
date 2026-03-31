@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listObjects, R2_PUBLIC_BUCKET, R2_ORDERS_BUCKET, R2_CHARACTERS_PREFIX, validateR2Config } from '@/lib/r2-client';
 import { buildManifestKey, getAvailableCharacterHashes, getAvailableOrderIds } from '@/lib/r2-service';
-import { buildCharacterAssetPrefix, normalizeBookId } from '@/lib/order-paths';
+import { buildCharacterAssetPrefix } from '@/lib/order-paths';
 
 export async function GET(request: NextRequest) {
-  const requestedBookId = normalizeBookId(request.nextUrl.searchParams.get('bookId'));
+  const requestedBookId = request.nextUrl.searchParams.get('bookId')?.trim() || '';
+  if (!requestedBookId) {
+    return NextResponse.json({ error: 'bookId query parameter is required' }, { status: 400 });
+  }
   const testOrderId = request.nextUrl.searchParams.get('testOrderId')?.trim() || 'TEST-ORDER-006';
   const orderPrefix = `${requestedBookId}/orders/`;
   const characterPrefix = `${buildCharacterAssetPrefix('__debug__', requestedBookId).replace(/__debug__$/, '')}`;
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   // Test 3: Try getAvailableCharacterHashes
   try {
-    const hashes = await getAvailableCharacterHashes();
+        const hashes = await getAvailableCharacterHashes(requestedBookId);
     diagnostics.tests.getCharacterHashes = {
       success: true,
       count: hashes.length,

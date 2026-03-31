@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 import { updateOrderStatus } from '@/lib/status-service';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +86,12 @@ export async function POST(
       
       // If still not provided, construct from orderId
       if (!manifestUrl) {
-        manifestUrl = `book-mvp-simple-adventure/orders/${perBookId}/manifests/2a-manifest.json`;
+        manifestUrl =
+          buildManifestKeyCandidates(
+            perBookId,
+            '2a',
+            buildManifestKeyHintOptionsFromOrderLike(order),
+          )[0] ?? null;
       }
     }
 
@@ -140,4 +149,3 @@ export async function POST(
     );
   }
 }
-

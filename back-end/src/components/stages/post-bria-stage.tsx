@@ -6,7 +6,7 @@ import { CheckCircle, Play, Eye, RefreshCw, Info } from 'lucide-react';
 import { setFlaggedCount } from '@/lib/review-state';
 import { Order } from '@/types/order';
 import { extractApiErrorMessage } from '@/lib/error-handler';
-import { DEFAULT_BOOK_ID, resolveOrderPathContext } from '@/lib/order-paths';
+import { resolveOrderPathContext } from '@/lib/order-paths';
 
 interface PostBriaStageProps {
   orderId: string;
@@ -97,7 +97,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const [isReplacing, setIsReplacing] = useState<string | null>(null);
   const [flippingPoseId, setFlippingPoseId] = useState<string | null>(null);
   const orderPathContext = resolveOrderPathContext(orderId, {
-    bookId: order?.bookContext?.bookId ?? order?.project ?? DEFAULT_BOOK_ID,
+    bookId: order?.bookContext?.bookId ?? order?.project ?? null,
     orderPrefix: order?.bookContext?.orderPrefix ?? order?.assetPrefix ?? null,
     pathLikes: [
       order?.manifest2aUrl,

@@ -11,7 +11,8 @@ import { withIdempotency } from '@/lib/idempotency';
 import { buildD2CW0Payload } from '@/lib/w0-payload';
 import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { sendD2COrderConfirmationEmail, sendD2CSiblingOrderConfirmationEmail } from '@/lib/notifications/d2c-email';
-import { getObject, putObject, headObject, R2_PUBLIC_BUCKET, R2_CHARACTERS_PREFIX } from '@/lib/r2-client';
+import { getObject, putObject, headObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { buildBaseCharacterAssetKey, buildCharacterAssetPrefix } from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
@@ -25,11 +26,26 @@ function getPublicAssetBaseUrl(): string {
   ).replace(/\/+$/, '');
 }
 
-async function buildPreviewImageUrl(characterHash?: string): Promise<string | undefined> {
-  const trimmedHash = characterHash?.trim();
-  if (!trimmedHash) return undefined;
+function resolveOrderBookId(orderData: Record<string, unknown>): string | undefined {
+  const candidates = [orderData.book_id, orderData.project];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
 
-  const key = `${R2_CHARACTERS_PREFIX}${trimmedHash}/base-character.png`;
+  return undefined;
+}
+
+async function buildPreviewImageUrl(
+  characterHash?: string,
+  bookId?: string,
+): Promise<string | undefined> {
+  const trimmedHash = characterHash?.trim();
+  const trimmedBookId = bookId?.trim();
+  if (!trimmedHash || !trimmedBookId) return undefined;
+
+  const key = buildBaseCharacterAssetKey(trimmedHash, trimmedBookId);
   try {
     const response = await headObject(R2_PUBLIC_BUCKET, key);
     if (!response.ok) return undefined;
@@ -45,9 +61,18 @@ async function buildPreviewImageUrl(characterHash?: string): Promise<string | un
  * This is the reference image for the character, NOT pose 0 (which is the cover image
  * generated separately by the workflow).
  */
-async function copyPreviewToCharacterHash(previewHash: string, characterHash: string): Promise<{ success: boolean; error?: string }> {
-  const sourceKey = `${R2_CHARACTERS_PREFIX}${previewHash}/preview.png`;
-  const destKey = `${R2_CHARACTERS_PREFIX}${characterHash}/base-character.png`;
+async function copyPreviewToCharacterHash(
+  previewHash: string,
+  characterHash: string,
+  bookId?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const trimmedBookId = bookId?.trim();
+  if (!trimmedBookId) {
+    return { success: false, error: 'bookId is required to copy preview assets' };
+  }
+
+  const sourceKey = `${buildCharacterAssetPrefix(previewHash, trimmedBookId)}/preview.png`;
+  const destKey = buildBaseCharacterAssetKey(characterHash, trimmedBookId);
   
   try {
     // Check if preview exists
@@ -231,9 +256,10 @@ export async function POST(request: NextRequest) {
         const platform = orderData.platform as string | undefined;
         const previewHash = orderData.preview_hash as string | undefined;
         const characterHash = orderData.character_hash as string | undefined;
+        const bookId = resolveOrderBookId(orderData);
 
         if (platform === 'd2c' && previewHash && characterHash) {
-          const copyResult = await copyPreviewToCharacterHash(previewHash, characterHash);
+          const copyResult = await copyPreviewToCharacterHash(previewHash, characterHash, bookId);
           if (!copyResult.success) {
             console.warn('[Webhook Stripe] Preview copy failed (non-fatal):', copyResult.error);
           }
@@ -259,7 +285,10 @@ export async function POST(request: NextRequest) {
           const items = await Promise.all(emailEligibleOrders.map(async ({ orderData: itemOrderData }) => {
             const characterSpecs = itemOrderData.character_specs as Record<string, unknown> | undefined;
             const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
-            const previewImageUrl = await buildPreviewImageUrl(itemOrderData.character_hash as string | undefined);
+            const previewImageUrl = await buildPreviewImageUrl(
+              itemOrderData.character_hash as string | undefined,
+              resolveOrderBookId(itemOrderData),
+            );
             return { childName, previewImageUrl };
           }));
 
@@ -277,7 +306,10 @@ export async function POST(request: NextRequest) {
         } else {
           const characterSpecs = orderData.character_specs as Record<string, unknown> | undefined;
           const childName = (characterSpecs?.childName ?? characterSpecs?.name) as string | undefined;
-          const previewImageUrl = await buildPreviewImageUrl(orderData.character_hash as string | undefined);
+          const previewImageUrl = await buildPreviewImageUrl(
+            orderData.character_hash as string | undefined,
+            resolveOrderBookId(orderData),
+          );
 
           const emailResult = await sendD2COrderConfirmationEmail({
             to: customerEmail,

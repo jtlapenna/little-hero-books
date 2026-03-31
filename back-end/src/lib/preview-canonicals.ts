@@ -6,7 +6,6 @@
 
 import { loadBundledBookConfig } from '@/lib/books';
 import type { BookConfig } from '@/lib/books';
-import { DEFAULT_BOOK_ID, normalizeBookId } from '@/lib/order-paths';
 import { SKIN_TONE_HEX_MAP } from '@/types/customization';
 
 // Frontend skinTone (traitOptions) -> w2A skinToneCanonical
@@ -186,7 +185,11 @@ export function resolvePreviewCanonicals(
   specs: CharacterSpecsInput,
   options: ResolvePreviewCanonicalsOptions = {},
 ): PreviewResolved {
-  const requestedBookId = normalizeBookId(options.bookId ?? DEFAULT_BOOK_ID);
+  const requestedBookId =
+    typeof options.bookId === 'string' ? options.bookId.trim() : '';
+  if (!requestedBookId) {
+    throw new Error('Preview canonical resolution requires an explicit bookId');
+  }
   const bookConfig = loadBundledBookConfig({ bookId: requestedBookId });
   return resolvePreviewCanonicalsForConfig(specs, bookConfig);
 }

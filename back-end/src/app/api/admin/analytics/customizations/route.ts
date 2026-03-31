@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import {
+  buildManifestKeyCandidates,
+  buildManifestKeyHintOptionsFromOrderLike,
+} from '@/lib/order-paths';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getLastNDays } from '@/lib/analytics-helpers';
 import { AnalyticsFilters, AnalyticsReportingRecord, getOrdersForAnalytics } from '@/lib/supabase-analytics';
@@ -115,10 +119,26 @@ function normalizeTraitValue(
   }
 }
 
-async function extractClothingStyleFromManifest(orderId: string): Promise<string | null> {
+function buildAnalyticsManifestCandidates(
+  order: AnalyticsReportingRecord,
+  stage: '1' | '2a',
+): string[] {
+  const orderId = order.amazon_order_id;
+  if (!orderId) {
+    return [];
+  }
+
+  return buildManifestKeyCandidates(
+    orderId,
+    stage,
+    buildManifestKeyHintOptionsFromOrderLike(order),
+  );
+}
+
+async function extractClothingStyleFromManifest(order: AnalyticsReportingRecord): Promise<string | null> {
   const manifestKeys = [
-    `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`,
-    `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`,
+    ...buildAnalyticsManifestCandidates(order, '2a'),
+    ...buildAnalyticsManifestCandidates(order, '1'),
   ];
 
   for (const manifestKey of manifestKeys) {
@@ -142,10 +162,10 @@ async function extractClothingStyleFromManifest(orderId: string): Promise<string
   return null;
 }
 
-async function extractHometownFromManifest(orderId: string): Promise<string | null> {
+async function extractHometownFromManifest(order: AnalyticsReportingRecord): Promise<string | null> {
   const manifestKeys = [
-    `book-mvp-simple-adventure/orders/${orderId}/manifests/2a-manifest.json`,
-    `book-mvp-simple-adventure/orders/${orderId}/manifests/1-manifest.json`,
+    ...buildAnalyticsManifestCandidates(order, '2a'),
+    ...buildAnalyticsManifestCandidates(order, '1'),
   ];
 
   for (const manifestKey of manifestKeys) {
@@ -244,16 +264,15 @@ export async function GET(request: NextRequest) {
         const batch = ordersNeedingManifestLookup.slice(index, index + batchSize);
         await Promise.all(
           batch.map(async ({ order, index: orderIndex }) => {
-            const orderId = order.amazon_order_id;
-            if (!orderId) return;
+            if (!order.amazon_order_id) return;
 
             if (!clothingStyleValues[orderIndex]) {
-              const clothing = await extractClothingStyleFromManifest(orderId);
+              const clothing = await extractClothingStyleFromManifest(order);
               if (clothing) clothingStyleValues[orderIndex] = clothing;
             }
 
             if (!hometownValues[orderIndex]) {
-              const hometown = await extractHometownFromManifest(orderId);
+              const hometown = await extractHometownFromManifest(order);
               if (hometown) hometownValues[orderIndex] = hometown;
             }
           })

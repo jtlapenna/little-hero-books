@@ -102,10 +102,11 @@ function createThreeManifest(options: {
 
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
+  const bookId = 'book-mvp-simple-adventure';
 
   const amazonOrderId = '111-2222222-3333333';
   const siblingOrderId = 'TEST-W4-ITEM-001';
-  const siblingOrderPrefix = buildOrderPrefix(siblingOrderId);
+  const siblingOrderPrefix = buildOrderPrefix(siblingOrderId, bookId);
   const siblingOneManifestKey = buildManifestKeyFromOrderPrefix(siblingOrderPrefix, '1');
   const siblingThreeManifestKey = buildManifestKeyFromOrderPrefix(siblingOrderPrefix, '3');
   const siblingOneManifest = buildW0RunManifest({
@@ -113,7 +114,7 @@ async function main(): Promise<void> {
     rootOrderId: amazonOrderId,
     amazonOrderId,
     platform: 'amazon',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: 'amazon',
     characterHash: 'w4charhash123456',
     input: {
@@ -320,7 +321,7 @@ async function main(): Promise<void> {
   );
 
   const standardOrderId = 'TEST-W4-STANDARD-001';
-  const standardOrderPrefix = buildOrderPrefix(standardOrderId);
+  const standardOrderPrefix = buildOrderPrefix(standardOrderId, bookId);
   const standardOneManifestKey = buildManifestKeyFromOrderPrefix(standardOrderPrefix, '1');
   const standardThreeManifestKey = buildManifestKeyFromOrderPrefix(standardOrderPrefix, '3');
   const standardOneManifest = buildW0RunManifest({
@@ -328,7 +329,7 @@ async function main(): Promise<void> {
     rootOrderId: standardOrderId,
     amazonOrderId: null,
     platform: 'd2c',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: 'standard',
     characterHash: 'w4charhash7890ab',
     input: {
@@ -527,7 +528,7 @@ async function main(): Promise<void> {
       {
         orderId: 'TEST-W4-MISSING-001',
         manifest3Key: buildManifestKeyFromOrderPrefix(
-          buildOrderPrefix('TEST-W4-MISSING-001'),
+          buildOrderPrefix('TEST-W4-MISSING-001', bookId),
           '3',
         ),
       },
@@ -544,7 +545,7 @@ async function main(): Promise<void> {
   );
 
   const missingFirstOrderId = 'TEST-W4-MISSING-FIRST-001';
-  const missingFirstOrderPrefix = buildOrderPrefix(missingFirstOrderId);
+  const missingFirstOrderPrefix = buildOrderPrefix(missingFirstOrderId, bookId);
   const missingFirstOneManifestKey = buildManifestKeyFromOrderPrefix(
     missingFirstOrderPrefix,
     '1',
@@ -558,7 +559,7 @@ async function main(): Promise<void> {
     rootOrderId: missingFirstOrderId,
     amazonOrderId: null,
     platform: 'd2c',
-    bookId: 'book-mvp-simple-adventure',
+    bookId,
     formatId: 'standard',
     characterHash: 'w4charhashmissing',
     input: {

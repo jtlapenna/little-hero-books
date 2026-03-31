@@ -3,8 +3,10 @@ import { decode, encode } from 'fast-png';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import {
+  buildBgRemovedPoseAssetKey,
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
+  resolveOrderPathContext,
 } from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
@@ -257,6 +259,7 @@ export async function POST(
   try {
     const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     const manifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
+    const orderPathContext = resolveOrderPathContext(orderId, manifestHints);
     const manifestKeys = buildManifestKeyCandidates(orderId, '2b', manifestHints);
     let manifestKey = manifestKeys[0];
     let manifestRes: Response | null = null;
@@ -297,8 +300,11 @@ export async function POST(
     let r2Key = entry?.bgRemovedKey;
 
     if (!r2Key) {
-      const poseNN = String(poseNumber).padStart(2, '0');
-      r2Key = `book-mvp-simple-adventure/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose${poseNN}_nobg.png`;
+      r2Key = buildBgRemovedPoseAssetKey(
+        characterHash,
+        poseNumber,
+        orderPathContext.bookId,
+      );
     }
 
     // Strip retry suffix for canonical key (we overwrite the canonical file)
