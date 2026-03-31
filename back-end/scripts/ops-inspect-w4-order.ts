@@ -5,7 +5,7 @@ import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 async function main() {
   const orderId = process.argv[2];
   if (!orderId) {
-    throw new Error('usage: tsx scripts/tmp-inspect-w4-order.ts <orderId>');
+    throw new Error('usage: tsx scripts/ops-inspect-w4-order.ts <orderId>');
   }
 
   const { data: row, error } = await supabase.from('orders').select('*').eq('orderId', orderId).maybeSingle();

@@ -3,7 +3,7 @@ import { inspectW41ProductionGroup } from '@/lib/w41-production-preflight';
 async function main() {
   const rootGroupId = process.argv[2];
   if (!rootGroupId) {
-    throw new Error('usage: tsx scripts/tmp-inspect-w41.ts <rootGroupId>');
+    throw new Error('usage: tsx scripts/ops-inspect-w41-group.ts <rootGroupId>');
   }
 
   const inspection = await inspectW41ProductionGroup(rootGroupId, {

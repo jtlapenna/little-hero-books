@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 async function main() {
   const rootGroupId = process.argv[2];
-  if (!rootGroupId) throw new Error('usage: tsx scripts/tmp-query-w41-jobs.ts <rootGroupId>');
+  if (!rootGroupId) throw new Error('usage: tsx scripts/ops-query-w41-jobs.ts <rootGroupId>');
 
   const supabaseUrl =
     process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();

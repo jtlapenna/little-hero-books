@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 async function main() {
-  const [rootGroupId, productionApprovalToken] = process.argv.slice(2);
-  if (!rootGroupId || !productionApprovalToken) {
-    throw new Error(
-      'usage: tsx scripts/tmp-run-w41-production-pilot.ts <rootGroupId> <productionApprovalToken>',
-    );
+  const rootGroupId = process.argv[2];
+  if (!rootGroupId) {
+    throw new Error('usage: tsx scripts/ops-run-w41-dry-run.ts <rootGroupId>');
   }
 
   const supabaseUrl =
@@ -35,7 +33,7 @@ async function main() {
     rootOrderId: rootGroupId,
     backendUrl: 'https://admin.littleherolabs.com',
     allowProductionLulu: true,
-    productionApprovalToken,
+    productionDryRun: true,
     claimedAt: new Date().toISOString(),
     siblingGroup,
   };

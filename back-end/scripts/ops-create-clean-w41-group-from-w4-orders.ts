@@ -82,7 +82,7 @@ async function main() {
   const [newRootGroupId, sourceOrderA, sourceOrderB] = process.argv.slice(2);
   if (!newRootGroupId || !sourceOrderA || !sourceOrderB) {
     throw new Error(
-      'usage: tsx scripts/tmp-create-clean-w41-group-from-w4-orders.ts <newRootGroupId> <sourceOrderA> <sourceOrderB>',
+      'usage: tsx scripts/ops-create-clean-w41-group-from-w4-orders.ts <newRootGroupId> <sourceOrderA> <sourceOrderB>',
     );
   }
 

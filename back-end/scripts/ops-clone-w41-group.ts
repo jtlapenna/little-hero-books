@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import {
   getObject,
+  listObjects,
   putObject,
   R2_ORDERS_BUCKET,
-  listObjects,
 } from '@/lib/r2-client';
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
@@ -14,7 +14,9 @@ const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
 function assertEnv(value: string | undefined, name: string): string {
-  if (!value) throw new Error(`Missing ${name}`);
+  if (!value) {
+    throw new Error(`Missing ${name}`);
+  }
   return value;
 }
 
@@ -22,6 +24,12 @@ const supabase = createClient(
   assertEnv(supabaseUrl, 'SUPABASE_URL'),
   assertEnv(supabaseKey, 'SUPABASE_SERVICE_ROLE_KEY'),
 );
+
+function toRecord(value: unknown): JsonRecord {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : {};
+}
 
 function deepReplace(
   value: JsonValue,
@@ -34,101 +42,110 @@ function deepReplace(
     }
     return next;
   }
+
   if (Array.isArray(value)) {
     return value.map((entry) => deepReplace(entry, replacements));
   }
+
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value).map(([key, entry]) => [key, deepReplace(entry, replacements)]),
     );
   }
+
   return value;
 }
 
-function toRecord(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : {};
+function deriveNewOrderId(sourceOrderId: string, newRootGroupId: string): string {
+  const itemMatch = sourceOrderId.match(/-item-(\d+)$/i);
+  if (!itemMatch) {
+    throw new Error(`Could not derive sibling item suffix from ${sourceOrderId}`);
+  }
+  return `${newRootGroupId}-item-${itemMatch[1]}`;
 }
 
-async function copyOrderPrefix(sourceOrderId: string, targetOrderId: string, newRootGroupId: string) {
+async function copyPrefix(
+  sourceOrderId: string,
+  newOrderId: string,
+  sourceRootGroupId: string,
+  newRootGroupId: string,
+) {
   const sourcePrefix = `book-mvp-simple-adventure/orders/${sourceOrderId}/`;
-  const targetPrefix = `book-mvp-simple-adventure/orders/${targetOrderId}/`;
+  const targetPrefix = `book-mvp-simple-adventure/orders/${newOrderId}/`;
+  const replacements: Array<[string, string]> = [
+    [sourceOrderId, newOrderId],
+    [sourceRootGroupId, newRootGroupId],
+    [sourcePrefix, targetPrefix],
+  ];
+
   const listed = await listObjects(R2_ORDERS_BUCKET, { prefix: sourcePrefix, maxKeys: 500 });
   const objects = listed.Contents || [];
   if (!objects.length) {
     throw new Error(`No R2 objects found under ${sourcePrefix}`);
   }
 
-  const replacements: Array<[string, string]> = [
-    [sourceOrderId, targetOrderId],
-    [sourcePrefix, targetPrefix],
-  ];
-
   for (const object of objects) {
     const sourceKey = object.Key;
-    const targetKey = sourceKey.replace(sourcePrefix, targetPrefix).split(sourceOrderId).join(targetOrderId);
+    const targetKey = sourceKey
+      .replace(sourcePrefix, targetPrefix)
+      .split(sourceOrderId)
+      .join(newOrderId)
+      .split(sourceRootGroupId)
+      .join(newRootGroupId);
+
     const response = await getObject(R2_ORDERS_BUCKET, sourceKey);
     const contentType = response.headers.get('content-type') || undefined;
 
     if (sourceKey.endsWith('.json')) {
-      const parsed = JSON.parse(await response.text()) as JsonValue;
+      const text = await response.text();
+      const parsed = JSON.parse(text) as JsonValue;
       const replaced = deepReplace(parsed, replacements);
-      const finalValue = deepReplace(replaced, [[sourceOrderId, targetOrderId]]);
       await putObject(
         R2_ORDERS_BUCKET,
         targetKey,
-        `${JSON.stringify(finalValue, null, 2)}\n`,
+        `${JSON.stringify(replaced, null, 2)}\n`,
         'application/json',
       );
-    } else {
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      await putObject(R2_ORDERS_BUCKET, targetKey, bytes, contentType);
+      continue;
     }
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    await putObject(R2_ORDERS_BUCKET, targetKey, bytes, contentType);
   }
 }
 
 async function main() {
-  const [newRootGroupId, sourceOrderA, sourceOrderB] = process.argv.slice(2);
-  if (!newRootGroupId || !sourceOrderA || !sourceOrderB) {
+  const sourceRootGroupId = process.argv[2];
+  const newRootGroupId = process.argv[3];
+  if (!sourceRootGroupId || !newRootGroupId) {
     throw new Error(
-      'usage: tsx scripts/tmp-create-w41-group-from-w4-orders.ts <newRootGroupId> <sourceOrderA> <sourceOrderB>',
+      'usage: tsx scripts/ops-clone-w41-group.ts <sourceRootGroupId> <newRootGroupId>',
     );
-  }
-
-  const { data: existing, error: existingError } = await supabase
-    .from('orders')
-    .select('id,orderId')
-    .eq('root_order_id', newRootGroupId);
-  if (existingError) throw existingError;
-  if ((existing ?? []).length > 0) {
-    throw new Error(`Target root group already exists: ${newRootGroupId}`);
   }
 
   const { data: sourceRows, error: sourceError } = await supabase
     .from('orders')
     .select('*')
-    .in('orderId', [sourceOrderA, sourceOrderB])
+    .eq('root_order_id', sourceRootGroupId)
     .order('orderId', { ascending: true });
   if (sourceError) throw sourceError;
-  if (!sourceRows || sourceRows.length !== 2) {
-    throw new Error('Expected exactly 2 source W4 orders');
+  if (!sourceRows || sourceRows.length < 2) {
+    throw new Error(`Expected at least 2 sibling rows for ${sourceRootGroupId}`);
   }
 
   const now = new Date().toISOString();
-  const clonedRows: JsonRecord[] = [];
+  const clonedRows = [] as JsonRecord[];
 
-  for (const [index, rawRow] of (sourceRows as JsonRecord[]).entries()) {
+  for (const rawRow of sourceRows as JsonRecord[]) {
     const sourceOrderId = String(rawRow.orderId || '');
-    const sourceRoot = String(rawRow.root_order_id || sourceOrderId);
-    const targetOrderId = `${newRootGroupId}-item-${index + 1}`;
+    const newOrderId = deriveNewOrderId(sourceOrderId, newRootGroupId);
 
-    await copyOrderPrefix(sourceOrderId, targetOrderId, newRootGroupId);
+    await copyPrefix(sourceOrderId, newOrderId, sourceRootGroupId, newRootGroupId);
 
     const replaced = toRecord(
       deepReplace(rawRow, [
-        [sourceOrderId, targetOrderId],
-        [sourceRoot, newRootGroupId],
+        [sourceOrderId, newOrderId],
+        [sourceRootGroupId, newRootGroupId],
       ]),
     );
 
@@ -136,10 +153,10 @@ async function main() {
 
     clonedRows.push({
       ...replaced,
-      orderId: targetOrderId,
-      root_order_id: newRootGroupId,
-      amazon_order_id: newRootGroupId,
+      orderId: newOrderId,
       amazonOrderId: newRootGroupId,
+      amazon_order_id: newRootGroupId,
+      root_order_id: newRootGroupId,
       processing_id: null,
       status: 'pending_print',
       workflow_step: 'print_fulfillment',
@@ -175,6 +192,7 @@ async function main() {
       printFulfillmentStatus: null,
       print_fulfillment_started_at: null,
       print_fulfillment_finished_at: null,
+      preview_reminder_sent: null,
       lifecycle_status: 'pending_print',
       reprint_count: 0,
       reprint_reason: null,
@@ -185,14 +203,14 @@ async function main() {
   const { data: inserted, error: insertError } = await supabase
     .from('orders')
     .insert(clonedRows)
-    .select('id,orderId,root_order_id,amazon_order_id,status,workflow_step,current_workflow,next_workflow,execution_status,manifest_3_url');
+    .select('id,orderId,root_order_id,amazon_order_id,status,workflow_step,next_workflow,current_workflow,execution_status,manifest_3_url');
   if (insertError) throw insertError;
 
   console.log(
     JSON.stringify(
       {
+        sourceRootGroupId,
         newRootGroupId,
-        sourceOrderIds: [sourceOrderA, sourceOrderB],
         insertedCount: inserted?.length ?? 0,
         rows: inserted,
       },
