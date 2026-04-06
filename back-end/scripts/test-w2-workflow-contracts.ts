@@ -138,6 +138,10 @@ async function main(): Promise<void> {
     w2aTopLevelWorkflow,
     "Prepare Resolve Pose Worklist Body",
   );
+  const w2aQaHandoffCode = getCode(
+    w2aTopLevelWorkflow,
+    "QA Handoff — Purge & Keep Keys",
+  );
   const w2aTopLevelExecuteNode = getNode(
     w2aTopLevelWorkflow,
     "Execute SW1 - Pose Generation",
@@ -214,6 +218,13 @@ async function main(): Promise<void> {
         (connection) => connection.node === "Set Environment Defaults",
       ),
     "Repo-centric W2A loop should keep manifest finalization on the batch-complete branch and per-pose execution on the iteration branch",
+  );
+  assert(
+    w2aQaHandoffCode.includes("const execOrderContext =") &&
+      w2aQaHandoffCode.includes("const mergedOrderContext = {") &&
+      w2aQaHandoffCode.includes("orderContext: mergedOrderContext") &&
+      w2aQaHandoffCode.includes("amazonOrderId: rootOrderId ?? orderId ?? null"),
+    "Repo-centric W2A QA handoff should rehydrate order identity from execution context before building retry payloads",
   );
 
   assert(

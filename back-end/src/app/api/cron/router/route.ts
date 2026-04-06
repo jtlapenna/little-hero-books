@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
+import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
 import {
   getPerBookOrderId,
   isReadyForSiblingPrintRouting,
@@ -90,6 +91,19 @@ export async function GET(request: NextRequest) {
     w0CleanupMs: 0,
     webhookCallMs: 0,
     totalMs: 0
+  };
+
+  const logExcludedTestOrders = (
+    label: string,
+    excluded: Array<{ summary: { reason: string; orderId: string | null; amazonOrderId: string | null; rootOrderId: string | null; customerEmail: string | null } }>,
+  ): void => {
+    if (excluded.length === 0) return;
+
+    console.warn(`[Cron Router] [${executionId}] Skipping ${excluded.length} explicit test/smoke order(s) from ${label}:`, {
+      label,
+      count: excluded.length,
+      orders: excluded.slice(0, 20).map((entry) => entry.summary),
+    });
   };
 
   console.log(`[Cron Router] [${executionId}] Starting execution at ${new Date().toISOString()}`);
@@ -354,16 +368,21 @@ export async function GET(request: NextRequest) {
     const w0RetriggerStart = Date.now();
     const { data: stuckPendingW0 } = await supabase
       .from('orders')
-      .select('id,"orderId",platform,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
+      .select('id,"orderId",amazon_order_id,platform,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
       .eq('execution_status', 'pending_w0')
       .is('next_workflow', null)
       .is('one_manifest_url', null)
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Only last 24h
       .limit(5);
-    if (stuckPendingW0 && stuckPendingW0.length > 0) {
+    const {
+      included: eligibleStuckPendingW0,
+      excluded: excludedStuckPendingW0,
+    } = splitCronExcludedOrders(stuckPendingW0 || []);
+    logExcludedTestOrders('pending_w0_retrigger', excludedStuckPendingW0);
+    if (eligibleStuckPendingW0.length > 0) {
       const { buildD2CW0Payload } = await import('@/lib/w0-payload');
       const { triggerW0 } = await import('@/lib/sibling-order-helpers');
-      for (const o of stuckPendingW0) {
+      for (const o of eligibleStuckPendingW0) {
         const orderData = o as Record<string, unknown>;
         const oid = orderData.orderId ?? orderData.order_id ?? orderData.id;
         console.log(`[Cron Router] [${executionId}] Re-triggering W0 for stuck order ${oid}`);
@@ -378,20 +397,26 @@ export async function GET(request: NextRequest) {
     // 3b. Check for orders that completed W0 but weren't updated properly
     // These orders have one_manifest_url but still have execution_status='pending_w0' (W0 wrote manifest, Supabase update missed)
     const w0CleanupStart = Date.now();
-    const { data: w0CompletedOrders, error: w0CleanupError } = await supabase
+    const { data: w0CompletedOrders } = await supabase
       .from('orders')
-      .select('id,amazon_order_id,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages,customer_approval_required,customer_approval_status')
+      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages,customer_approval_required,customer_approval_status')
       .eq('execution_status', 'pending_w0')
       .not('one_manifest_url', 'is', null);
     
-    if (w0CompletedOrders && w0CompletedOrders.length > 0) {
-      console.log(`[Cron Router] [${executionId}] Found ${w0CompletedOrders.length} order(s) that completed W0 but weren't updated`);
+    const {
+      included: eligibleW0CompletedOrders,
+      excluded: excludedW0CompletedOrders,
+    } = splitCronExcludedOrders(w0CompletedOrders || []);
+    logExcludedTestOrders('w0_completion_cleanup', excludedW0CompletedOrders);
+
+    if (eligibleW0CompletedOrders.length > 0) {
+      console.log(`[Cron Router] [${executionId}] Found ${eligibleW0CompletedOrders.length} order(s) that completed W0 but weren't updated`);
       
       // Import determineNextWorkflow to calculate next_workflow
       const { determineNextWorkflow } = await import('@/lib/determine-next-workflow');
       
       // Update each order to ready_for_processing with correct next_workflow
-      const w0UpdatePromises = w0CompletedOrders.map(async (order) => {
+      const w0UpdatePromises = eligibleW0CompletedOrders.map(async (order) => {
         // Never overwrite an explicit W4 (admin or customer-approved) with a recalculated value
         if (order.next_workflow === '4') {
           return;
@@ -401,7 +426,7 @@ export async function GET(request: NextRequest) {
         if (typeof reviewStages === 'string') {
           try {
             reviewStages = JSON.parse(reviewStages);
-          } catch (e) {
+          } catch {
             reviewStages = null;
           }
         }
@@ -460,7 +485,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
+      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)
@@ -502,6 +527,11 @@ export async function GET(request: NextRequest) {
       if (approvalRequired && !approved) return false;
       return true;
     });
+    const {
+      included: cronEligibleOrders,
+      excluded: excludedReadyOrders,
+    } = splitCronExcludedOrders(eligibleOrders);
+    logExcludedTestOrders('ready_order_routing', excludedReadyOrders);
 
     type HeldSiblingGroup = {
       rootOrderId: string;
@@ -515,7 +545,7 @@ export async function GET(request: NextRequest) {
     };
 
     const heldSiblingGroups: HeldSiblingGroup[] = [];
-    const siblingOrders = eligibleOrders.filter(
+    const siblingOrders = cronEligibleOrders.filter(
       (o) => String(o.next_workflow || '') === '4' && isSiblingChildOrder(o),
     );
     const siblingRootIds = [...new Set(siblingOrders.map((o) => String(o.root_order_id)))];
@@ -574,7 +604,7 @@ export async function GET(request: NextRequest) {
     }
 
     const heldSiblingRootIds = new Set(heldSiblingGroups.map((group) => group.rootOrderId));
-    const routableEligibleOrders = eligibleOrders.filter((order) => {
+    const routableEligibleOrders = cronEligibleOrders.filter((order) => {
       const next = String(order.next_workflow || '');
       if (next !== '4' || !order.root_order_id || !order.orderId || order.root_order_id === order.orderId) {
         return true;

@@ -103,6 +103,13 @@ function hasExplicitTestMarker(order: AnalyticsOrderLike): string | null {
   return marker ?? null;
 }
 
+export function getExplicitAnalyticsTestMarkerReason(
+  order: AnalyticsOrderLike,
+): string | null {
+  const marker = hasExplicitTestMarker(order);
+  return marker ? `explicit_${marker}_marker` : null;
+}
+
 function hasCustomerIdentity(order: AnalyticsOrderLike): boolean {
   return hasValue(order.customer_name) || hasValue(order.customer_email);
 }
@@ -127,9 +134,9 @@ export function classifyAnalyticsOrder(order: AnalyticsOrderLike): AnalyticsClas
     return { classification: order.classification, reason: 'preclassified' };
   }
 
-  const explicitTestMarker = hasExplicitTestMarker(order);
-  if (explicitTestMarker) {
-    return { classification: 'test', reason: `explicit_${explicitTestMarker}_marker` };
+  const explicitTestReason = getExplicitAnalyticsTestMarkerReason(order);
+  if (explicitTestReason) {
+    return { classification: 'test', reason: explicitTestReason };
   }
 
   if (order.platform === 'amazon') {

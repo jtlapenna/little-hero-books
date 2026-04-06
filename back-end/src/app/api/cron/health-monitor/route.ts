@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
 import { runRepoWorkflowWatchdog } from '@/lib/workflow-watchdog';
 
 export const dynamic = 'force-dynamic';
@@ -12,29 +13,41 @@ const n8nWebhookUrl = process.env.N8N_HEALTH_MONITOR_WEBHOOK_URL;
 
 type StuckOrderRow = {
   id: number;
+  orderId?: string | null;
   amazon_order_id?: string | null;
+  root_order_id?: string | null;
   current_workflow?: string | null;
   started_at?: string | null;
   retry_count?: number | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
 };
 
 type RetryOrderRow = {
   id: number;
+  orderId?: string | null;
   amazon_order_id?: string | null;
+  root_order_id?: string | null;
   next_workflow?: string | null;
   retry_count?: number | null;
   error_type?: string | null;
   character_hash?: string | null;
   one_manifest_url?: string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
 };
 
 type OrphanedOrderRow = {
   id: number;
+  orderId?: string | null;
   amazon_order_id?: string | null;
+  root_order_id?: string | null;
   orphan_reason?: string | null;
   execution_status?: string | null;
   next_workflow?: string | null;
   current_workflow?: string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
 };
 
 /**
@@ -87,20 +100,38 @@ export async function GET(request: NextRequest) {
     totalMs: 0
   };
 
+  const logExcludedTestOrders = (
+    label: string,
+    excluded: Array<{ summary: { reason: string; orderId: string | null; amazonOrderId: string | null; rootOrderId: string | null; customerEmail: string | null } }>,
+  ): void => {
+    if (excluded.length === 0) return;
+
+    console.warn(`[Cron Health Monitor] [${executionId}] Skipping ${excluded.length} explicit test/smoke order(s) from ${label}:`, {
+      label,
+      count: excluded.length,
+      orders: excluded.slice(0, 20).map((entry) => entry.summary),
+    });
+  };
+
   console.log(`[Cron Health Monitor] [${executionId}] Starting execution at ${new Date().toISOString()}`);
 
   try {
     // 1. Check for stuck orders (processing > 30 minutes)
     const stuckQueryStart = Date.now();
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
-    const { data: stuckOrders, error: stuckError } = await supabase
+    const { data: stuckOrdersRaw, error: stuckError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,current_workflow,started_at,retry_count,error_message')
+      .select('id,"orderId",amazon_order_id,root_order_id,current_workflow,started_at,retry_count,error_message,customer_email,customer_name')
       .eq('execution_status', 'processing')
       .lt('started_at', stuckThreshold.toISOString())
       // Exclude orders that are legitimately idle (approval, done, post-fulfillment)
       .not('workflow_step', 'in', '("customer_approval","done","print_fulfillment")');
     metrics.stuckQueryMs = Date.now() - stuckQueryStart;
+    const {
+      included: stuckOrders,
+      excluded: excludedStuckOrders,
+    } = splitCronExcludedOrders((stuckOrdersRaw as StuckOrderRow[] | null) || []);
+    logExcludedTestOrders('stuck_order_scan', excludedStuckOrders);
 
     if (stuckError) {
       console.error(`[Cron Health Monitor] [${executionId}] Failed to fetch stuck orders:`, {
@@ -118,7 +149,7 @@ export async function GET(request: NextRequest) {
         retryCount: o.retry_count
       }));
       console.log(`[Cron Health Monitor] [${executionId}] Stuck orders query:`, {
-        count: stuckOrders?.length || 0,
+        count: stuckOrders.length || 0,
         details: stuckDetails,
         duration: `${metrics.stuckQueryMs}ms`
       });
@@ -126,15 +157,20 @@ export async function GET(request: NextRequest) {
 
     // 2. Check for retry-ready orders (error status, next_retry_at <= now, retry_count < 3)
     const retryQueryStart = Date.now();
-    const { data: retryOrders, error: retryError } = await supabase
+    const { data: retryOrdersRaw, error: retryError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at')
+      .select('id,"orderId",amazon_order_id,root_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at,customer_email,customer_name')
       .eq('execution_status', 'error')
       .lte('next_retry_at', new Date().toISOString())
       .lt('retry_count', 3)
       .order('next_retry_at', { ascending: true })
       .limit(10);
     metrics.retryQueryMs = Date.now() - retryQueryStart;
+    const {
+      included: retryOrders,
+      excluded: excludedRetryOrders,
+    } = splitCronExcludedOrders((retryOrdersRaw as RetryOrderRow[] | null) || []);
+    logExcludedTestOrders('retry_order_scan', excludedRetryOrders);
 
     if (retryError) {
       console.error(`[Cron Health Monitor] [${executionId}] Failed to fetch retry orders:`, {
@@ -153,7 +189,7 @@ export async function GET(request: NextRequest) {
         hasCharacterHash: !!o.character_hash
       }));
       console.log(`[Cron Health Monitor] [${executionId}] Retry orders query:`, {
-        count: retryOrders?.length || 0,
+        count: retryOrders.length || 0,
         details: retryDetails,
         duration: `${metrics.retryQueryMs}ms`
       });
@@ -162,12 +198,12 @@ export async function GET(request: NextRequest) {
     // 3. Check for orphaned orders (using RPC function)
     // Exclude orders that are already in the stuck query to avoid duplicate processing
     const orphanedQueryStart = Date.now();
-    const { data: orphanedOrdersRaw, error: orphanedError } = await supabase.rpc('get_orphaned_orders');
+    const { data: orphanedOrdersRpc, error: orphanedError } = await supabase.rpc('get_orphaned_orders');
     
     // Filter out orders that are already being processed as stuck
     // This prevents orders stuck 30-60 minutes from being processed by both paths
-    const stuckOrderIds = new Set(((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.id));
-    const orphanedOrders = ((orphanedOrdersRaw as OrphanedOrderRow[] | null) || []).filter((o) => {
+    const stuckOrderIds = new Set(stuckOrders.map((o) => o.id));
+    const orphanedOrdersFiltered = ((orphanedOrdersRpc as OrphanedOrderRow[] | null) || []).filter((o) => {
       // Exclude processing orders that are already in stuck query
       // (orphaned query catches processing orders > 1 hour, but stuck query catches > 30 minutes)
       if (o.execution_status === 'processing' && stuckOrderIds.has(o.id)) {
@@ -175,6 +211,11 @@ export async function GET(request: NextRequest) {
       }
       return true; // Include all other orphaned orders
     });
+    const {
+      included: orphanedOrders,
+      excluded: excludedOrphanedOrders,
+    } = splitCronExcludedOrders(orphanedOrdersFiltered);
+    logExcludedTestOrders('orphaned_order_scan', excludedOrphanedOrders);
     metrics.orphanedQueryMs = Date.now() - orphanedQueryStart;
 
     if (orphanedError) {
@@ -192,16 +233,16 @@ export async function GET(request: NextRequest) {
         workflow: o.next_workflow || o.current_workflow
       }));
       console.log(`[Cron Health Monitor] [${executionId}] Orphaned orders query:`, {
-        count: orphanedOrders?.length || 0,
+        count: orphanedOrders.length || 0,
         details: orphanedDetails,
         duration: `${metrics.orphanedQueryMs}ms`
       });
     }
 
     // 4. Count work items
-    const stuckCount = stuckOrders?.length || 0;
-    const retryCount = retryOrders?.length || 0;
-    const orphanedCount = orphanedOrders?.length || 0;
+    const stuckCount = stuckOrders.length || 0;
+    const retryCount = retryOrders.length || 0;
+    const orphanedCount = orphanedOrders.length || 0;
     const totalWork = stuckCount + retryCount + orphanedCount;
 
     let workflowWatchdog: Awaited<ReturnType<typeof runRepoWorkflowWatchdog>> | null = null;
@@ -246,9 +287,9 @@ export async function GET(request: NextRequest) {
 
     // 6. Work exists - call n8n webhook (1 execution)
     const payload = {
-      stuck: stuckOrders || [],
-      retries: retryOrders || [],
-      orphaned: orphanedOrders || []
+      stuck: stuckOrders,
+      retries: retryOrders,
+      orphaned: orphanedOrders
     };
 
     console.log(`[Cron Health Monitor] [${executionId}] Found work - calling n8n webhook:`, {
@@ -256,9 +297,9 @@ export async function GET(request: NextRequest) {
       retries: retryCount,
       orphaned: orphanedCount,
       total: totalWork,
-      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
+      stuckOrderIds: stuckOrders.map((o) => o.amazon_order_id),
+      retryOrderIds: retryOrders.map((o) => o.amazon_order_id),
+      orphanedOrderIds: orphanedOrders.map((o) => o.amazon_order_id),
       webhookUrl: n8nWebhookUrl
     });
 
@@ -317,9 +358,9 @@ export async function GET(request: NextRequest) {
         orphaned: orphanedCount,
         total: totalWork
       },
-      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
+      stuckOrderIds: stuckOrders.map((o) => o.amazon_order_id),
+      retryOrderIds: retryOrders.map((o) => o.amazon_order_id),
+      orphanedOrderIds: orphanedOrders.map((o) => o.amazon_order_id),
       webhookStatus: webhookResponse.status,
       webhookDuration: `${metrics.webhookCallMs}ms`,
       totalDuration: `${metrics.totalMs}ms`,
@@ -336,9 +377,9 @@ export async function GET(request: NextRequest) {
         orphanedCount,
         total: totalWork
       },
-      stuckOrderIds: ((stuckOrders as StuckOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      retryOrderIds: ((retryOrders as RetryOrderRow[] | null) || []).map((o) => o.amazon_order_id),
-      orphanedOrderIds: (orphanedOrders || []).map((o) => o.amazon_order_id),
+      stuckOrderIds: stuckOrders.map((o) => o.amazon_order_id),
+      retryOrderIds: retryOrders.map((o) => o.amazon_order_id),
+      orphanedOrderIds: orphanedOrders.map((o) => o.amazon_order_id),
       workflowWatchdog,
       metrics,
       n8nExecutions: 1,
