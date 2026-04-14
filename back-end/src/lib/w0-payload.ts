@@ -9,6 +9,11 @@
  * Do not include amazonOrderId or marketplaceId.
  */
 export function buildD2CW0Payload(order: Record<string, unknown>): Record<string, unknown> {
+  const trimToString = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
   const orderId = order.orderId ?? order.order_id ?? order.id;
   const orderDate = typeof order.purchase_date === 'string'
     ? order.purchase_date
@@ -20,10 +25,26 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
   const shippingAddress = order.shipping_address ?? order.shippingAddress ?? {};
   const dedication = order.dedication_text ?? order.dedication ?? '';
   const productInfo = (order.product_info ?? order.productInfo) as Record<string, unknown> | undefined;
+  const bookId = trimToString(productInfo?.bookId) ?? trimToString(productInfo?.book_id);
+  const formatId = trimToString(productInfo?.formatId) ?? trimToString(productInfo?.format_id);
 
   const bookSpecs = productInfo?.totalPages != null
-    ? { totalPages: productInfo.totalPages, format: productInfo.format ?? '8.5x8.5_softcover', bookType: 'adventure' }
-    : { title: `${(characterSpecs as Record<string, unknown>).childName ?? 'Child'} and the Adventure Compass`, totalPages: 16, format: '8.5x8.5_softcover', bookType: 'adventure' };
+    ? {
+        title: productInfo.title ?? `${(characterSpecs as Record<string, unknown>).childName ?? 'Child'} and the Adventure Compass`,
+        totalPages: productInfo.totalPages,
+        format: productInfo.format ?? '8.5x8.5_softcover',
+        bookType: productInfo.bookType ?? 'adventure',
+        ...(bookId ? { bookId } : {}),
+        ...(formatId ? { formatId } : {}),
+      }
+    : {
+        title: `${(characterSpecs as Record<string, unknown>).childName ?? 'Child'} and the Adventure Compass`,
+        totalPages: 16,
+        format: '8.5x8.5_softcover',
+        bookType: 'adventure',
+        ...(bookId ? { bookId } : {}),
+        ...(formatId ? { formatId } : {}),
+      };
 
   return {
     orderId,
@@ -41,6 +62,8 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
     shipping_address: shippingAddress,
     characterSpecs,
     character_specs: characterSpecs,
+    ...(bookId ? { bookId, book_id: bookId } : {}),
+    ...(formatId ? { formatId, format_id: formatId } : {}),
     bookSpecs,
     book_specs: bookSpecs,
     orderDetails: {

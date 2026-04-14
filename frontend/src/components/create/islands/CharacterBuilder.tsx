@@ -20,6 +20,7 @@ import {
   NAME_MAX_LENGTH,
 } from '../../../lib/createFlow/traitOptions';
 import { hasRequiredVisualTraits, computeVisualTraitsKey } from '../../../lib/createFlow/characterHash';
+import { getActiveD2CBookConfig } from '../../../lib/createFlow/bookConfig';
 import { TraitGridPicker } from './TraitGridPicker';
 import { SwatchPicker } from './SwatchPicker';
 import { PreviewPanel, type PreviewPanelStatus } from './PreviewPanel';
@@ -49,13 +50,14 @@ interface PreviewResult {
  */
 async function checkPreviewCache(character: CreateFlowCharacter): Promise<{ exists: boolean; imageUrl?: string; hash?: string }> {
   const url = `${API_BASE}/api/preview/check`;
+  const { bookId, formatId } = getActiveD2CBookConfig();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PREVIEW_CHECK_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ character_specs: character }),
+      body: JSON.stringify({ character_specs: character, bookId, formatId }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -74,13 +76,14 @@ async function checkPreviewCache(character: CreateFlowCharacter): Promise<{ exis
  */
 function requestPreview(character: CreateFlowCharacter, forceRegenerate = false): Promise<PreviewResult> {
   const url = `${API_BASE}/api/preview/generate`;
+  const { bookId, formatId } = getActiveD2CBookConfig();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
 
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ character_specs: character, forceRegenerate }),
+    body: JSON.stringify({ character_specs: character, bookId, formatId, forceRegenerate }),
     signal: controller.signal,
   })
     .then(async (res) => {

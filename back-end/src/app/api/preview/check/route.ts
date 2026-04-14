@@ -22,8 +22,25 @@ export async function OPTIONS() {
 }
 
 /** Check cache by hash. Falls back to a previously-paid order's base-character image. */
-async function checkCacheByHash(hash: string): Promise<{ exists: boolean; imageUrl?: string; source?: string }> {
-  const resolved = await resolveReusablePreviewAsset(hash);
+function resolveRequestedBookId(body: Record<string, unknown>, specs: Record<string, unknown>): string | null {
+  const candidates = [
+    body.bookId,
+    body.book_id,
+    specs.bookId,
+    specs.book_id,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+async function checkCacheByHash(hash: string, bookId: string): Promise<{ exists: boolean; imageUrl?: string; source?: string }> {
+  const resolved = await resolveReusablePreviewAsset(hash, bookId);
   if (resolved) {
     return { exists: true, imageUrl: resolved.imageUrl, source: resolved.source };
   }
@@ -35,6 +52,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const hash = searchParams.get('hash');
+    const requestedBookId = searchParams.get('bookId')?.trim() || '';
 
     if (!hash || !/^[a-f0-9]{16}$/i.test(hash)) {
       return NextResponse.json(
@@ -42,8 +60,14 @@ export async function GET(request: NextRequest) {
         { status: 400, headers: corsHeaders }
       );
     }
+    if (!requestedBookId) {
+      return NextResponse.json(
+        { error: 'Missing bookId query parameter', exists: false },
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
-    const result = await checkCacheByHash(hash);
+    const result = await checkCacheByHash(hash, requestedBookId);
     return NextResponse.json({ ...result, hash }, { headers: corsHeaders });
   } catch (err: unknown) {
     console.error('[Preview Check GET] Error:', err);
@@ -59,10 +83,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const specs = body.character_specs ?? body.characterSpecs ?? {};
+    const requestedBookId = resolveRequestedBookId(body, specs as Record<string, unknown>);
 
     if (!specs || typeof specs !== 'object' || Object.keys(specs).length === 0) {
       return NextResponse.json(
         { error: 'Missing character_specs', exists: false },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    if (!requestedBookId) {
+      return NextResponse.json(
+        { error: 'bookId is required for preview cache checks', exists: false },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -71,7 +102,7 @@ export async function POST(request: NextRequest) {
     const hash = calculatePreviewHash(specs as Record<string, unknown>);
     
     // First check the D2C preview cache (preview_hash location)
-    const previewResult = await checkCacheByHash(hash);
+    const previewResult = await checkCacheByHash(hash, requestedBookId);
     if (previewResult.exists) {
       return NextResponse.json({ ...previewResult, hash }, { headers: corsHeaders });
     }

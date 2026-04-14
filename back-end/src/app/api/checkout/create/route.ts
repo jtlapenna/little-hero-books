@@ -9,9 +9,21 @@ import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
 import { calculateCharacterHash, calculatePreviewHash } from '@/lib/character-hash';
+import { DEFAULT_BOOK_ID } from '@/lib/order-paths';
 import { buildSiblingOrderId } from '@/lib/sibling-order-helpers';
 
 export const dynamic = 'force-dynamic';
+
+const D2C_DEFAULT_BOOK_ID =
+  (process.env.D2C_DEFAULT_BOOK_ID ?? DEFAULT_BOOK_ID).trim() || DEFAULT_BOOK_ID;
+const D2C_DEFAULT_FORMAT_ID =
+  (process.env.D2C_DEFAULT_FORMAT_ID ?? 'standard').trim() || 'standard';
+
+function trimToString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 /**
  * Infer clothing style from pronouns (matches Amazon order logic).
@@ -208,6 +220,15 @@ export async function POST(request: NextRequest) {
         }
 
         const isSingleBook = bookInputs.length === 1;
+        const requestedProductInfo = (parsed.product_info ?? {}) as Record<string, unknown>;
+        const resolvedBookId =
+          trimToString(requestedProductInfo.bookId) ??
+          trimToString(requestedProductInfo.book_id) ??
+          D2C_DEFAULT_BOOK_ID;
+        const resolvedFormatId =
+          trimToString(requestedProductInfo.formatId) ??
+          trimToString(requestedProductInfo.format_id) ??
+          D2C_DEFAULT_FORMAT_ID;
         // For single book: use root_order_id directly (backward compat)
         // For multi-book: each book gets root-item-{index}
         const orderIds: string[] = [];
@@ -235,11 +256,15 @@ export async function POST(request: NextRequest) {
             totalPages: 16,
             format: '8.5x8.5_softcover',
             bookType: 'adventure',
+            bookId: resolvedBookId,
+            formatId: resolvedFormatId,
           };
 
           const product_info = {
+            ...requestedProductInfo,
             ...book_specs,
-            ...parsed.product_info,
+            bookId: resolvedBookId,
+            formatId: resolvedFormatId,
             ...(!isSingleBook ? { _sibling_order: i > 0, _root_order_id: root_order_id } : {}),
           };
 

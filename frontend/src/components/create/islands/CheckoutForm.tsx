@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { load, save, clear } from '../../../lib/createFlow/createFlowStorage';
+import { getActiveD2CBookConfig } from '../../../lib/createFlow/bookConfig';
 import type { CreateFlowState, CreateFlowCheckout, CreateFlowCheckoutShipping, ShippingTierId } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
 
@@ -288,12 +289,17 @@ function CheckoutForm() {
 
       const books = state.books;
       const isMultiBook = books.length > 1;
+      const { bookId, formatId } = getActiveD2CBookConfig();
 
       const payload: Record<string, unknown> = {
         customer_email: email.trim(),
         customer_name: shipping.name?.trim(),
         shipping_address: shippingAddress,
         shipping_tier: shippingTier,
+        product_info: {
+          bookId,
+          formatId,
+        },
       };
 
       if (isMultiBook) {
