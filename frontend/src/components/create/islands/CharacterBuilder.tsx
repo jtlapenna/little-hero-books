@@ -26,9 +26,13 @@ import { SwatchPicker } from './SwatchPicker';
 import { PreviewPanel, type PreviewPanelStatus } from './PreviewPanel';
 
 const PREVIEW_CAP = 3;
-const PREVIEW_TIMEOUT_MS = 90000;
+const PREVIEW_REQUEST_TIMEOUT_MS = 180000;
+const PREVIEW_TIMEOUT_GRACE_MS = 30000;
+const PREVIEW_UI_TIMEOUT_MS = PREVIEW_REQUEST_TIMEOUT_MS + PREVIEW_TIMEOUT_GRACE_MS + 5000;
+const PREVIEW_TIMEOUT_MESSAGE = 'Preview timed out. You can continue and we\'ll finish it after checkout.';
 /** Timeout for cache-check request so we don't hang if backend is unreachable */
 const PREVIEW_CHECK_TIMEOUT_MS = 10000;
+const PREVIEW_TIMEOUT_POLL_INTERVAL_MS = 5000;
 
 /** Backend base URL for API calls (empty = same origin). Set PUBLIC_BACKEND_URL in dev if frontend/backend differ. */
 const API_BASE =
@@ -70,6 +74,20 @@ async function checkPreviewCache(character: CreateFlowCharacter): Promise<{ exis
   }
 }
 
+async function waitForPreviewCacheAfterTimeout(
+  character: CreateFlowCharacter,
+): Promise<{ imageUrl?: string; hash?: string } | null> {
+  const deadline = Date.now() + PREVIEW_TIMEOUT_GRACE_MS;
+  while (Date.now() < deadline) {
+    const cached = await checkPreviewCache(character);
+    if (cached.exists && cached.imageUrl) {
+      return { imageUrl: cached.imageUrl, hash: cached.hash };
+    }
+    await new Promise((resolve) => setTimeout(resolve, PREVIEW_TIMEOUT_POLL_INTERVAL_MS));
+  }
+  return null;
+}
+
 /**
  * Request character preview from backend (POST /api/preview/generate). Uses Gemini server-side.
  * Now returns hash and cached flag in addition to imageUrl.
@@ -78,7 +96,7 @@ function requestPreview(character: CreateFlowCharacter, forceRegenerate = false)
   const url = `${API_BASE}/api/preview/generate`;
   const { bookId, formatId } = getActiveD2CBookConfig();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), PREVIEW_REQUEST_TIMEOUT_MS);
 
   return fetch(url, {
     method: 'POST',
@@ -100,10 +118,14 @@ function requestPreview(character: CreateFlowCharacter, forceRegenerate = false)
       const data = JSON.parse(text) as { imageUrl?: string; image_url?: string; hash?: string; cached?: boolean; error?: string };
       return { ok: res.ok, imageUrl: data.imageUrl ?? data.image_url, hash: data.hash, cached: data.cached, error: data.error };
     })
-    .catch((err) => {
+    .catch(async (err) => {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        return { ok: false, error: 'Preview timed out. You can continue and we\'ll finish it after checkout.' };
+        const cached = await waitForPreviewCacheAfterTimeout(character);
+        if (cached?.imageUrl) {
+          return { ok: true, imageUrl: cached.imageUrl, hash: cached.hash, cached: true };
+        }
+        return { ok: false, error: PREVIEW_TIMEOUT_MESSAGE };
       }
       return { ok: false, error: err?.message ?? 'Preview couldn\'t be generated right now. You can continue and we\'ll finish it after checkout.' };
     })
@@ -245,12 +267,12 @@ function CharacterBuilder() {
       persist({
         preview: {
           status: 'error',
-          errorMessage: 'Preview timed out. You can continue and we\'ll finish it after checkout.',
+          errorMessage: PREVIEW_TIMEOUT_MESSAGE,
           generationCount: count + 1,
         },
       });
       setPreviewTimeoutId(null);
-    }, PREVIEW_TIMEOUT_MS);
+    }, PREVIEW_UI_TIMEOUT_MS);
     setPreviewTimeoutId(timeoutId);
     requestPreview(state.character, forceRegenerate).then((result) => {
       if (timeoutId) clearTimeout(timeoutId);
