@@ -1,2 +1,1 @@
-export const DEFAULT_PROD_API_BASE = 'https://little-hero-books.vercel.app';
-
+export const DEFAULT_PROD_API_BASE = 'https://admin.littleherolabs.com';

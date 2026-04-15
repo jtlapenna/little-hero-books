@@ -1,4 +1,5 @@
 import { inferBookIdFromPathLikes } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -163,11 +164,10 @@ function getRootOrderId(input: W3RenderPreviewDocumentInput, amazonOrderId: stri
 }
 
 function resolveBackendUrl(input: W3RenderPreviewDocumentInput, fallback?: string): string {
-  return (
-    toTrimmedString(input.backendUrl) ??
-    toTrimmedString(fallback) ??
-    'https://admin.littleherolabs.com'
-  ).replace(/\/$/, '');
+  return resolveCanonicalBackendBaseUrl(
+    toTrimmedString(input.backendUrl),
+    toTrimmedString(fallback),
+  );
 }
 
 function resolvePageFileName(input: W3RenderPreviewDocumentInput, pageNumber: number | null): string {

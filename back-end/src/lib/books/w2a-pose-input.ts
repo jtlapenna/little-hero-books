@@ -11,6 +11,7 @@ import {
   type BookConfigRuntimeSource,
 } from '@/lib/books/runtime-book-config';
 import type { BookConfig } from '@/lib/books/types';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -562,9 +563,7 @@ export async function buildW2APoseInput(
   const backendUrl =
     explicitBackendUrl ??
     (isLocalDevelopmentUrl(compatBackendUrl) ? null : compatBackendUrl) ??
-    options.defaultBackendUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);
   const publicR2Url =
     normalizeLikelyUrl(
       pickFirstNonEmpty(input.publicR2Url, orderContext.publicR2Url, compatSnapshot.publicR2Url),

@@ -12,6 +12,7 @@ import {
   type NormalizedW0Manifest,
 } from '@/lib/books/normalize-w0-manifest';
 import type { BookPageConfig } from '@/lib/books/types';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1167,9 +1168,7 @@ export async function buildW4PrintInput(
         orderContext.backendUrl,
       ),
     ) ??
-    options.defaultBackendUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);
 
   const pathLikes = collectPathLikes(primary, nested, orderContext);
   const explicitOrderId = toTrimmedString(

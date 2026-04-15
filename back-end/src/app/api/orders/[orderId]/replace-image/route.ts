@@ -16,6 +16,7 @@ import {
   normalizeOrderPrefix,
 } from '@/lib/order-paths';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -959,7 +960,7 @@ export async function POST(
       // Use backend proxy endpoint if publicR2Url is not available (works with private buckets)
       // IMPORTANT: publicUrl must match approvedKey to ensure 2B workflow uses the correct image
       const publicR2Url = toTrimmedString(manifestOrder?.publicR2Url);
-      const backendUrl = 'https://admin.littleherolabs.com';
+      const backendUrl = resolveCanonicalBackendBaseUrl();
       
       if (publicR2Url) {
         entry.publicUrl = `${publicR2Url}/${originalKey}`;

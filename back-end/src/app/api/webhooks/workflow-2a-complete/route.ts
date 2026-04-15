@@ -10,6 +10,7 @@ import {
   buildManifestKeyHintOptionsFromOrderLike,
   extractManifestKey,
 } from '@/lib/order-paths';
+import { buildCanonicalBackendUrl } from '@/lib/backend-url';
 
 const PayloadSchema = z.object({
   orderId: z.string().min(1),
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       throw new Error('workflow-2a-complete: resolved row root orderId does not match payload amazonOrderId');
     }
 
-    const manifestUrl = `https://admin.littleherolabs.com/api/manifests/${expectedManifestKey}`;
+    const manifestUrl = buildCanonicalBackendUrl(`/api/manifests/${expectedManifestKey}`);
     const updateNow = new Date().toISOString();
     const updateRes = await supabase
       .from('orders')

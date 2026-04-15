@@ -3,6 +3,7 @@ import {
   buildBgRemovedPoseAssetKey,
   resolveOrderPathContext,
 } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -210,9 +211,7 @@ export function buildW2BPoseInput(
 
   const backendUrl =
     toTrimmedString(pickFirstNonEmpty(input.backendUrl, orderContext.backendUrl)) ??
-    options.defaultBackendUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);
   const callbackUrl =
     toTrimmedString(pickFirstNonEmpty(input.callbackUrl, orderContext.callbackUrl)) ??
     `${backendUrl.replace(/\/$/, '')}/webhook/2b-callback`;

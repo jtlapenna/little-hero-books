@@ -5,6 +5,7 @@ import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { resolveOrderPathContext } from '@/lib/order-paths';
 import { getSignedUrlForObject } from '@/lib/r2-service';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type PdfType = 'interior' | 'cover';
 
@@ -396,7 +397,7 @@ function ensureDomMatrixPolyfill() {
 }
 
 function ensurePdfJsBrowserGlobals() {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://admin.littleherolabs.com').replace(/\/+$/, '') + '/';
+  const baseUrl = `${resolveCanonicalBackendBaseUrl(process.env.NEXT_PUBLIC_APP_URL)}/`;
   const globalScope = globalThis as unknown as {
     window?: { location?: string };
     document?: { baseURI?: string };

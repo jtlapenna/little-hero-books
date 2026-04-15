@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { buildCanonicalBackendUrl } from '@/lib/backend-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       webhooks: body,
-      expectedUrl: 'https://admin.littleherolabs.com/api/webhooks/lulu/status',
+      expectedUrl: buildCanonicalBackendUrl('/api/webhooks/lulu/status'),
     });
   } catch (err: any) {
     return NextResponse.json(

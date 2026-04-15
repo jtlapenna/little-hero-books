@@ -3,6 +3,7 @@ import {
   resolveOrderPathContext,
   buildManifestKeyFromOrderPrefix,
 } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -210,8 +211,7 @@ function resolveBaseContext(input: JsonRecord): BuildW2AManifestBaseContext {
     toTrimmedString(
       pickFirstNonEmpty(input.backendUrl, orderContext.backendUrl),
     ) ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl();
 
   const rootOrderId = toTrimmedString(
     pickFirstNonEmpty(

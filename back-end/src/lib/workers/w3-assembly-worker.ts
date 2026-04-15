@@ -1,6 +1,6 @@
-type JsonRecord = Record<string, unknown>;
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
-const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
+type JsonRecord = Record<string, unknown>;
 
 export interface PrepareW3AssemblyRunResult extends JsonRecord {
   orderId: string;
@@ -288,7 +288,7 @@ export function collectW3PreviewImages(
   const base = asOrderBase(build, ready, previews[0] ?? {});
   const backendUrl =
     firstString(base.backendUrl, ready.backendUrl, build.backendUrl, current.backendUrl) ??
-    DEFAULT_BACKEND_URL;
+    resolveCanonicalBackendBaseUrl();
   const publicR2Url =
     firstString(base.publicR2Url, ready.publicR2Url, build.publicR2Url, current.publicR2Url) ?? null;
 
@@ -453,7 +453,7 @@ export function markW3PreviewsReady(
     0;
   const backendUrl =
     firstString(current.backendUrl, collected.backendUrl, ready.backendUrl, prep.backendUrl) ??
-    DEFAULT_BACKEND_URL;
+    resolveCanonicalBackendBaseUrl();
   const manifestKey =
     firstString(current.manifestKey, prep.manifestKey, ready.manifest3Key) ?? null;
   const manifestUrl =

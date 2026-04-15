@@ -12,6 +12,7 @@ import {
 } from '@/lib/books/normalize-w0-manifest';
 import { LEGACY_REQUIRED_2B_POSE_NUMBERS } from '@/lib/books/read-2b-manifest';
 import type { BookPageConfig } from '@/lib/books/types';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -690,9 +691,7 @@ export async function buildW3AssemblyInput(
     toTrimmedString(
       pickFirstNonEmpty(primary.backendUrl, nested.backendUrl, orderContext.backendUrl),
     ) ??
-    options.defaultBackendUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);
   const testMode = toBoolean(
     pickFirstNonEmpty(primary.testMode, nested.testMode, orderContext.testMode, false),
   );

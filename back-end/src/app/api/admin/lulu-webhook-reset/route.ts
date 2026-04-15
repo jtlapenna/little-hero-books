@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +18,12 @@ export async function POST(request: NextRequest) {
   const luluApiBase = (process.env.LULU_API_BASE || 'https://api.lulu.com').replace(/\/+$/, '');
   const base =
     process.env.LULU_WEBHOOK_BASE_URL ||
+    process.env.ADMIN_BASE_URL ||
     process.env.BACKEND_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
   const webhookUrl =
     process.env.LULU_WEBHOOK_URL ||
-    (base ? `${base.replace(/\/+$/, '')}/api/webhooks/lulu/status` : 'https://admin.littleherolabs.com/api/webhooks/lulu/status');
+    `${resolveCanonicalBackendBaseUrl(base)}/api/webhooks/lulu/status`;
 
   if (!luluClientId || !luluClientSecret) {
     return NextResponse.json(

@@ -1,5 +1,5 @@
 name: Deploy to Cloudflare Pages
-# Testing deployment with Repository secrets configured
+# Authoritative production backend deploy for admin.littleherolabs.com
 
 on:
   push:
@@ -131,6 +131,16 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           DEBUG: "1"
 
+      - name: Smoke-check canonical admin backend
+        run: |
+          cd back-end
+          npm run smoke:admin-backend
+        env:
+          ADMIN_BASE_URL: https://admin.littleherolabs.com
+          CUSTOMER_SITE_URL: ${{ secrets.CUSTOMER_SITE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Post-deploy diagnostics
         if: always()
         run: |
@@ -141,4 +151,3 @@ jobs:
           echo "Checking if deployment actually happened..."
           echo "Current time: $(date)"
           echo "=============================="
-

@@ -13,17 +13,13 @@ import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { sendD2COrderConfirmationEmail, sendD2CSiblingOrderConfirmationEmail } from '@/lib/notifications/d2c-email';
 import { getObject, putObject, headObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { buildBaseCharacterAssetKey, buildCharacterAssetPrefix } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 
 function getPublicAssetBaseUrl(): string {
-  return (
-    process.env.ADMIN_BASE_URL?.trim() ||
-    process.env.BACKEND_URL?.trim() ||
-    process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
-    'https://admin.littleherolabs.com'
-  ).replace(/\/+$/, '');
+  return resolveCanonicalBackendBaseUrl();
 }
 
 function resolveOrderBookId(orderData: Record<string, unknown>): string | undefined {

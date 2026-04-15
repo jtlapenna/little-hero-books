@@ -1,4 +1,5 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import {
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
@@ -122,7 +123,6 @@ export type W2AFinalizeActionResult = {
 };
 
 const DEFAULT_N8N_BASE = 'https://thepeakbeyond.app.n8n.cloud';
-const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const TOP_WORKFLOW_ID = 'HduzTWm0ekmrvwrn';
 const EXPECTED_WEBHOOK_PATH = '2a-start-repo';
 
@@ -743,11 +743,7 @@ export async function inspectW2ARecoveryOrder(
   const candidate = buildCandidateSummary(lookup.row, jobs, {
     staleMinutes: options.staleMinutes,
   });
-  const adminBaseUrl =
-    options.adminBaseUrl?.trim() ||
-    process.env.ADMIN_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    DEFAULT_ADMIN_BASE;
+  const adminBaseUrl = resolveCanonicalBackendBaseUrl(options.adminBaseUrl);
 
   const manifestReachableUrl = await resolveManifestUrl(orderId, lookup.row, adminBaseUrl);
 
@@ -896,11 +892,7 @@ export async function finalizeW2ARecoveryOrder(
     rootOrderId: inspection.rootOrderId,
     manifestUrl: inspection.manifestReachableUrl,
     posesGenerated: inspection.jobCounts.total,
-    adminBaseUrl:
-      options.adminBaseUrl?.trim() ||
-      process.env.ADMIN_BASE_URL?.trim() ||
-      process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-      DEFAULT_ADMIN_BASE,
+    adminBaseUrl: resolveCanonicalBackendBaseUrl(options.adminBaseUrl),
   });
 
   return {

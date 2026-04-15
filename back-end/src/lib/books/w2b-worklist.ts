@@ -1,9 +1,11 @@
 import {
+  DEFAULT_BOOK_ID,
   buildManifestKeyCandidates,
   buildManifestKeyFromOrderPrefix,
   extractManifestKey,
   resolveOrderPathContext,
 } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -275,9 +277,7 @@ export async function buildW2BWorklist(
     toTrimmedString(
       pickFirstNonEmpty(input.backendUrl, orderContext.backendUrl),
     ) ??
-    options.defaultBackendUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);
   const callbackUrl =
     toTrimmedString(
       pickFirstNonEmpty(input.callbackUrl, orderContext.callbackUrl),
@@ -295,7 +295,7 @@ export async function buildW2BWorklist(
           orderContext.bookId,
           orderContext.book_id,
         ),
-      ) ?? undefined,
+      ) ?? DEFAULT_BOOK_ID,
     orderPrefix:
       toTrimmedString(
         pickFirstNonEmpty(

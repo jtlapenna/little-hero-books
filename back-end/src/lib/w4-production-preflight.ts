@@ -1,4 +1,5 @@
 import { buildW4PrintInput, buildW4SubmitInput, type BuildW4PrintInputResult, type BuildW4SubmitInputResult } from '@/lib/books';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import {
   buildLuluWebhookSignal,
   isNonProductionLuluSubmission,
@@ -15,7 +16,6 @@ import { supabase, getOrderFromSupabase } from '@/lib/supabase-client';
 
 type JsonRecord = Record<string, unknown>;
 
-const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
 export type W4ProductionAction = 'preflight' | 'inspect' | 'none';
 
@@ -182,12 +182,7 @@ function cleanAmazonOrderId(orderRow: W4ProductionOrderRow): string | null {
 }
 
 function getAdminBaseUrl(preferred?: string | null): string {
-  return (
-    preferred?.trim() ||
-    process.env.ADMIN_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    DEFAULT_ADMIN_BASE
-  ).replace(/\/+$/, '');
+  return resolveCanonicalBackendBaseUrl(preferred);
 }
 
 function isProofLikeOrderRow(orderRow: W4ProductionOrderRow): boolean {

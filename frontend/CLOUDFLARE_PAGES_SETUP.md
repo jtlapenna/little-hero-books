@@ -13,7 +13,12 @@ To deploy this frontend to Cloudflare Pages, update the following settings in yo
 
 ### Environment Variables
 
-No environment variables required for basic deployment.
+Set these explicitly for production so the customer site always targets the canonical Cloudflare/OpenNext backend:
+
+- `PUBLIC_API_URL=https://admin.littleherolabs.com`
+- `PUBLIC_SITE_URL=<current customer site domain>`
+
+Leave `PUBLIC_BACKEND_URL` unset after cutover. The Vercel alias is no longer a production dependency.
 
 ### Installation
 
@@ -31,6 +36,7 @@ If you cannot update the dashboard settings, you can:
 - Astro builds to the `dist` directory by default
 - Hybrid rendering: site is static by default, with server-rendered dynamic routes where `export const prerender = false;` is set (Astro 5 hybrid)
 - Customer preview page `src/pages/approve/[token].astro` is server-rendered to validate tokens at runtime
+- Cloudflare Pages is the authoritative production deploy surface for both customer frontend and admin/backend; GitHub Actions deploys the admin/backend project `little-hero-labs-admin`
 - On Cloudflare Pages, ensure Functions are enabled (automatic) so SSR routes run at the edge; no extra env vars needed for frontend
-- Backend API remains on `admin.littleherolabs.com` (Next.js); confirm CORS allows the customer site origin
-
+- Backend API remains on `admin.littleherolabs.com` (Cloudflare/OpenNext); confirm CORS allows the customer site origin
+- `little-hero-books.vercel.app` is debug-only and should not be used as the customer-facing production API base

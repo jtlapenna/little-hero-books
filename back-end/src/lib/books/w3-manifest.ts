@@ -3,10 +3,9 @@ import {
   buildManifestKeyFromOrderPrefix,
   inferBookIdFromPathLikes,
 } from '@/lib/order-paths';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
-
-const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
 
 export interface BuildW3ManifestResult extends JsonRecord {
   manifest: JsonRecord;
@@ -69,7 +68,7 @@ function toInteger(value: unknown): number | null {
 }
 
 function resolveBackendUrl(input: JsonRecord): string {
-  return (toTrimmedString(input.backendUrl) ?? DEFAULT_BACKEND_URL).replace(/\/$/, '');
+  return resolveCanonicalBackendBaseUrl(toTrimmedString(input.backendUrl));
 }
 
 function resolveOrderId(input: JsonRecord): string {

@@ -1,9 +1,8 @@
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import type { W3PreviewDocumentKind } from '@/lib/w3-pdfmonkey-preview';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
-
-const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
 
 export interface MaterializeW3PreviewArtifactInput extends JsonRecord {
   documentKind?: W3PreviewDocumentKind;
@@ -121,11 +120,10 @@ function resolveBackendUrl(
   input: MaterializeW3PreviewArtifactInput,
   fallback?: string,
 ): string {
-  return (
-    toTrimmedString(input.backendUrl) ??
-    toTrimmedString(fallback) ??
-    DEFAULT_BACKEND_URL
-  ).replace(/\/$/, '');
+  return resolveCanonicalBackendBaseUrl(
+    toTrimmedString(input.backendUrl),
+    toTrimmedString(fallback),
+  );
 }
 
 function resolveOrderId(input: MaterializeW3PreviewArtifactInput): string {

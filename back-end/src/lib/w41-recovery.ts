@@ -1,4 +1,5 @@
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import { isNonProductionLuluSubmission } from '@/lib/lulu-webhook-signal';
 import { supabase } from '@/lib/supabase-client';
 import type { WorkflowJobRecord } from '@/lib/workflow-jobs';
@@ -149,7 +150,6 @@ export const W41_RECOVERY_ORDER_SELECT_FIELDS = [
 export const W41_RECOVERY_ORDER_SELECT = W41_RECOVERY_ORDER_SELECT_FIELDS.join(', ');
 
 const DEFAULT_N8N_BASE = 'https://thepeakbeyond.app.n8n.cloud';
-const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const W41_WORKFLOW_ID = 'boWA0mB20qYK2g4x';
 const EXPECTED_WEBHOOK_PATH = 'w4-1-sibling-aggregation-repo';
 const ACTIVE_STATUSES = new Set(['queued', 'claimed', 'running', 'polling', 'retry_waiting']);
@@ -213,12 +213,7 @@ function getN8NBaseUrl(): string {
 }
 
 function getAdminBaseUrl(preferred?: string | null): string {
-  return (
-    preferred?.trim() ||
-    process.env.ADMIN_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    DEFAULT_ADMIN_BASE
-  ).replace(/\/+$/, '');
+  return resolveCanonicalBackendBaseUrl(preferred);
 }
 
 function latestJobUpdateAt(jobs: WorkflowJobRecord[]): string | null {

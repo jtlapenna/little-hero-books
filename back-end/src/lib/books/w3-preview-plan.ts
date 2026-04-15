@@ -4,10 +4,9 @@ import {
   inferBookIdFromPathLikes,
 } from '@/lib/order-paths';
 import type { BookPageConfig } from '@/lib/books/types';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
-
-const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
 const DEFAULT_PAGE_PREVIEW_TEMPLATE_ID = '23277725-4AB0-446A-98C5-CB99C21822B3';
 const DEFAULT_STANDARD_COVER_PREVIEW_TEMPLATE_ID = 'D0F07D93-9267-47BB-A6AF-D6EC5ACDF476';
 const DEFAULT_AMAZON_COVER_PREVIEW_TEMPLATE_ID = '8DB1D274-AA3C-4E14-B051-65B6F872B013';
@@ -357,7 +356,7 @@ function buildNormalizedInputs(input: JsonRecord): JsonRecord {
 }
 
 function resolveBackendUrl(input: JsonRecord): string {
-  return (toTrimmedString(input.backendUrl) ?? DEFAULT_BACKEND_URL).replace(/\/$/, '');
+  return resolveCanonicalBackendBaseUrl(toTrimmedString(input.backendUrl));
 }
 
 function collectBookPathLikes(input: JsonRecord): Array<string | null | undefined> {

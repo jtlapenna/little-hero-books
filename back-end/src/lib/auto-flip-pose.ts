@@ -2,6 +2,7 @@ import {
   buildGeneratedPoseAssetKey,
   buildPoseReferenceAssetKey,
 } from '@/lib/order-paths';
+import { buildCanonicalBackendUrl } from '@/lib/backend-url';
 
 export type AutoFlipDecisionSource = 'deterministic' | 'gemini';
 
@@ -114,7 +115,7 @@ export function buildPoseReferenceKey(
 // Reuse the same public URL fallback as the replacement route.
 export function buildAssetPublicUrl(key: string, publicR2Url?: string | null): string {
   if (publicR2Url) return `${publicR2Url}/${key}`;
-  return `https://admin.littleherolabs.com/api/assets/${key}`;
+  return buildCanonicalBackendUrl(`/api/assets/${key}`);
 }
 
 // Keep duplicate flip requests idempotent.

@@ -3,6 +3,7 @@ import { resolveOrderPathContext } from '@/lib/order-paths';
 import { getSignedUrlForObject } from '@/lib/r2-service';
 import { getBucketFromKey, extractR2Key } from '@/lib/r2-utils';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -219,7 +220,6 @@ export interface PublishW4PrintManifestResult extends JsonRecord {
   };
 }
 
-const DEFAULT_BACKEND_URL = 'https://admin.littleherolabs.com';
 const PDFMONKEY_DOCUMENTS_API = 'https://api.pdfmonkey.io/api/v1/documents';
 const DEFAULT_INTERIOR_TEMPLATE_ID = '5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172';
 const DEFAULT_COVER_TEMPLATE_ID = 'D52F14C8-BBC3-4058-929F-195DFC707E75';
@@ -309,11 +309,10 @@ function resolveRootOrderId(input: JsonRecord, amazonOrderId: string | null, ord
 }
 
 function resolveBackendUrl(input: JsonRecord, fallback?: string): string {
-  return (
-    toTrimmedString(input.backendUrl) ??
-    toTrimmedString(fallback) ??
-    DEFAULT_BACKEND_URL
-  ).replace(/\/$/, '');
+  return resolveCanonicalBackendBaseUrl(
+    toTrimmedString(input.backendUrl),
+    toTrimmedString(fallback),
+  );
 }
 
 function extractAssetKeysFromHtml(html: string): string[] {

@@ -26,6 +26,7 @@ import {
 } from '@/lib/auto-flip-pose';
 import { detectImageFormat } from '@/lib/image-flip';
 import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type AutoFlipPoseRequestBody = {
   poseNumber?: unknown;
@@ -433,7 +434,7 @@ export async function POST(
     const poseRefKey = buildPoseReferenceKey(poseNumberValue, resolvedBookId);
     const sourceFormat = detectImageFormat(sourceImage);
     const publicR2Url = manifest.order?.publicR2Url;
-    const backendUrl = (process.env.BACKEND_URL || 'https://admin.littleherolabs.com').replace(/\/+$/, '');
+    const backendUrl = resolveCanonicalBackendBaseUrl();
     const sourceImageUrl =
       sourceBucket === R2_PUBLIC_BUCKET && publicR2Url
         ? `${publicR2Url}/${resolvedSourceKey}`

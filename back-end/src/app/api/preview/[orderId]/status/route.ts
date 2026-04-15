@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { supabase } from '@/lib/supabase-client';
-import { LuluStatus } from '@/constants/statuses';
+import { emailsMatchForLookup } from '@/lib/customer-email';
 
 /**
  * Resolve order ID from either short format (LH-XXXXX) or full UUID
@@ -206,11 +206,13 @@ export async function GET(
       );
     }
 
+    const orderRecord = order as Record<string, unknown>;
+
     // Optional email verification: if client sends email, must match order (404 on mismatch)
     const emailParam = request.nextUrl.searchParams.get('email')?.trim();
     if (emailParam) {
-      const customerEmail = (order as any).customer_email ?? (order as any).customerEmail;
-      if (!customerEmail || customerEmail.toLowerCase() !== emailParam.toLowerCase()) {
+      const customerEmail = orderRecord.customer_email ?? orderRecord.customerEmail;
+      if (!emailsMatchForLookup(customerEmail, emailParam)) {
         return NextResponse.json(
           { error: 'Order not found' },
           { status: 404, headers: corsHeaders }
@@ -220,15 +222,15 @@ export async function GET(
 
     // Get status message
     // Check both camelCase and snake_case for luluStatus
-    const luluStatus = order.luluStatus || (order as any).lulu_status || null;
+    const luluStatus = order.luluStatus || orderRecord.lulu_status || null;
     const orderStatus = order.status || null;
     const statusInfo = getCustomerStatusMessage(luluStatus, orderStatus);
 
     // Extract tracking info from order data
     // Check multiple possible field names (database might use snake_case or camelCase)
-    const trackingNumber = (order as any).trackingNumber || (order as any).tracking_number || null;
-    const trackingUrl = (order as any).trackingUrl || (order as any).tracking_url || null;
-    const carrierName = (order as any).carrierName || (order as any).carrier || null;
+    const trackingNumber = orderRecord.trackingNumber || orderRecord.tracking_number || null;
+    const trackingUrl = orderRecord.trackingUrl || orderRecord.tracking_url || null;
+    const carrierName = orderRecord.carrierName || orderRecord.carrier || null;
     
     // If trackingUrl is a string, convert to array for consistency
     const trackingUrls = trackingUrl 
@@ -237,18 +239,18 @@ export async function GET(
 
     // Build response
     const response = {
-      orderId: order.orderId || (order as any).order_id || (order as any).amazon_order_id,
+      orderId: order.orderId || orderRecord.order_id || orderRecord.amazon_order_id,
       status: statusInfo.short,
       statusLong: statusInfo.long,
       statusIcon: statusInfo.icon,
       statusColor: statusInfo.color,
-      luluStatus: order.luluStatus || (order as any).lulu_status || null,
+      luluStatus: order.luluStatus || orderRecord.lulu_status || null,
       orderStatus: order.status || null,
       trackingNumber: trackingNumber,
       trackingUrls: trackingUrls,
       carrierName: carrierName,
-      customerApprovalStatus: order.customerApprovalStatus || (order as any).customer_approval_status || null,
-      updatedAt: order.updatedAt || (order as any).updated_at || null,
+      customerApprovalStatus: order.customerApprovalStatus || orderRecord.customer_approval_status || null,
+      updatedAt: order.updatedAt || orderRecord.updated_at || null,
     };
 
     return NextResponse.json(response, {
@@ -265,4 +267,3 @@ export async function GET(
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import { buildW3Manifest, type BuildW3ManifestResult } from '@/lib/books';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -116,7 +117,7 @@ export async function publishW3Manifest(
   const built = buildW3Manifest(input);
   const backendUrl =
     firstString(input.backendUrl, (built as JsonRecord).backendUrl) ??
-    'https://admin.littleherolabs.com';
+    resolveCanonicalBackendBaseUrl();
   const putObjectImpl = options.putObjectImpl ?? putObject;
   const getOrderImpl = options.getOrderImpl ?? getOrderFromSupabase;
   const updateOrderImpl = options.updateOrderImpl ?? updateOrderInSupabase;

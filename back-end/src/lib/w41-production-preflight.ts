@@ -4,6 +4,7 @@ import {
   type BuildW4SiblingPrintInputResult,
   type BuildW4SiblingSubmitInputResult,
 } from '@/lib/books';
+import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import {
   buildLuluWebhookSignal,
   isNonProductionLuluSubmission,
@@ -19,7 +20,6 @@ import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 
 type JsonRecord = Record<string, unknown>;
 
-const DEFAULT_ADMIN_BASE = 'https://admin.littleherolabs.com';
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
 export type W41ProductionAction = 'preflight' | 'inspect' | 'none';
 
@@ -202,12 +202,7 @@ function cleanRootGroupId(orderRow: W41ProductionOrderRow): string | null {
 }
 
 function getAdminBaseUrl(preferred?: string | null): string {
-  return (
-    preferred?.trim() ||
-    process.env.ADMIN_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    DEFAULT_ADMIN_BASE
-  ).replace(/\/+$/, '');
+  return resolveCanonicalBackendBaseUrl(preferred);
 }
 
 function isSandboxSubmissionMarker(row: W41ProductionOrderRow): boolean {
