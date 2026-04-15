@@ -212,6 +212,7 @@ export async function mapSupabaseOrderToOrder(
     finalBookUrl: record.final_book_url || undefined,
     finalCoverUrl: record.final_cover_url || undefined,
     workflowStep: record.workflow_step || undefined,
+    nextWorkflow: record.next_workflow || undefined,
     currentWorkflow: record.current_workflow || undefined,
     luluStatus: record.lulu_status || undefined,
     luluJobId: record.lulu_job_id || undefined,
