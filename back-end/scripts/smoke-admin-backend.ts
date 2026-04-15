@@ -1,6 +1,12 @@
 #!/usr/bin/env tsx
 
+import { config as loadEnv } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+
+loadEnv({
+  path: process.env.DOTENV_CONFIG_PATH?.trim() || '.env.local',
+  override: false,
+});
 
 type CheckoutResponse = {
   order_id: string;
