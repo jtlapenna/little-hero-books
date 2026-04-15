@@ -113,7 +113,7 @@ jobs:
           fi
           echo "Checking whether project exists in provided Cloudflare account..."
           PROJECT_LIST_JSON=$(npx wrangler pages project list --json)
-          node -e "const projects=JSON.parse(process.argv[1]);const name=process.env.CLOUDFLARE_PAGES_PROJECT;const found=Array.isArray(projects)&&projects.some((p)=>p&&p.name===name);if(!found){console.error('❌ ERROR: target project not found in this Cloudflare account.');process.exit(1);}console.log('✅ Project found in target account:',name);" "$PROJECT_LIST_JSON"
+          node -e "const projects=JSON.parse(process.argv[1]);const name=process.env.CLOUDFLARE_PAGES_PROJECT;const candidates=Array.isArray(projects)?projects:[];const found=candidates.some((p)=>{if(!p||typeof p!=='object') return false; return p.name===name || p.project_name===name || p['Project Name']===name;});if(!found){console.error('❌ ERROR: target project not found in this Cloudflare account.');process.exit(1);}console.log('✅ Project found in target account:',name);" "$PROJECT_LIST_JSON"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
