@@ -390,7 +390,7 @@ Historical milestone summary:
   - [`route.ts`](/Users/jeff/Projects/little-hero-books/back-end/src/app/api/cron/router/route.ts) now falls back to active live `W1.1` webhook path `w1-1-router-sibtest`
   - [env.example](/Users/jeff/Projects/little-hero-books/back-end/env.example) now documents the same active router path
   - after deploy, `GET /api/cron/router` returned `200` instead of the earlier `502` / `404 not registered`
-- do not assume the repo route is still active from the cleanup alone; before future live `n8n` edits, run [`check-w2a-live-route.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/check-w2a-live-route.ts) to verify the workflow pair and repo webhook configuration without triggering a live run
+- historical March 25 cleanup alone was not enough to prove the repo route was still active; that proof is now complete, but before future live `n8n` edits, still run [`check-w2a-live-route.ts`](/Users/jeff/Projects/little-hero-books/back-end/scripts/check-w2a-live-route.ts) to verify the workflow pair and repo webhook configuration without triggering a live run
 
 Recommended stage-facing workers:
 
