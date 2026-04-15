@@ -144,6 +144,8 @@ const BookItemSchema = z.object({
   dedication: z.string().optional(),
 });
 
+const ProductInfoSchema = z.object({}).catchall(z.unknown());
+
 const BodySchema = z.object({
   shipping_address: ShippingAddressSchema,
   customer_email: z.string().email(),
@@ -151,7 +153,7 @@ const BodySchema = z.object({
   // Single book (backward compat)
   character_specs: CharacterSpecsSchema.optional(),
   dedication: z.string().optional(),
-  product_info: z.record(z.unknown()).optional(),
+  product_info: ProductInfoSchema.optional(),
   shipping_tier: SHIPPING_TIER_ENUM.optional().default('mail'),
   // Multi-book
   books: z.array(BookItemSchema).min(1).max(5).optional(),
@@ -173,16 +175,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Idempotency-Key header is required' }, { status: 400, headers: corsHeaders });
     }
 
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
+    }
+
     let parsed: z.infer<typeof BodySchema>;
     try {
-      const body = await request.json();
       parsed = BodySchema.parse(body);
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fields = err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
         return NextResponse.json({ error: 'Validation failed', fields }, { status: 400, headers: corsHeaders });
       }
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
+      throw err;
     }
 
     if (parsed.shipping_address.country !== 'US') {
@@ -319,7 +327,7 @@ export async function POST(request: NextRequest) {
         });
 
         // One Stripe line item per book + one for shipping
-        const bookLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = bookInputs.map((b, i) => {
+        const bookLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = bookInputs.map((b) => {
           const name = (b.character_specs.childName ?? b.character_specs.name ?? 'Child') as string;
           return {
             quantity: 1,
