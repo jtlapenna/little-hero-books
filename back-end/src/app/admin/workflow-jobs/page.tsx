@@ -232,6 +232,15 @@ const STATUS_OPTIONS = [
   { value: 'canceled', label: 'Canceled' },
 ];
 
+const WORKFLOW_LINKS = [
+  { href: '/admin/workflow-jobs', label: 'Workflow Jobs', description: 'Inspect recent repo-centric job activity.' },
+  { href: '/admin/w2a-recovery', label: 'W2A Recovery', description: 'Recover and replay pose-generation orders.' },
+  { href: '/admin/w4-production', label: 'W4 Production', description: 'Review W4 production readiness and exports.' },
+  { href: '/admin/w41-production', label: 'W4.1 Production', description: 'Inspect grouped production preflight and approvals.' },
+  { href: '/admin/w4-recovery', label: 'W4 Recovery', description: 'Recover W4 production callbacks and stuck work.' },
+  { href: '/admin/w41-recovery', label: 'W4.1 Recovery', description: 'Recover W4.1 grouped production callbacks.' },
+];
+
 function formatTimestamp(value: string | null): string {
   if (!value) {
     return 'N/A';
@@ -643,6 +652,32 @@ function WorkflowJobsPageContent() {
             {banner.message}
           </div>
         )}
+
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-5 py-4">
+            <h2 className="text-lg font-semibold text-gray-900">Workflow tools</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Use this page as the workflow landing surface, then jump into the specialized recovery and production tools when needed.
+            </p>
+          </div>
+          <div className="grid gap-3 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+            {WORKFLOW_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 transition hover:border-indigo-200 hover:bg-indigo-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{item.label}</div>
+                    <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                  </div>
+                  <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 transition group-hover:text-indigo-600" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {data && (
           <div className="mb-6 grid gap-4 md:grid-cols-5">
