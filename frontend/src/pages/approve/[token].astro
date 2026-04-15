@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import Button from '../../components/Button.astro';
 import BookSpreadViewer from '../../components/BookSpreadViewer.tsx';
+import { DEFAULT_PROD_API_BASE } from '../../lib/apiBase';
 
 // This is a server-rendered dynamic route (not pre-rendered)
 // We need to validate tokens at runtime, so we can't use static generation
@@ -25,7 +26,7 @@ if (!token) {
 const apiBase =
   import.meta.env.PUBLIC_API_URL ??
   import.meta.env.PUBLIC_BACKEND_URL ??
-  (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin.littleherolabs.com');
+  (import.meta.env.DEV ? 'http://localhost:3000' : DEFAULT_PROD_API_BASE);
 ---
 
 <Layout title="Book Preview - Little Hero Labs" description="Preview your personalized children's book">
@@ -3479,4 +3480,3 @@ const apiBase =
     }
   }
 </style>
-

@@ -20,6 +20,7 @@ import {
   NAME_MAX_LENGTH,
 } from '../../../lib/createFlow/traitOptions';
 import { hasRequiredVisualTraits, computeVisualTraitsKey } from '../../../lib/createFlow/characterHash';
+import { DEFAULT_PROD_API_BASE } from '../../../lib/apiBase';
 import { getActiveD2CBookConfig } from '../../../lib/createFlow/bookConfig';
 import { TraitGridPicker } from './TraitGridPicker';
 import { SwatchPicker } from './SwatchPicker';
@@ -38,7 +39,7 @@ const PREVIEW_TIMEOUT_POLL_INTERVAL_MS = 5000;
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
-  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? DEFAULT_PROD_API_BASE : '');
 
 interface PreviewResult {
   imageUrl?: string;
@@ -112,7 +113,7 @@ function requestPreview(character: CreateFlowCharacter, forceRegenerate = false)
       if (!contentType.includes('application/json') || !text.trim().startsWith('{')) {
         const hint = API_BASE
           ? ''
-          : ' Set PUBLIC_API_URL (or PUBLIC_BACKEND_URL) in the frontend environment (e.g. https://admin.littleherolabs.com).';
+          : ` Set PUBLIC_API_URL (or PUBLIC_BACKEND_URL) in the frontend environment (e.g. ${DEFAULT_PROD_API_BASE}).`;
         return { ok: false, error: `Preview service returned an unexpected response (${res.status}). Is the backend running?${hint}` };
       }
       const data = JSON.parse(text) as { imageUrl?: string; image_url?: string; hash?: string; cached?: boolean; error?: string };

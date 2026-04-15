@@ -5,13 +5,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { load, clear } from '../../../lib/createFlow/createFlowStorage';
+import { DEFAULT_PROD_API_BASE } from '../../../lib/apiBase';
 import type { CreateFlowState } from '../../../lib/createFlow/createFlowSchema';
 
 /** Backend base URL for API calls. */
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
-  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? DEFAULT_PROD_API_BASE : '');
 
 interface OrderStatus {
   previewUrl?: string;

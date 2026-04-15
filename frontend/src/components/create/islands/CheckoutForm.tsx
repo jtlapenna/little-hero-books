@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { load, save, clear } from '../../../lib/createFlow/createFlowStorage';
+import { DEFAULT_PROD_API_BASE } from '../../../lib/apiBase';
 import { getActiveD2CBookConfig } from '../../../lib/createFlow/bookConfig';
 import type { CreateFlowState, CreateFlowCheckout, CreateFlowCheckoutShipping, ShippingTierId } from '../../../lib/createFlow/createFlowSchema';
 import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelectors';
@@ -13,7 +14,7 @@ import { isCharacterStepComplete } from '../../../lib/createFlow/createFlowSelec
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_API_URL ??
   (import.meta as { env?: { PUBLIC_API_URL?: string; PUBLIC_BACKEND_URL?: string; PROD?: boolean } }).env?.PUBLIC_BACKEND_URL ??
-  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? 'https://admin.littleherolabs.com' : '');
+  ((import.meta as { env?: { PROD?: boolean } }).env?.PROD ? DEFAULT_PROD_API_BASE : '');
 
 /** Book price (cents). Must match backend DEFAULT_AMOUNT_CENTS. */
 const BOOK_PRICE_CENTS = 2999;
