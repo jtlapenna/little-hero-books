@@ -2,6 +2,7 @@ name: Deploy to Cloudflare Pages
 # Authoritative production backend deploy for admin.littleherolabs.com
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
