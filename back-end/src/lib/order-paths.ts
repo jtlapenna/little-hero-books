@@ -41,6 +41,24 @@ function getStringField(
   return trimmed || null;
 }
 
+function getProductInfoRecord(
+  record: OrderLikeRecord | null | undefined,
+): OrderLikeRecord | null {
+  return toRecord(record?.product_info) ?? toRecord(record?.productInfo);
+}
+
+function getBookSpecsRecord(
+  record: OrderLikeRecord | null | undefined,
+): OrderLikeRecord | null {
+  const productInfo = getProductInfoRecord(record);
+  return (
+    toRecord(record?.book_specs) ??
+    toRecord(record?.bookSpecs) ??
+    toRecord(productInfo?.bookSpecs) ??
+    toRecord(productInfo?.book_specs)
+  );
+}
+
 function normalizePathLike(value: unknown): string {
   const trimmed = trimToString(value);
   if (!trimmed) {
@@ -271,20 +289,25 @@ export function inferBookIdFromPathLikes(
 export function collectOrderPathLikes(orderLike: unknown): string[] {
   const record = toRecord(orderLike);
   const bookContext = toRecord(record?.bookContext);
+  const productInfo = getProductInfoRecord(record);
   const values = [
     getStringField(bookContext, 'orderPrefix'),
     getStringField(record, 'orderPrefix'),
     getStringField(record, 'order_prefix'),
+    getStringField(productInfo, '_order_prefix'),
     getStringField(record, 'assetPrefix'),
     getStringField(record, 'asset_prefix'),
     getStringField(record, 'oneManifestUrl'),
     getStringField(record, 'one_manifest_url'),
     getStringField(record, 'manifest2aUrl'),
     getStringField(record, 'manifest_2a_url'),
+    getStringField(productInfo, '_manifest_2a_url'),
     getStringField(record, 'manifest2bUrl'),
     getStringField(record, 'manifest_2b_url'),
+    getStringField(productInfo, '_manifest_2b_url'),
     getStringField(record, 'manifest3Url'),
     getStringField(record, 'manifest_3_url'),
+    getStringField(productInfo, '_manifest_3_url'),
     getStringField(record, 'finalBookUrl'),
     getStringField(record, 'final_book_url'),
     getStringField(record, 'finalCoverUrl'),
@@ -316,10 +339,16 @@ export function inferBookIdHintFromOrderLike(
 ): string | null {
   const record = toRecord(orderLike);
   const bookContext = toRecord(record?.bookContext);
+  const productInfo = getProductInfoRecord(record);
+  const bookSpecs = getBookSpecsRecord(record);
   return (
     getStringField(bookContext, 'bookId') ??
     getStringField(record, 'bookId') ??
     getStringField(record, 'book_id') ??
+    getStringField(bookSpecs, 'bookId') ??
+    getStringField(bookSpecs, 'book_id') ??
+    getStringField(productInfo, 'bookId') ??
+    getStringField(productInfo, 'book_id') ??
     getStringField(record, 'project') ??
     inferBookIdFromPathLikes(...collectOrderPathLikes(record))
   );

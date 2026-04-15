@@ -6,6 +6,7 @@ import {
   buildManifestKeyFromOrderPrefix,
   extractBookIdFromOrderPathLike,
   extractOrderPrefixFromPathLike,
+  inferBookIdHintFromOrderLike,
   normalizeOrderPrefix,
 } from './order-paths';
 
@@ -29,6 +30,12 @@ function firstNonEmptyString(...values: unknown[]): string | undefined {
   }
 
   return undefined;
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 export function parseSiblingItemNumber(orderId: string): number | undefined {
@@ -69,12 +76,43 @@ export async function mapSupabaseOrderToOrder(
       ? record.status
       : await calculateOrderStatus(orderId);
 
-  const characterSpecs = record.character_specs || {};
-  const bookSpecs = record.book_specs || {};
+  const characterSpecs =
+    toRecord(record.character_specs) ??
+    toRecord(record.characterSpecs) ??
+    {};
+  const productInfo =
+    toRecord(record.product_info) ??
+    toRecord(record.productInfo) ??
+    {};
+  const rawBookSpecs =
+    toRecord(record.book_specs) ??
+    toRecord(record.bookSpecs) ??
+    toRecord(productInfo.bookSpecs) ??
+    toRecord(productInfo.book_specs) ??
+    {};
+  const bookSpecs = {
+    ...rawBookSpecs,
+    ...(typeof rawBookSpecs.bookId === 'string' || typeof rawBookSpecs.book_id === 'string'
+      ? {}
+      : firstNonEmptyString(productInfo.bookId, productInfo.book_id)
+        ? {
+            bookId:
+              firstNonEmptyString(productInfo.bookId, productInfo.book_id) ?? undefined,
+          }
+        : {}),
+    ...(typeof rawBookSpecs.formatId === 'string' || typeof rawBookSpecs.format_id === 'string'
+      ? {}
+      : firstNonEmptyString(productInfo.formatId, productInfo.format_id)
+        ? {
+            formatId:
+              firstNonEmptyString(productInfo.formatId, productInfo.format_id) ?? undefined,
+          }
+        : {}),
+  };
   const orderDetailsRaw = record.order_details || {};
   const defaultProject =
+    inferBookIdHintFromOrderLike(record) ??
     firstNonEmptyString(
-      record.project,
       extractBookIdFromOrderPathLike(record.asset_prefix),
       extractBookIdFromOrderPathLike(record.one_manifest_url),
       extractBookIdFromOrderPathLike(record.manifest_2a_url),
@@ -82,7 +120,8 @@ export async function mapSupabaseOrderToOrder(
       extractBookIdFromOrderPathLike(record.manifest_3_url),
       extractBookIdFromOrderPathLike(record.final_book_url),
       extractBookIdFromOrderPathLike(record.final_cover_url),
-    ) ?? 'unknown-book';
+    ) ??
+    'unknown-book';
   const resolvedOrderPrefix = normalizeOrderPrefix(
     typeof record.asset_prefix === 'string' ? record.asset_prefix : null,
     orderId,
@@ -110,8 +149,12 @@ export async function mapSupabaseOrderToOrder(
 
   const orderDetails = {
     quantity: orderDetailsRaw.quantity ?? 1,
-    pages: orderDetailsRaw.pages ?? bookSpecs.totalPages ?? 16,
-    format: orderDetailsRaw.format ?? bookSpecs.format ?? '8.5x8.5_softcover',
+    pages: orderDetailsRaw.pages ?? bookSpecs.totalPages ?? productInfo.totalPages ?? 16,
+    format:
+      orderDetailsRaw.format ??
+      bookSpecs.format ??
+      productInfo.format ??
+      '8.5x8.5_softcover',
     shippingAddress:
       orderDetailsRaw.shippingAddress ||
       orderDetailsRaw.shipping_address ||

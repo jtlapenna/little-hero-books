@@ -21,10 +21,10 @@ jobs:
       CLOUDFLARE_PAGES_PROJECT: little-hero-labs-admin
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -83,8 +83,7 @@ jobs:
           echo "Build output exists: $([ -d ".open-next/cloudflare" ] && echo "YES" || echo "NO")"
           echo "Build output size: $(du -sh .open-next/cloudflare 2>/dev/null || echo "N/A")"
           echo "Build output file count: $(find .open-next/cloudflare -type f 2>/dev/null | wc -l || echo "0")"
-          echo "Wrangler available: $(which wrangler || echo "NOT FOUND")"
-          echo "Wrangler version: $(wrangler --version 2>/dev/null || echo "NOT AVAILABLE")"
+          echo "Wrangler available: $(npx --yes wrangler --version 2>/dev/null || echo "NOT AVAILABLE VIA NPX")"
           echo "NPM wrangler version: $(npm list wrangler 2>/dev/null | grep wrangler || echo "NOT FOUND")"
           echo "Node version: $(node --version)"
           echo "NPM version: $(npm --version)"
@@ -121,12 +120,9 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         id: deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: back-end
-          command: pages deploy .open-next/cloudflare --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
+        run: |
+          cd back-end
+          npx wrangler pages deploy .open-next/cloudflare --project-name="${CLOUDFLARE_PAGES_PROJECT}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

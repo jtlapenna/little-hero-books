@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
+import { inferBookIdHintFromOrderLike } from '@/lib/order-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,32 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 // W0 webhook URL - must be set in Vercel environment variables
 const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
+
+function trimToString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseJsonRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return null;
+}
 
 export async function POST(
   request: NextRequest,
@@ -72,23 +99,31 @@ export async function POST(
     }
 
     // Parse JSONB fields
-    let shippingAddress = (order as any).shipping_address;
-    if (typeof shippingAddress === 'string') {
-      try {
-        shippingAddress = JSON.parse(shippingAddress);
-      } catch (e) {
-        shippingAddress = null;
-      }
-    }
-
-    let characterSpecs = (order as any).character_specs;
-    if (typeof characterSpecs === 'string') {
-      try {
-        characterSpecs = JSON.parse(characterSpecs);
-      } catch (e) {
-        characterSpecs = null;
-      }
-    }
+    const shippingAddress = parseJsonRecord((order as any).shipping_address);
+    const characterSpecs = parseJsonRecord((order as any).character_specs);
+    const productInfo =
+      parseJsonRecord((order as any).product_info) ??
+      parseJsonRecord((order as any).productInfo) ??
+      {};
+    const existingBookSpecs =
+      parseJsonRecord((order as any).book_specs) ??
+      parseJsonRecord((order as any).bookSpecs) ??
+      parseJsonRecord((productInfo as any).bookSpecs) ??
+      parseJsonRecord((productInfo as any).book_specs) ??
+      {};
+    const bookId =
+      trimToString((existingBookSpecs as any).bookId) ??
+      trimToString((existingBookSpecs as any).book_id) ??
+      trimToString((productInfo as any).bookId) ??
+      trimToString((productInfo as any).book_id) ??
+      inferBookIdHintFromOrderLike(order) ??
+      undefined;
+    const formatId =
+      trimToString((existingBookSpecs as any).formatId) ??
+      trimToString((existingBookSpecs as any).format_id) ??
+      trimToString((productInfo as any).formatId) ??
+      trimToString((productInfo as any).format_id) ??
+      undefined;
 
     // Validate data
     const hasShipping = shippingAddress && 
@@ -156,11 +191,28 @@ export async function POST(
       character_specs: characterSpecs,
       CharacterSpecs: characterSpecs,
       bookSpecs: {
-        title: `${characterSpecs?.childName || 'Child'} and the Adventure Compass`,
-        totalPages: 16,
-        format: '8.5x8.5_softcover',
-        bookType: 'adventure',
+        ...existingBookSpecs,
+        title:
+          (existingBookSpecs as any).title ??
+          (productInfo as any).title ??
+          `${(characterSpecs as any)?.childName || 'Child'} and the Adventure Compass`,
+        totalPages:
+          (existingBookSpecs as any).totalPages ??
+          (productInfo as any).totalPages ??
+          16,
+        format:
+          (existingBookSpecs as any).format ??
+          (productInfo as any).format ??
+          '8.5x8.5_softcover',
+        bookType:
+          (existingBookSpecs as any).bookType ??
+          (productInfo as any).bookType ??
+          'adventure',
+        ...(bookId ? { bookId } : {}),
+        ...(formatId ? { formatId } : {}),
       },
+      ...(bookId ? { bookId, book_id: bookId } : {}),
+      ...(formatId ? { formatId, format_id: formatId } : {}),
       orderDetails: {
         quantity: 1,
         shippingAddress: shippingAddress,

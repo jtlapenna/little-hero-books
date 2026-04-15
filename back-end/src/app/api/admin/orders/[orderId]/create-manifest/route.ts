@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { determineNextWorkflow, OrderProgress } from '@/lib/determine-next-workflow';
-import { fetchOrderRowByAnyId, updateOrderRowByAnyId } from '@/lib/order-lookup';
+import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
+import { updateOrderStatus } from '@/lib/status-service';
 import {
   BuildOrderIntakeManifestOptions,
   buildOrderIntakeManifestFromOrder,
@@ -222,12 +223,15 @@ export async function POST(
       customer_approval_status: order.customer_approval_status ?? undefined,
     });
 
-    // Update Supabase with manifest URL (store key, not full URL)
+    // Update Supabase to mirror normal W0 completion semantics
     try {
-      await updateOrderRowByAnyId(supabase, perBookOrderId, {
+      await updateOrderStatus(perBookOrderId, {
         one_manifest_url: r2Key,
+        workflow_step: 'order_intake',
         execution_status: 'ready_for_processing',
         next_workflow: nextWorkflow, // Use determined workflow, not hardcoded '2A'
+        started_at: null,
+        current_workflow: null,
         error_message: null,
         error_type: null,
         updated_at: new Date().toISOString(),

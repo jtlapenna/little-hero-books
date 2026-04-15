@@ -12,7 +12,11 @@ import { buildD2CW0Payload } from '@/lib/w0-payload';
 import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { sendD2COrderConfirmationEmail, sendD2CSiblingOrderConfirmationEmail } from '@/lib/notifications/d2c-email';
 import { getObject, putObject, headObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
-import { buildBaseCharacterAssetKey, buildCharacterAssetPrefix } from '@/lib/order-paths';
+import {
+  buildBaseCharacterAssetKey,
+  buildCharacterAssetPrefix,
+  inferBookIdHintFromOrderLike,
+} from '@/lib/order-paths';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 export const dynamic = 'force-dynamic';
@@ -23,14 +27,7 @@ function getPublicAssetBaseUrl(): string {
 }
 
 function resolveOrderBookId(orderData: Record<string, unknown>): string | undefined {
-  const candidates = [orderData.book_id, orderData.project];
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-
-  return undefined;
+  return inferBookIdHintFromOrderLike(orderData) ?? undefined;
 }
 
 async function buildPreviewImageUrl(

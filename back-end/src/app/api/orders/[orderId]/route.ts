@@ -15,7 +15,10 @@ import {
   resolveReviewPageContext,
   resolveReviewPageContextFromConfig,
 } from '@/lib/books';
-import { resolveOrderPathContext } from '@/lib/order-paths';
+import {
+  buildManifestKeyHintOptionsFromOrderLike,
+  resolveOrderPathContext,
+} from '@/lib/order-paths';
 
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
@@ -107,44 +110,32 @@ async function getOrder(
   let manifest2a: any = null;
   let manifest2b: any = null;
   let manifest3: any = null;
-  
-  // Try to load all manifests in parallel
-  const manifestPathContext = resolveOrderPathContext(orderId, {
-    bookId: toTrimmedString(supabaseOrderRecord?.project) ?? null,
-    orderPrefix:
-      toTrimmedString(supabaseOrderRecord?.asset_prefix) ??
-      toTrimmedString(supabaseOrderRecord?.one_manifest_url) ??
-      toTrimmedString(supabaseOrderRecord?.manifest_2a_url) ??
-      toTrimmedString(supabaseOrderRecord?.manifest_2b_url) ??
-      toTrimmedString(supabaseOrderRecord?.manifest_3_url),
-  });
-  const manifestOrderPrefix = manifestPathContext.orderPrefix;
-  const manifestLoadPromises = [
-    {
-      stage: '2a' as const,
-      promise: downloadManifest(`${manifestOrderPrefix}/manifests/2a-manifest.json`).catch(
-        () => null,
-      ),
-    },
-    {
-      stage: '2b' as const,
-      promise: downloadManifest(`${manifestOrderPrefix}/manifests/2b-manifest.json`).catch(
-        () => null,
-      ),
-    },
-    {
-      stage: '3' as const,
-      promise: downloadManifest(`${manifestOrderPrefix}/manifests/3-manifest.json`).catch(
-        () => null,
-      ),
-    },
-  ];
-  
-  const manifestResults = await Promise.all(manifestLoadPromises.map(m => m.promise));
-  
-  manifest2a = manifestResults[0];
-  manifest2b = manifestResults[1];
-  manifest3 = manifestResults[2];
+  const manifestHintOptions = buildManifestKeyHintOptionsFromOrderLike(supabaseOrderRecord);
+  let manifestPathContext: { bookId: string; orderPrefix: string } | null = null;
+  let manifestOrderPrefix: string | null = null;
+
+  try {
+    manifestPathContext = resolveOrderPathContext(orderId, manifestHintOptions);
+    manifestOrderPrefix = manifestPathContext.orderPrefix;
+  } catch (error: any) {
+    console.warn(
+      `[GET /api/orders/[orderId]] Unable to resolve manifest path context for ${orderId}:`,
+      error?.message || error,
+    );
+  }
+
+  if (manifestOrderPrefix) {
+    const manifestLoadPromises = [
+      downloadManifest(`${manifestOrderPrefix}/manifests/2a-manifest.json`).catch(() => null),
+      downloadManifest(`${manifestOrderPrefix}/manifests/2b-manifest.json`).catch(() => null),
+      downloadManifest(`${manifestOrderPrefix}/manifests/3-manifest.json`).catch(() => null),
+    ];
+
+    const manifestResults = await Promise.all(manifestLoadPromises);
+    manifest2a = manifestResults[0];
+    manifest2b = manifestResults[1];
+    manifest3 = manifestResults[2];
+  }
   
   // Determine primary manifest (for backward compatibility)
   // Priority: 2b > 2a > 3
@@ -190,8 +181,11 @@ async function getOrder(
   const fallbackFormatId = toTrimmedString(order.bookSpecs?.formatId);
   const reviewBookIdHint =
     toTrimmedString(order.bookContext?.bookId) ??
+    toTrimmedString(order.bookSpecs?.bookId) ??
     toTrimmedString(order.project) ??
-    manifestPathContext.bookId;
+    manifestPathContext?.bookId ??
+    manifestHintOptions.bookId ??
+    null;
   const isAmazonReviewOrder =
     fallbackFormatId === 'amazon' ||
     order.platform === 'amazon' ||
@@ -226,7 +220,11 @@ async function getOrder(
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {
-      bookId: reviewPageContext.bookId ?? manifestPathContext.bookId,
+      bookId:
+        reviewPageContext.bookId ??
+        manifestPathContext?.bookId ??
+        toTrimmedString(order.bookSpecs?.bookId) ??
+        toTrimmedString(order.project),
       orderPrefix:
         order.bookContext?.orderPrefix ??
         order.assetPrefix ??
@@ -516,7 +514,12 @@ async function getOrder(
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {
-      bookId: reviewPageContext.bookId ?? manifestPathContext.bookId ?? null,
+      bookId:
+        reviewPageContext.bookId ??
+        manifestPathContext?.bookId ??
+        toTrimmedString(order.bookSpecs?.bookId) ??
+        toTrimmedString(order.project) ??
+        null,
       orderPrefix:
         order.bookContext?.orderPrefix ??
         order.assetPrefix ??
@@ -545,7 +548,8 @@ async function getOrder(
 
   const backgroundBookId =
     reviewPageContext.bookId ??
-    manifestPathContext.bookId ??
+    manifestPathContext?.bookId ??
+    toTrimmedString(order.bookSpecs?.bookId) ??
     toTrimmedString(order.project);
   if (backgroundBookId) {
     try {
