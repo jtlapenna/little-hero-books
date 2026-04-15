@@ -6,6 +6,29 @@ export const dynamic = 'force-dynamic';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getCanonicalOrderId(order: Record<string, unknown>): string | null {
+  return (
+    toTrimmedString(order.orderId) ??
+    toTrimmedString(order.order_id) ??
+    toTrimmedString(order.amazon_order_id) ??
+    null
+  );
+}
+
+function getDisplayOrderId(order: Record<string, unknown>): string | null {
+  return (
+    toTrimmedString(order.display_order_id) ??
+    getCanonicalOrderId(order) ??
+    null
+  );
+}
+
 /**
  * GET /api/admin/orders-needing-attention
  * 
@@ -70,7 +93,7 @@ export async function GET(request: NextRequest) {
     
     const { data: stuckData, error: stuckError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, manifest_2a_url, manifest_2b_url, manifest_3_url')
+      .select('id, orderId, order_id, amazon_order_id, display_order_id, execution_status, current_workflow, started_at, workflow_step, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, manifest_2a_url, manifest_2b_url, manifest_3_url')
       .eq('execution_status', 'processing')
       .or(`started_at.lt.${thresholdTime.toISOString()},started_at.is.null`);
 
@@ -111,7 +134,7 @@ export async function GET(request: NextRequest) {
     // 3. Get orders with error status
     let errorStatusQuery = supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, started_at, current_workflow, workflow_step')
+      .select('id, orderId, order_id, amazon_order_id, display_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, next_workflow, updated_at, started_at, current_workflow, workflow_step')
       .in('execution_status', ['error', 'error_requires_manual_review']);
 
     if (status) {
@@ -138,7 +161,7 @@ export async function GET(request: NextRequest) {
     // Select lulu_job_id, lulu_status so we can filter again in JS (covers empty string or replica lag)
     const { data: notPickedUpOld, error: notPickedUpOldError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
+      .select('id, orderId, order_id, amazon_order_id, display_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
       .eq('execution_status', 'ready_for_processing')
       .not('queued_at', 'is', null)
       .lt('queued_at', queuedThresholdTime.toISOString());
@@ -146,7 +169,7 @@ export async function GET(request: NextRequest) {
     // Query 2: Orders with next_retry_at set (scheduled for retry)
     const { data: scheduledRetryData, error: scheduledRetryError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
+      .select('id, orderId, order_id, amazon_order_id, display_order_id, execution_status, error_type, error_message, retry_count, next_retry_at, updated_at, queued_at, next_workflow, workflow_step, lulu_job_id, lulu_status, customer_approval_status')
       .eq('execution_status', 'ready_for_processing')
       .not('next_retry_at', 'is', null);
     
@@ -368,8 +391,12 @@ export async function GET(request: NextRequest) {
       const ids = orders.map((o: any) => o.id);
       const { data: printPhaseRows } = await supabase
         .from('orders')
-        .select('id, lulu_job_id, lulu_status, workflow_step, customer_approval_status, next_workflow')
+        .select('id, orderId, order_id, amazon_order_id, display_order_id, lulu_job_id, lulu_status, workflow_step, customer_approval_status, next_workflow')
         .in('id', ids);
+      const printPhaseMap = new Map<number, Record<string, unknown>>();
+      (printPhaseRows || []).forEach((row: any) => {
+        printPhaseMap.set(row.id, row);
+      });
       const excludeIdSet = new Set<number>();
       (printPhaseRows || []).forEach((row: any) => {
         const jobId = row?.lulu_job_id;
@@ -379,7 +406,12 @@ export async function GET(request: NextRequest) {
         const approvedAndNextIsW4 = row?.next_workflow === '4' && row?.customer_approval_status === 'approved';
         if (hasLulu || inPrintStep || approvedAndNextIsW4) excludeIdSet.add(row.id);
       });
-      orders = orders.filter((o: any) => !excludeIdSet.has(o.id));
+      orders = orders
+        .filter((o: any) => !excludeIdSet.has(o.id))
+        .map((order: any) => ({
+          ...printPhaseMap.get(order.id),
+          ...order,
+        }));
     }
     
     // Final pass: Ensure next_retry_at is explicitly included for all orders
@@ -397,7 +429,9 @@ export async function GET(request: NextRequest) {
       // Ensure next_retry_at is explicitly set (even if null)
       return {
         ...order,
-        next_retry_at: order.next_retry_at !== undefined ? order.next_retry_at : null
+        next_retry_at: order.next_retry_at !== undefined ? order.next_retry_at : null,
+        canonical_order_id: getCanonicalOrderId(order),
+        display_order_id: getDisplayOrderId(order),
       };
     });
 
@@ -562,4 +596,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

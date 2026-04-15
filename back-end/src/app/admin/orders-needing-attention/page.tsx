@@ -5,7 +5,9 @@ import { RefreshCw, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
 
 interface OrderNeedingAttention {
   id: number;
-  amazon_order_id: string;
+  amazon_order_id: string | null;
+  canonical_order_id: string | null;
+  display_order_id: string | null;
   execution_status: string;
   retry_count: number | null;
   next_retry_at: string | null;
@@ -19,6 +21,19 @@ interface OrderNeedingAttention {
   started_at?: string | null;
   current_workflow?: string | null;
   workflow_step?: string | null;
+}
+
+function getOrderHref(order: OrderNeedingAttention): string | null {
+  return order.canonical_order_id || order.amazon_order_id || null;
+}
+
+function getOrderLabel(order: OrderNeedingAttention): string {
+  return (
+    order.display_order_id ||
+    order.canonical_order_id ||
+    order.amazon_order_id ||
+    'Unknown'
+  );
 }
 
 export default function OrdersNeedingAttentionPage() {
@@ -347,12 +362,16 @@ export default function OrdersNeedingAttentionPage() {
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <a 
-                          href={`/orders/${order.amazon_order_id}`}
-                          className="text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          {order.amazon_order_id}
-                        </a>
+                        {getOrderHref(order) ? (
+                          <a
+                            href={`/orders/${getOrderHref(order)}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {getOrderLabel(order)}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">Unknown</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.execution_status}
@@ -410,4 +429,3 @@ export default function OrdersNeedingAttentionPage() {
     </div>
   );
 }
-
