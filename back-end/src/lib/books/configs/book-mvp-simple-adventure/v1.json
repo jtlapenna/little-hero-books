@@ -167,6 +167,13 @@
         "14": { "left": 893, "top": 1836, "width": 1500 }
       },
       "overridesByFormat": {}
+    },
+    "animalPlacement": {
+      "defaultByStoryPage": {
+        "13": { "left": 1191, "top": 2104, "width": 1100, "zIndex": 9 },
+        "14": { "left": 1607, "top": 2168, "width": 1250, "zIndex": 9 }
+      },
+      "overridesByFormat": {}
     }
   },
   "qa": {

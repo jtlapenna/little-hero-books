@@ -16,6 +16,9 @@ const RequestSchema = z
     characterPlacementOverrideByStoryPage: z
       .record(z.string(), BookCharacterPlacementEntrySchema)
       .optional(),
+    animalPlacementOverrideByStoryPage: z
+      .record(z.string(), BookCharacterPlacementEntrySchema)
+      .optional(),
   })
   .superRefine((value, ctx) => {
     if (value.sourceType === 'fixture' && !value.fixtureId) {

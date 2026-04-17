@@ -1,11 +1,15 @@
 import {
+  getLegacyReferenceAnimalPlacement,
   buildW3AssemblyInput,
   buildW3PreviewPlan,
   getLegacyReferenceCharacterPlacement,
   loadBundledBookConfig,
+  parseAnimalPlacementOverride,
   parseCharacterPlacementOverride,
   resolvePagePlan,
+  resolveBookAnimalPlacementMap,
   resolveBookCharacterPlacementMap,
+  type BookAnimalPlacementMap,
   type BookCharacterPlacementEntry,
   type BookCharacterPlacementMap,
   type BuildW3AssemblyInputResult,
@@ -49,6 +53,7 @@ export interface W3CalibrationRequest {
   selectedStoryPageNumber?: number | null;
   selectedPoseNumber?: number | null;
   characterPlacementOverrideByStoryPage?: unknown;
+  animalPlacementOverrideByStoryPage?: unknown;
   adminBaseUrl?: string | null;
 }
 
@@ -56,10 +61,13 @@ export interface W3CalibrationPageOption {
   pageLabel: string;
   pageNumber: number;
   storyPageNumber: number;
-  poseNumber: number;
+  poseNumber: number | null;
+  editableAssetType: 'character' | 'animal';
   backgroundUrl: string | null;
   overlayUrls: string[];
   characterUrl: string | null;
+  animalUrl: string | null;
+  editableAssetUrl: string | null;
   currentPlacement: BookCharacterPlacementEntry | null;
   legacyPlacement: BookCharacterPlacementEntry | null;
 }
@@ -99,7 +107,10 @@ export interface W3CalibrationResponse {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
+    editableAssetType: 'character' | 'animal';
+    editableAssetUrl: string | null;
     characterUrl: string | null;
+    animalUrl: string | null;
     currentPlacement: BookCharacterPlacementEntry | null;
     legacyPlacement: BookCharacterPlacementEntry | null;
   } | null;
@@ -112,6 +123,7 @@ export interface W3CalibrationResponse {
   } | null;
   exportHints: {
     characterPlacementOverrideByStoryPage: Record<string, BookCharacterPlacementEntry>;
+    animalPlacementOverrideByStoryPage: Record<string, BookCharacterPlacementEntry>;
     poseAnchorSuggestionByPose: Record<
       string,
       {
@@ -216,7 +228,7 @@ function clonePlacementEntry(
 }
 
 function clonePlacementMap(
-  value: BookCharacterPlacementMap,
+  value: BookCharacterPlacementMap | BookAnimalPlacementMap,
 ): Record<string, BookCharacterPlacementEntry> {
   return Object.fromEntries(
     Object.entries(value).map(([storyPageNumber, entry]) => [
@@ -348,6 +360,8 @@ function buildPageOptions(
   previewPlan: BuildW3PreviewPlanResult,
   currentPlacementMap: BookCharacterPlacementMap,
   legacyPlacementMap: BookCharacterPlacementMap,
+  currentAnimalPlacementMap: BookAnimalPlacementMap,
+  legacyAnimalPlacementMap: BookAnimalPlacementMap,
 ): W3CalibrationPageOption[] {
   const backgroundByLabel = new Map(
     previewPlan.backgroundImages.map((entry) => [String(entry.pageLabel), entry]),
@@ -377,6 +391,24 @@ function buildPageOptions(
     }
   }
 
+  const animalImages = toRecord(previewPlan.animalImages);
+  const animalAppearsUrl =
+    toTrimmedString(animalImages.appears) ??
+    toTrimmedString(animalImages.appear) ??
+    toTrimmedString(animalImages.page13) ??
+    toTrimmedString(animalImages.p13) ??
+    toTrimmedString(animalImages.appearsUrl) ??
+    toTrimmedString(animalImages.appearsImagePath) ??
+    null;
+  const animalFlyingUrl =
+    toTrimmedString(animalImages.flying) ??
+    toTrimmedString(animalImages.fly) ??
+    toTrimmedString(animalImages.page14) ??
+    toTrimmedString(animalImages.p14) ??
+    toTrimmedString(animalImages.flyingUrl) ??
+    toTrimmedString(animalImages.flyingImagePath) ??
+    null;
+
   return previewPlan.pagePreviewItems
     .map((item) => {
       const page = assemblyInput.pagePlan[item.pageIndex];
@@ -385,21 +417,41 @@ function buildPageOptions(
       if (!Number.isFinite(storyPageNumber) || storyPageNumber <= 0) {
         return null;
       }
-      if (!Number.isFinite(poseNumber) || poseNumber <= 0) {
+
+      const background = backgroundByLabel.get(item.pageLabel);
+      const characterUrl =
+        Number.isFinite(poseNumber) && poseNumber > 0 ? poseImageByNumber.get(poseNumber) ?? null : null;
+      const animalUrl =
+        storyPageNumber === 13
+          ? animalAppearsUrl
+          : storyPageNumber === 14
+            ? animalFlyingUrl
+            : null;
+      const editableAssetType: 'character' | 'animal' = characterUrl ? 'character' : 'animal';
+      const editableAssetUrl = editableAssetType === 'character' ? characterUrl : animalUrl;
+      if (!editableAssetUrl) {
         return null;
       }
 
-      const background = backgroundByLabel.get(item.pageLabel);
       return {
         pageLabel: item.pageLabel,
         pageNumber: item.pageNumber,
         storyPageNumber,
-        poseNumber,
+        poseNumber: Number.isFinite(poseNumber) && poseNumber > 0 ? poseNumber : null,
+        editableAssetType,
         backgroundUrl: toTrimmedString(background?.imagePath),
         overlayUrls: overlayByLabel.get(item.pageLabel) ?? [],
-        characterUrl: poseImageByNumber.get(poseNumber) ?? null,
-        currentPlacement: currentPlacementMap[storyPageNumber] ?? null,
-        legacyPlacement: legacyPlacementMap[storyPageNumber] ?? null,
+        characterUrl,
+        animalUrl,
+        editableAssetUrl,
+        currentPlacement:
+          editableAssetType === 'character'
+            ? currentPlacementMap[storyPageNumber] ?? null
+            : currentAnimalPlacementMap[storyPageNumber] ?? null,
+        legacyPlacement:
+          editableAssetType === 'character'
+            ? legacyPlacementMap[storyPageNumber] ?? null
+            : legacyAnimalPlacementMap[storyPageNumber] ?? null,
       } satisfies W3CalibrationPageOption;
     })
     .filter((item): item is W3CalibrationPageOption => item !== null)
@@ -484,6 +536,9 @@ export async function buildW3CalibrationResponse(
   const placementOverride = parseCharacterPlacementOverride(
     request.characterPlacementOverrideByStoryPage,
   );
+  const animalPlacementOverride = parseAnimalPlacementOverride(
+    request.animalPlacementOverrideByStoryPage,
+  );
   const currentPlacementMap: BookCharacterPlacementMap = {
     ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId),
     ...placementOverride,
@@ -492,12 +547,22 @@ export async function buildW3CalibrationResponse(
     ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId),
     ...getLegacyReferenceCharacterPlacement(assemblyInput.bookId),
   };
+  const currentAnimalPlacementMap: BookAnimalPlacementMap = {
+    ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
+    ...animalPlacementOverride,
+  };
+  const legacyAnimalPlacementMap: BookAnimalPlacementMap = {
+    ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
+    ...getLegacyReferenceAnimalPlacement(assemblyInput.bookId),
+  };
 
   const currentPreviewPlan = buildW3PreviewPlan(assemblyInput, {
     characterPlacementOverride: currentPlacementMap,
+    animalPlacementOverride: currentAnimalPlacementMap,
   });
   const legacyPreviewPlan = buildW3PreviewPlan(assemblyInput, {
     characterPlacementOverride: legacyPlacementMap,
+    animalPlacementOverride: legacyAnimalPlacementMap,
   });
 
   const pages = buildPageOptions(
@@ -505,6 +570,8 @@ export async function buildW3CalibrationResponse(
     currentPreviewPlan,
     currentPlacementMap,
     legacyPlacementMap,
+    currentAnimalPlacementMap,
+    legacyAnimalPlacementMap,
   );
   const poses = buildPoseOptions(assemblyInput, adminBaseUrl);
   const selectedStoryPageNumber = resolveSelectedStoryPageNumber(
@@ -619,7 +686,10 @@ export async function buildW3CalibrationResponse(
               : null,
           backgroundUrl: selectedPageOption.backgroundUrl,
           overlayUrls: selectedPageOption.overlayUrls,
+          editableAssetType: selectedPageOption.editableAssetType,
+          editableAssetUrl: selectedPageOption.editableAssetUrl,
           characterUrl: selectedPageOption.characterUrl,
+          animalUrl: selectedPageOption.animalUrl,
           currentPlacement: selectedPageOption.currentPlacement,
           legacyPlacement: selectedPageOption.legacyPlacement,
         }
@@ -627,6 +697,7 @@ export async function buildW3CalibrationResponse(
     selectedPose,
     exportHints: {
       characterPlacementOverrideByStoryPage: clonePlacementMap(placementOverride),
+      animalPlacementOverrideByStoryPage: clonePlacementMap(animalPlacementOverride),
       poseAnchorSuggestionByPose,
     },
   };

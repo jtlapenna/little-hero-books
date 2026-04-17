@@ -163,6 +163,10 @@ export const BookConfigSchema = z.object({
       defaultByStoryPage: {},
       overridesByFormat: {},
     }),
+    animalPlacement: BookCharacterPlacementConfigSchema.default({
+      defaultByStoryPage: {},
+      overridesByFormat: {},
+    }),
   }),
   qa: BookQaConfigSchema,
   logistics: z.record(z.string(), z.unknown()).default({}),

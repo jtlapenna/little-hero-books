@@ -70,10 +70,13 @@ type CalibrationPageOption = {
   pageLabel: string;
   pageNumber: number;
   storyPageNumber: number;
-  poseNumber: number;
+  poseNumber: number | null;
+  editableAssetType: 'character' | 'animal';
   backgroundUrl: string | null;
   overlayUrls: string[];
   characterUrl: string | null;
+  animalUrl: string | null;
+  editableAssetUrl: string | null;
   currentPlacement: PlacementEntry | null;
   legacyPlacement: PlacementEntry | null;
 };
@@ -113,7 +116,10 @@ type CalibrationResponse = {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
+    editableAssetType: 'character' | 'animal';
+    editableAssetUrl: string | null;
     characterUrl: string | null;
+    animalUrl: string | null;
     currentPlacement: PlacementEntry | null;
     legacyPlacement: PlacementEntry | null;
   } | null;
@@ -126,6 +132,7 @@ type CalibrationResponse = {
   } | null;
   exportHints: {
     characterPlacementOverrideByStoryPage: Record<string, PlacementEntry>;
+    animalPlacementOverrideByStoryPage: Record<string, PlacementEntry>;
     poseAnchorSuggestionByPose: Record<string, PoseAnchorDraft>;
   };
 };
@@ -137,6 +144,7 @@ type CalibrationRequest = {
   selectedStoryPageNumber?: number | null;
   selectedPoseNumber?: number | null;
   characterPlacementOverrideByStoryPage?: Record<string, PlacementEntry>;
+  animalPlacementOverrideByStoryPage?: Record<string, PlacementEntry>;
 };
 
 const FALLBACK_FIXTURE_OPTIONS = [
@@ -333,7 +341,8 @@ export default function W3CalibrationPage() {
     tone: 'error' | 'info' | 'success';
     message: string;
   } | null>(null);
-  const [placementOverrides, setPlacementOverrides] = useState<Record<string, PlacementEntry>>({});
+  const [characterPlacementOverrides, setCharacterPlacementOverrides] = useState<Record<string, PlacementEntry>>({});
+  const [animalPlacementOverrides, setAnimalPlacementOverrides] = useState<Record<string, PlacementEntry>>({});
   const [anchorDrafts, setAnchorDrafts] = useState<Record<string, PoseAnchorDraft>>({});
   const [dragging, setDragging] = useState(false);
   const previewCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -410,15 +419,19 @@ export default function W3CalibrationPage() {
   }, []);
 
   const selectedPagePlacement = useMemo(() => {
-    if (!selectedStoryPageNumber) {
+    if (!selectedStoryPageNumber || !data?.selectedPage) {
       return null;
     }
+    const overrides =
+      data.selectedPage.editableAssetType === 'animal'
+        ? animalPlacementOverrides
+        : characterPlacementOverrides;
     return (
-      placementOverrides[String(selectedStoryPageNumber)] ??
-      clonePlacement(data?.selectedPage?.currentPlacement) ??
-      clonePlacement(data?.selectedPage?.legacyPlacement)
+      overrides[String(selectedStoryPageNumber)] ??
+      clonePlacement(data.selectedPage.currentPlacement) ??
+      clonePlacement(data.selectedPage.legacyPlacement)
     );
-  }, [data, placementOverrides, selectedStoryPageNumber]);
+  }, [animalPlacementOverrides, characterPlacementOverrides, data, selectedStoryPageNumber]);
 
   const selectedLegacyPlacement = useMemo(
     () => clonePlacement(data?.selectedPage?.legacyPlacement),
@@ -437,8 +450,16 @@ export default function W3CalibrationPage() {
   }, [anchorDrafts, data, selectedPoseNumber]);
 
   const placementExportJson = useMemo(
-    () => JSON.stringify(sortPlacementOverrides(placementOverrides), null, 2),
-    [placementOverrides],
+    () =>
+      JSON.stringify(
+        {
+          characterPlacementOverrideByStoryPage: sortPlacementOverrides(characterPlacementOverrides),
+          animalPlacementOverrideByStoryPage: sortPlacementOverrides(animalPlacementOverrides),
+        },
+        null,
+        2,
+      ),
+    [animalPlacementOverrides, characterPlacementOverrides],
   );
 
   const anchorExportJson = useMemo(
@@ -473,7 +494,15 @@ export default function W3CalibrationPage() {
       ...patch,
     };
 
-    setPlacementOverrides((previous) => ({
+    if (data?.selectedPage?.editableAssetType === 'animal') {
+      setAnimalPlacementOverrides((previous) => ({
+        ...previous,
+        [String(selectedStoryPageNumber)]: nextEntry,
+      }));
+      return;
+    }
+
+    setCharacterPlacementOverrides((previous) => ({
       ...previous,
       [String(selectedStoryPageNumber)]: nextEntry,
     }));
@@ -495,7 +524,8 @@ export default function W3CalibrationPage() {
             selectedPoseNumber: null,
           };
 
-    setPlacementOverrides({});
+    setCharacterPlacementOverrides({});
+    setAnimalPlacementOverrides({});
     setAnchorDrafts({});
     setSelectedStoryPageNumber(null);
     setSelectedPoseNumber(null);
@@ -510,14 +540,16 @@ export default function W3CalibrationPage() {
             orderId: orderId.trim(),
             selectedStoryPageNumber,
             selectedPoseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           }
         : {
             sourceType,
             fixtureId,
             selectedStoryPageNumber,
             selectedPoseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           },
       { preserveDrafts: true },
     );
@@ -532,14 +564,16 @@ export default function W3CalibrationPage() {
             orderId: orderId.trim(),
             selectedStoryPageNumber: storyPageNumber,
             selectedPoseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           }
         : {
             sourceType,
             fixtureId,
             selectedStoryPageNumber: storyPageNumber,
             selectedPoseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           },
       { preserveDrafts: true },
     );
@@ -554,14 +588,16 @@ export default function W3CalibrationPage() {
             orderId: orderId.trim(),
             selectedStoryPageNumber,
             selectedPoseNumber: poseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           }
         : {
             sourceType,
             fixtureId,
             selectedStoryPageNumber,
             selectedPoseNumber: poseNumber,
-            characterPlacementOverrideByStoryPage: placementOverrides,
+            characterPlacementOverrideByStoryPage: characterPlacementOverrides,
+            animalPlacementOverrideByStoryPage: animalPlacementOverrides,
           },
       { preserveDrafts: true },
     );
@@ -573,7 +609,9 @@ export default function W3CalibrationPage() {
     }
 
     const snippet = JSON.stringify(
-      { [String(selectedStoryPageNumber)]: selectedPagePlacement },
+      data?.selectedPage?.editableAssetType === 'animal'
+        ? { animalPlacementOverrideByStoryPage: { [String(selectedStoryPageNumber)]: selectedPagePlacement } }
+        : { characterPlacementOverrideByStoryPage: { [String(selectedStoryPageNumber)]: selectedPagePlacement } },
       null,
       2,
     );
@@ -581,7 +619,7 @@ export default function W3CalibrationPage() {
     setBanner({
       tone: copied ? 'success' : 'error',
       message: copied
-        ? `Copied story page ${selectedStoryPageNumber} placement override.`
+        ? `Copied ${data?.selectedPage?.editableAssetType ?? 'page'} placement override for story page ${selectedStoryPageNumber}.`
         : 'Failed to copy placement override.',
     });
   };
@@ -616,7 +654,15 @@ export default function W3CalibrationPage() {
     if (!selectedStoryPageNumber) {
       return;
     }
-    setPlacementOverrides((previous) => {
+    if (data?.selectedPage?.editableAssetType === 'animal') {
+      setAnimalPlacementOverrides((previous) => {
+        const next = { ...previous };
+        delete next[String(selectedStoryPageNumber)];
+        return next;
+      });
+      return;
+    }
+    setCharacterPlacementOverrides((previous) => {
       const next = { ...previous };
       delete next[String(selectedStoryPageNumber)];
       return next;
@@ -654,13 +700,21 @@ export default function W3CalibrationPage() {
     const deltaY =
       (event.clientY - dragState.startClientY) * (W3_PLACEMENT_BASE / rect.height);
 
-    setPlacementOverrides((previous) => ({
+    const nextEntry = {
+      ...dragState.basePlacement,
+      left: clampNumber(dragState.startLeft + deltaX, 0, W3_PLACEMENT_BASE),
+      top: clampNumber(dragState.startTop + deltaY, 0, W3_PLACEMENT_BASE),
+    };
+    if (data.selectedPage?.editableAssetType === 'animal') {
+      setAnimalPlacementOverrides((previous) => ({
+        ...previous,
+        [String(selectedStoryPageNumber)]: nextEntry,
+      }));
+      return;
+    }
+    setCharacterPlacementOverrides((previous) => ({
       ...previous,
-      [String(selectedStoryPageNumber)]: {
-        ...dragState.basePlacement,
-        left: clampNumber(dragState.startLeft + deltaX, 0, W3_PLACEMENT_BASE),
-        top: clampNumber(dragState.startTop + deltaY, 0, W3_PLACEMENT_BASE),
-      },
+      [String(selectedStoryPageNumber)]: nextEntry,
     }));
   };
 
@@ -929,7 +983,7 @@ export default function W3CalibrationPage() {
                             Story page {page.storyPageNumber}
                           </div>
                           <div className="mt-1 text-xs text-gray-500">
-                            {page.pageLabel} • pose {page.poseNumber}
+                            {page.pageLabel} • {page.editableAssetType === 'animal' ? 'animal' : `pose ${page.poseNumber ?? 'N/A'}`}
                           </div>
                         </div>
                         <div className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600">
@@ -944,6 +998,9 @@ export default function W3CalibrationPage() {
               <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 px-4 py-3">
                   <h2 className="text-sm font-semibold text-gray-900">Placement controls</h2>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Editing {data?.selectedPage?.editableAssetType ?? 'subject'} placement for the selected story page.
+                  </p>
                 </div>
                 <div className="space-y-3 p-4">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1059,17 +1116,17 @@ export default function W3CalibrationPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Interactive placement canvas</h2>
                       <p className="mt-1 text-sm text-gray-600">
                         Palette: neutral admin chrome, cyan for the editable draft, violet for the legacy reference.
-                        Drag the current sprite directly; the anchor point is the bottom-center of the character box.
+                        Drag the current subject directly; the anchor point is the bottom-center of the editable box.
                       </p>
                     </div>
                     <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600">
                       <Grip className="h-4 w-4" />
-                      {dragging ? 'Dragging draft placement' : 'Drag the draft character'}
+                      {dragging ? 'Dragging draft placement' : `Drag the draft ${selectedPage?.editableAssetType ?? 'subject'}`}
                     </div>
                   </div>
                 </div>
                 <div className="p-5">
-                  {selectedPage?.backgroundUrl && selectedPage?.characterUrl && selectedPagePlacement ? (
+                  {selectedPage?.backgroundUrl && selectedPage?.editableAssetUrl && selectedPagePlacement ? (
                     <div
                       ref={previewCanvasRef}
                       onPointerMove={handlePlacementDragMove}
@@ -1104,7 +1161,7 @@ export default function W3CalibrationPage() {
                           pointerEvents: 'none',
                         })}>
                           <img
-                            src={selectedPage.characterUrl}
+                            src={selectedPage.editableAssetUrl}
                             alt=""
                             className="block h-auto w-full select-none object-contain"
                             draggable={false}
@@ -1119,7 +1176,7 @@ export default function W3CalibrationPage() {
                         onPointerDown={handlePlacementDragStart}
                       >
                         <img
-                          src={selectedPage.characterUrl}
+                          src={selectedPage.editableAssetUrl}
                           alt=""
                           className={`block h-auto w-full select-none object-contain drop-shadow-[0_12px_20px_rgba(15,23,42,0.18)] ${
                             dragging ? 'cursor-grabbing' : 'cursor-grab'
@@ -1130,7 +1187,7 @@ export default function W3CalibrationPage() {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center text-sm text-gray-500">
-                      Select a story page with a character pose to use the placement editor.
+                      Select a story page with an editable character or animal placement to use the placement editor.
                     </div>
                   )}
                 </div>
@@ -1175,7 +1232,7 @@ export default function W3CalibrationPage() {
                   <div className="border-b border-gray-200 px-4 py-3">
                     <div className="text-sm font-semibold text-gray-900">Legacy reference render</div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Same current sprite, legacy-tuned placement. Use this as the visual target for Book 1 parity.
+                      Same current subject, legacy-tuned placement. Use this as the visual target for Book 1 parity.
                     </div>
                   </div>
                   <div className="p-4">

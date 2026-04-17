@@ -7,10 +7,19 @@ import {
   getLegacyReferenceCharacterPlacement,
   parseCharacterPlacementOverride,
   resolveBookCharacterPlacementMap,
-  type BookCharacterPlacementEntry,
   type BookCharacterPlacementMap,
 } from '@/lib/books/character-placement';
-import type { BookConfig, BookPageConfig } from '@/lib/books/types';
+import {
+  getLegacyReferenceAnimalPlacement,
+  parseAnimalPlacementOverride,
+  resolveBookAnimalPlacementMap,
+  type BookAnimalPlacementMap,
+} from '@/lib/books/animal-placement';
+import type {
+  BookCharacterPlacementEntry,
+  BookConfig,
+  BookPageConfig,
+} from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import { buildLegacyBookPagePlan } from '@/lib/books/legacy-page-plan';
 import { loadBundledBookConfig } from '@/lib/books/load-book-config';
@@ -103,6 +112,7 @@ export interface BuildW3PreviewPlanResult extends JsonRecord {
 
 export interface BuildW3PreviewPlanOptions {
   characterPlacementOverride?: BookCharacterPlacementMap;
+  animalPlacementOverride?: BookAnimalPlacementMap;
 }
 
 type StoryContext = {
@@ -334,6 +344,23 @@ function resolveCharacterPlacementMap(
   }
 
   return getLegacyReferenceCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
+}
+
+function resolveAnimalPlacementMap(
+  input: JsonRecord,
+  config: BookConfig | null,
+): BookAnimalPlacementMap {
+  const override = parseAnimalPlacementOverride(input.animalPlacement);
+  if (Object.keys(override).length > 0) {
+    return override;
+  }
+
+  const explicitFormatId = toTrimmedString(input.formatId);
+  if (config) {
+    return resolveBookAnimalPlacementMap(config, explicitFormatId);
+  }
+
+  return getLegacyReferenceAnimalPlacement(resolveBookId(input, resolveOrderId(input)));
 }
 
 function buildCharacterStyle(
@@ -1056,12 +1083,20 @@ function buildInteriorHtml(
   const SCALE = PX / BASE;
   const toPx = (value: number): string => `${Math.round(Number(value || 0) * SCALE)}px`;
   const characterPlacementMap = resolveCharacterPlacementMap(order, resolvedBookConfig);
+  const animalPlacementMap = resolveAnimalPlacementMap(order, resolvedBookConfig);
   const charStyle = (storyPageNumber: number | null): string => {
     if (storyPageNumber === null || !Number.isFinite(storyPageNumber)) {
       return '';
     }
 
     return buildCharacterStyle(characterPlacementMap[storyPageNumber] ?? null, toPx);
+  };
+  const animalStyle = (storyPageNumber: number | null): string => {
+    if (storyPageNumber === null || !Number.isFinite(storyPageNumber)) {
+      return '';
+    }
+
+    return buildCharacterStyle(animalPlacementMap[storyPageNumber] ?? null, toPx);
   };
 
   const animalHTML = (page: BookPageConfig): string => {
@@ -1074,12 +1109,7 @@ function buildInteriorHtml(
         return '<div class="animal missing" data-missing="page13-appears"></div>';
       }
       return `
-      <div class="animal" style="
-        left:${toPx(1191)};
-        top:${toPx(2104)};
-        transform:translate(-50%,-100%);
-        width:${toPx(1100)};
-        z-index:9;">
+      <div class="animal" style="${animalStyle(storyPageNumber)}">
         <img class="sprite" src="${src}" alt="${name} Appears" loading="eager" decoding="sync" fetchpriority="high">
       </div>`;
     }
@@ -1090,12 +1120,7 @@ function buildInteriorHtml(
         return '<div class="animal missing" data-missing="page14-flying"></div>';
       }
       return `
-      <div class="animal" style="
-        left:${toPx(1607)};
-        top:${toPx(2168)};
-        transform:translate(-50%,-100%);
-        width:${toPx(1250)};
-        z-index:9;">
+      <div class="animal" style="${animalStyle(storyPageNumber)}">
         <img class="sprite" src="${src}" alt="${name} Flying" loading="eager" decoding="sync" fetchpriority="high">
       </div>`;
     }
@@ -1650,6 +1675,7 @@ export function buildW3PreviewPlan(
     pronounsExtracted: storyContext.pronounsExtracted,
     pronounsResolved: storyContext.pronounsResolved,
     characterPlacement: options.characterPlacementOverride ?? input.characterPlacement,
+    animalPlacement: options.animalPlacementOverride ?? input.animalPlacement,
     pagePlan: sortedPagePlan,
     pageLabels:
       Array.isArray(input.pageLabels) && input.pageLabels.length > 0
