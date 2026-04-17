@@ -5,6 +5,9 @@ import {
 } from '@/lib/order-paths';
 import type { BookPageConfig } from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import { buildLegacyBookPagePlan } from '@/lib/books/legacy-page-plan';
+import { loadBundledBookConfig } from '@/lib/books/load-book-config';
+import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
 
 type JsonRecord = Record<string, unknown>;
 const DEFAULT_PAGE_PREVIEW_TEMPLATE_ID = '23277725-4AB0-446A-98C5-CB99C21822B3';
@@ -235,96 +238,6 @@ function formatText(value: unknown): string {
     .split(/\n/)
     .map((segment) => widont(segment.trim()))
     .join('\n');
-}
-
-function buildLegacyPagePlan(useAmazonPlan: boolean): BookPageConfig[] {
-  const storyToPoseMap: Record<number, number | null> = {
-    1: 1,
-    2: 2,
-    3: 3,
-    4: 4,
-    5: 5,
-    6: 6,
-    7: null,
-    8: 7,
-    9: 8,
-    10: 9,
-    11: 10,
-    12: 11,
-    13: null,
-    14: 12,
-  };
-
-  const storyPages: BookPageConfig[] = Array.from({ length: 14 }, (_, index) => {
-    const storyPageNumber = index + 1;
-    const pageIndex = useAmazonPlan ? storyPageNumber + 2 : storyPageNumber;
-
-    return {
-      index: pageIndex,
-      id: `story_${String(storyPageNumber).padStart(2, '0')}`,
-      label: `p${String(pageIndex).padStart(2, '0')}`,
-      type: 'story',
-      storyPageNumber,
-      backgroundSlot: `story_${String(storyPageNumber).padStart(2, '0')}`,
-      poseNumber: storyToPoseMap[storyPageNumber],
-      overlaySlot: storyPageNumber === 5 ? 'animalTracks' : null,
-      required: true,
-    };
-  });
-
-  if (!useAmazonPlan) {
-    return [
-      {
-        index: 0,
-        id: 'dedication',
-        label: 'p00',
-        type: 'dedication',
-        storyPageNumber: null,
-        backgroundSlot: 'dedication',
-        poseNumber: null,
-        overlaySlot: null,
-        required: true,
-      },
-      ...storyPages,
-    ];
-  }
-
-  return [
-    {
-      index: 0,
-      id: 'title',
-      label: 'p00',
-      type: 'title',
-      storyPageNumber: null,
-      backgroundSlot: 'titlePage',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    {
-      index: 1,
-      id: 'blank_front_matter',
-      label: 'p01',
-      type: 'blank',
-      storyPageNumber: null,
-      backgroundSlot: 'blank',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    {
-      index: 2,
-      id: 'dedication',
-      label: 'p02',
-      type: 'dedication',
-      storyPageNumber: null,
-      backgroundSlot: 'dedication',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    ...storyPages,
-  ];
 }
 
 function buildNormalizedInputs(input: JsonRecord): JsonRecord {
@@ -895,11 +808,25 @@ function buildInteriorHtml(
   pagePlan: BookPageConfig[],
 ): InteriorHtmlResult {
   const order = toRecord(input);
+  const explicitFormatId = toTrimmedString(order.formatId);
   const isAmazonOrder =
-    order.isAmazonOrder === true ||
-    order.orderSource === 'amazon' ||
-    Boolean(order.amazonOrderId);
-  const resolvedPagePlan = (pagePlan.length ? pagePlan : buildLegacyPagePlan(isAmazonOrder))
+    explicitFormatId === 'amazon' ||
+    (explicitFormatId === null &&
+      (order.isAmazonOrder === true ||
+        order.orderSource === 'amazon' ||
+        Boolean(order.amazonOrderId)));
+  let fallbackPlan: BookPageConfig[] = [];
+  if (!pagePlan.length) {
+    try {
+      const config = loadBundledBookConfig({
+        bookId: resolveBookId(order, resolveOrderId(order)),
+      });
+      fallbackPlan = resolvePagePlan(config, explicitFormatId ?? undefined).pagePlan;
+    } catch {
+      fallbackPlan = buildLegacyBookPagePlan(isAmazonOrder);
+    }
+  }
+  const resolvedPagePlan = (pagePlan.length ? pagePlan : fallbackPlan)
     .slice()
     .sort((left, right) => Number(left.index) - Number(right.index));
   const backendUrl = resolveBackendUrl({ ...order, backendUrl: renderContext.backendUrl });
@@ -1371,10 +1298,13 @@ function buildCoverPreviewItem(
     orderContext.useImgBackgrounds === false
       ? false
       : Boolean(orderContext.useImgBackgrounds ?? renderContext.useImgBackgrounds ?? true);
+  const explicitFormatId = toTrimmedString(orderContext.formatId);
   const isAmazonOrder =
-    orderContext.isAmazonOrder === true ||
-    orderContext.orderSource === 'amazon' ||
-    Boolean(orderContext.amazonOrderId);
+    explicitFormatId === 'amazon' ||
+    (explicitFormatId === null &&
+      (orderContext.isAmazonOrder === true ||
+        orderContext.orderSource === 'amazon' ||
+        Boolean(orderContext.amazonOrderId)));
 
   const coversBgKey = isAmazonOrder
     ? toTrimmedString(renderContext.coversBgAmazon) ?? toTrimmedString(renderContext.coversBg)
@@ -1656,10 +1586,23 @@ export function buildW3PreviewPlan(input: JsonRecord): BuildW3PreviewPlanResult 
   const bookId = resolveBookId(input, orderId);
   const amazonOrderId = resolveAmazonOrderId(input, orderId);
   const rootOrderId = resolveRootOrderId(input, amazonOrderId, orderId);
-  const pagePlan =
+  const explicitFormatId = toTrimmedString(input.formatId);
+  const isAmazonFallback =
+    explicitFormatId === 'amazon' ||
+    (explicitFormatId === null &&
+      (toBoolean(input.isAmazonOrder) || Boolean(input.amazonOrderId)));
+  let pagePlan =
     Array.isArray(input.pagePlan) && input.pagePlan.length > 0
       ? input.pagePlan.map((page) => page as BookPageConfig)
-      : buildLegacyPagePlan(toBoolean(input.isAmazonOrder) || Boolean(input.amazonOrderId));
+      : [];
+  if (!pagePlan.length) {
+    try {
+      const config = loadBundledBookConfig({ bookId });
+      pagePlan = resolvePagePlan(config, explicitFormatId ?? undefined).pagePlan;
+    } catch {
+      pagePlan = buildLegacyBookPagePlan(isAmazonFallback);
+    }
+  }
   const sortedPagePlan = [...pagePlan].sort((left, right) => left.index - right.index);
   const inputs = buildNormalizedInputs(input);
   const canonicalAssets = buildCanonicalAssets(input, sortedPagePlan);

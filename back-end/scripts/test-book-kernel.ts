@@ -958,10 +958,10 @@ assert(
   'Regenerate-pose route should build revision, base-character, and pose-reference keys from shared helpers',
 );
 assert(
-  normalizePoseScaleRouteCode.includes('buildPoseReferenceAssetKey') &&
+  normalizePoseScaleRouteCode.includes('normalizePoseScaleAsset') &&
     normalizePoseScaleRouteCode.includes('extractBookIdFromPathLike') &&
     !normalizePoseScaleRouteCode.includes('book-mvp-simple-adventure/characters/poses/pose'),
-  'Normalize-pose-scale route should derive the reference pose key from shared book-aware helpers',
+  'Normalize-pose-scale route should delegate reference-key resolution to shared book-aware helpers',
 );
 assert(
   replaceImageRouteCode.includes('buildGeneratedPoseAssetKey') &&

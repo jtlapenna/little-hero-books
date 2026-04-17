@@ -13,6 +13,7 @@ import {
   type BuildW3AssemblyInputResult,
   type LoadManifestForW3,
 } from '@/lib/books';
+import { normalizePoseScaleAsset, type NormalizePoseScaleFn } from '@/lib/pose-scale-normalization';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +124,7 @@ export async function buildW3AssemblyInputResponse(
   options: {
     loadManifest?: LoadManifestForW3;
     defaultBackendUrl?: string;
+    normalizePoseScale?: NormalizePoseScaleFn;
     lookupOrderRow?: (orderId: string, rawBody: JsonRecord) => Promise<W3ReplayGuardOrderRow | null>;
     instrumentAssemblyJob?: (
       payload: BuildW3AssemblyInputResult,
@@ -133,6 +135,7 @@ export async function buildW3AssemblyInputResponse(
   const result = await buildW3AssemblyInput(body, {
     loadManifest: options.loadManifest ?? downloadManifest,
     defaultBackendUrl: options.defaultBackendUrl,
+    normalizePoseScale: options.normalizePoseScale ?? normalizePoseScaleAsset,
   });
   const forceReplay = toBoolean(pickBodyValue(body, 'force'));
   const orderRow = options.lookupOrderRow

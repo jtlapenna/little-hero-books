@@ -7,6 +7,7 @@ import {
 } from '@/lib/order-paths';
 import { buildW3AssemblyInput } from '@/lib/books/w3-assembly-input';
 import { buildW3AssemblyInputResponse } from '@/app/api/internal/w3/build-assembly-input/route';
+import type { NormalizePoseScaleFn } from '@/lib/pose-scale-normalization';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -72,6 +73,32 @@ function create2BManifest(options: {
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
   const bookId = 'book-mvp-simple-adventure';
+  const normalizationCalls: Array<{ poseNumber: number; imageKey: string; bookId: string }> = [];
+  const normalizePoseScale: NormalizePoseScaleFn = async ({
+    poseNumber,
+    imageKey,
+    bookId: resolvedBookId,
+  }) => {
+    normalizationCalls.push({
+      poseNumber,
+      imageKey,
+      bookId: resolvedBookId ?? '',
+    });
+    return {
+      success: true,
+      normalized: false,
+      imageKey,
+      refKey: `${resolvedBookId}/characters/poses/pose${String(poseNumber).padStart(2, '0')}.png`,
+      poseNumber,
+      bookId: resolvedBookId ?? '',
+      message: 'Already within tolerance',
+      scaleFactor: 1,
+      verticalOffset: 0,
+      horizontalOffset: 0,
+      sourceBBoxFound: true,
+      referenceBBoxFound: true,
+    };
+  };
 
   const amazonOrderId = '111-2222222-3333333';
   const siblingOrderId = 'TEST-W3-ITEM-001';
@@ -136,6 +163,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      normalizePoseScale,
     },
   );
 
@@ -200,6 +228,12 @@ async function main(): Promise<void> {
   assert(
     siblingBuilt.missingBgRemovedPoseNumbers.includes(2),
     'Expected missingBgRemovedPoseNumbers to include required poses missing bgRemovedKey',
+  );
+  assert(
+    normalizationCalls.length === 1 &&
+      normalizationCalls[0]?.poseNumber === 1 &&
+      normalizationCalls[0]?.bookId === bookId,
+    'Expected W3 assembly input to auto-normalize required bgRemoved poses before page assembly',
   );
 
   const standardOrderId = 'TEST-W3-STANDARD-001';
@@ -266,6 +300,7 @@ async function main(): Promise<void> {
         }
         return null;
       },
+      normalizePoseScale,
     },
   );
 
@@ -291,6 +326,92 @@ async function main(): Promise<void> {
     standardBuilt.dedicationText === 'Manifest standard dedication',
     'Expected dedicationText to fall back to the companion 1-manifest',
   );
+  assert(
+    standardBuilt.pagePlanSource === 'w0-v3' &&
+      standardBuilt.pagePlan[7]?.poseNumber === 3,
+    'Expected standard W0-frozen page plan to assign story page 7 to a real pose',
+  );
+
+  const legacyStandardOrderId = 'TEST-W3-LEGACY-D2C-001';
+  const legacyStandardOrderPrefix = buildOrderPrefix(legacyStandardOrderId, bookId);
+  const legacyOneManifestKey = buildManifestKeyFromOrderPrefix(
+    legacyStandardOrderPrefix,
+    '1',
+  );
+  const legacyTwoBManifestKey = buildManifestKeyFromOrderPrefix(
+    legacyStandardOrderPrefix,
+    '2b',
+  );
+  const legacyOneManifest = {
+    schema: 'lhb.run-manifest@v2.1',
+    amazonOrderId: legacyStandardOrderId,
+    marketplaceId: 'ATVPDKIKX0DER',
+    order: {
+      orderId: legacyStandardOrderId,
+      rootOrderId: legacyStandardOrderId,
+      amazonOrderId: legacyStandardOrderId,
+      characterSpecs: {
+        childName: 'Luca',
+        animalGuide: 'cat',
+      },
+      bookSpecs: {
+        title: 'Luca and the Quiet Trail',
+        formatId: 'standard',
+      },
+      orderDetails: {
+        quantity: 1,
+      },
+    },
+  };
+  const legacyTwoBManifest = create2BManifest({
+    orderId: legacyStandardOrderId,
+    rootOrderId: legacyStandardOrderId,
+    amazonOrderId: legacyStandardOrderId,
+    characterHash: 'legacycharhash001',
+    characterSpecs: {
+      childName: 'Luca',
+      animalGuide: 'cat',
+    },
+    bookSpecs: {
+      title: 'Luca and the Quiet Trail',
+      formatId: 'standard',
+    },
+  });
+
+  const legacyStandardBuilt = await buildW3AssemblyInput(
+    {
+      orderId: legacyStandardOrderId,
+      amazonOrderId: legacyStandardOrderId,
+      orderPrefix: legacyStandardOrderPrefix,
+      backendUrl,
+    },
+    {
+      loadManifest: async (manifestKey) => {
+        if (manifestKey === legacyOneManifestKey) {
+          return legacyOneManifest;
+        }
+        if (manifestKey === legacyTwoBManifestKey) {
+          return legacyTwoBManifest;
+        }
+        return null;
+      },
+      normalizePoseScale,
+    },
+  );
+
+  assert(
+    legacyStandardBuilt.isAmazonOrder === false &&
+      legacyStandardBuilt.amazonOrderId === null &&
+      legacyStandardBuilt.formatId === 'standard' &&
+      legacyStandardBuilt.pagePlanSource === 'runtime-config' &&
+      legacyStandardBuilt.expectedPageCount === 15,
+    'Expected legacy D2C manifests with stale Amazon markers to resolve the standard runtime page plan',
+  );
+  assert(
+    legacyStandardBuilt.pagePlan[7]?.poseNumber === 3 &&
+      legacyStandardBuilt.pagePlan[14]?.poseNumber === 12,
+    'Expected runtime-config page plan to fix the formerly missing standard pages',
+  );
 
   const syntheticOrderId = 'TEST-W3-SAFE-PROOF-001';
   const syntheticBuilt = await buildW3AssemblyInput(
@@ -306,6 +427,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      normalizePoseScale,
     },
   );
 
@@ -332,6 +454,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      normalizePoseScale,
       lookupOrderRow: async () => null,
       instrumentAssemblyJob: async () => ({
         workflowJobId: 301,
@@ -367,6 +490,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      normalizePoseScale,
       lookupOrderRow: async () => ({
         id: 874,
         orderId: siblingOrderId,
@@ -409,6 +533,7 @@ async function main(): Promise<void> {
     },
     {
       loadManifest: siblingLoadManifest,
+      normalizePoseScale,
       lookupOrderRow: async () => ({
         id: 874,
         orderId: siblingOrderId,

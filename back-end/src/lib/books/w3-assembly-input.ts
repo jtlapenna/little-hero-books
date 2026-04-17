@@ -13,6 +13,13 @@ import {
 import { LEGACY_REQUIRED_2B_POSE_NUMBERS } from '@/lib/books/read-2b-manifest';
 import type { BookPageConfig } from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import { buildLegacyBookPagePlan } from '@/lib/books/legacy-page-plan';
+import { loadBundledBookConfig } from '@/lib/books/load-book-config';
+import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
+import type {
+  NormalizePoseScaleFn,
+  NormalizePoseScaleResult,
+} from '@/lib/pose-scale-normalization';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -55,9 +62,9 @@ export interface BuildW3AssemblyInputResult {
   expectedPageCount: number;
   pagePlan: BookPageConfig[];
   pageLabels: string[];
-  pagePlanSource: 'w0-v3' | 'legacy-default';
+  pagePlanSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   requiredPoseNumbers: number[];
-  requiredPoseSource: 'w0-v3' | 'legacy-default';
+  requiredPoseSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   processedImages: W3ProcessedImage[];
   missingBgRemovedPoseNumbers: number[];
   dedicationText: string | null;
@@ -73,6 +80,7 @@ export interface BuildW3AssemblyInputResult {
 export interface BuildW3AssemblyInputOptions {
   loadManifest: LoadManifestForW3;
   defaultBackendUrl?: string;
+  normalizePoseScale?: NormalizePoseScaleFn;
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -238,84 +246,6 @@ async function loadFirstManifest(
     manifestKey: candidates[0] ?? null,
     manifest: null,
   };
-}
-
-function buildLegacyPagePlan(isAmazonOrder: boolean): BookPageConfig[] {
-  const storyPages: BookPageConfig[] = Array.from({ length: 14 }, (_, index) => {
-    const storyPageNumber = index + 1;
-    const pageIndex = isAmazonOrder ? index + 3 : index + 1;
-
-    return {
-      index: pageIndex,
-      id: `story_${String(storyPageNumber).padStart(2, '0')}`,
-      label: `p${String(pageIndex).padStart(2, '0')}`,
-      type: 'story',
-      storyPageNumber,
-      backgroundSlot: `story_${String(storyPageNumber).padStart(2, '0')}`,
-      poseNumber:
-        storyPageNumber === 7 || storyPageNumber === 13
-          ? null
-          : storyPageNumber < 8
-            ? storyPageNumber
-            : storyPageNumber - 1,
-      overlaySlot: storyPageNumber === 5 ? 'animalTracks' : null,
-      required: true,
-    };
-  });
-
-  if (!isAmazonOrder) {
-    return [
-      {
-        index: 0,
-        id: 'dedication',
-        label: 'p00',
-        type: 'dedication',
-        storyPageNumber: null,
-        backgroundSlot: 'dedication',
-        poseNumber: null,
-        overlaySlot: null,
-        required: true,
-      },
-      ...storyPages,
-    ];
-  }
-
-  return [
-    {
-      index: 0,
-      id: 'title',
-      label: 'p00',
-      type: 'title',
-      storyPageNumber: null,
-      backgroundSlot: 'titlePage',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    {
-      index: 1,
-      id: 'blank_front_matter',
-      label: 'p01',
-      type: 'blank',
-      storyPageNumber: null,
-      backgroundSlot: 'blank',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    {
-      index: 2,
-      id: 'dedication',
-      label: 'p02',
-      type: 'dedication',
-      storyPageNumber: null,
-      backgroundSlot: 'dedication',
-      poseNumber: null,
-      overlaySlot: null,
-      required: true,
-    },
-    ...storyPages,
-  ];
 }
 
 function collectPathLikes(
@@ -504,9 +434,9 @@ function deriveBookState(
   isAmazonOrder: boolean;
   pagePlan: BookPageConfig[];
   pageLabels: string[];
-  pagePlanSource: 'w0-v3' | 'legacy-default';
+  pagePlanSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   requiredPoseNumbers: number[];
-  requiredPoseSource: 'w0-v3' | 'legacy-default';
+  requiredPoseSource: 'w0-v3' | 'runtime-config' | 'legacy-default';
   marketplace_id: string | null;
   expectedPageCount: number;
 } {
@@ -568,29 +498,53 @@ function deriveBookState(
     nested.isAmazonOrder,
     orderContext.isAmazonOrder,
   );
+  const normalizedFormatId = formatId?.trim().toLowerCase() ?? null;
   const isAmazonOrder =
     explicitIsAmazon !== null
       ? toBoolean(explicitIsAmazon)
-      : formatId === 'amazon' ||
-        marketplaceId === 'ATVPDKIKX0DER' ||
-        toTrimmedString(manifestOrder.amazonOrderId) !== null;
+      : normalizedFormatId
+        ? normalizedFormatId === 'amazon'
+        : marketplaceId === 'ATVPDKIKX0DER' ||
+          toTrimmedString(manifestOrder.amazonOrderId) !== null;
+
+  let runtimePlan: ReturnType<typeof resolvePagePlan> | null = null;
+  try {
+    const config = loadBundledBookConfig({ bookId });
+    runtimePlan = resolvePagePlan(config, formatId ?? undefined);
+  } catch {
+    runtimePlan = null;
+  }
 
   const pagePlan =
     normalizedOneManifest?.pagePlan?.length
       ? normalizedOneManifest.pagePlan
-      : buildLegacyPagePlan(isAmazonOrder);
+      : runtimePlan?.pagePlan?.length
+        ? runtimePlan.pagePlan
+        : buildLegacyBookPagePlan(isAmazonOrder);
   const pageLabels =
     normalizedOneManifest?.pageLabels?.length
       ? normalizedOneManifest.pageLabels
-      : pagePlan.map((page) => page.label);
+      : runtimePlan?.pageLabels?.length
+        ? runtimePlan.pageLabels
+        : pagePlan.map((page) => page.label);
   const pagePlanSource: BuildW3AssemblyInputResult['pagePlanSource'] =
-    normalizedOneManifest?.pagePlan?.length ? 'w0-v3' : 'legacy-default';
+    normalizedOneManifest?.pagePlan?.length
+      ? 'w0-v3'
+      : runtimePlan?.pagePlan?.length
+        ? 'runtime-config'
+        : 'legacy-default';
   const requiredPoseNumbers =
     normalizedOneManifest?.requiredPoseNumbers?.length
       ? [...normalizedOneManifest.requiredPoseNumbers]
-      : [...LEGACY_REQUIRED_2B_POSE_NUMBERS];
+      : runtimePlan?.qaPolicy.pose.requiredPoseNumbers?.length
+        ? [...runtimePlan.qaPolicy.pose.requiredPoseNumbers]
+        : [...LEGACY_REQUIRED_2B_POSE_NUMBERS];
   const requiredPoseSource: BuildW3AssemblyInputResult['requiredPoseSource'] =
-    normalizedOneManifest?.requiredPoseNumbers?.length ? 'w0-v3' : 'legacy-default';
+    normalizedOneManifest?.requiredPoseNumbers?.length
+      ? 'w0-v3'
+      : runtimePlan?.qaPolicy.pose.requiredPoseNumbers?.length
+        ? 'runtime-config'
+        : 'legacy-default';
 
   return {
     bookId,
@@ -602,8 +556,72 @@ function deriveBookState(
     requiredPoseNumbers,
     requiredPoseSource,
     marketplace_id: marketplaceId,
-    expectedPageCount: pagePlan.length || (isAmazonOrder ? 17 : 15),
+    expectedPageCount:
+      runtimePlan?.expectedPageCount ??
+      pagePlan.length ??
+      (isAmazonOrder ? 17 : 15),
   };
+}
+
+async function normalizeBgRemovedPoses(
+  manifest2b: ManifestRecord,
+  requiredPoseNumbers: number[],
+  bookId: string,
+  normalizePoseScale?: NormalizePoseScaleFn,
+): Promise<void> {
+  if (!normalizePoseScale) {
+    return;
+  }
+
+  const requiredPoseSet = new Set(requiredPoseNumbers);
+  const uniqueEntries = new Map<number, JsonRecord>();
+
+  for (const entry of manifest2b.entries) {
+    const poseNumber = toInteger(entry.poseNumber);
+    const bgRemovedKey = toTrimmedString(entry.bgRemovedKey);
+    if (
+      poseNumber === null ||
+      !requiredPoseSet.has(poseNumber) ||
+      !bgRemovedKey ||
+      uniqueEntries.has(poseNumber)
+    ) {
+      continue;
+    }
+    uniqueEntries.set(poseNumber, entry);
+  }
+
+  for (const [poseNumber, entry] of uniqueEntries.entries()) {
+    const bgRemovedKey = toTrimmedString(entry.bgRemovedKey);
+    if (!bgRemovedKey) {
+      continue;
+    }
+
+    let result: NormalizePoseScaleResult;
+    try {
+      result = await normalizePoseScale({
+        imageKey: bgRemovedKey,
+        poseNumber,
+        bookId,
+        characterHash: toTrimmedString(entry.characterHash),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `W3 pose normalization failed for pose ${poseNumber} (${bgRemovedKey}): ${message}`,
+      );
+    }
+
+    if (!result.sourceBBoxFound) {
+      throw new Error(
+        `W3 pose normalization found no character bbox for pose ${poseNumber} (${bgRemovedKey})`,
+      );
+    }
+    if (!result.referenceBBoxFound) {
+      throw new Error(
+        `W3 pose normalization found no reference bbox for pose ${poseNumber} (${result.refKey})`,
+      );
+    }
+  }
 }
 
 function buildProcessedImages(
@@ -852,6 +870,12 @@ export async function buildW3AssemblyInput(
   const manifest3Key = buildManifestKeyFromOrderPrefix(orderPrefixResolved, '3');
   const manifest2bKeyResolved = loaded2B.manifestKey ?? manifest2bKey;
   const oneManifestKeyResolved = loadedOneManifest.manifestKey ?? oneManifestKey;
+  await normalizeBgRemovedPoses(
+    loaded2B.manifest,
+    bookState.requiredPoseNumbers,
+    bookState.bookId,
+    options.normalizePoseScale,
+  );
   const { processedImages, missingBgRemovedPoseNumbers } = buildProcessedImages(
     loaded2B.manifest,
     bookState.requiredPoseNumbers,
@@ -890,11 +914,17 @@ export async function buildW3AssemblyInput(
     normalizedOneManifest?.orderDetails,
     manifestOrder.orderDetails,
   );
+  const canonicalAmazonOrderId = bookState.isAmazonOrder
+    ? identity.amazonOrderId
+    : null;
+  const canonicalRootOrderId = bookState.isAmazonOrder
+    ? identity.rootOrderId
+    : identity.orderId;
 
   return {
     orderId: identity.orderId,
-    amazonOrderId: identity.amazonOrderId,
-    rootOrderId: identity.rootOrderId,
+    amazonOrderId: canonicalAmazonOrderId,
+    rootOrderId: canonicalRootOrderId,
     characterHash: identity.characterHash,
     bookId: bookState.bookId,
     formatId: bookState.formatId,
