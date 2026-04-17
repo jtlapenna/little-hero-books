@@ -149,6 +149,24 @@
     },
     "html": {
       "useImageBackgrounds": true
+    },
+    "characterPlacement": {
+      "defaultByStoryPage": {
+        "1": { "left": 1453, "top": 1938, "width": 900 },
+        "2": { "left": 1403, "top": 2091, "width": 950 },
+        "3": { "left": 1020, "top": 2142, "width": 1100 },
+        "4": { "left": 1530, "top": 1734, "width": 1100, "rotateDeg": -20 },
+        "5": { "left": 1250, "top": 2066, "width": 900 },
+        "6": { "left": 1326, "top": 2066, "width": 900 },
+        "7": { "left": 1199, "top": 1683, "width": 900 },
+        "8": { "left": 1453, "top": 2040, "width": 1400 },
+        "9": { "left": 1352, "top": 2066, "width": 1100 },
+        "10": { "left": 1275, "top": 2295, "width": 1300 },
+        "11": { "left": 1964, "top": 2117, "width": 500 },
+        "12": { "left": 893, "top": 2066, "width": 920 },
+        "14": { "left": 893, "top": 1836, "width": 1500 }
+      },
+      "overridesByFormat": {}
     }
   },
   "qa": {

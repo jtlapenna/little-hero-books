@@ -603,6 +603,7 @@ async function normalizeBgRemovedPoses(
         poseNumber,
         bookId,
         characterHash: toTrimmedString(entry.characterHash),
+        mode: 'strict',
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

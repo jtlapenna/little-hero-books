@@ -8,11 +8,12 @@ export const maxDuration = 30;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageUrl, poseNumber, characterHash, bookId } = body as {
+    const { imageUrl, poseNumber, characterHash, bookId, mode } = body as {
       imageUrl?: unknown;
       poseNumber?: unknown;
       characterHash?: unknown;
       bookId?: unknown;
+      mode?: unknown;
     };
 
     if (!imageUrl || typeof imageUrl !== 'string') {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
       bookId:
         (typeof bookId === 'string' && bookId.trim()) ||
         extractBookIdFromPathLike(imageKey),
+      mode: mode === 'strict' ? 'strict' : 'default',
     });
 
     return NextResponse.json(result);

@@ -19,6 +19,26 @@ export const MeasurementPixelsSchema = z.object({
   h: z.number().int().positive(),
 });
 
+export const BookCharacterPlacementEntrySchema = z.object({
+  left: z.number(),
+  top: z.number(),
+  width: z.number().positive(),
+  rotateDeg: z.number().optional(),
+  zIndex: z.number().int().positive().optional(),
+});
+
+export const BookCharacterPlacementConfigSchema = z.object({
+  defaultByStoryPage: z
+    .record(z.string(), BookCharacterPlacementEntrySchema)
+    .default({}),
+  overridesByFormat: z
+    .record(
+      z.string(),
+      z.record(z.string(), BookCharacterPlacementEntrySchema).default({}),
+    )
+    .default({}),
+});
+
 export const BookPageConfigSchema = z.object({
   index: z.number().int().nonnegative(),
   id: z.string().min(1),
@@ -139,6 +159,10 @@ export const BookConfigSchema = z.object({
     html: z.object({
       useImageBackgrounds: z.boolean(),
     }),
+    characterPlacement: BookCharacterPlacementConfigSchema.default({
+      defaultByStoryPage: {},
+      overridesByFormat: {},
+    }),
   }),
   qa: BookQaConfigSchema,
   logistics: z.record(z.string(), z.unknown()).default({}),
@@ -250,6 +274,8 @@ export const RunManifestV3Schema = z.object({
 export type BookPageType = z.infer<typeof BookPageTypeSchema>;
 export type BookPageConfig = z.infer<typeof BookPageConfigSchema>;
 export type BookFormatConfig = z.infer<typeof BookFormatConfigSchema>;
+export type BookCharacterPlacementEntry = z.infer<typeof BookCharacterPlacementEntrySchema>;
+export type BookCharacterPlacementConfig = z.infer<typeof BookCharacterPlacementConfigSchema>;
 export type BookQaConfig = z.infer<typeof BookQaConfigSchema>;
 export type BookConfig = z.infer<typeof BookConfigSchema>;
 export type BookConfigRef = z.infer<typeof BookConfigRefSchema>;

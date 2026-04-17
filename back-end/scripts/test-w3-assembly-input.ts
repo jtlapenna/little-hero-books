@@ -73,16 +73,23 @@ function create2BManifest(options: {
 async function main(): Promise<void> {
   const backendUrl = 'https://admin.littleherolabs.com';
   const bookId = 'book-mvp-simple-adventure';
-  const normalizationCalls: Array<{ poseNumber: number; imageKey: string; bookId: string }> = [];
+  const normalizationCalls: Array<{
+    poseNumber: number;
+    imageKey: string;
+    bookId: string;
+    mode: string | null | undefined;
+  }> = [];
   const normalizePoseScale: NormalizePoseScaleFn = async ({
     poseNumber,
     imageKey,
     bookId: resolvedBookId,
+    mode,
   }) => {
     normalizationCalls.push({
       poseNumber,
       imageKey,
       bookId: resolvedBookId ?? '',
+      mode,
     });
     return {
       success: true,
@@ -95,6 +102,9 @@ async function main(): Promise<void> {
       scaleFactor: 1,
       verticalOffset: 0,
       horizontalOffset: 0,
+      groundContactOffset: 0,
+      sourceAnchorMetrics: null,
+      referenceAnchorMetrics: null,
       sourceBBoxFound: true,
       referenceBBoxFound: true,
     };
@@ -232,8 +242,9 @@ async function main(): Promise<void> {
   assert(
     normalizationCalls.length === 1 &&
       normalizationCalls[0]?.poseNumber === 1 &&
-      normalizationCalls[0]?.bookId === bookId,
-    'Expected W3 assembly input to auto-normalize required bgRemoved poses before page assembly',
+      normalizationCalls[0]?.bookId === bookId &&
+      normalizationCalls[0]?.mode === 'strict',
+    'Expected W3 assembly input to auto-normalize required bgRemoved poses in strict mode before page assembly',
   );
 
   const standardOrderId = 'TEST-W3-STANDARD-001';

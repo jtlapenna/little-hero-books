@@ -16,6 +16,10 @@ function assert(condition: unknown, message: string): void {
   }
 }
 
+function toPlacementPx(value: number): string {
+  return `${Math.round(value * (2625 / 2550))}px`;
+}
+
 function create2BManifest(options: {
   orderId: string;
   rootOrderId?: string | null;
@@ -66,6 +70,12 @@ function create2BManifest(options: {
         briaStatus: 'pending',
         flipped: true,
         flippedAt: '2026-03-23T12:00:00.000Z',
+      },
+      {
+        poseNumber: 4,
+        bgRemovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/characters_${options.characterHash}_pose04_nobg.png`,
+        sourceApprovedKey: `${bookId}/order-generated-assets/characters/${options.characterHash}/poses/pose04.png`,
+        briaStatus: 'completed',
       },
     ],
   };
@@ -191,6 +201,17 @@ async function main(): Promise<void> {
       standardPreview.pages_html.includes('page-14') &&
       standardPreview.page_css.includes('@page { size: 2625px 2625px; margin: 0; }'),
     'Expected standard preview plan to preserve the repo-owned page HTML and PDFMonkey CSS contract',
+  );
+  const standardStoryPageFour = standardPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 4,
+  );
+  assert(
+    typeof standardStoryPageFour?.pageHtml === 'string' &&
+      standardStoryPageFour.pageHtml.includes(`left:${toPlacementPx(1530)}`) &&
+      standardStoryPageFour.pageHtml.includes(`top:${toPlacementPx(1734)}`) &&
+      standardStoryPageFour.pageHtml.includes(`width:${toPlacementPx(1100)}`) &&
+      standardStoryPageFour.pageHtml.includes('rotate(-20deg)'),
+    'Expected the preview plan renderer to use the configured story-page placement instead of hardcoded W3 constants',
   );
 
   const amazonAssemblyInput = await buildAssemblyInput({

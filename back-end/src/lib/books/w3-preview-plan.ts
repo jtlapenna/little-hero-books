@@ -3,7 +3,14 @@ import {
   buildPreviewImageAssetKey,
   inferBookIdFromPathLikes,
 } from '@/lib/order-paths';
-import type { BookPageConfig } from '@/lib/books/types';
+import {
+  getLegacyReferenceCharacterPlacement,
+  parseCharacterPlacementOverride,
+  resolveBookCharacterPlacementMap,
+  type BookCharacterPlacementEntry,
+  type BookCharacterPlacementMap,
+} from '@/lib/books/character-placement';
+import type { BookConfig, BookPageConfig } from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import { buildLegacyBookPagePlan } from '@/lib/books/legacy-page-plan';
 import { loadBundledBookConfig } from '@/lib/books/load-book-config';
@@ -92,6 +99,10 @@ export interface BuildW3PreviewPlanResult extends JsonRecord {
   pdfFilename: string;
   pagePreviewItems: W3PreviewPlanPageItem[];
   coverPreviewItem: W3PreviewPlanCoverItem;
+}
+
+export interface BuildW3PreviewPlanOptions {
+  characterPlacementOverride?: BookCharacterPlacementMap;
 }
 
 type StoryContext = {
@@ -306,6 +317,45 @@ function resolveBookId(input: JsonRecord, orderId?: string | null): string {
 
   const orderLabel = orderId ?? resolveOrderId(input) ?? 'unknown-order';
   throw new Error(`W3 preview planning requires bookId or per-book path context for ${orderLabel}`);
+}
+
+function resolveCharacterPlacementMap(
+  input: JsonRecord,
+  config: BookConfig | null,
+): BookCharacterPlacementMap {
+  const override = parseCharacterPlacementOverride(input.characterPlacement);
+  if (Object.keys(override).length > 0) {
+    return override;
+  }
+
+  const explicitFormatId = toTrimmedString(input.formatId);
+  if (config) {
+    return resolveBookCharacterPlacementMap(config, explicitFormatId);
+  }
+
+  return getLegacyReferenceCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
+}
+
+function buildCharacterStyle(
+  placement: BookCharacterPlacementEntry | null,
+  toPx: (value: number) => string,
+): string {
+  if (!placement) {
+    return '';
+  }
+
+  const transforms = ['translate(-50%,-100%)'];
+  if (typeof placement.rotateDeg === 'number' && placement.rotateDeg !== 0) {
+    transforms.push(`rotate(${placement.rotateDeg}deg)`);
+  }
+
+  return [
+    `left:${toPx(placement.left)}`,
+    `top:${toPx(placement.top)}`,
+    `transform:${transforms.join(' ')}`,
+    `width:${toPx(placement.width)}`,
+    `z-index:${placement.zIndex ?? 11}`,
+  ].join('; ') + ';';
 }
 
 function resolveOrderId(input: JsonRecord): string {
@@ -806,6 +856,7 @@ function buildInteriorHtml(
   inputs: JsonRecord,
   renderContext: JsonRecord,
   pagePlan: BookPageConfig[],
+  bookConfig: BookConfig | null,
 ): InteriorHtmlResult {
   const order = toRecord(input);
   const explicitFormatId = toTrimmedString(order.formatId);
@@ -816,11 +867,15 @@ function buildInteriorHtml(
         order.orderSource === 'amazon' ||
         Boolean(order.amazonOrderId)));
   let fallbackPlan: BookPageConfig[] = [];
+  let resolvedBookConfig = bookConfig;
   if (!pagePlan.length) {
     try {
-      const config = loadBundledBookConfig({
+      const config =
+        resolvedBookConfig ??
+        loadBundledBookConfig({
         bookId: resolveBookId(order, resolveOrderId(order)),
-      });
+        });
+      resolvedBookConfig = config;
       fallbackPlan = resolvePagePlan(config, explicitFormatId ?? undefined).pagePlan;
     } catch {
       fallbackPlan = buildLegacyBookPagePlan(isAmazonOrder);
@@ -1000,69 +1055,13 @@ function buildInteriorHtml(
   const PX = 2625;
   const SCALE = PX / BASE;
   const toPx = (value: number): string => `${Math.round(Number(value || 0) * SCALE)}px`;
-  const CHAR: Record<number, { left: number; top: number; w: number }> = {
-    1: { left: 1453, top: 1938, w: 900 },
-    2: { left: 1403, top: 2091, w: 950 },
-    3: { left: 1275, top: 1905, w: 900 },
-    4: { left: 1020, top: 2100, w: 1100 },
-    5: { left: 1250, top: 2066, w: 900 },
-    6: { left: 1326, top: 2070, w: 900 },
-    7: { left: 1199, top: 1683, w: 900 },
-    8: { left: 1595, top: 1920, w: 1100 },
-    9: { left: 1352, top: 2066, w: 1100 },
-    10: { left: 1275, top: 2295, w: 1300 },
-    11: { left: 1964, top: 2117, w: 500 },
-    12: { left: 893, top: 2066, w: 920 },
-    14: { left: 1225, top: 2040, w: 1500 },
-  };
-  const OV3 = { left: 1020, top: 2090, w: 1100 };
-  const OV4 = { left: 1530, top: 1734, w: 1100 };
-  const OV14 = { left: 1225, top: 2040, w: 1500 };
-
+  const characterPlacementMap = resolveCharacterPlacementMap(order, resolvedBookConfig);
   const charStyle = (storyPageNumber: number | null): string => {
-    if (storyPageNumber === 3) {
-      return [
-        `left:${toPx(OV3.left)}`,
-        `top:${toPx(OV3.top)}`,
-        'transform:translate(-50%,-100%)',
-        `width:${toPx(OV3.w)}`,
-        'z-index:11',
-      ].join('; ') + ';';
-    }
-    if (storyPageNumber === 4) {
-      return [
-        `left:${toPx(OV4.left)}`,
-        `top:${toPx(OV4.top)}`,
-        'transform:translate(-50%,-100%) rotate(-20deg)',
-        `width:${toPx(OV4.w)}`,
-        'z-index:11',
-      ].join('; ') + ';';
-    }
-    if (storyPageNumber === 14) {
-      return [
-        `left:${toPx(OV14.left)}`,
-        `top:${toPx(OV14.top)}`,
-        'transform:translate(-50%,-100%)',
-        `width:${toPx(OV14.w)}`,
-        'z-index:11',
-      ].join('; ') + ';';
-    }
-    if (storyPageNumber === null) {
+    if (storyPageNumber === null || !Number.isFinite(storyPageNumber)) {
       return '';
     }
 
-    const character = CHAR[storyPageNumber];
-    if (!character) {
-      return '';
-    }
-
-    return [
-      `left:${toPx(character.left)}`,
-      `top:${toPx(character.top)}`,
-      'transform:translate(-50%,-100%)',
-      `width:${toPx(character.w)}`,
-      'z-index:11',
-    ].join('; ') + ';';
+    return buildCharacterStyle(characterPlacementMap[storyPageNumber] ?? null, toPx);
   };
 
   const animalHTML = (page: BookPageConfig): string => {
@@ -1577,7 +1576,10 @@ function buildPagePreviewItems(
   return items;
 }
 
-export function buildW3PreviewPlan(input: JsonRecord): BuildW3PreviewPlanResult {
+export function buildW3PreviewPlan(
+  input: JsonRecord,
+  options: BuildW3PreviewPlanOptions = {},
+): BuildW3PreviewPlanResult {
   const orderId = resolveOrderId(input);
   if (!orderId) {
     throw new Error('W3 preview planning requires orderId');
@@ -1591,16 +1593,23 @@ export function buildW3PreviewPlan(input: JsonRecord): BuildW3PreviewPlanResult 
     explicitFormatId === 'amazon' ||
     (explicitFormatId === null &&
       (toBoolean(input.isAmazonOrder) || Boolean(input.amazonOrderId)));
+  let bookConfig: BookConfig | null = null;
   let pagePlan =
     Array.isArray(input.pagePlan) && input.pagePlan.length > 0
       ? input.pagePlan.map((page) => page as BookPageConfig)
       : [];
   if (!pagePlan.length) {
     try {
-      const config = loadBundledBookConfig({ bookId });
-      pagePlan = resolvePagePlan(config, explicitFormatId ?? undefined).pagePlan;
+      bookConfig = loadBundledBookConfig({ bookId });
+      pagePlan = resolvePagePlan(bookConfig, explicitFormatId ?? undefined).pagePlan;
     } catch {
       pagePlan = buildLegacyBookPagePlan(isAmazonFallback);
+    }
+  } else {
+    try {
+      bookConfig = loadBundledBookConfig({ bookId });
+    } catch {
+      bookConfig = null;
     }
   }
   const sortedPagePlan = [...pagePlan].sort((left, right) => left.index - right.index);
@@ -1640,13 +1649,20 @@ export function buildW3PreviewPlan(input: JsonRecord): BuildW3PreviewPlanResult 
     animalDisplayName: storyContext.animalDisplayName,
     pronounsExtracted: storyContext.pronounsExtracted,
     pronounsResolved: storyContext.pronounsResolved,
+    characterPlacement: options.characterPlacementOverride ?? input.characterPlacement,
     pagePlan: sortedPagePlan,
     pageLabels:
       Array.isArray(input.pageLabels) && input.pageLabels.length > 0
         ? input.pageLabels
         : sortedPagePlan.map((page) => page.label),
   };
-  const interiorHtml = buildInteriorHtml(baseOrder, inputs, renderContext, sortedPagePlan);
+  const interiorHtml = buildInteriorHtml(
+    baseOrder,
+    inputs,
+    renderContext,
+    sortedPagePlan,
+    bookConfig,
+  );
   const coverPreviewItem = buildCoverPreviewItem(baseOrder, inputs, renderContext);
   const pagePreviewItems = buildPagePreviewItems(baseOrder, interiorHtml);
 

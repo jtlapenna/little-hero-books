@@ -4,9 +4,19 @@ import { buildPoseReferenceAssetKey, extractBookIdFromPathLike } from '@/lib/ord
 import { getBucketFromKey } from '@/lib/r2-utils';
 
 const ALPHA_THRESHOLD = 128;
-const SCALE_TOLERANCE = 0.05;
-const VERTICAL_OFFSET_TOLERANCE = 0.03;
-const HORIZONTAL_OFFSET_TOLERANCE = 0.03;
+const DEFAULT_TOLERANCE = {
+  scale: 0.05,
+  verticalOffset: 0.03,
+  horizontalOffset: 0.03,
+  groundContactOffset: 0.03,
+} as const;
+
+const STRICT_TOLERANCE = {
+  scale: 0.01,
+  verticalOffset: 0.005,
+  horizontalOffset: 0.005,
+  groundContactOffset: 0.005,
+} as const;
 
 type DecodedPng = Pick<
   ReturnType<typeof decode>,
@@ -22,11 +32,39 @@ interface BBox {
   height: number;
 }
 
+interface GroundContactBand {
+  row: number;
+  left: number;
+  right: number;
+  width: number;
+  depth: number;
+}
+
+export type NormalizePoseScaleMode = 'default' | 'strict';
+
+export interface PoseAnchorMetrics {
+  groundContactY: number;
+  centerlineX: number;
+  groundContactCenterX: number;
+  groundContactWidth: number;
+  headToFeetSpan: number;
+}
+
+export interface PoseScaleDiagnostics {
+  scaleFactor: number;
+  verticalOffset: number;
+  horizontalOffset: number;
+  groundContactOffset: number;
+  sourceAnchorMetrics: PoseAnchorMetrics;
+  referenceAnchorMetrics: PoseAnchorMetrics;
+}
+
 export interface NormalizePoseScaleInput {
   imageKey: string;
   poseNumber: number;
   bookId?: string | null;
   characterHash?: string | null;
+  mode?: NormalizePoseScaleMode | null;
 }
 
 export interface NormalizePoseScaleResult {
@@ -40,6 +78,9 @@ export interface NormalizePoseScaleResult {
   scaleFactor: number | null;
   verticalOffset: number | null;
   horizontalOffset: number | null;
+  groundContactOffset: number | null;
+  sourceAnchorMetrics: PoseAnchorMetrics | null;
+  referenceAnchorMetrics: PoseAnchorMetrics | null;
   sourceBBoxFound: boolean;
   referenceBBoxFound: boolean;
 }
@@ -206,9 +247,11 @@ function writeRgba(
   out[di + 3] = a;
 }
 
-function opaqueBoundingBox(png: DecodedPng): BBox | null {
+function computeOpaqueRowCounts(
+  png: DecodedPng,
+  isBg: BgClassifier['isBg'],
+): Uint32Array {
   const { width, height } = png;
-  const { isBg } = buildBgClassifier(png);
   const rowCounts = new Uint32Array(height);
 
   for (let y = 0; y < height; y += 1) {
@@ -219,13 +262,28 @@ function opaqueBoundingBox(png: DecodedPng): BBox | null {
     rowCounts[y] = count;
   }
 
+  return rowCounts;
+}
+
+function resolveOpaqueRowMinimum(rowCounts: Uint32Array): number {
   let maxRowCount = 0;
-  for (let y = 0; y < height; y += 1) {
+  for (let y = 0; y < rowCounts.length; y += 1) {
     if (rowCounts[y] > maxRowCount) maxRowCount = rowCounts[y];
   }
-  if (maxRowCount === 0) return null;
+  if (maxRowCount === 0) return 0;
 
-  const rowMin = Math.max(1, Math.floor(maxRowCount * 0.01));
+  return Math.max(1, Math.floor(maxRowCount * 0.01));
+}
+
+function opaqueBoundingBox(
+  png: DecodedPng,
+  isBg: BgClassifier['isBg'],
+  rowCounts: Uint32Array,
+  rowMin: number,
+): BBox | null {
+  const { width, height } = png;
+  if (rowMin === 0) return null;
+
   let top = height;
   let bottom = -1;
   let left = width;
@@ -254,10 +312,144 @@ function opaqueBoundingBox(png: DecodedPng): BBox | null {
   };
 }
 
+function detectGroundContactBand(
+  png: DecodedPng,
+  isBg: BgClassifier['isBg'],
+  rowCounts: Uint32Array,
+  rowMin: number,
+  box: BBox,
+): GroundContactBand {
+  const bandDepth = Math.max(1, Math.min(12, Math.round(box.height * 0.03)));
+  const bandTop = Math.max(box.top, box.bottom - bandDepth + 1);
+  let left = png.width;
+  let right = -1;
+  let top = box.bottom;
+  let bottom = box.bottom;
+
+  for (let y = box.bottom; y >= bandTop; y -= 1) {
+    if (rowCounts[y] < rowMin) continue;
+
+    let rowHasPixels = false;
+    for (let x = 0; x < png.width; x += 1) {
+      if (alphaAt(png, x, y) <= ALPHA_THRESHOLD || isBg(x, y)) continue;
+      rowHasPixels = true;
+      if (x < left) left = x;
+      if (x > right) right = x;
+    }
+
+    if (rowHasPixels) {
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+
+  if (right < left) {
+    return {
+      row: box.bottom,
+      left: box.left,
+      right: box.right,
+      width: box.width,
+      depth: 1,
+    };
+  }
+
+  return {
+    row: bottom,
+    left,
+    right,
+    width: right - left + 1,
+    depth: bottom - top + 1,
+  };
+}
+
+function analyzeOpaqueSilhouette(
+  png: DecodedPng,
+): { box: BBox; groundContactBand: GroundContactBand } | null {
+  const { isBg } = buildBgClassifier(png);
+  const rowCounts = computeOpaqueRowCounts(png, isBg);
+  const rowMin = resolveOpaqueRowMinimum(rowCounts);
+  const box = opaqueBoundingBox(png, isBg, rowCounts, rowMin);
+  if (!box) {
+    return null;
+  }
+
+  return {
+    box,
+    groundContactBand: detectGroundContactBand(
+      png,
+      isBg,
+      rowCounts,
+      rowMin,
+      box,
+    ),
+  };
+}
+
+export function computePoseAnchorMetrics(
+  box: Pick<BBox, 'top' | 'left' | 'right' | 'bottom' | 'width' | 'height'>,
+  canvas: { width: number; height: number },
+  groundContactBand?: Pick<GroundContactBand, 'row' | 'left' | 'right' | 'width'>,
+): PoseAnchorMetrics {
+  const contact = groundContactBand ?? {
+    row: box.bottom,
+    left: box.left,
+    right: box.right,
+    width: box.width,
+  };
+
+  return {
+    groundContactY: contact.row / canvas.height,
+    centerlineX: (box.left + box.right) / 2 / canvas.width,
+    groundContactCenterX: (contact.left + contact.right) / 2 / canvas.width,
+    groundContactWidth: contact.width / canvas.width,
+    headToFeetSpan: (contact.row - box.top + 1) / canvas.height,
+  };
+}
+
+export function computePoseScaleDiagnostics(input: {
+  sourceBox: BBox;
+  referenceBox: BBox;
+  sourceCanvas: { width: number; height: number };
+  referenceCanvas: { width: number; height: number };
+  sourceGroundContactBand?: GroundContactBand;
+  referenceGroundContactBand?: GroundContactBand;
+}): PoseScaleDiagnostics {
+  const sourceAnchorMetrics = computePoseAnchorMetrics(
+    input.sourceBox,
+    input.sourceCanvas,
+    input.sourceGroundContactBand,
+  );
+  const referenceAnchorMetrics = computePoseAnchorMetrics(
+    input.referenceBox,
+    input.referenceCanvas,
+    input.referenceGroundContactBand,
+  );
+
+  return {
+    scaleFactor:
+      referenceAnchorMetrics.headToFeetSpan / sourceAnchorMetrics.headToFeetSpan,
+    verticalOffset:
+      Math.abs(
+        sourceAnchorMetrics.groundContactY - referenceAnchorMetrics.groundContactY,
+      ),
+    horizontalOffset:
+      Math.abs(sourceAnchorMetrics.centerlineX - referenceAnchorMetrics.centerlineX),
+    groundContactOffset:
+      Math.abs(
+        sourceAnchorMetrics.groundContactCenterX -
+          referenceAnchorMetrics.groundContactCenterX,
+      ),
+    sourceAnchorMetrics,
+    referenceAnchorMetrics,
+  };
+}
+
 function normalizeImage(
   srcPng: DecodedPng,
   srcBox: BBox,
+  srcGroundContactBand: GroundContactBand,
   refBox: BBox,
+  refGroundContactBand: GroundContactBand,
   refPng: DecodedPng,
 ): DecodedPng {
   const canvasW = srcPng.width;
@@ -274,14 +466,23 @@ function normalizeImage(
     height: refBox.height * yScale,
     width: refBox.width * xScale,
   };
+  const mappedRefGroundRow = refGroundContactBand.row * yScale;
+  const mappedRefGroundCenterX =
+    ((refGroundContactBand.left + refGroundContactBand.right) / 2) * xScale;
+  const srcGroundRow = srcGroundContactBand.row;
+  const srcGroundCenterX =
+    (srcGroundContactBand.left + srcGroundContactBand.right) / 2;
 
-  const scale = mappedRef.height / srcBox.height;
+  const srcGroundOffsetY = srcGroundRow - srcBox.top;
+  const srcGroundOffsetX = srcGroundCenterX - srcBox.left;
+  const mappedRefSpan = mappedRefGroundRow - mappedRef.top + 1;
+  const srcSpan = srcGroundOffsetY + 1;
+  const scale = mappedRefSpan / srcSpan;
   const scaledW = Math.round(srcBox.width * scale);
   const scaledH = Math.round(srcBox.height * scale);
-  const dstBottom = Math.round(mappedRef.bottom);
-  const dstTop = dstBottom - scaledH + 1;
-  const refCenterX = (mappedRef.left + mappedRef.right) / 2;
-  const dstLeft = Math.round(refCenterX - scaledW / 2);
+  const dstGroundRow = Math.round(mappedRefGroundRow);
+  const dstTop = Math.round(dstGroundRow - srcGroundOffsetY * scale);
+  const dstLeft = Math.round(mappedRefGroundCenterX - srcGroundOffsetX * scale);
 
   const outData = new Uint8Array(canvasW * canvasH * 4);
   for (let dy = 0; dy < scaledH; dy += 1) {
@@ -308,6 +509,29 @@ function normalizeImage(
   };
 }
 
+function normalizeMode(value: NormalizePoseScaleMode | null | undefined): NormalizePoseScaleMode {
+  return value === 'strict' ? 'strict' : 'default';
+}
+
+function getNormalizePoseScaleTolerance(
+  mode: NormalizePoseScaleMode,
+) {
+  return mode === 'strict' ? STRICT_TOLERANCE : DEFAULT_TOLERANCE;
+}
+
+export function shouldNormalizePoseScale(
+  diagnostics: PoseScaleDiagnostics,
+  mode: NormalizePoseScaleMode = 'default',
+): boolean {
+  const tolerance = getNormalizePoseScaleTolerance(mode);
+  return (
+    Math.abs(1 - diagnostics.scaleFactor) >= tolerance.scale ||
+    diagnostics.verticalOffset >= tolerance.verticalOffset ||
+    diagnostics.horizontalOffset >= tolerance.horizontalOffset ||
+    diagnostics.groundContactOffset >= tolerance.groundContactOffset
+  );
+}
+
 export async function normalizePoseScaleAsset(
   input: NormalizePoseScaleInput,
 ): Promise<NormalizePoseScaleResult> {
@@ -325,6 +549,7 @@ export async function normalizePoseScaleAsset(
   if (!resolvedBookId) {
     throw new Error(`Unable to resolve bookId for pose ${input.poseNumber} from ${imageKey}`);
   }
+  const mode = normalizeMode(input.mode);
 
   const refKey = buildPoseReferenceAssetKey(resolvedBookId, input.poseNumber);
   const imageBucket = getBucketFromKey(imageKey);
@@ -341,8 +566,10 @@ export async function normalizePoseScaleAsset(
 
   const imagePng = decode(new Uint8Array(imageBuf));
   const refPng = decode(new Uint8Array(refBuf));
-  const genBox = opaqueBoundingBox(imagePng);
-  const refBox = opaqueBoundingBox(refPng);
+  const generatedSilhouette = analyzeOpaqueSilhouette(imagePng);
+  const referenceSilhouette = analyzeOpaqueSilhouette(refPng);
+  const genBox = generatedSilhouette?.box ?? null;
+  const refBox = referenceSilhouette?.box ?? null;
 
   if (!genBox || !refBox) {
     return {
@@ -356,26 +583,40 @@ export async function normalizePoseScaleAsset(
       scaleFactor: null,
       verticalOffset: null,
       horizontalOffset: null,
+      groundContactOffset: null,
+      sourceAnchorMetrics: genBox
+        ? computePoseAnchorMetrics(genBox, {
+            width: imagePng.width,
+            height: imagePng.height,
+          }, generatedSilhouette?.groundContactBand)
+        : null,
+      referenceAnchorMetrics: refBox
+        ? computePoseAnchorMetrics(refBox, {
+            width: refPng.width,
+            height: refPng.height,
+          }, referenceSilhouette?.groundContactBand)
+        : null,
       sourceBBoxFound: Boolean(genBox),
       referenceBBoxFound: Boolean(refBox),
     };
   }
 
-  const yScale = imagePng.height / refPng.height;
-  const xScale = imagePng.width / refPng.width;
-  const mappedRefHeight = refBox.height * yScale;
-  const mappedRefBottom = refBox.bottom * yScale;
-  const mappedRefCenterX = ((refBox.left + refBox.right) / 2) * xScale;
-  const genCenterX = (genBox.left + genBox.right) / 2;
-  const scaleFactor = mappedRefHeight / genBox.height;
-  const verticalOffset = Math.abs(genBox.bottom - mappedRefBottom) / imagePng.height;
-  const horizontalOffset = Math.abs(genCenterX - mappedRefCenterX) / imagePng.width;
+  const diagnostics = computePoseScaleDiagnostics({
+    sourceBox: genBox,
+    referenceBox: refBox,
+    sourceCanvas: {
+      width: imagePng.width,
+      height: imagePng.height,
+    },
+    referenceCanvas: {
+      width: refPng.width,
+      height: refPng.height,
+    },
+    sourceGroundContactBand: generatedSilhouette?.groundContactBand,
+    referenceGroundContactBand: referenceSilhouette?.groundContactBand,
+  });
 
-  if (
-    Math.abs(1 - scaleFactor) < SCALE_TOLERANCE &&
-    verticalOffset < VERTICAL_OFFSET_TOLERANCE &&
-    horizontalOffset < HORIZONTAL_OFFSET_TOLERANCE
-  ) {
+  if (!shouldNormalizePoseScale(diagnostics, mode)) {
     return {
       success: true,
       normalized: false,
@@ -384,15 +625,25 @@ export async function normalizePoseScaleAsset(
       poseNumber: input.poseNumber,
       bookId: resolvedBookId,
       message: 'Already within tolerance',
-      scaleFactor,
-      verticalOffset,
-      horizontalOffset,
+      scaleFactor: diagnostics.scaleFactor,
+      verticalOffset: diagnostics.verticalOffset,
+      horizontalOffset: diagnostics.horizontalOffset,
+      groundContactOffset: diagnostics.groundContactOffset,
+      sourceAnchorMetrics: diagnostics.sourceAnchorMetrics,
+      referenceAnchorMetrics: diagnostics.referenceAnchorMetrics,
       sourceBBoxFound: true,
       referenceBBoxFound: true,
     };
   }
 
-  const normalizedPng = normalizeImage(imagePng, genBox, refBox, refPng);
+  const normalizedPng = normalizeImage(
+    imagePng,
+    genBox,
+    generatedSilhouette.groundContactBand,
+    refBox,
+    referenceSilhouette.groundContactBand,
+    refPng,
+  );
   const normalizedBytes = encode({
     width: normalizedPng.width,
     height: normalizedPng.height,
@@ -411,9 +662,12 @@ export async function normalizePoseScaleAsset(
     poseNumber: input.poseNumber,
     bookId: resolvedBookId,
     message: 'Image scaled and repositioned to match reference',
-    scaleFactor,
-    verticalOffset,
-    horizontalOffset,
+    scaleFactor: diagnostics.scaleFactor,
+    verticalOffset: diagnostics.verticalOffset,
+    horizontalOffset: diagnostics.horizontalOffset,
+    groundContactOffset: diagnostics.groundContactOffset,
+    sourceAnchorMetrics: diagnostics.sourceAnchorMetrics,
+    referenceAnchorMetrics: diagnostics.referenceAnchorMetrics,
     sourceBBoxFound: true,
     referenceBBoxFound: true,
   };
