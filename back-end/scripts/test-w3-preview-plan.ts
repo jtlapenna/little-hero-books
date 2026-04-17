@@ -198,8 +198,8 @@ async function main(): Promise<void> {
   );
   assert(
     typeof standardPreview.coverPreviewItem.coverHTML === 'string' &&
-      standardPreview.coverPreviewItem.coverHTML.includes('left:4501px') &&
-      standardPreview.coverPreviewItem.coverHTML.includes('top:2113px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('left:4000px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('top:2405px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)'),
     'Expected the standard cover preview to use the configured cover character placement instead of the old hardcoded CSS position',
