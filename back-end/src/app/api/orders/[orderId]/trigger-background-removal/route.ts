@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
 
+const DEFAULT_REPO_W2B_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-repo';
+const LEGACY_W2B_WEBHOOK_PATHS = new Set([
+  'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal',
+  'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-sibtest',
+]);
+
+type ReviewStageRecord = Record<string, unknown>;
+type ReviewStagesRecord = Record<string, ReviewStageRecord>;
+
+function resolve2BWebhookUrl(): string {
+  const configured = process.env.N8N_2B_WEBHOOK_URL?.trim();
+  if (!configured) {
+    return DEFAULT_REPO_W2B_WEBHOOK_URL;
+  }
+
+  const normalized = configured.replace(/\/+$/, '');
+  if (LEGACY_W2B_WEBHOOK_PATHS.has(normalized)) {
+    console.warn(
+      `[POST /api/orders/[orderId]/trigger-background-removal] Rewriting legacy N8N_2B_WEBHOOK_URL (${normalized}) to repo-centric ${DEFAULT_REPO_W2B_WEBHOOK_URL}`,
+    );
+    return DEFAULT_REPO_W2B_WEBHOOK_URL;
+  }
+
+  return configured;
+}
+
+function toObjectRecord(value: unknown): ReviewStageRecord {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as ReviewStageRecord)
+    : {};
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return String(error);
+}
+
 /**
  * Queue order for 2B workflow (Background Removal) via router
  * POST /api/orders/[orderId]/trigger-background-removal
@@ -46,21 +90,25 @@ async function triggerBackgroundRemoval(
     
     // Normalize review_stages so we preserve approvals and keep stages consistent
     // (Supabase may return JSONB as object, but be defensive if it's a string)
-    let normalizedReviewStages: any = currentOrder.review_stages || {};
-    if (typeof normalizedReviewStages === 'string') {
+    let normalizedReviewStages: ReviewStagesRecord = {};
+    const rawReviewStages = currentOrder.review_stages;
+    if (typeof rawReviewStages === 'string') {
       try {
-        normalizedReviewStages = JSON.parse(normalizedReviewStages);
+        normalizedReviewStages = toObjectRecord(JSON.parse(rawReviewStages)) as ReviewStagesRecord;
       } catch {
         normalizedReviewStages = {};
       }
+    } else {
+      normalizedReviewStages = toObjectRecord(rawReviewStages) as ReviewStagesRecord;
     }
 
     // Since this endpoint explicitly triggers 2B, treat preBria as approved so the order
     // does not appear to regress into the 2A review stage while queued for 2B.
+    const existingPreBriaStage = toObjectRecord(normalizedReviewStages.preBria);
     normalizedReviewStages = {
-      ...(normalizedReviewStages || {}),
+      ...normalizedReviewStages,
       preBria: {
-        ...(normalizedReviewStages?.preBria || {}),
+        ...existingPreBriaStage,
         status: 'approved',
       },
     };
@@ -68,7 +116,7 @@ async function triggerBackgroundRemoval(
     // If force=true, call webhook directly and mark as processing to prevent router from picking it up
     // If force=false, queue for router (don't call webhook directly)
     if (force) {
-      const n8n2BWebhookUrl = process.env.N8N_2B_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal';
+      const n8n2BWebhookUrl = resolve2BWebhookUrl();
       try {
         await fetch(n8n2BWebhookUrl, {
           method: 'POST',
@@ -84,7 +132,7 @@ async function triggerBackgroundRemoval(
         console.log(`[POST /api/orders/[orderId]/trigger-background-removal] ✅ Called n8n webhook directly with force=true`);
         
         // Mark as processing to prevent router from picking it up
-        const updates: any = {
+        const updates: Record<string, unknown> = {
           next_workflow: '2B',
           execution_status: 'processing',
           current_workflow: '2B',
@@ -95,10 +143,13 @@ async function triggerBackgroundRemoval(
         updates.review_stages = normalizedReviewStages;
         
         await updateOrderStatus(orderId, updates);
-      } catch (webhookError: any) {
-        console.warn(`[POST /api/orders/[orderId]/trigger-background-removal] Failed to call n8n webhook directly, queueing for router:`, webhookError?.message);
+      } catch (webhookError: unknown) {
+        console.warn(
+          `[POST /api/orders/[orderId]/trigger-background-removal] Failed to call n8n webhook directly, queueing for router:`,
+          getErrorMessage(webhookError),
+        );
         // Fallback: queue for router if direct call failed
-        const updates: any = {
+        const updates: Record<string, unknown> = {
           next_workflow: '2B',
           execution_status: 'ready_for_processing',
           queued_at: new Date().toISOString(),
@@ -112,7 +163,7 @@ async function triggerBackgroundRemoval(
       }
     } else {
       // Normal flow: queue for router (don't call webhook directly)
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         next_workflow: '2B',
         execution_status: 'ready_for_processing',
         queued_at: new Date().toISOString(),
@@ -137,15 +188,14 @@ async function triggerBackgroundRemoval(
       execution_status: 'ready_for_processing',
       force
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[POST /api/orders/[orderId]/trigger-background-removal] Error queueing order:`, error);
     // If it's already a NextResponse (e.g., from createNotFoundError), re-throw it
     if (error instanceof NextResponse) {
       throw error;
     }
-    throw new Error(`Failed to queue order for background removal workflow: ${error?.message || error}`);
+    throw new Error(`Failed to queue order for background removal workflow: ${getErrorMessage(error)}`);
   }
 }
 
 export const POST = withErrorHandling(triggerBackgroundRemoval);
-

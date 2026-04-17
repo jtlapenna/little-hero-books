@@ -70,7 +70,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print-sibtest",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-pdf-print-repo",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -126,7 +126,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-sibtest",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-repo",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -716,7 +716,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4.1-sibling-aggregate-sibtest",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-1-sibling-aggregation-repo",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
