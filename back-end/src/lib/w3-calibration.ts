@@ -460,6 +460,7 @@ function findFixtureLabel(fixtureId: string | null): string {
 function buildPageOptions(
   assemblyInput: BuildW3AssemblyInputResult,
   previewPlan: BuildW3PreviewPlanResult,
+  poseAssetMode: 'live-generated' | 'reference-standin',
   currentPlacementMap: BookCharacterPlacementMap,
   legacyPlacementMap: BookCharacterPlacementMap,
   currentAnimalPlacementMap: BookAnimalPlacementMap,
@@ -520,9 +521,11 @@ function buildPageOptions(
       ? toTrimmedString(renderContext.coversBgAmazon) ?? toTrimmedString(renderContext.coversBg)
       : toTrimmedString(renderContext.coversBg)) ?? null;
   const coverPoseKey =
-    toTrimmedString(renderContext.characterHash)
-      ? `${assemblyInput.bookId}/order-generated-assets/characters/${toTrimmedString(renderContext.characterHash)}/characters_${toTrimmedString(renderContext.characterHash)}_pose00_nobg.png`
-      : toTrimmedString(renderContext.pose00);
+    poseAssetMode === 'reference-standin'
+      ? buildPoseReferenceAssetKey(assemblyInput.bookId, 0)
+      : toTrimmedString(renderContext.characterHash)
+        ? `${assemblyInput.bookId}/order-generated-assets/characters/${toTrimmedString(renderContext.characterHash)}/characters_${toTrimmedString(renderContext.characterHash)}_pose00_nobg.png`
+        : toTrimmedString(renderContext.pose00) ?? buildPoseReferenceAssetKey(assemblyInput.bookId, 0);
   const coverOption =
     coverBackgroundKey && coverPoseKey
       ? ({
@@ -723,6 +726,7 @@ export async function buildW3CalibrationResponse(
   const pages = buildPageOptions(
     assemblyInput,
     currentPreviewPlan,
+    request.sourceType === 'fixture' ? 'reference-standin' : 'live-generated',
     currentPlacementMap,
     legacyPlacementMap,
     currentAnimalPlacementMap,
