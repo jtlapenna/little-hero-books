@@ -234,6 +234,7 @@ const STATUS_OPTIONS = [
 
 const WORKFLOW_LINKS = [
   { href: '/admin/workflow-jobs', label: 'Workflow Jobs', description: 'Inspect recent repo-centric job activity.' },
+  { href: '/admin/w3-calibration', label: 'W3 Calibration', description: 'Tune story-page placement and pose anchors visually.' },
   { href: '/admin/w2a-recovery', label: 'W2A Recovery', description: 'Recover and replay pose-generation orders.' },
   { href: '/admin/w4-production', label: 'W4 Production', description: 'Review W4 production readiness and exports.' },
   { href: '/admin/w41-production', label: 'W4.1 Production', description: 'Inspect grouped production preflight and approvals.' },

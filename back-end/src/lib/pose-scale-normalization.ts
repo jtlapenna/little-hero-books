@@ -89,6 +89,19 @@ export type NormalizePoseScaleFn = (
   input: NormalizePoseScaleInput,
 ) => Promise<NormalizePoseScaleResult>;
 
+export interface PoseScaleInspectionResult {
+  success: true;
+  imageKey: string;
+  refKey: string;
+  poseNumber: number;
+  bookId: string;
+  sourceCanvas: { width: number; height: number };
+  referenceCanvas: { width: number; height: number };
+  sourceBBoxFound: boolean;
+  referenceBBoxFound: boolean;
+  diagnostics: PoseScaleDiagnostics | null;
+}
+
 function inferBackground(png: DecodedPng) {
   const { width, height, data, channels } = png;
   const bpp = channels;
@@ -532,9 +545,21 @@ export function shouldNormalizePoseScale(
   );
 }
 
-export async function normalizePoseScaleAsset(
+async function loadPoseScaleInspectionState(
   input: NormalizePoseScaleInput,
-): Promise<NormalizePoseScaleResult> {
+): Promise<{
+  imageKey: string;
+  refKey: string;
+  bookId: string;
+  imageBucket: string;
+  imagePng: DecodedPng;
+  refPng: DecodedPng;
+  generatedSilhouette: ReturnType<typeof analyzeOpaqueSilhouette>;
+  referenceSilhouette: ReturnType<typeof analyzeOpaqueSilhouette>;
+  sourceBox: BBox | null;
+  referenceBox: BBox | null;
+  diagnostics: PoseScaleDiagnostics | null;
+}> {
   const imageKey = input.imageKey.trim();
   if (!imageKey) {
     throw new Error('normalizePoseScaleAsset requires imageKey');
@@ -549,7 +574,6 @@ export async function normalizePoseScaleAsset(
   if (!resolvedBookId) {
     throw new Error(`Unable to resolve bookId for pose ${input.poseNumber} from ${imageKey}`);
   }
-  const mode = normalizeMode(input.mode);
 
   const refKey = buildPoseReferenceAssetKey(resolvedBookId, input.poseNumber);
   const imageBucket = getBucketFromKey(imageKey);
@@ -568,8 +592,83 @@ export async function normalizePoseScaleAsset(
   const refPng = decode(new Uint8Array(refBuf));
   const generatedSilhouette = analyzeOpaqueSilhouette(imagePng);
   const referenceSilhouette = analyzeOpaqueSilhouette(refPng);
-  const genBox = generatedSilhouette?.box ?? null;
-  const refBox = referenceSilhouette?.box ?? null;
+  const sourceBox = generatedSilhouette?.box ?? null;
+  const referenceBox = referenceSilhouette?.box ?? null;
+  const diagnostics =
+    sourceBox && referenceBox
+      ? computePoseScaleDiagnostics({
+          sourceBox,
+          referenceBox,
+          sourceCanvas: {
+            width: imagePng.width,
+            height: imagePng.height,
+          },
+          referenceCanvas: {
+            width: refPng.width,
+            height: refPng.height,
+          },
+          sourceGroundContactBand: generatedSilhouette?.groundContactBand,
+          referenceGroundContactBand: referenceSilhouette?.groundContactBand,
+        })
+      : null;
+
+  return {
+    imageKey,
+    refKey,
+    bookId: resolvedBookId,
+    imageBucket,
+    imagePng,
+    refPng,
+    generatedSilhouette,
+    referenceSilhouette,
+    sourceBox,
+    referenceBox,
+    diagnostics,
+  };
+}
+
+export async function inspectPoseScaleAsset(
+  input: NormalizePoseScaleInput,
+): Promise<PoseScaleInspectionResult> {
+  const state = await loadPoseScaleInspectionState(input);
+  return {
+    success: true,
+    imageKey: state.imageKey,
+    refKey: state.refKey,
+    poseNumber: input.poseNumber,
+    bookId: state.bookId,
+    sourceCanvas: {
+      width: state.imagePng.width,
+      height: state.imagePng.height,
+    },
+    referenceCanvas: {
+      width: state.refPng.width,
+      height: state.refPng.height,
+    },
+    sourceBBoxFound: Boolean(state.sourceBox),
+    referenceBBoxFound: Boolean(state.referenceBox),
+    diagnostics: state.diagnostics,
+  };
+}
+
+export async function normalizePoseScaleAsset(
+  input: NormalizePoseScaleInput,
+): Promise<NormalizePoseScaleResult> {
+  const mode = normalizeMode(input.mode);
+  const state = await loadPoseScaleInspectionState(input);
+  const {
+    imageKey,
+    refKey,
+    bookId: resolvedBookId,
+    imageBucket,
+    imagePng,
+    refPng,
+    generatedSilhouette,
+    referenceSilhouette,
+    sourceBox: genBox,
+    referenceBox: refBox,
+    diagnostics,
+  } = state;
 
   if (!genBox || !refBox) {
     return {
@@ -600,21 +699,6 @@ export async function normalizePoseScaleAsset(
       referenceBBoxFound: Boolean(refBox),
     };
   }
-
-  const diagnostics = computePoseScaleDiagnostics({
-    sourceBox: genBox,
-    referenceBox: refBox,
-    sourceCanvas: {
-      width: imagePng.width,
-      height: imagePng.height,
-    },
-    referenceCanvas: {
-      width: refPng.width,
-      height: refPng.height,
-    },
-    sourceGroundContactBand: generatedSilhouette?.groundContactBand,
-    referenceGroundContactBand: referenceSilhouette?.groundContactBand,
-  });
 
   if (!shouldNormalizePoseScale(diagnostics, mode)) {
     return {
