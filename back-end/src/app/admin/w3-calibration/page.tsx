@@ -98,6 +98,7 @@ type CalibrationResponse = {
     orderPrefix: string;
     pagePlanSource: string;
     requiredPoseSource: string;
+    poseAssetMode: 'live-generated' | 'reference-standin';
   };
   viewport: {
     width: number;
@@ -706,6 +707,7 @@ export default function W3CalibrationPage() {
   const selectedPage = data?.selectedPage ?? null;
   const selectedPose = data?.selectedPose ?? null;
   const selectedPoseDiagnostics = selectedPose?.inspection?.diagnostics ?? null;
+  const usesReferencePoseStandins = data?.source.poseAssetMode === 'reference-standin';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -823,7 +825,7 @@ export default function W3CalibrationPage() {
         </div>
 
         {data && (
-          <div className="mb-6 grid gap-4 md:grid-cols-5">
+          <div className="mb-6 grid gap-4 md:grid-cols-6">
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Source</div>
               <div className="mt-2 text-sm font-semibold text-gray-900">{data.source.label}</div>
@@ -843,11 +845,24 @@ export default function W3CalibrationPage() {
               <div className="mt-2 text-sm font-semibold text-gray-900">{data.source.requiredPoseSource}</div>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Pose assets</div>
+              <div className="mt-2 text-sm font-semibold text-gray-900">
+                {usesReferencePoseStandins ? 'reference stand-ins' : 'live generated'}
+              </div>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Current selection</div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
                 story {selectedStoryPageNumber ?? 'N/A'} / pose {selectedPoseNumber ?? 'N/A'}
               </div>
             </div>
+          </div>
+        )}
+
+        {data && usesReferencePoseStandins && (
+          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900 shadow-sm">
+            Fixture replay is using shared reference-pose stand-ins instead of live 2B cutouts. That is correct for
+            page-placement calibration, but pose-drift diagnostics are only representative on a live order.
           </div>
         )}
 
@@ -1329,7 +1344,7 @@ export default function W3CalibrationPage() {
             </div>
 
             <div className="space-y-6">
-              {selectedPose && selectedAnchorDraft && selectedPoseDiagnostics ? (
+              {selectedPose && selectedAnchorDraft && selectedPoseDiagnostics && !usesReferencePoseStandins ? (
                 <>
                   <div className="grid gap-6 xl:grid-cols-2">
                     <CalibrationImagePanel
@@ -1437,6 +1452,29 @@ export default function W3CalibrationPage() {
                     </div>
                   </div>
                 </>
+              ) : selectedPose && selectedAnchorDraft && usesReferencePoseStandins ? (
+                <div className="space-y-6">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-6 py-5 text-sm text-blue-900 shadow-sm">
+                    Fixture replay does not have a real generated cutout for this pose. You can still draft anchor
+                    targets against the reference pose here, but load a live order if you want real source-vs-reference
+                    drift metrics.
+                  </div>
+
+                  <CalibrationImagePanel
+                    title="Reference pose"
+                    subtitle="Click on this image to set the anchor target for this pose."
+                    imageUrl={selectedPose.referenceUrl}
+                    canvas={selectedPose.inspection?.referenceCanvas ?? { width: 1, height: 1 }}
+                    anchor={selectedAnchorDraft}
+                    mode={anchorEditMode}
+                    onImageClick={(event) =>
+                      handleAnchorImageClick(
+                        event,
+                        selectedPose.inspection?.referenceCanvas ?? { width: 1, height: 1 },
+                      )
+                    }
+                  />
+                </div>
               ) : selectedPose?.inspectionError ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-14 text-center text-sm text-amber-900 shadow-sm">
                   Pose diagnostics are unavailable for this selection: {selectedPose.inspectionError}

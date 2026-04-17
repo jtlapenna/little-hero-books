@@ -4,6 +4,7 @@ import {
   getLegacyReferenceCharacterPlacement,
   loadBundledBookConfig,
   parseCharacterPlacementOverride,
+  resolvePagePlan,
   resolveBookCharacterPlacementMap,
   type BookCharacterPlacementEntry,
   type BookCharacterPlacementMap,
@@ -83,6 +84,7 @@ export interface W3CalibrationResponse {
     orderPrefix: string;
     pagePlanSource: string;
     requiredPoseSource: string;
+    poseAssetMode: 'live-generated' | 'reference-standin';
   };
   viewport: {
     width: number;
@@ -148,10 +150,56 @@ function buildPageDocument(pageHtml: string, pageCss: string): string {
 <html>
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=2625, initial-scale=1">
-    <style>${pageCss}</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+      #w3-calibration-preview-shell {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      #w3-calibration-preview-stage {
+        width: 2625px;
+        height: 2625px;
+        transform-origin: top left;
+      }
+      ${pageCss}
+    </style>
   </head>
-  <body>${pageHtml}</body>
+  <body>
+    <div id="w3-calibration-preview-shell">
+      <div id="w3-calibration-preview-stage">${pageHtml}</div>
+    </div>
+    <script>
+      (() => {
+        const stage = document.getElementById('w3-calibration-preview-stage');
+        const shell = document.getElementById('w3-calibration-preview-shell');
+        const targetWidth = 2625;
+        const targetHeight = 2625;
+        function fit() {
+          if (!stage || !shell) return;
+          const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
+          stage.style.transform = 'scale(' + scale + ')';
+          shell.style.height = Math.round(targetHeight * scale) + 'px';
+        }
+        fit();
+        window.addEventListener('resize', fit);
+      })();
+    </script>
+  </body>
 </html>`;
 }
 
@@ -203,7 +251,7 @@ async function buildAssemblyInputFromFixture(
     throw new Error(`Unknown W3 calibration fixture: ${fixtureId}`);
   }
 
-  return buildW3AssemblyInput(fixture.input, {
+  const assemblyInput = await buildW3AssemblyInput(fixture.input, {
     loadManifest: async (manifestKey) => {
       if (manifestKey === fixture.manifests.oneKey) {
         return fixture.manifests.one;
@@ -218,6 +266,38 @@ async function buildAssemblyInputFromFixture(
     },
     defaultBackendUrl: fixture.backendUrl ?? adminBaseUrl,
   });
+
+  const config = loadBundledBookConfig({ bookId: assemblyInput.bookId });
+  const resolvedPlan = resolvePagePlan(config, assemblyInput.formatId ?? undefined);
+  const processedImages = resolvedPlan.pagePlan
+    .map((page) => Number(page.poseNumber))
+    .filter((poseNumber): poseNumber is number => Number.isFinite(poseNumber) && poseNumber > 0)
+    .filter((poseNumber, index, values) => values.indexOf(poseNumber) === index)
+    .map((poseNumber) => {
+      const refKey = buildPoseReferenceAssetKey(assemblyInput.bookId, poseNumber);
+      return {
+        poseNumber,
+        fileName: refKey.split('/').pop() ?? `pose${String(poseNumber).padStart(2, '0')}.png`,
+        r2Path: refKey,
+        publicUrl: `${adminBaseUrl}/api/assets/${refKey}`,
+        briaProcessed: false,
+        briaStatus: 'reference_pose_standin',
+        flipped: false,
+        flippedAt: null,
+        sourceKey: 'approvedKey' as const,
+      };
+    });
+
+  return {
+    ...assemblyInput,
+    expectedPageCount: resolvedPlan.expectedPageCount,
+    pagePlan: resolvedPlan.pagePlan,
+    pageLabels: resolvedPlan.pageLabels,
+    pagePlanSource: 'runtime-config',
+    requiredPoseNumbers: resolvedPlan.qaPolicy.pose.requiredPoseNumbers,
+    requiredPoseSource: 'runtime-config',
+    processedImages,
+  };
 }
 
 async function buildAssemblyInputFromOrder(
@@ -516,6 +596,8 @@ export async function buildW3CalibrationResponse(
       orderPrefix: assemblyInput.orderPrefix,
       pagePlanSource: assemblyInput.pagePlanSource,
       requiredPoseSource: assemblyInput.requiredPoseSource,
+      poseAssetMode:
+        request.sourceType === 'fixture' ? 'reference-standin' : 'live-generated',
     },
     viewport: {
       width: config.rendering.preview.interiorPx.w,
