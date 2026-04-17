@@ -150,6 +150,11 @@ const FALLBACK_FIXTURE_OPTIONS = [
   },
 ];
 
+// W3 placement coordinates are authored on the legacy 2550px interior grid,
+// then scaled up to the 2625px render output. The editor must use the same
+// base grid or it will drift slightly from the real W3 render.
+const W3_PLACEMENT_BASE = 2550;
+
 function clonePlacement(entry: PlacementEntry | null | undefined): PlacementEntry | null {
   if (!entry) {
     return null;
@@ -216,9 +221,9 @@ function buildPlacementStyle(
 
   return {
     position: 'absolute',
-    left: `${(placement.left / viewport.width) * 100}%`,
-    top: `${(placement.top / viewport.height) * 100}%`,
-    width: `${(placement.width / viewport.width) * 100}%`,
+    left: `${(placement.left / W3_PLACEMENT_BASE) * 100}%`,
+    top: `${(placement.top / W3_PLACEMENT_BASE) * 100}%`,
+    width: `${(placement.width / W3_PLACEMENT_BASE) * 100}%`,
     transform: transforms.join(' '),
     transformOrigin: 'bottom center',
     zIndex: placement.zIndex ?? 10,
@@ -645,16 +650,16 @@ export default function W3CalibrationPage() {
 
     const rect = previewCanvasRef.current.getBoundingClientRect();
     const deltaX =
-      (event.clientX - dragState.startClientX) * (data.viewport.width / rect.width);
+      (event.clientX - dragState.startClientX) * (W3_PLACEMENT_BASE / rect.width);
     const deltaY =
-      (event.clientY - dragState.startClientY) * (data.viewport.height / rect.height);
+      (event.clientY - dragState.startClientY) * (W3_PLACEMENT_BASE / rect.height);
 
     setPlacementOverrides((previous) => ({
       ...previous,
       [String(selectedStoryPageNumber)]: {
         ...dragState.basePlacement,
-        left: clampNumber(dragState.startLeft + deltaX, 0, data.viewport.width),
-        top: clampNumber(dragState.startTop + deltaY, 0, data.viewport.height),
+        left: clampNumber(dragState.startLeft + deltaX, 0, W3_PLACEMENT_BASE),
+        top: clampNumber(dragState.startTop + deltaY, 0, W3_PLACEMENT_BASE),
       },
     }));
   };
