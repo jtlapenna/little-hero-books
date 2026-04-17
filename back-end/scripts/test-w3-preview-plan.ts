@@ -201,8 +201,9 @@ async function main(): Promise<void> {
       standardPreview.coverPreviewItem.coverHTML.includes('left:4000px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('top:2405px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
-      standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)'),
-    'Expected the standard cover preview to use the configured cover character placement instead of the old hardcoded CSS position',
+      standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('position:absolute; height:auto; display:block;'),
+    'Expected the standard cover preview to emit a self-positioned inline cover sprite so PDFMonkey does not depend on template CSS for cover character placement',
   );
   assert(
     typeof standardPreview.pages_html === 'string' &&

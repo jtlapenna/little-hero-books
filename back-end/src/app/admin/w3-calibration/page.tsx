@@ -1324,7 +1324,8 @@ export default function W3CalibrationPage() {
                       <iframe
                         title="Current draft render"
                         srcDoc={selectedPage.currentSrcDoc}
-                        className="aspect-square w-full rounded-2xl border border-gray-200 bg-white"
+                        className="w-full rounded-2xl border border-gray-200 bg-white"
+                        style={{ aspectRatio: `${selectedPageViewport.width} / ${selectedPageViewport.height}` }}
                       />
                     ) : (
                       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center text-sm text-gray-500">
@@ -1346,7 +1347,8 @@ export default function W3CalibrationPage() {
                       <iframe
                         title="Legacy reference render"
                         srcDoc={selectedPage.legacySrcDoc}
-                        className="aspect-square w-full rounded-2xl border border-gray-200 bg-white"
+                        className="w-full rounded-2xl border border-gray-200 bg-white"
+                        style={{ aspectRatio: `${selectedPageViewport.width} / ${selectedPageViewport.height}` }}
                       />
                     ) : (
                       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center text-sm text-gray-500">

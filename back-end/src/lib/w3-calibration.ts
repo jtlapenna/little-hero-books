@@ -232,89 +232,137 @@ function buildPreviewDocument(
 </html>`;
 }
 
-function buildPlacementStyleCss(
-  placement: BookCharacterPlacementEntry | null,
-): string {
-  if (!placement) {
-    return '';
-  }
-
-  const anchorXPercent =
-    typeof placement.anchorXPercent === 'number' ? placement.anchorXPercent : 50;
-  const anchorYPercent =
-    typeof placement.anchorYPercent === 'number' ? placement.anchorYPercent : 100;
-  const transforms = [`translate(-${anchorXPercent}%,-${anchorYPercent}%)`];
-  if (typeof placement.rotateDeg === 'number' && placement.rotateDeg !== 0) {
-    transforms.push(`rotate(${placement.rotateDeg}deg)`);
-  }
-
-  return [
-    `left:${placement.left}px`,
-    `top:${placement.top}px`,
-    `width:${placement.width}px`,
-    `transform:${transforms.join(' ')}`,
-    `z-index:${placement.zIndex ?? 10}`,
-  ].join(';');
+const COVER_PREVIEW_CSS = `
+@font-face{
+  font-family:'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display:swap;
 }
 
-function buildSimplePlacementDocument(options: {
-  backgroundUrl: string;
-  overlayUrls: string[];
-  editableAssetUrl: string;
-  placement: BookCharacterPlacementEntry | null;
-  viewport: { width: number; height: number };
-}): string {
-  const { backgroundUrl, overlayUrls, editableAssetUrl, placement, viewport } = options;
-  const overlayHtml = overlayUrls
-    .map(
-      (overlayUrl) =>
-        `<img src="${overlayUrl}" alt="" class="overlay" loading="eager" decoding="sync" fetchpriority="high">`,
-    )
-    .join('');
-  const pageHtml = `
-    <div class="scene">
-      <img src="${backgroundUrl}" alt="" class="background" loading="eager" decoding="sync" fetchpriority="high">
-      ${overlayHtml}
-      <div class="subject" style="${buildPlacementStyleCss(placement)}">
-        <img src="${editableAssetUrl}" alt="" class="sprite" loading="eager" decoding="sync" fetchpriority="high">
-      </div>
-    </div>
-  `;
-  const pageCss = `
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: ${viewport.width}px;
-      height: ${viewport.height}px;
-      overflow: hidden;
-      background: #ffffff;
-    }
-    .scene {
-      position: relative;
-      width: ${viewport.width}px;
-      height: ${viewport.height}px;
-      overflow: hidden;
-    }
-    .background, .overlay {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .subject {
-      position: absolute;
-      transform-origin: top left;
-    }
-    .sprite {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-  `;
+html, body {
+  margin:0;
+  padding:0;
+  width:5203px;
+  height:2625px;
+  overflow:hidden;
+  -webkit-text-size-adjust:100%;
+}
 
-  return buildPreviewDocument(pageHtml, pageCss, viewport);
+* { box-sizing:border-box; }
+
+.cover-viewport,
+.cover-canvas,
+.cover-spread {
+  position:relative;
+  width:5203px;
+  height:2625px;
+}
+
+.cover-canvas { transform:none; }
+
+.bg{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-repeat:no-repeat, no-repeat;
+  background-position: 86.5% 80.5%, center center;
+  background-size: 1200px auto, cover;
+}
+
+.half{ position:absolute; top:0; height:2625px; }
+.back{ left:0; width:2601px; }
+.front{ right:0; width:2602px; }
+.spine{ position:absolute; left:2601px; top:0; width:2px; height:100%; background:rgba(0,0,0,0.06); z-index:3; }
+
+:root{
+  --gold-main:#F4D28B;
+  --gold-body:#F7E3B3;
+  --gold-footer:#F4D28B;
+  --panel-stroke:rgba(255,255,255,0.80);
+  --panel-text:#F7EBD1;
+  --front-name-size:280px;
+  --front-label-size:200px;
+}
+
+.front-title-wrap{
+  position:absolute;
+  left:calc(5203px * 0.76);
+  top:340px;
+  width:1800px;
+  text-align:center;
+  z-index:6;
+  transform:translateX(-50%);
+}
+
+.front-title{
+  font-family:'CustomBook', Arial, sans-serif;
+  line-height:1.06;
+  letter-spacing:2px;
+  color:var(--gold-main);
+  text-transform:uppercase;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+.front-title .name{ display:block; font-size:var(--front-name-size); }
+.front-title .label{ display:block; font-size:var(--front-label-size); }
+
+.back-wrap{
+  position:absolute;
+  left:0;
+  top:370px;
+  width:2601px;
+  padding:0 220px;
+  z-index:6;
+  text-align:center;
+  margin:0 auto;
+}
+
+.back-h1{
+  font-family:'CustomBook', Arial, sans-serif;
+  font-size:160px;
+  line-height:1.08;
+  letter-spacing:2px;
+  color:var(--gold-main);
+  margin-bottom:80px;
+}
+
+.back-body{
+  white-space:pre-line;
+  font-family:'CustomBook', Arial, sans-serif;
+  font-size:86px;
+  line-height:1.3;
+  letter-spacing:1px;
+  color:var(--gold-body);
+  margin:0 auto 80px;
+  max-width:2000px;
+}
+
+.try-wrap{ position:relative; width:2000px; padding-top:12px; margin:200px auto 400px; }
+.try-hdr{ font-family:'CustomBook', Arial, sans-serif; font-size:140px; letter-spacing:8px; color:var(--gold-main); text-align:center; margin-bottom:28px; }
+.try-panel{ margin:0 auto; width:1600px; border:8px solid var(--panel-stroke); border-radius:98px; padding:40px 60px; text-align:center; }
+.try-text{ white-space:pre-line; font-family:'CustomBook', Arial, sans-serif; font-size:86px; line-height:1.25; letter-spacing:1px; color:var(--panel-text); }
+
+.footer{
+  font-family:'CustomBook', Arial, sans-serif;
+  letter-spacing:2px;
+  color:var(--gold-footer);
+  text-align:center;
+  position: relative;
+  top: -210px;
+}
+
+.footer .line{ font-size:86px; display:block; }
+.footer .name{ font-size:86px; display:block; margin-top:12px; }
+`;
+
+function buildCoverPreviewDocument(
+  pageHtml: string,
+  viewport: { width: number; height: number },
+): string {
+  return buildPreviewDocument(pageHtml, COVER_PREVIEW_CSS, viewport);
 }
 
 function clonePlacementEntry(
@@ -839,14 +887,11 @@ export async function buildW3CalibrationResponse(
       ? {
           currentSrcDoc:
             selectedPageOption.pageLabel === 'cover'
-              ? selectedPageOption.backgroundUrl && selectedPageOption.editableAssetUrl
-                ? buildSimplePlacementDocument({
-                    backgroundUrl: selectedPageOption.backgroundUrl,
-                    overlayUrls: selectedPageOption.overlayUrls,
-                    editableAssetUrl: selectedPageOption.editableAssetUrl,
-                    placement: selectedPageOption.currentPlacement,
-                    viewport: selectedPageOption.viewport,
-                  })
+              ? currentPreviewPlan.coverPreviewItem?.coverHTML
+                ? buildCoverPreviewDocument(
+                    currentPreviewPlan.coverPreviewItem.coverHTML,
+                    selectedPageOption.viewport,
+                  )
                 : null
               : currentPreviewItem
                 ? buildPreviewDocument(
@@ -857,14 +902,11 @@ export async function buildW3CalibrationResponse(
                 : null,
           legacySrcDoc:
             selectedPageOption.pageLabel === 'cover'
-              ? selectedPageOption.backgroundUrl && selectedPageOption.editableAssetUrl
-                ? buildSimplePlacementDocument({
-                    backgroundUrl: selectedPageOption.backgroundUrl,
-                    overlayUrls: selectedPageOption.overlayUrls,
-                    editableAssetUrl: selectedPageOption.editableAssetUrl,
-                    placement: selectedPageOption.legacyPlacement,
-                    viewport: selectedPageOption.viewport,
-                  })
+              ? legacyPreviewPlan.coverPreviewItem?.coverHTML
+                ? buildCoverPreviewDocument(
+                    legacyPreviewPlan.coverPreviewItem.coverHTML,
+                    selectedPageOption.viewport,
+                  )
                 : null
               : legacyPreviewItem
                 ? buildPreviewDocument(

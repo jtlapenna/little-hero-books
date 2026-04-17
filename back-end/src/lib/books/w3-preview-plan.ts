@@ -406,6 +406,18 @@ function buildCharacterStyle(
   ].join('; ') + ';';
 }
 
+function buildCoverSpriteStyle(
+  placement: BookCharacterPlacementEntry | null,
+  toPx: (value: number) => string,
+): string {
+  const base = buildCharacterStyle(placement, toPx);
+  if (!base) {
+    return '';
+  }
+
+  return `${base} position:absolute; height:auto; display:block;`;
+}
+
 function resolveOrderId(input: JsonRecord): string {
   return (
     toTrimmedString(input.orderId) ??
@@ -1374,7 +1386,7 @@ function buildCoverPreviewItem(
   const coverImageFilename = 'cover-spread.png';
   const coverImageR2Key = `${orderR2BaseKey}/preview-images/${coverImageFilename}`;
   const coverCharacterPlacement = resolveCoverCharacterPlacement(orderContext, bookConfig);
-  const coverCharacterStyle = buildCharacterStyle(
+  const coverCharacterStyle = buildCoverSpriteStyle(
     coverCharacterPlacement,
     (value) => `${Math.round(value)}px`,
   );
@@ -1406,10 +1418,8 @@ function buildCoverPreviewItem(
             ? `
         <div class="bg" style="position:absolute;inset:0;">
           <img src="${esc(coversBgUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-          <div class="cover-character" style="${coverCharacterStyle}">
-            <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
-                 style="display:block;width:100%;height:auto;">
-          </div>
+          <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
+               style="${coverCharacterStyle}">
 </div>
 `
             : `
@@ -1491,10 +1501,8 @@ function buildCoverPreviewItem(
             ? `
         <div class="bg" style="position:absolute;inset:0;">
           <img src="${esc(coversBgUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-          <div class="cover-character" style="${coverCharacterStyle}">
-            <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
-                 style="display:block;width:100%;height:auto;">
-          </div>
+          <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
+               style="${coverCharacterStyle}">
 </div>
 `
             : `
