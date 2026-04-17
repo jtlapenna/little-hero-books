@@ -31,6 +31,8 @@ type PlacementEntry = {
   width: number;
   rotateDeg?: number;
   zIndex?: number;
+  anchorXPercent?: number;
+  anchorYPercent?: number;
 };
 
 type PoseAnchorDraft = {
@@ -71,7 +73,7 @@ type CalibrationPageOption = {
   pageNumber: number;
   storyPageNumber: number;
   poseNumber: number | null;
-  editableAssetType: 'character' | 'animal';
+  editableAssetType: 'character' | 'animal' | 'cover-character';
   backgroundUrl: string | null;
   overlayUrls: string[];
   characterUrl: string | null;
@@ -79,6 +81,10 @@ type CalibrationPageOption = {
   editableAssetUrl: string | null;
   currentPlacement: PlacementEntry | null;
   legacyPlacement: PlacementEntry | null;
+  viewport: {
+    width: number;
+    height: number;
+  };
 };
 
 type CalibrationPoseOption = {
@@ -116,12 +122,16 @@ type CalibrationResponse = {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
-    editableAssetType: 'character' | 'animal';
+    editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
     animalUrl: string | null;
     currentPlacement: PlacementEntry | null;
     legacyPlacement: PlacementEntry | null;
+    viewport: {
+      width: number;
+      height: number;
+    };
   } | null;
   selectedPose: {
     poseNumber: number;
@@ -133,6 +143,7 @@ type CalibrationResponse = {
   exportHints: {
     characterPlacementOverrideByStoryPage: Record<string, PlacementEntry>;
     animalPlacementOverrideByStoryPage: Record<string, PlacementEntry>;
+    coverCharacterPlacementOverride: PlacementEntry | null;
     poseAnchorSuggestionByPose: Record<string, PoseAnchorDraft>;
   };
 };
@@ -145,6 +156,7 @@ type CalibrationRequest = {
   selectedPoseNumber?: number | null;
   characterPlacementOverrideByStoryPage?: Record<string, PlacementEntry>;
   animalPlacementOverrideByStoryPage?: Record<string, PlacementEntry>;
+  coverCharacterPlacementOverride?: PlacementEntry | null;
 };
 
 const FALLBACK_FIXTURE_OPTIONS = [
@@ -210,7 +222,7 @@ function sortPlacementOverrides(
 
 function buildPlacementStyle(
   placement: PlacementEntry | null,
-  viewport: { width: number; height: number },
+  placementBase: { width: number; height: number },
   options: {
     opacity?: number;
     outline?: string;
@@ -222,24 +234,39 @@ function buildPlacementStyle(
     return { display: 'none' };
   }
 
-  const transforms = ['translate(-50%, -100%)'];
+  const anchorXPercent =
+    typeof placement.anchorXPercent === 'number' ? placement.anchorXPercent : 50;
+  const anchorYPercent =
+    typeof placement.anchorYPercent === 'number' ? placement.anchorYPercent : 100;
+  const transforms = [`translate(-${anchorXPercent}%, -${anchorYPercent}%)`];
   if (typeof placement.rotateDeg === 'number' && placement.rotateDeg !== 0) {
     transforms.push(`rotate(${placement.rotateDeg}deg)`);
   }
 
   return {
     position: 'absolute',
-    left: `${(placement.left / W3_PLACEMENT_BASE) * 100}%`,
-    top: `${(placement.top / W3_PLACEMENT_BASE) * 100}%`,
-    width: `${(placement.width / W3_PLACEMENT_BASE) * 100}%`,
+    left: `${(placement.left / placementBase.width) * 100}%`,
+    top: `${(placement.top / placementBase.height) * 100}%`,
+    width: `${(placement.width / placementBase.width) * 100}%`,
     transform: transforms.join(' '),
-    transformOrigin: 'bottom center',
+    transformOrigin: `${anchorXPercent}% ${anchorYPercent}%`,
     zIndex: placement.zIndex ?? 10,
     opacity: options.opacity,
     outline: options.outline,
     filter: options.filter,
     pointerEvents: options.pointerEvents,
   };
+}
+
+function resolvePlacementBase(
+  editableAssetType: CalibrationPageOption['editableAssetType'] | undefined,
+  viewport: { width: number; height: number },
+): { width: number; height: number } {
+  if (editableAssetType === 'cover-character') {
+    return viewport;
+  }
+
+  return { width: W3_PLACEMENT_BASE, height: W3_PLACEMENT_BASE };
 }
 
 function buildAnchorMarkerStyle(anchor: PoseAnchorDraft): CSSProperties {
@@ -343,6 +370,7 @@ export default function W3CalibrationPage() {
   } | null>(null);
   const [characterPlacementOverrides, setCharacterPlacementOverrides] = useState<Record<string, PlacementEntry>>({});
   const [animalPlacementOverrides, setAnimalPlacementOverrides] = useState<Record<string, PlacementEntry>>({});
+  const [coverCharacterPlacementOverride, setCoverCharacterPlacementOverride] = useState<PlacementEntry | null>(null);
   const [anchorDrafts, setAnchorDrafts] = useState<Record<string, PoseAnchorDraft>>({});
   const [dragging, setDragging] = useState(false);
   const previewCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -419,9 +447,17 @@ export default function W3CalibrationPage() {
   }, []);
 
   const selectedPagePlacement = useMemo(() => {
-    if (!selectedStoryPageNumber || !data?.selectedPage) {
+    if (selectedStoryPageNumber === null || !data?.selectedPage) {
       return null;
     }
+    if (data.selectedPage.editableAssetType === 'cover-character') {
+      return (
+        clonePlacement(coverCharacterPlacementOverride) ??
+        clonePlacement(data.selectedPage.currentPlacement) ??
+        clonePlacement(data.selectedPage.legacyPlacement)
+      );
+    }
+
     const overrides =
       data.selectedPage.editableAssetType === 'animal'
         ? animalPlacementOverrides
@@ -431,7 +467,13 @@ export default function W3CalibrationPage() {
       clonePlacement(data.selectedPage.currentPlacement) ??
       clonePlacement(data.selectedPage.legacyPlacement)
     );
-  }, [animalPlacementOverrides, characterPlacementOverrides, data, selectedStoryPageNumber]);
+  }, [
+    animalPlacementOverrides,
+    characterPlacementOverrides,
+    coverCharacterPlacementOverride,
+    data,
+    selectedStoryPageNumber,
+  ]);
 
   const selectedLegacyPlacement = useMemo(
     () => clonePlacement(data?.selectedPage?.legacyPlacement),
@@ -450,16 +492,25 @@ export default function W3CalibrationPage() {
   }, [anchorDrafts, data, selectedPoseNumber]);
 
   const placementExportJson = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          characterPlacementOverrideByStoryPage: sortPlacementOverrides(characterPlacementOverrides),
-          animalPlacementOverrideByStoryPage: sortPlacementOverrides(animalPlacementOverrides),
-        },
-        null,
-        2,
-      ),
-    [animalPlacementOverrides, characterPlacementOverrides],
+    () => {
+      const payload: Record<string, unknown> = {};
+      if (Object.keys(characterPlacementOverrides).length > 0) {
+        payload.characterPlacementOverrideByStoryPage = sortPlacementOverrides(
+          characterPlacementOverrides,
+        );
+      }
+      if (Object.keys(animalPlacementOverrides).length > 0) {
+        payload.animalPlacementOverrideByStoryPage = sortPlacementOverrides(
+          animalPlacementOverrides,
+        );
+      }
+      if (coverCharacterPlacementOverride) {
+        payload.coverCharacterPlacementOverride = coverCharacterPlacementOverride;
+      }
+
+      return JSON.stringify(payload, null, 2);
+    },
+    [animalPlacementOverrides, characterPlacementOverrides, coverCharacterPlacementOverride],
   );
 
   const anchorExportJson = useMemo(
@@ -477,7 +528,7 @@ export default function W3CalibrationPage() {
   );
 
   const applyPlacementPatch = (patch: Partial<PlacementEntry>) => {
-    if (!selectedStoryPageNumber) {
+    if (selectedStoryPageNumber === null) {
       return;
     }
 
@@ -493,6 +544,11 @@ export default function W3CalibrationPage() {
       ...base,
       ...patch,
     };
+
+    if (data?.selectedPage?.editableAssetType === 'cover-character') {
+      setCoverCharacterPlacementOverride(nextEntry);
+      return;
+    }
 
     if (data?.selectedPage?.editableAssetType === 'animal') {
       setAnimalPlacementOverrides((previous) => ({
@@ -526,6 +582,7 @@ export default function W3CalibrationPage() {
 
     setCharacterPlacementOverrides({});
     setAnimalPlacementOverrides({});
+    setCoverCharacterPlacementOverride(null);
     setAnchorDrafts({});
     setSelectedStoryPageNumber(null);
     setSelectedPoseNumber(null);
@@ -542,6 +599,7 @@ export default function W3CalibrationPage() {
             selectedPoseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           }
         : {
             sourceType,
@@ -550,6 +608,7 @@ export default function W3CalibrationPage() {
             selectedPoseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           },
       { preserveDrafts: true },
     );
@@ -566,6 +625,7 @@ export default function W3CalibrationPage() {
             selectedPoseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           }
         : {
             sourceType,
@@ -574,6 +634,7 @@ export default function W3CalibrationPage() {
             selectedPoseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           },
       { preserveDrafts: true },
     );
@@ -590,6 +651,7 @@ export default function W3CalibrationPage() {
             selectedPoseNumber: poseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           }
         : {
             sourceType,
@@ -598,18 +660,21 @@ export default function W3CalibrationPage() {
             selectedPoseNumber: poseNumber,
             characterPlacementOverrideByStoryPage: characterPlacementOverrides,
             animalPlacementOverrideByStoryPage: animalPlacementOverrides,
+            coverCharacterPlacementOverride,
           },
       { preserveDrafts: true },
     );
   };
 
   const handleCopyPlacement = async () => {
-    if (!selectedStoryPageNumber || !selectedPagePlacement) {
+    if (selectedStoryPageNumber === null || !selectedPagePlacement) {
       return;
     }
 
     const snippet = JSON.stringify(
-      data?.selectedPage?.editableAssetType === 'animal'
+      data?.selectedPage?.editableAssetType === 'cover-character'
+        ? { coverCharacterPlacementOverride: selectedPagePlacement }
+        : data?.selectedPage?.editableAssetType === 'animal'
         ? { animalPlacementOverrideByStoryPage: { [String(selectedStoryPageNumber)]: selectedPagePlacement } }
         : { characterPlacementOverrideByStoryPage: { [String(selectedStoryPageNumber)]: selectedPagePlacement } },
       null,
@@ -619,7 +684,13 @@ export default function W3CalibrationPage() {
     setBanner({
       tone: copied ? 'success' : 'error',
       message: copied
-        ? `Copied ${data?.selectedPage?.editableAssetType ?? 'page'} placement override for story page ${selectedStoryPageNumber}.`
+        ? `Copied ${
+            data?.selectedPage?.editableAssetType === 'cover-character'
+              ? 'cover'
+              : `${data?.selectedPage?.editableAssetType ?? 'page'} placement`
+          } override for ${
+            selectedStoryPageNumber === 0 ? 'the cover' : `story page ${selectedStoryPageNumber}`
+          }.`
         : 'Failed to copy placement override.',
     });
   };
@@ -651,7 +722,11 @@ export default function W3CalibrationPage() {
   };
 
   const handleResetCurrentPage = () => {
-    if (!selectedStoryPageNumber) {
+    if (selectedStoryPageNumber === null) {
+      return;
+    }
+    if (data?.selectedPage?.editableAssetType === 'cover-character') {
+      setCoverCharacterPlacementOverride(null);
       return;
     }
     if (data?.selectedPage?.editableAssetType === 'animal') {
@@ -670,7 +745,7 @@ export default function W3CalibrationPage() {
   };
 
   const handlePlacementDragStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!selectedStoryPageNumber || !selectedPagePlacement) {
+    if (selectedStoryPageNumber === null || !selectedPagePlacement) {
       return;
     }
 
@@ -690,21 +765,34 @@ export default function W3CalibrationPage() {
 
   const handlePlacementDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const dragState = dragStateRef.current;
-    if (!dragState || !previewCanvasRef.current || !selectedStoryPageNumber || !data) {
+    if (
+      !dragState ||
+      !previewCanvasRef.current ||
+      selectedStoryPageNumber === null ||
+      !data
+    ) {
       return;
     }
 
     const rect = previewCanvasRef.current.getBoundingClientRect();
+    const placementBase = resolvePlacementBase(
+      data.selectedPage?.editableAssetType,
+      data.selectedPage?.viewport ?? data.viewport,
+    );
     const deltaX =
-      (event.clientX - dragState.startClientX) * (W3_PLACEMENT_BASE / rect.width);
+      (event.clientX - dragState.startClientX) * (placementBase.width / rect.width);
     const deltaY =
-      (event.clientY - dragState.startClientY) * (W3_PLACEMENT_BASE / rect.height);
+      (event.clientY - dragState.startClientY) * (placementBase.height / rect.height);
 
     const nextEntry = {
       ...dragState.basePlacement,
-      left: clampNumber(dragState.startLeft + deltaX, 0, W3_PLACEMENT_BASE),
-      top: clampNumber(dragState.startTop + deltaY, 0, W3_PLACEMENT_BASE),
+      left: clampNumber(dragState.startLeft + deltaX, 0, placementBase.width),
+      top: clampNumber(dragState.startTop + deltaY, 0, placementBase.height),
     };
+    if (data.selectedPage?.editableAssetType === 'cover-character') {
+      setCoverCharacterPlacementOverride(nextEntry);
+      return;
+    }
     if (data.selectedPage?.editableAssetType === 'animal') {
       setAnimalPlacementOverrides((previous) => ({
         ...previous,
@@ -767,6 +855,17 @@ export default function W3CalibrationPage() {
   const selectedPose = data?.selectedPose ?? null;
   const selectedPoseDiagnostics = selectedPose?.inspection?.diagnostics ?? null;
   const usesReferencePoseStandins = data?.source.poseAssetMode === 'reference-standin';
+  const selectedPageViewport = selectedPage?.viewport ?? data?.viewport ?? { width: 1, height: 1 };
+  const selectedPlacementBase = resolvePlacementBase(
+    selectedPage?.editableAssetType,
+    selectedPageViewport,
+  );
+  const currentSelectionLabel =
+    selectedStoryPageNumber === 0
+      ? 'cover'
+      : selectedStoryPageNumber !== null
+        ? `story ${selectedStoryPageNumber}`
+        : 'N/A';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -912,7 +1011,9 @@ export default function W3CalibrationPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Current selection</div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
-                story {selectedStoryPageNumber ?? 'N/A'} / pose {selectedPoseNumber ?? 'N/A'}
+                {selectedStoryPageNumber === 0
+                  ? 'cover / pose 00'
+                  : `${currentSelectionLabel} / pose ${selectedPoseNumber ?? 'N/A'}`}
               </div>
             </div>
           </div>
@@ -962,8 +1063,8 @@ export default function W3CalibrationPage() {
                 <div className="border-b border-gray-200 px-4 py-3">
                   <h2 className="text-sm font-semibold text-gray-900">Story pages</h2>
                   <p className="mt-1 text-xs text-gray-500">
-                    Select a story page, drag the character in the live canvas, then render the exact W3 page with the
-                    current draft override.
+                    Select a story page or the cover, drag the live subject in the canvas, then render the draft view
+                    with the current override.
                   </p>
                 </div>
                 <div className="grid gap-2 p-3">
@@ -980,14 +1081,18 @@ export default function W3CalibrationPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-gray-900">
-                            Story page {page.storyPageNumber}
+                            {page.storyPageNumber === 0 ? 'Cover' : `Story page ${page.storyPageNumber}`}
                           </div>
                           <div className="mt-1 text-xs text-gray-500">
-                            {page.pageLabel} • {page.editableAssetType === 'animal' ? 'animal' : `pose ${page.poseNumber ?? 'N/A'}`}
+                            {page.pageLabel} • {page.editableAssetType === 'animal'
+                              ? 'animal'
+                              : page.editableAssetType === 'cover-character'
+                                ? 'cover character'
+                                : `pose ${page.poseNumber ?? 'N/A'}`}
                           </div>
                         </div>
                         <div className="rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600">
-                          p{String(page.pageNumber).padStart(2, '0')}
+                          {page.storyPageNumber === 0 ? 'cover' : `p${String(page.pageNumber).padStart(2, '0')}`}
                         </div>
                       </div>
                     </button>
@@ -1116,7 +1221,8 @@ export default function W3CalibrationPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Interactive placement canvas</h2>
                       <p className="mt-1 text-sm text-gray-600">
                         Palette: neutral admin chrome, cyan for the editable draft, violet for the legacy reference.
-                        Drag the current subject directly; the anchor point is the bottom-center of the editable box.
+                        Drag the current subject directly. Interior pages default to a bottom-center anchor; the cover
+                        uses its own configured anchor.
                       </p>
                     </div>
                     <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600">
@@ -1135,7 +1241,7 @@ export default function W3CalibrationPage() {
                       className="relative mx-auto overflow-hidden rounded-[28px] border border-gray-200 bg-black/5 shadow-inner"
                       style={{
                         maxWidth: 780,
-                        aspectRatio: `${data.viewport.width} / ${data.viewport.height}`,
+                        aspectRatio: `${selectedPageViewport.width} / ${selectedPageViewport.height}`,
                         touchAction: 'none',
                       }}
                     >
@@ -1154,7 +1260,7 @@ export default function W3CalibrationPage() {
                       ))}
 
                       {showLegacyGhost && selectedLegacyPlacement && (
-                        <div style={buildPlacementStyle(selectedLegacyPlacement, data.viewport, {
+                        <div style={buildPlacementStyle(selectedLegacyPlacement, selectedPlacementBase, {
                           opacity: 0.2,
                           outline: '2px dashed rgba(139, 92, 246, 0.85)',
                           filter: 'grayscale(0.25)',
@@ -1170,7 +1276,7 @@ export default function W3CalibrationPage() {
                       )}
 
                       <div
-                        style={buildPlacementStyle(selectedPagePlacement, data.viewport, {
+                        style={buildPlacementStyle(selectedPagePlacement, selectedPlacementBase, {
                           outline: '2px solid rgba(8, 145, 178, 0.8)',
                         })}
                         onPointerDown={handlePlacementDragStart}

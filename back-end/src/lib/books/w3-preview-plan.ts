@@ -15,6 +15,11 @@ import {
   resolveBookAnimalPlacementMap,
   type BookAnimalPlacementMap,
 } from '@/lib/books/animal-placement';
+import {
+  getLegacyReferenceCoverCharacterPlacement,
+  parseCoverCharacterPlacementOverride,
+  resolveBookCoverCharacterPlacement,
+} from '@/lib/books/cover-character-placement';
 import type {
   BookCharacterPlacementEntry,
   BookConfig,
@@ -113,6 +118,7 @@ export interface BuildW3PreviewPlanResult extends JsonRecord {
 export interface BuildW3PreviewPlanOptions {
   characterPlacementOverride?: BookCharacterPlacementMap;
   animalPlacementOverride?: BookAnimalPlacementMap;
+  coverCharacterPlacementOverride?: BookCharacterPlacementEntry | null;
 }
 
 type StoryContext = {
@@ -333,34 +339,45 @@ function resolveCharacterPlacementMap(
   input: JsonRecord,
   config: BookConfig | null,
 ): BookCharacterPlacementMap {
-  const override = parseCharacterPlacementOverride(input.characterPlacement);
-  if (Object.keys(override).length > 0) {
-    return override;
-  }
-
   const explicitFormatId = toTrimmedString(input.formatId);
-  if (config) {
-    return resolveBookCharacterPlacementMap(config, explicitFormatId);
-  }
+  const base = config
+    ? resolveBookCharacterPlacementMap(config, explicitFormatId)
+    : getLegacyReferenceCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
+  const override = parseCharacterPlacementOverride(input.characterPlacement);
 
-  return getLegacyReferenceCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
+  return {
+    ...base,
+    ...override,
+  };
 }
 
 function resolveAnimalPlacementMap(
   input: JsonRecord,
   config: BookConfig | null,
 ): BookAnimalPlacementMap {
-  const override = parseAnimalPlacementOverride(input.animalPlacement);
-  if (Object.keys(override).length > 0) {
-    return override;
-  }
-
   const explicitFormatId = toTrimmedString(input.formatId);
-  if (config) {
-    return resolveBookAnimalPlacementMap(config, explicitFormatId);
-  }
+  const base = config
+    ? resolveBookAnimalPlacementMap(config, explicitFormatId)
+    : getLegacyReferenceAnimalPlacement(resolveBookId(input, resolveOrderId(input)));
+  const override = parseAnimalPlacementOverride(input.animalPlacement);
 
-  return getLegacyReferenceAnimalPlacement(resolveBookId(input, resolveOrderId(input)));
+  return {
+    ...base,
+    ...override,
+  };
+}
+
+function resolveCoverCharacterPlacement(
+  input: JsonRecord,
+  config: BookConfig | null,
+): BookCharacterPlacementEntry | null {
+  const explicitFormatId = toTrimmedString(input.formatId);
+  const base = config
+    ? resolveBookCoverCharacterPlacement(config, explicitFormatId)
+    : getLegacyReferenceCoverCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
+  const override = parseCoverCharacterPlacementOverride(input.coverCharacterPlacement);
+
+  return override ?? base;
 }
 
 function buildCharacterStyle(
@@ -371,7 +388,11 @@ function buildCharacterStyle(
     return '';
   }
 
-  const transforms = ['translate(-50%,-100%)'];
+  const anchorXPercent =
+    typeof placement.anchorXPercent === 'number' ? placement.anchorXPercent : 50;
+  const anchorYPercent =
+    typeof placement.anchorYPercent === 'number' ? placement.anchorYPercent : 100;
+  const transforms = [`translate(-${anchorXPercent}%,-${anchorYPercent}%)`];
   if (typeof placement.rotateDeg === 'number' && placement.rotateDeg !== 0) {
     transforms.push(`rotate(${placement.rotateDeg}deg)`);
   }
@@ -1266,6 +1287,7 @@ function buildCoverPreviewItem(
   input: JsonRecord,
   inputs: JsonRecord,
   renderContext: JsonRecord,
+  bookConfig: BookConfig | null,
 ): W3PreviewPlanCoverItem {
   const orderContext = toRecord(input);
   const backendUrl = resolveBackendUrl({
@@ -1351,6 +1373,11 @@ function buildCoverPreviewItem(
   const preloads = preloadHTML([poseUrl, coversBgUrl, logoUrl]);
   const coverImageFilename = 'cover-spread.png';
   const coverImageR2Key = `${orderR2BaseKey}/preview-images/${coverImageFilename}`;
+  const coverCharacterPlacement = resolveCoverCharacterPlacement(orderContext, bookConfig);
+  const coverCharacterStyle = buildCharacterStyle(
+    coverCharacterPlacement,
+    (value) => `${Math.round(value)}px`,
+  );
 
   let coverHTML = '';
   let templateId = DEFAULT_STANDARD_COVER_PREVIEW_TEMPLATE_ID;
@@ -1379,8 +1406,10 @@ function buildCoverPreviewItem(
             ? `
         <div class="bg" style="position:absolute;inset:0;">
           <img src="${esc(coversBgUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-          <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
-               style="position:absolute;left:86.5%;top:80.5%;width:1200px;height:auto;transform:translate(-86.5%,-80.5%);display:block;">
+          <div class="cover-character" style="${coverCharacterStyle}">
+            <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
+                 style="display:block;width:100%;height:auto;">
+          </div>
 </div>
 `
             : `
@@ -1462,8 +1491,10 @@ function buildCoverPreviewItem(
             ? `
         <div class="bg" style="position:absolute;inset:0;">
           <img src="${esc(coversBgUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-          <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
-               style="position:absolute;left:86.5%;top:80.5%;width:1200px;height:auto;transform:translate(-86.5%,-80.5%);display:block;">
+          <div class="cover-character" style="${coverCharacterStyle}">
+            <img src="${esc(poseUrl)}" alt="" loading="eager" decoding="sync" fetchpriority="high"
+                 style="display:block;width:100%;height:auto;">
+          </div>
 </div>
 `
             : `
@@ -1674,8 +1705,9 @@ export function buildW3PreviewPlan(
     animalDisplayName: storyContext.animalDisplayName,
     pronounsExtracted: storyContext.pronounsExtracted,
     pronounsResolved: storyContext.pronounsResolved,
-    characterPlacement: options.characterPlacementOverride ?? input.characterPlacement,
-    animalPlacement: options.animalPlacementOverride ?? input.animalPlacement,
+    characterPlacement: options.characterPlacementOverride ?? null,
+    animalPlacement: options.animalPlacementOverride ?? null,
+    coverCharacterPlacement: options.coverCharacterPlacementOverride ?? null,
     pagePlan: sortedPagePlan,
     pageLabels:
       Array.isArray(input.pageLabels) && input.pageLabels.length > 0
@@ -1689,7 +1721,7 @@ export function buildW3PreviewPlan(
     sortedPagePlan,
     bookConfig,
   );
-  const coverPreviewItem = buildCoverPreviewItem(baseOrder, inputs, renderContext);
+  const coverPreviewItem = buildCoverPreviewItem(baseOrder, inputs, renderContext, bookConfig);
   const pagePreviewItems = buildPagePreviewItems(baseOrder, interiorHtml);
 
   return {

@@ -11,7 +11,7 @@ const RequestSchema = z
     sourceType: z.enum(['fixture', 'order']),
     fixtureId: z.string().trim().min(1).nullable().optional(),
     orderId: z.string().trim().min(1).nullable().optional(),
-    selectedStoryPageNumber: z.coerce.number().int().positive().nullable().optional(),
+    selectedStoryPageNumber: z.coerce.number().int().nonnegative().nullable().optional(),
     selectedPoseNumber: z.coerce.number().int().positive().nullable().optional(),
     characterPlacementOverrideByStoryPage: z
       .record(z.string(), BookCharacterPlacementEntrySchema)
@@ -19,6 +19,7 @@ const RequestSchema = z
     animalPlacementOverrideByStoryPage: z
       .record(z.string(), BookCharacterPlacementEntrySchema)
       .optional(),
+    coverCharacterPlacementOverride: BookCharacterPlacementEntrySchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.sourceType === 'fixture' && !value.fixtureId) {

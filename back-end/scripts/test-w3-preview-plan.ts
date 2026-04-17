@@ -197,6 +197,14 @@ async function main(): Promise<void> {
     'Expected standard preview plan to emit the sibling-safe cover preview key',
   );
   assert(
+    typeof standardPreview.coverPreviewItem.coverHTML === 'string' &&
+      standardPreview.coverPreviewItem.coverHTML.includes('left:4501px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('top:2113px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)'),
+    'Expected the standard cover preview to use the configured cover character placement instead of the old hardcoded CSS position',
+  );
+  assert(
     typeof standardPreview.pages_html === 'string' &&
       standardPreview.pages_html.includes('page-14') &&
       standardPreview.page_css.includes('@page { size: 2625px 2625px; margin: 0; }'),
@@ -212,6 +220,32 @@ async function main(): Promise<void> {
       standardStoryPageFour.pageHtml.includes(`width:${toPlacementPx(1100)}`) &&
       standardStoryPageFour.pageHtml.includes('rotate(-20deg)'),
     'Expected the preview plan renderer to use the configured story-page placement instead of hardcoded W3 constants',
+  );
+  const standardStoryPageThirteen = standardPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 13,
+  );
+  assert(
+    typeof standardStoryPageThirteen?.pageHtml === 'string' &&
+      standardStoryPageThirteen.pageHtml.includes(`left:${toPlacementPx(1237.063)}`) &&
+      standardStoryPageThirteen.pageHtml.includes(`top:${toPlacementPx(2072.725)}`) &&
+      standardStoryPageThirteen.pageHtml.includes(`width:${toPlacementPx(1100)}`),
+    'Expected story page 13 to use the configured animal placement',
+  );
+
+  const staleAnimalOverridePreview = buildW3PreviewPlanResponse({
+    ...standardAssemblyInput,
+    animalPlacement: {
+      13: { left: 999, top: 999, width: 999, zIndex: 9 },
+    },
+  });
+  const staleOverridePageThirteen = staleAnimalOverridePreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 13,
+  );
+  assert(
+    typeof staleOverridePageThirteen?.pageHtml === 'string' &&
+      staleOverridePageThirteen.pageHtml.includes(`left:${toPlacementPx(1237.063)}`) &&
+      !staleOverridePageThirteen.pageHtml.includes(`left:${toPlacementPx(999)}`),
+    'Expected preview-plan builds to ignore stale animal placement payload fields and use the current book config',
   );
 
   const amazonAssemblyInput = await buildAssemblyInput({

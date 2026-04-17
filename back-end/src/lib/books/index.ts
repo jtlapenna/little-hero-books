@@ -4,6 +4,7 @@ export * from '@/lib/books/runtime-book-config';
 export * from '@/lib/books/resolve-page-plan';
 export * from '@/lib/books/character-placement';
 export * from '@/lib/books/animal-placement';
+export * from '@/lib/books/cover-character-placement';
 export * from '@/lib/books/build-run-manifest';
 export * from '@/lib/books/validate-run-manifest';
 export * from '@/lib/books/normalize-w0-manifest';

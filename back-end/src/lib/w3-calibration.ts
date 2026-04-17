@@ -2,12 +2,15 @@ import {
   getLegacyReferenceAnimalPlacement,
   buildW3AssemblyInput,
   buildW3PreviewPlan,
+  getLegacyReferenceCoverCharacterPlacement,
   getLegacyReferenceCharacterPlacement,
   loadBundledBookConfig,
   parseAnimalPlacementOverride,
   parseCharacterPlacementOverride,
+  parseCoverCharacterPlacementOverride,
   resolvePagePlan,
   resolveBookAnimalPlacementMap,
+  resolveBookCoverCharacterPlacement,
   resolveBookCharacterPlacementMap,
   type BookAnimalPlacementMap,
   type BookCharacterPlacementEntry,
@@ -54,6 +57,7 @@ export interface W3CalibrationRequest {
   selectedPoseNumber?: number | null;
   characterPlacementOverrideByStoryPage?: unknown;
   animalPlacementOverrideByStoryPage?: unknown;
+  coverCharacterPlacementOverride?: unknown;
   adminBaseUrl?: string | null;
 }
 
@@ -62,7 +66,7 @@ export interface W3CalibrationPageOption {
   pageNumber: number;
   storyPageNumber: number;
   poseNumber: number | null;
-  editableAssetType: 'character' | 'animal';
+  editableAssetType: 'character' | 'animal' | 'cover-character';
   backgroundUrl: string | null;
   overlayUrls: string[];
   characterUrl: string | null;
@@ -70,6 +74,10 @@ export interface W3CalibrationPageOption {
   editableAssetUrl: string | null;
   currentPlacement: BookCharacterPlacementEntry | null;
   legacyPlacement: BookCharacterPlacementEntry | null;
+  viewport: {
+    width: number;
+    height: number;
+  };
 }
 
 export interface W3CalibrationPoseOption {
@@ -107,12 +115,16 @@ export interface W3CalibrationResponse {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
-    editableAssetType: 'character' | 'animal';
+    editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
     animalUrl: string | null;
     currentPlacement: BookCharacterPlacementEntry | null;
     legacyPlacement: BookCharacterPlacementEntry | null;
+    viewport: {
+      width: number;
+      height: number;
+    };
   } | null;
   selectedPose: {
     poseNumber: number;
@@ -124,6 +136,7 @@ export interface W3CalibrationResponse {
   exportHints: {
     characterPlacementOverrideByStoryPage: Record<string, BookCharacterPlacementEntry>;
     animalPlacementOverrideByStoryPage: Record<string, BookCharacterPlacementEntry>;
+    coverCharacterPlacementOverride: BookCharacterPlacementEntry | null;
     poseAnchorSuggestionByPose: Record<
       string,
       {
@@ -157,7 +170,11 @@ function toTrimmedString(value: unknown): string | null {
   return lowered === 'null' || lowered === 'undefined' ? null : trimmed;
 }
 
-function buildPageDocument(pageHtml: string, pageCss: string): string {
+function buildPreviewDocument(
+  pageHtml: string,
+  pageCss: string,
+  viewport: { width: number; height: number },
+): string {
   return `<!doctype html>
 <html>
   <head>
@@ -184,8 +201,8 @@ function buildPageDocument(pageHtml: string, pageCss: string): string {
         background: #ffffff;
       }
       #w3-calibration-preview-stage {
-        width: 2625px;
-        height: 2625px;
+        width: ${viewport.width}px;
+        height: ${viewport.height}px;
         transform-origin: top left;
       }
       ${pageCss}
@@ -199,8 +216,8 @@ function buildPageDocument(pageHtml: string, pageCss: string): string {
       (() => {
         const stage = document.getElementById('w3-calibration-preview-stage');
         const shell = document.getElementById('w3-calibration-preview-shell');
-        const targetWidth = 2625;
-        const targetHeight = 2625;
+        const targetWidth = ${viewport.width};
+        const targetHeight = ${viewport.height};
         function fit() {
           if (!stage || !shell) return;
           const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
@@ -213,6 +230,91 @@ function buildPageDocument(pageHtml: string, pageCss: string): string {
     </script>
   </body>
 </html>`;
+}
+
+function buildPlacementStyleCss(
+  placement: BookCharacterPlacementEntry | null,
+): string {
+  if (!placement) {
+    return '';
+  }
+
+  const anchorXPercent =
+    typeof placement.anchorXPercent === 'number' ? placement.anchorXPercent : 50;
+  const anchorYPercent =
+    typeof placement.anchorYPercent === 'number' ? placement.anchorYPercent : 100;
+  const transforms = [`translate(-${anchorXPercent}%,-${anchorYPercent}%)`];
+  if (typeof placement.rotateDeg === 'number' && placement.rotateDeg !== 0) {
+    transforms.push(`rotate(${placement.rotateDeg}deg)`);
+  }
+
+  return [
+    `left:${placement.left}px`,
+    `top:${placement.top}px`,
+    `width:${placement.width}px`,
+    `transform:${transforms.join(' ')}`,
+    `z-index:${placement.zIndex ?? 10}`,
+  ].join(';');
+}
+
+function buildSimplePlacementDocument(options: {
+  backgroundUrl: string;
+  overlayUrls: string[];
+  editableAssetUrl: string;
+  placement: BookCharacterPlacementEntry | null;
+  viewport: { width: number; height: number };
+}): string {
+  const { backgroundUrl, overlayUrls, editableAssetUrl, placement, viewport } = options;
+  const overlayHtml = overlayUrls
+    .map(
+      (overlayUrl) =>
+        `<img src="${overlayUrl}" alt="" class="overlay" loading="eager" decoding="sync" fetchpriority="high">`,
+    )
+    .join('');
+  const pageHtml = `
+    <div class="scene">
+      <img src="${backgroundUrl}" alt="" class="background" loading="eager" decoding="sync" fetchpriority="high">
+      ${overlayHtml}
+      <div class="subject" style="${buildPlacementStyleCss(placement)}">
+        <img src="${editableAssetUrl}" alt="" class="sprite" loading="eager" decoding="sync" fetchpriority="high">
+      </div>
+    </div>
+  `;
+  const pageCss = `
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: ${viewport.width}px;
+      height: ${viewport.height}px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .scene {
+      position: relative;
+      width: ${viewport.width}px;
+      height: ${viewport.height}px;
+      overflow: hidden;
+    }
+    .background, .overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .subject {
+      position: absolute;
+      transform-origin: top left;
+    }
+    .sprite {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  `;
+
+  return buildPreviewDocument(pageHtml, pageCss, viewport);
 }
 
 function clonePlacementEntry(
@@ -362,6 +464,8 @@ function buildPageOptions(
   legacyPlacementMap: BookCharacterPlacementMap,
   currentAnimalPlacementMap: BookAnimalPlacementMap,
   legacyAnimalPlacementMap: BookAnimalPlacementMap,
+  currentCoverPlacement: BookCharacterPlacementEntry | null,
+  legacyCoverPlacement: BookCharacterPlacementEntry | null,
 ): W3CalibrationPageOption[] {
   const backgroundByLabel = new Map(
     previewPlan.backgroundImages.map((entry) => [String(entry.pageLabel), entry]),
@@ -409,7 +513,41 @@ function buildPageOptions(
     toTrimmedString(animalImages.flyingImagePath) ??
     null;
 
-  return previewPlan.pagePreviewItems
+  const renderContext = toRecord(previewPlan.renderContext);
+  const isAmazonOrder = assemblyInput.formatId === 'amazon' || assemblyInput.isAmazonOrder;
+  const coverBackgroundKey =
+    (isAmazonOrder
+      ? toTrimmedString(renderContext.coversBgAmazon) ?? toTrimmedString(renderContext.coversBg)
+      : toTrimmedString(renderContext.coversBg)) ?? null;
+  const coverPoseKey =
+    toTrimmedString(renderContext.characterHash)
+      ? `${assemblyInput.bookId}/order-generated-assets/characters/${toTrimmedString(renderContext.characterHash)}/characters_${toTrimmedString(renderContext.characterHash)}_pose00_nobg.png`
+      : toTrimmedString(renderContext.pose00);
+  const coverOption =
+    coverBackgroundKey && coverPoseKey
+      ? ({
+          pageLabel: 'cover',
+          pageNumber: 0,
+          storyPageNumber: 0,
+          poseNumber: 0,
+          editableAssetType: 'cover-character',
+          backgroundUrl: `${previewPlan.backendUrl}/api/assets/${coverBackgroundKey}`,
+          overlayUrls: [
+            `${previewPlan.backendUrl}/api/assets/${assemblyInput.bookId}/overlays/logo-and-url.png`,
+          ],
+          characterUrl: `${previewPlan.backendUrl}/api/assets/${coverPoseKey}`,
+          animalUrl: null,
+          editableAssetUrl: `${previewPlan.backendUrl}/api/assets/${coverPoseKey}`,
+          currentPlacement: currentCoverPlacement,
+          legacyPlacement: legacyCoverPlacement,
+          viewport: {
+            width: 5203,
+            height: 2625,
+          },
+        } satisfies W3CalibrationPageOption)
+      : null;
+
+  const storyPages = previewPlan.pagePreviewItems
     .map((item) => {
       const page = assemblyInput.pagePlan[item.pageIndex];
       const storyPageNumber = Number(page?.storyPageNumber);
@@ -452,10 +590,16 @@ function buildPageOptions(
           editableAssetType === 'character'
             ? legacyPlacementMap[storyPageNumber] ?? null
             : legacyAnimalPlacementMap[storyPageNumber] ?? null,
+        viewport: {
+          width: 2625,
+          height: 2625,
+        },
       } satisfies W3CalibrationPageOption;
     })
     .filter((item): item is W3CalibrationPageOption => item !== null)
     .sort((left, right) => left.storyPageNumber - right.storyPageNumber);
+
+  return coverOption ? [...storyPages, coverOption] : storyPages;
 }
 
 function buildPoseOptions(
@@ -539,6 +683,9 @@ export async function buildW3CalibrationResponse(
   const animalPlacementOverride = parseAnimalPlacementOverride(
     request.animalPlacementOverrideByStoryPage,
   );
+  const coverCharacterPlacementOverride = parseCoverCharacterPlacementOverride(
+    request.coverCharacterPlacementOverride,
+  );
   const currentPlacementMap: BookCharacterPlacementMap = {
     ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId),
     ...placementOverride,
@@ -555,14 +702,22 @@ export async function buildW3CalibrationResponse(
     ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
     ...getLegacyReferenceAnimalPlacement(assemblyInput.bookId),
   };
+  const currentCoverPlacement =
+    coverCharacterPlacementOverride ??
+    resolveBookCoverCharacterPlacement(config, assemblyInput.formatId);
+  const legacyCoverPlacement = getLegacyReferenceCoverCharacterPlacement(
+    assemblyInput.bookId,
+  );
 
   const currentPreviewPlan = buildW3PreviewPlan(assemblyInput, {
     characterPlacementOverride: currentPlacementMap,
     animalPlacementOverride: currentAnimalPlacementMap,
+    coverCharacterPlacementOverride: currentCoverPlacement,
   });
   const legacyPreviewPlan = buildW3PreviewPlan(assemblyInput, {
     characterPlacementOverride: legacyPlacementMap,
     animalPlacementOverride: legacyAnimalPlacementMap,
+    coverCharacterPlacementOverride: legacyCoverPlacement,
   });
 
   const pages = buildPageOptions(
@@ -572,6 +727,8 @@ export async function buildW3CalibrationResponse(
     legacyPlacementMap,
     currentAnimalPlacementMap,
     legacyAnimalPlacementMap,
+    currentCoverPlacement,
+    legacyCoverPlacement,
   );
   const poses = buildPoseOptions(assemblyInput, adminBaseUrl);
   const selectedStoryPageNumber = resolveSelectedStoryPageNumber(
@@ -585,13 +742,13 @@ export async function buildW3CalibrationResponse(
   const selectedPageOption =
     pages.find((page) => page.storyPageNumber === selectedStoryPageNumber) ?? null;
   const currentPreviewItem =
-    selectedPageOption
+    selectedPageOption && selectedPageOption.pageLabel !== 'cover'
       ? currentPreviewPlan.pagePreviewItems.find(
           (item) => item.pageLabel === selectedPageOption.pageLabel,
         ) ?? null
       : null;
   const legacyPreviewItem =
-    selectedPageOption
+    selectedPageOption && selectedPageOption.pageLabel !== 'cover'
       ? legacyPreviewPlan.pagePreviewItems.find(
           (item) => item.pageLabel === selectedPageOption.pageLabel,
         ) ?? null
@@ -677,13 +834,41 @@ export async function buildW3CalibrationResponse(
     selectedPage: selectedPageOption
       ? {
           currentSrcDoc:
-            currentPreviewItem
-              ? buildPageDocument(currentPreviewItem.pageHtml, currentPreviewItem.page_css)
-              : null,
+            selectedPageOption.pageLabel === 'cover'
+              ? selectedPageOption.backgroundUrl && selectedPageOption.editableAssetUrl
+                ? buildSimplePlacementDocument({
+                    backgroundUrl: selectedPageOption.backgroundUrl,
+                    overlayUrls: selectedPageOption.overlayUrls,
+                    editableAssetUrl: selectedPageOption.editableAssetUrl,
+                    placement: selectedPageOption.currentPlacement,
+                    viewport: selectedPageOption.viewport,
+                  })
+                : null
+              : currentPreviewItem
+                ? buildPreviewDocument(
+                    currentPreviewItem.pageHtml,
+                    currentPreviewItem.page_css,
+                    selectedPageOption.viewport,
+                  )
+                : null,
           legacySrcDoc:
-            legacyPreviewItem
-              ? buildPageDocument(legacyPreviewItem.pageHtml, legacyPreviewItem.page_css)
-              : null,
+            selectedPageOption.pageLabel === 'cover'
+              ? selectedPageOption.backgroundUrl && selectedPageOption.editableAssetUrl
+                ? buildSimplePlacementDocument({
+                    backgroundUrl: selectedPageOption.backgroundUrl,
+                    overlayUrls: selectedPageOption.overlayUrls,
+                    editableAssetUrl: selectedPageOption.editableAssetUrl,
+                    placement: selectedPageOption.legacyPlacement,
+                    viewport: selectedPageOption.viewport,
+                  })
+                : null
+              : legacyPreviewItem
+                ? buildPreviewDocument(
+                    legacyPreviewItem.pageHtml,
+                    legacyPreviewItem.page_css,
+                    selectedPageOption.viewport,
+                  )
+                : null,
           backgroundUrl: selectedPageOption.backgroundUrl,
           overlayUrls: selectedPageOption.overlayUrls,
           editableAssetType: selectedPageOption.editableAssetType,
@@ -692,12 +877,14 @@ export async function buildW3CalibrationResponse(
           animalUrl: selectedPageOption.animalUrl,
           currentPlacement: selectedPageOption.currentPlacement,
           legacyPlacement: selectedPageOption.legacyPlacement,
+          viewport: selectedPageOption.viewport,
         }
       : null,
     selectedPose,
     exportHints: {
       characterPlacementOverrideByStoryPage: clonePlacementMap(placementOverride),
       animalPlacementOverrideByStoryPage: clonePlacementMap(animalPlacementOverride),
+      coverCharacterPlacementOverride: coverCharacterPlacementOverride,
       poseAnchorSuggestionByPose,
     },
   };

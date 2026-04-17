@@ -25,6 +25,8 @@ export const BookCharacterPlacementEntrySchema = z.object({
   width: z.number().positive(),
   rotateDeg: z.number().optional(),
   zIndex: z.number().int().positive().optional(),
+  anchorXPercent: z.number().optional(),
+  anchorYPercent: z.number().optional(),
 });
 
 export const BookCharacterPlacementConfigSchema = z.object({
@@ -36,6 +38,13 @@ export const BookCharacterPlacementConfigSchema = z.object({
       z.string(),
       z.record(z.string(), BookCharacterPlacementEntrySchema).default({}),
     )
+    .default({}),
+});
+
+export const BookSinglePlacementConfigSchema = z.object({
+  default: BookCharacterPlacementEntrySchema.nullable().default(null),
+  overridesByFormat: z
+    .record(z.string(), BookCharacterPlacementEntrySchema)
     .default({}),
 });
 
@@ -165,6 +174,10 @@ export const BookConfigSchema = z.object({
     }),
     animalPlacement: BookCharacterPlacementConfigSchema.default({
       defaultByStoryPage: {},
+      overridesByFormat: {},
+    }),
+    coverCharacterPlacement: BookSinglePlacementConfigSchema.default({
+      default: null,
       overridesByFormat: {},
     }),
   }),
