@@ -152,25 +152,25 @@
     },
     "characterPlacement": {
       "defaultByStoryPage": {
-        "1": { "left": 1453, "top": 1938, "width": 900 },
+        "1": { "left": 1475.412, "top": 1975.162, "width": 900 },
         "2": { "left": 1403, "top": 2091, "width": 950 },
-        "3": { "left": 1020, "top": 2142, "width": 1100 },
+        "3": { "left": 1068.579, "top": 2138.118, "width": 1100 },
         "4": { "left": 1530, "top": 1734, "width": 1100, "rotateDeg": -20 },
-        "5": { "left": 1250, "top": 2066, "width": 900 },
+        "5": { "left": 1292.589, "top": 2068.465, "width": 900 },
         "6": { "left": 1326, "top": 2066, "width": 900 },
         "7": { "left": 1199, "top": 1683, "width": 900 },
-        "8": { "left": 1453, "top": 2040, "width": 1400 },
-        "9": { "left": 1352, "top": 2066, "width": 1100 },
+        "8": { "left": 1502.37, "top": 2020.895, "width": 1400 },
+        "9": { "left": 1337.774, "top": 2074.646, "width": 1100 },
         "10": { "left": 1275, "top": 2295, "width": 1300 },
-        "11": { "left": 1964, "top": 2117, "width": 500 },
-        "12": { "left": 893, "top": 2066, "width": 920 },
-        "14": { "left": 893, "top": 1836, "width": 1500 }
+        "11": { "left": 1963.617, "top": 2127.319, "width": 500 },
+        "12": { "left": 901.467, "top": 2105.92, "width": 920 },
+        "14": { "left": 1138.946, "top": 1969.004, "width": 1500 }
       },
       "overridesByFormat": {}
     },
     "animalPlacement": {
       "defaultByStoryPage": {
-        "13": { "left": 1191, "top": 2104, "width": 1100, "zIndex": 9 },
+        "13": { "left": 1237.063, "top": 2072.725, "width": 1100, "zIndex": 9 },
         "14": { "left": 1607, "top": 2168, "width": 1250, "zIndex": 9 }
       },
       "overridesByFormat": {}
