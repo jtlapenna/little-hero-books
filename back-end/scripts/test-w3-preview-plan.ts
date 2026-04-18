@@ -198,12 +198,27 @@ async function main(): Promise<void> {
   );
   assert(
     typeof standardPreview.coverPreviewItem.coverHTML === 'string' &&
-      standardPreview.coverPreviewItem.coverHTML.includes('left:4000px') &&
-      standardPreview.coverPreviewItem.coverHTML.includes('top:2405px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('left:4033px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('top:2406px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)') &&
       standardPreview.coverPreviewItem.coverHTML.includes('position:absolute; height:auto; display:block;'),
     'Expected the standard cover preview to emit a self-positioned inline cover sprite so PDFMonkey does not depend on template CSS for cover character placement',
+  );
+  const coverOverridePreview = buildW3PreviewPlanResponse({
+    ...standardAssemblyInput,
+    coverCharacterPlacement: {
+      left: 4032.904,
+      top: 2405.539,
+      width: 1200,
+    },
+  });
+  assert(
+    typeof coverOverridePreview.coverPreviewItem.coverHTML === 'string' &&
+      coverOverridePreview.coverPreviewItem.coverHTML.includes('left:4033px') &&
+      coverOverridePreview.coverPreviewItem.coverHTML.includes('top:2406px') &&
+      coverOverridePreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)'),
+    'Expected cover placement overrides without explicit anchor fields to inherit the configured cover anchor instead of falling back to the generic 50/100 anchor',
   );
   assert(
     typeof standardPreview.pages_html === 'string' &&

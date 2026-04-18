@@ -30,6 +30,36 @@ function cloneEntry(
   };
 }
 
+export function mergeCoverCharacterPlacement(
+  base: BookCharacterPlacementEntry | null | undefined,
+  override: BookCharacterPlacementEntry | null | undefined,
+): BookCharacterPlacementEntry | null {
+  if (!base && !override) {
+    return null;
+  }
+
+  if (!base) {
+    return cloneEntry(override);
+  }
+
+  if (!override) {
+    return cloneEntry(base);
+  }
+
+  return cloneEntry({
+    ...base,
+    ...override,
+    anchorXPercent:
+      typeof override.anchorXPercent === 'number'
+        ? override.anchorXPercent
+        : base.anchorXPercent,
+    anchorYPercent:
+      typeof override.anchorYPercent === 'number'
+        ? override.anchorYPercent
+        : base.anchorYPercent,
+  });
+}
+
 export function parseCoverCharacterPlacementOverride(
   value: unknown,
 ): BookCharacterPlacementEntry | null {
@@ -45,6 +75,9 @@ export function resolveBookCoverCharacterPlacement(
   config: BookConfig,
   formatId?: string | null,
 ): BookCharacterPlacementEntry | null {
+  const baseDefault = parseCoverCharacterPlacementOverride(
+    config.rendering.coverCharacterPlacement.default,
+  );
   const formatOverride =
     formatId && config.rendering.coverCharacterPlacement.overridesByFormat[formatId]
       ? parseCoverCharacterPlacementOverride(
@@ -52,13 +85,7 @@ export function resolveBookCoverCharacterPlacement(
         )
       : null;
 
-  if (formatOverride) {
-    return formatOverride;
-  }
-
-  return parseCoverCharacterPlacementOverride(
-    config.rendering.coverCharacterPlacement.default,
-  );
+  return mergeCoverCharacterPlacement(baseDefault, formatOverride);
 }
 
 export function getLegacyReferenceCoverCharacterPlacement(

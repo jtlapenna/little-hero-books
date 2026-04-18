@@ -2,6 +2,7 @@ import {
   getLegacyReferenceAnimalPlacement,
   buildW3AssemblyInput,
   buildW3PreviewPlan,
+  mergeCoverCharacterPlacement,
   getLegacyReferenceCoverCharacterPlacement,
   getLegacyReferenceCharacterPlacement,
   loadBundledBookConfig,
@@ -753,9 +754,10 @@ export async function buildW3CalibrationResponse(
     ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
     ...getLegacyReferenceAnimalPlacement(assemblyInput.bookId),
   };
-  const currentCoverPlacement =
-    coverCharacterPlacementOverride ??
-    resolveBookCoverCharacterPlacement(config, assemblyInput.formatId);
+  const currentCoverPlacement = mergeCoverCharacterPlacement(
+    resolveBookCoverCharacterPlacement(config, assemblyInput.formatId),
+    coverCharacterPlacementOverride,
+  );
   const legacyCoverPlacement = getLegacyReferenceCoverCharacterPlacement(
     assemblyInput.bookId,
   );

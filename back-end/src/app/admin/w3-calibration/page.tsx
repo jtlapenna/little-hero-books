@@ -186,6 +186,8 @@ function clonePlacement(entry: PlacementEntry | null | undefined): PlacementEntr
     width: entry.width,
     rotateDeg: entry.rotateDeg,
     zIndex: entry.zIndex,
+    anchorXPercent: entry.anchorXPercent,
+    anchorYPercent: entry.anchorYPercent,
   };
 }
 

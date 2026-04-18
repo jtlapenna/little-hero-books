@@ -17,6 +17,7 @@ import {
 } from '@/lib/books/animal-placement';
 import {
   getLegacyReferenceCoverCharacterPlacement,
+  mergeCoverCharacterPlacement,
   parseCoverCharacterPlacementOverride,
   resolveBookCoverCharacterPlacement,
 } from '@/lib/books/cover-character-placement';
@@ -377,7 +378,7 @@ function resolveCoverCharacterPlacement(
     : getLegacyReferenceCoverCharacterPlacement(resolveBookId(input, resolveOrderId(input)));
   const override = parseCoverCharacterPlacementOverride(input.coverCharacterPlacement);
 
-  return override ?? base;
+  return mergeCoverCharacterPlacement(base, override);
 }
 
 function buildCharacterStyle(
