@@ -857,6 +857,9 @@ export default function W3CalibrationPage() {
   const selectedPose = data?.selectedPose ?? null;
   const selectedPoseDiagnostics = selectedPose?.inspection?.diagnostics ?? null;
   const usesReferencePoseStandins = data?.source.poseAssetMode === 'reference-standin';
+  const isCoverFixtureApproximate =
+    Boolean(usesReferencePoseStandins) &&
+    data?.selectedPage?.editableAssetType === 'cover-character';
   const selectedPageViewport = selectedPage?.viewport ?? data?.viewport ?? { width: 1, height: 1 };
   const selectedPlacementBase = resolvePlacementBase(
     selectedPage?.editableAssetType,
@@ -1022,10 +1025,11 @@ export default function W3CalibrationPage() {
         )}
 
         {data && usesReferencePoseStandins && (
-          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900 shadow-sm">
-            Fixture replay is using shared reference-pose stand-ins instead of live generated assets. That is useful
-            for story-page placement calibration, but pose-drift diagnostics are only representative on a live order.
-            Cover tuning is also approximate in fixture mode because the real cover uses the generated pose 00 asset.
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950 shadow-sm">
+            Fixture replay is using shared reference-pose stand-ins instead of live generated assets. Story-page
+            placement can still be directionally useful, but cover tuning is not production-safe in fixture mode. The
+            gray cover subject is only a stand-in. Use <span className="font-semibold">Source type = Live order</span>{' '}
+            before copying cover placement overrides.
           </div>
         )}
 
@@ -1066,8 +1070,8 @@ export default function W3CalibrationPage() {
                 <div className="border-b border-gray-200 px-4 py-3">
                   <h2 className="text-sm font-semibold text-gray-900">Story pages</h2>
                   <p className="mt-1 text-xs text-gray-500">
-                    Select a story page or the cover, drag the live subject in the canvas, then render the draft view
-                    with the current override.
+                    Select a story page or the cover, drag the subject in the canvas, then render the draft view with
+                    the current override. For cover placement, use a live order instead of fixture replay.
                   </p>
                 </div>
                 <div className="grid gap-2 p-3">
@@ -1111,6 +1115,13 @@ export default function W3CalibrationPage() {
                   </p>
                 </div>
                 <div className="space-y-3 p-4">
+                  {isCoverFixtureApproximate && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
+                      This cover is showing the gray reference stand-in, not the live generated child. Do not save or
+                      copy cover placement from fixture mode. Switch the source to the live order and verify the feet
+                      land in the dark shadow below the sparkle before exporting.
+                    </div>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-sm text-gray-700">
                       <div className="mb-1 font-medium">Left</div>
@@ -1176,7 +1187,8 @@ export default function W3CalibrationPage() {
                     </button>
                     <button
                       onClick={() => void handleCopyPlacement()}
-                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      disabled={isCoverFixtureApproximate}
+                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Copy className="mr-2 h-4 w-4" />
                       Copy page JSON
@@ -1207,7 +1219,8 @@ export default function W3CalibrationPage() {
                   />
                   <button
                     onClick={() => void handleCopyAllPlacements()}
-                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    disabled={isCoverFixtureApproximate}
+                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Copy className="mr-2 h-4 w-4" />
                     Copy all overrides
@@ -1224,13 +1237,22 @@ export default function W3CalibrationPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Interactive placement canvas</h2>
                       <p className="mt-1 text-sm text-gray-600">
                         Palette: neutral admin chrome, cyan for the editable draft, violet for the legacy reference.
-                        Drag the current subject directly. Interior pages default to a bottom-center anchor; the cover
-                        uses its own configured anchor.
+                        Drag the current subject directly. The <span className="font-medium">Current draft render</span>{' '}
+                        below is the source of truth for the final W3 output. Interior pages default to a bottom-center
+                        anchor; the cover uses its own configured anchor.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600">
+                    <div className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium ${
+                      isCoverFixtureApproximate
+                        ? 'border-amber-200 bg-amber-50 text-amber-900'
+                        : 'border-gray-200 bg-gray-50 text-gray-600'
+                    }`}>
                       <Grip className="h-4 w-4" />
-                      {dragging ? 'Dragging draft placement' : `Drag the draft ${selectedPage?.editableAssetType ?? 'subject'}`}
+                      {isCoverFixtureApproximate
+                        ? 'Fixture stand-in mode'
+                        : dragging
+                          ? 'Dragging draft placement'
+                          : `Drag the draft ${selectedPage?.editableAssetType ?? 'subject'}`}
                     </div>
                   </div>
                 </div>

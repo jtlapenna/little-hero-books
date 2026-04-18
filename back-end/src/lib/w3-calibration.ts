@@ -234,137 +234,576 @@ function buildPreviewDocument(
 </html>`;
 }
 
-const COVER_PREVIEW_CSS = `
-@font-face{
-  font-family:'CustomBook';
+const STANDARD_COVER_PREVIEW_CSS = `
+@font-face {
+  font-family: 'CustomBook';
   src:
     url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
     url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
-  font-display:swap;
+  font-display: swap;
 }
 
-html, body {
-  margin:0;
-  padding:0;
-  width:5203px;
-  height:2625px;
-  overflow:hidden;
-  -webkit-text-size-adjust:100%;
+@page {
+  size: 5203px 2625px;
+  margin: 0;
 }
 
-* { box-sizing:border-box; }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 5203px;
+  height: 2625px;
+  overflow: visible;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 .cover-viewport,
 .cover-canvas,
 .cover-spread {
-  position:relative;
-  width:5203px;
-  height:2625px;
+  position: relative;
+  width: 5203px;
+  height: 2625px;
+  overflow: visible;
 }
 
-.cover-canvas { transform:none; }
+.cover-canvas {
+  transform: none;
+}
 
-.bg{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  background-repeat:no-repeat, no-repeat;
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-repeat: no-repeat, no-repeat;
   background-position: 86.5% 80.5%, center center;
   background-size: 1200px auto, cover;
 }
 
-.half{ position:absolute; top:0; height:2625px; }
-.back{ left:0; width:2601px; }
-.front{ right:0; width:2602px; }
-.spine{ position:absolute; left:2601px; top:0; width:2px; height:100%; background:rgba(0,0,0,0.06); z-index:3; }
-
-:root{
-  --gold-main:#F4D28B;
-  --gold-body:#F7E3B3;
-  --gold-footer:#F4D28B;
-  --panel-stroke:rgba(255,255,255,0.80);
-  --panel-text:#F7EBD1;
-  --front-name-size:280px;
-  --front-label-size:200px;
+.half {
+  position: absolute;
+  top: 0;
+  height: 2625px;
 }
 
-.front-title-wrap{
-  position:absolute;
-  left:calc(5203px * 0.76);
-  top:340px;
-  width:1800px;
-  text-align:center;
-  z-index:6;
-  transform:translateX(-50%);
+.back {
+  left: 0;
+  width: 2601px;
 }
 
-.front-title{
-  font-family:'CustomBook', Arial, sans-serif;
-  line-height:1.06;
-  letter-spacing:2px;
-  color:var(--gold-main);
-  text-transform:uppercase;
-  -webkit-font-smoothing:antialiased;
-  text-rendering:optimizeLegibility;
+.front {
+  right: 0;
+  width: 2602px;
 }
 
-.front-title .name{ display:block; font-size:var(--front-name-size); }
-.front-title .label{ display:block; font-size:var(--front-label-size); }
-
-.back-wrap{
-  position:absolute;
-  left:0;
-  top:370px;
-  width:2601px;
-  padding:0 220px;
-  z-index:6;
-  text-align:center;
-  margin:0 auto;
+.spine {
+  position: absolute;
+  left: 2601px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.06);
+  z-index: 3;
 }
 
-.back-h1{
-  font-family:'CustomBook', Arial, sans-serif;
-  font-size:160px;
-  line-height:1.08;
-  letter-spacing:2px;
-  color:var(--gold-main);
-  margin-bottom:80px;
+:root {
+  --gold-main: #F4D28B;
+  --gold-body: #F7E3B3;
+  --gold-footer: #F4D28B;
+  --panel-stroke: rgba(255, 255, 255, 0.80);
+  --panel-text: #F7EBD1;
+  --front-name-size: 280px;
+  --front-label-size: 200px;
 }
 
-.back-body{
-  white-space:pre-line;
-  font-family:'CustomBook', Arial, sans-serif;
-  font-size:86px;
-  line-height:1.3;
-  letter-spacing:1px;
-  color:var(--gold-body);
-  margin:0 auto 80px;
-  max-width:2000px;
+.front-title-wrap {
+  position: absolute;
+  left: calc(5203px * 0.76);
+  top: 640px;
+  width: 1800px;
+  text-align: center;
+  z-index: 6;
+  transform: translateX(-50%) scale(0.8) translateY(-150px);
+  transform-origin: center top;
 }
 
-.try-wrap{ position:relative; width:2000px; padding-top:12px; margin:200px auto 400px; }
-.try-hdr{ font-family:'CustomBook', Arial, sans-serif; font-size:140px; letter-spacing:8px; color:var(--gold-main); text-align:center; margin-bottom:28px; }
-.try-panel{ margin:0 auto; width:1600px; border:8px solid var(--panel-stroke); border-radius:98px; padding:40px 60px; text-align:center; }
-.try-text{ white-space:pre-line; font-family:'CustomBook', Arial, sans-serif; font-size:86px; line-height:1.25; letter-spacing:1px; color:var(--panel-text); }
+.front-title {
+  font-family: 'CustomBook', Arial, sans-serif;
+  line-height: 1.06;
+  letter-spacing: 2px;
+  color: var(--gold-main);
+  text-transform: uppercase;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
-.footer{
-  font-family:'CustomBook', Arial, sans-serif;
-  letter-spacing:2px;
-  color:var(--gold-footer);
-  text-align:center;
+.front-title .name {
+  display: inline-block;
+  font-size: var(--front-name-size);
+  white-space: nowrap;
+  max-width: none;
+  vertical-align: top;
+}
+
+.front-title .label {
+  display: block;
+  font-size: var(--front-label-size);
+}
+
+.back-wrap {
+  position: absolute;
+  left: 0;
+  top: 370px;
+  width: 2601px;
+  padding: 0 220px;
+  z-index: 6;
+  text-align: center;
+  margin: 0 auto;
+  transform: scale(0.8) translateY(-150px);
+  transform-origin: center top;
+}
+
+.back-h1 {
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 160px;
+  line-height: 1.08;
+  letter-spacing: 2px;
+  color: var(--gold-main);
+  margin-bottom: 80px;
+}
+
+.back-body {
+  white-space: pre-line;
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 86px;
+  line-height: 1.3;
+  letter-spacing: 1px;
+  color: var(--gold-body);
+  margin: 0 auto 80px;
+  max-width: 2000px;
+}
+
+.try-wrap {
   position: relative;
-  top: -210px;
+  width: 2000px;
+  padding-top: 12px;
+  margin: 200px auto 400px;
 }
 
-.footer .line{ font-size:86px; display:block; }
-.footer .name{ font-size:86px; display:block; margin-top:12px; }
+.try-hdr {
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 140px;
+  letter-spacing: 8px;
+  color: var(--gold-main);
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.try-panel {
+  margin: 0 auto;
+  width: 1600px;
+  border: 8px solid var(--panel-stroke);
+  border-radius: 98px;
+  padding: 40px 60px;
+  text-align: center;
+}
+
+.try-text {
+  white-space: pre-line;
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 86px;
+  line-height: 1.25;
+  letter-spacing: 1px;
+  color: var(--panel-text);
+}
+
+.footer {
+  font-family: 'CustomBook', Arial, sans-serif;
+  letter-spacing: 2px;
+  color: var(--gold-footer);
+  text-align: center;
+  position: relative;
+}
+
+.footer .line {
+  font-size: 86px;
+  display: block;
+}
+
+.footer .name {
+  font-size: 86px;
+  display: block;
+  margin-top: 12px;
+}
+
+.logo-overlay,
+.logo-overlay-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5203px;
+  height: 2625px;
+  z-index: 999;
+  pointer-events: none;
+}
+`;
+
+const AMAZON_COVER_PREVIEW_CSS = `
+@font-face {
+  font-family: 'CustomBook';
+  src:
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.woff2') format('woff2'),
+    url('https://admin.littleherolabs.com/api/assets/book-mvp-simple-adventure/fonts/custom-font.ttf') format('truetype');
+  font-display: swap;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 5203px;
+  height: 2625px;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.cover-viewport,
+.cover-canvas,
+.cover-spread {
+  position: relative;
+  width: 5203px;
+  height: 2625px;
+}
+
+.cover-canvas {
+  transform: none;
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-repeat: no-repeat, no-repeat;
+  background-position: 86.5% 80.5%, center center;
+  background-size: 1200px auto, cover;
+}
+
+.half {
+  position: absolute;
+  top: 0;
+  height: 2625px;
+}
+
+.back {
+  left: 0;
+  width: 2601px;
+}
+
+.front {
+  right: 0;
+  width: 2602px;
+}
+
+.spine {
+  position: absolute;
+  left: 2601px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.06);
+  z-index: 3;
+}
+
+:root {
+  --gold-main: #F4D28B;
+  --gold-body: #F7E3B3;
+  --gold-footer: #F4D28B;
+  --panel-stroke: rgba(255, 255, 255, 0.80);
+  --panel-text: #F7EBD1;
+}
+
+.back-wrap {
+  position: absolute;
+  left: 0;
+  top: 370px;
+  width: 2601px;
+  padding: 0 220px;
+  z-index: 6;
+  text-align: center;
+  margin: 0 auto;
+  transform: scale(0.8) translateY(-150px);
+  transform-origin: center top;
+}
+
+.back-h1 {
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 160px;
+  line-height: 1.08;
+  letter-spacing: 2px;
+  color: var(--gold-main);
+  margin-bottom: 80px;
+}
+
+.back-body {
+  white-space: pre-line;
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 86px;
+  line-height: 1.3;
+  letter-spacing: 1px;
+  color: var(--gold-body);
+  margin: 0 auto 80px;
+  max-width: 2000px;
+}
+
+.try-wrap {
+  position: relative;
+  width: 2000px;
+  padding-top: 12px;
+  margin: 200px auto 400px;
+}
+
+.try-hdr {
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 140px;
+  letter-spacing: 8px;
+  color: var(--gold-main);
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.try-panel {
+  margin: 0 auto;
+  width: 1600px;
+  border: 8px solid var(--panel-stroke);
+  border-radius: 98px;
+  padding: 40px 60px;
+  text-align: center;
+}
+
+.try-text {
+  white-space: pre-line;
+  font-family: 'CustomBook', Arial, sans-serif;
+  font-size: 86px;
+  line-height: 1.25;
+  letter-spacing: 1px;
+  color: var(--panel-text);
+}
+
+.footer {
+  font-family: 'CustomBook', Arial, sans-serif;
+  letter-spacing: 2px;
+  color: var(--gold-footer);
+  text-align: center;
+  position: relative;
+}
+
+.footer .line {
+  font-size: 86px;
+  display: block;
+}
+
+.footer .name {
+  font-size: 86px;
+  display: block;
+  margin-top: 12px;
+}
+
+.front-story-line,
+.front-child-name {
+  font-family: 'CustomBook', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.front-amazon-personalization {
+  position: absolute;
+  left: 3020px;
+  top: 710px;
+  width: 1780px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  text-align: center;
+}
+
+.front-story-line {
+  font-size: 98px;
+  line-height: 1.05;
+  letter-spacing: 1px;
+  color: #F7E3B3;
+  text-transform: none;
+}
+
+.front-child-name {
+  display: inline-block;
+  font-size: 120px;
+  line-height: 0.96;
+  letter-spacing: 2px;
+  color: #F7EBD1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: none;
+  vertical-align: top;
+}
+
+.logo-overlay,
+.logo-overlay-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5203px;
+  height: 2625px;
+  z-index: 999;
+  pointer-events: none;
+}
+`;
+
+const COVER_PREVIEW_FIT_SCRIPT = `
+(() => {
+  const EMERGENCY_MIN_FONT_SIZE = 24;
+
+  function readNumber(el, attrName) {
+    const raw = el.getAttribute(attrName);
+    if (raw == null || raw === '') return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function getFitContainer(el) {
+    return el.closest('[data-fit-container="single-line"]') || el.parentElement;
+  }
+
+  function fitsWithin(el, container) {
+    const availableWidth =
+      container.clientWidth ||
+      container.getBoundingClientRect().width ||
+      0;
+    return {
+      availableWidth,
+      fits: el.scrollWidth <= availableWidth + 0.5,
+    };
+  }
+
+  function fitSingleLine(el) {
+    const container = getFitContainer(el);
+    if (!container) return;
+
+    const computed = window.getComputedStyle(el);
+    let fontSize = readNumber(el, 'data-fit-max');
+    if (!Number.isFinite(fontSize)) {
+      fontSize = parseFloat(computed.fontSize) || 120;
+    }
+
+    const softMin = readNumber(el, 'data-fit-soft-min');
+
+    el.style.display = 'inline-block';
+    el.style.whiteSpace = 'nowrap';
+    el.style.maxWidth = 'none';
+    el.style.fontSize = fontSize + 'px';
+
+    let state = fitsWithin(el, container);
+    while (!state.fits && fontSize > EMERGENCY_MIN_FONT_SIZE) {
+      fontSize -= 1;
+      el.style.fontSize = fontSize + 'px';
+      state = fitsWithin(el, container);
+    }
+
+    el.dataset.fitApplied = String(fontSize);
+    if (softMin !== null && fontSize < softMin) {
+      el.dataset.fitSoftMinExceeded = 'true';
+    }
+
+    if (!state.fits) {
+      el.dataset.fitOverflow = 'true';
+      document.documentElement.setAttribute('data-fit-overflow', 'true');
+    }
+  }
+
+  function runFitPass() {
+    const targets = document.querySelectorAll('[data-fit-mode="single-line"]');
+    targets.forEach((target) => fitSingleLine(target));
+  }
+
+  function startFitPass() {
+    window.requestAnimationFrame(() => {
+      runFitPass();
+      window.requestAnimationFrame(runFitPass);
+    });
+  }
+
+  function fitViewport() {
+    const stage = document.getElementById('w3-cover-preview-stage');
+    const shell = document.getElementById('w3-cover-preview-shell');
+    if (!stage || !shell) return;
+
+    const targetWidth = ${5203};
+    const targetHeight = ${2625};
+    const scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
+    stage.style.transform = 'scale(' + scale + ')';
+    shell.style.height = Math.round(targetHeight * scale) + 'px';
+  }
+
+  function start() {
+    fitViewport();
+    startFitPass();
+    window.addEventListener('resize', fitViewport);
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(start).catch(start);
+  } else if (document.readyState === 'complete') {
+    start();
+  } else {
+    window.addEventListener('load', start, { once: true });
+  }
+})();
 `;
 
 function buildCoverPreviewDocument(
   pageHtml: string,
   viewport: { width: number; height: number },
+  formatId?: string | null,
 ): string {
-  return buildPreviewDocument(pageHtml, COVER_PREVIEW_CSS, viewport);
+  const pageCss = formatId === 'amazon' ? AMAZON_COVER_PREVIEW_CSS : STANDARD_COVER_PREVIEW_CSS;
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      #w3-cover-preview-shell {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      #w3-cover-preview-stage {
+        width: ${viewport.width}px;
+        height: ${viewport.height}px;
+        transform-origin: top left;
+      }
+      ${pageCss}
+    </style>
+  </head>
+  <body>
+    <div id="w3-cover-preview-shell">
+      <div id="w3-cover-preview-stage">${pageHtml}</div>
+    </div>
+    <script>${COVER_PREVIEW_FIT_SCRIPT}</script>
+  </body>
+</html>`;
 }
 
 function clonePlacementEntry(
@@ -898,6 +1337,7 @@ export async function buildW3CalibrationResponse(
                 ? buildCoverPreviewDocument(
                     currentPreviewPlan.coverPreviewItem.coverHTML,
                     selectedPageOption.viewport,
+                    assemblyInput.formatId,
                   )
                 : null
               : currentPreviewItem
@@ -913,6 +1353,7 @@ export async function buildW3CalibrationResponse(
                 ? buildCoverPreviewDocument(
                     legacyPreviewPlan.coverPreviewItem.coverHTML,
                     selectedPageOption.viewport,
+                    assemblyInput.formatId,
                   )
                 : null
               : legacyPreviewItem
