@@ -1342,18 +1342,6 @@ function buildCoverPreviewItem(
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  const preloadHTML = (urls: string[]): string => {
-    const uniq = Array.from(new Set(urls.filter((url) => typeof url === 'string' && url)));
-    if (!uniq.length) return '';
-    const imgs = uniq
-      .map(
-        (url) =>
-          `<img src="${esc(url)}" width="1" height="1" alt="" loading="eager" decoding="sync" fetchpriority="high">`,
-      )
-      .join('');
-    return `<div class="__preloads" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;visibility:hidden;">${imgs}</div>`;
-  };
-
   const useImgBackgrounds =
     orderContext.useImgBackgrounds === false
       ? false
@@ -1384,7 +1372,6 @@ function buildCoverPreviewItem(
   }
   const poseUrl = toAssetUrl(poseImageKey);
   const coversBgUrl = toAssetUrl(coversBgKey);
-  const preloads = preloadHTML([poseUrl, coversBgUrl, logoUrl]);
   const coverImageFilename = 'cover-spread.png';
   const coverImageR2Key = `${orderR2BaseKey}/preview-images/${coverImageFilename}`;
   const coverCharacterPlacement = resolveCoverCharacterPlacement(orderContext, bookConfig);
@@ -1413,8 +1400,6 @@ function buildCoverPreviewItem(
   <div class="cover-viewport">
     <div class="cover-canvas">
       <div class="cover-spread">
-        ${preloads}
-
         ${
           useImgBackgrounds
             ? `
@@ -1496,8 +1481,6 @@ function buildCoverPreviewItem(
   <div class="cover-viewport">
     <div class="cover-canvas">
       <div class="cover-spread">
-        ${preloads}
-
         ${
           useImgBackgrounds
             ? `

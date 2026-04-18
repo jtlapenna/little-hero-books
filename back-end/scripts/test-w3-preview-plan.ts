@@ -202,8 +202,9 @@ async function main(): Promise<void> {
       standardPreview.coverPreviewItem.coverHTML.includes('top:2406px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)') &&
-      standardPreview.coverPreviewItem.coverHTML.includes('position:absolute; height:auto; display:block;'),
-    'Expected the standard cover preview to emit a self-positioned inline cover sprite so PDFMonkey does not depend on template CSS for cover character placement',
+      standardPreview.coverPreviewItem.coverHTML.includes('position:absolute; height:auto; display:block;') &&
+      !standardPreview.coverPreviewItem.coverHTML.includes('__preloads'),
+    'Expected the standard cover preview to emit only the self-positioned inline cover sprite HTML so PDFMonkey does not duplicate cover assets via hidden preload tags',
   );
   const coverOverridePreview = buildW3PreviewPlanResponse({
     ...standardAssemblyInput,
@@ -294,8 +295,9 @@ async function main(): Promise<void> {
   assert(
     typeof amazonPreview.coverPreviewItem.coverHTML === 'string' &&
       amazonPreview.coverPreviewItem.coverHTML.includes('A Story Made for') &&
-      amazonPreview.coverPreviewItem.coverHTML.includes('front-amazon-personalization'),
-    'Expected amazon preview plan to emit the repo-owned amazon cover personalization HTML',
+      amazonPreview.coverPreviewItem.coverHTML.includes('front-amazon-personalization') &&
+      !amazonPreview.coverPreviewItem.coverHTML.includes('__preloads'),
+    'Expected amazon preview plan to emit the repo-owned amazon cover personalization HTML without hidden preload tags that can duplicate cover assets',
   );
 
   const bookTwoAssemblyInput = await buildAssemblyInput({
