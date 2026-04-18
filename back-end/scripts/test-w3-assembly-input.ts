@@ -240,11 +240,19 @@ async function main(): Promise<void> {
     'Expected missingBgRemovedPoseNumbers to include required poses missing bgRemovedKey',
   );
   assert(
-    normalizationCalls.length === 1 &&
-      normalizationCalls[0]?.poseNumber === 1 &&
-      normalizationCalls[0]?.bookId === bookId &&
-      normalizationCalls[0]?.mode === 'strict',
-    'Expected W3 assembly input to auto-normalize required bgRemoved poses in strict mode before page assembly',
+    normalizationCalls.length === 2 &&
+      normalizationCalls.every((call) => call.bookId === bookId && call.mode === 'strict') &&
+      normalizationCalls.some(
+        (call) =>
+          call.poseNumber === 1 &&
+          call.imageKey.endsWith('/characters_charhash123456_pose01_nobg.png'),
+      ) &&
+      normalizationCalls.some(
+        (call) =>
+          call.poseNumber === 0 &&
+          call.imageKey.endsWith('/characters_charhash123456_pose00_nobg.png'),
+      ),
+    'Expected W3 assembly input to auto-normalize both required bgRemoved poses and the cover pose00 asset in strict mode before page assembly',
   );
 
   const standardOrderId = 'TEST-W3-STANDARD-001';

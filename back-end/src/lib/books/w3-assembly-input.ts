@@ -1,5 +1,6 @@
 import {
   buildAssetApiUrl,
+  buildBgRemovedPoseAssetKey,
   buildManifestKeyCandidates,
   buildManifestKeyFromOrderPrefix,
   collectOrderPathLikes,
@@ -625,6 +626,45 @@ async function normalizeBgRemovedPoses(
   }
 }
 
+async function normalizeCoverPose00(
+  characterHash: string | null | undefined,
+  bookId: string,
+  normalizePoseScale?: NormalizePoseScaleFn,
+): Promise<void> {
+  if (!normalizePoseScale || !characterHash) {
+    return;
+  }
+
+  const imageKey = buildBgRemovedPoseAssetKey(characterHash, 0, bookId);
+
+  let result: NormalizePoseScaleResult;
+  try {
+    result = await normalizePoseScale({
+      imageKey,
+      poseNumber: 0,
+      bookId,
+      characterHash,
+      mode: 'strict',
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `W3 cover pose normalization failed for pose 00 (${imageKey}): ${message}`,
+    );
+  }
+
+  if (!result.sourceBBoxFound) {
+    throw new Error(
+      `W3 cover pose normalization found no character bbox for pose 00 (${imageKey})`,
+    );
+  }
+  if (!result.referenceBBoxFound) {
+    throw new Error(
+      `W3 cover pose normalization found no reference bbox for pose 00 (${result.refKey})`,
+    );
+  }
+}
+
 function buildProcessedImages(
   manifest2b: ManifestRecord,
   requiredPoseNumbers: number[],
@@ -874,6 +914,11 @@ export async function buildW3AssemblyInput(
   await normalizeBgRemovedPoses(
     loaded2B.manifest,
     bookState.requiredPoseNumbers,
+    bookState.bookId,
+    options.normalizePoseScale,
+  );
+  await normalizeCoverPose00(
+    identity.characterHash,
     bookState.bookId,
     options.normalizePoseScale,
   );

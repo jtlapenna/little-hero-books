@@ -21,6 +21,7 @@ import {
 } from '@/lib/books';
 import {
   buildManifestKeyHintOptionsFromOrderLike,
+  buildBgRemovedPoseAssetKey,
   buildPoseReferenceAssetKey,
 } from '@/lib/order-paths';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
@@ -573,7 +574,11 @@ function buildPageOptions(
     poseAssetMode === 'reference-standin'
       ? buildPoseReferenceAssetKey(assemblyInput.bookId, 0)
       : toTrimmedString(renderContext.characterHash)
-        ? `${assemblyInput.bookId}/order-generated-assets/characters/${toTrimmedString(renderContext.characterHash)}/characters_${toTrimmedString(renderContext.characterHash)}_pose00_nobg.png`
+        ? buildBgRemovedPoseAssetKey(
+            toTrimmedString(renderContext.characterHash) as string,
+            0,
+            assemblyInput.bookId,
+          )
         : toTrimmedString(renderContext.pose00) ?? buildPoseReferenceAssetKey(assemblyInput.bookId, 0);
   const coverOption =
     coverBackgroundKey && coverPoseKey

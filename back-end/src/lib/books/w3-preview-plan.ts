@@ -1,4 +1,5 @@
 import {
+  buildBgRemovedPoseAssetKey,
   buildOrderPrefix,
   buildPreviewImageAssetKey,
   inferBookIdFromPathLikes,
@@ -1376,7 +1377,7 @@ function buildCoverPreviewItem(
   const logoUrl = toAssetUrl(logoKey);
   const poseImageKey =
     toTrimmedString(renderContext.characterHash)
-      ? `${bookId}/order-generated-assets/characters/${renderContext.characterHash}/characters_${renderContext.characterHash}_pose00_nobg.png`
+      ? buildBgRemovedPoseAssetKey(renderContext.characterHash, 0, bookId)
       : toTrimmedString(renderContext.pose00);
   if (!poseImageKey) {
     throw new Error('W3 cover preview planning requires a pose00 asset');

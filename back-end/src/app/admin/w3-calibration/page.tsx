@@ -1023,8 +1023,9 @@ export default function W3CalibrationPage() {
 
         {data && usesReferencePoseStandins && (
           <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900 shadow-sm">
-            Fixture replay is using shared reference-pose stand-ins instead of live 2B cutouts. That is correct for
-            page-placement calibration, but pose-drift diagnostics are only representative on a live order.
+            Fixture replay is using shared reference-pose stand-ins instead of live generated assets. That is useful
+            for story-page placement calibration, but pose-drift diagnostics are only representative on a live order.
+            Cover tuning is also approximate in fixture mode because the real cover uses the generated pose 00 asset.
           </div>
         )}
 
