@@ -210,6 +210,11 @@ type WorkflowWatchdogRunResponse = {
   error?: string;
 };
 
+type WorkflowCancelJobResponse = {
+  success?: boolean;
+  error?: string;
+};
+
 const STAGE_OPTIONS = [
   { value: '', label: 'All stages' },
   { value: '2a', label: '2A' },
@@ -323,6 +328,239 @@ function stageDisplayLabel(stage: string | null): string {
   }
 }
 
+function humanizeMachineValue(value: string | null | undefined): string {
+  if (!value) {
+    return 'N/A';
+  }
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatProviderName(provider: string | null | undefined): string {
+  switch ((provider || '').toLowerCase()) {
+    case 'pdfmonkey':
+      return 'PDFMonkey';
+    case 'gemini':
+      return 'Gemini';
+    case 'bria':
+      return 'Bria';
+    case 'lulu':
+      return 'Lulu';
+    default:
+      return provider || 'provider';
+  }
+}
+
+function getActiveReferenceTimestamp(job: WorkflowJobListItem | WorkflowInspectionJob): string | null {
+  switch (job.status) {
+    case 'queued':
+      return job.queuedAt;
+    case 'claimed':
+    case 'running':
+    case 'polling':
+      return job.latestAttempt?.startedAt ?? job.updatedAt;
+    case 'retry_waiting':
+      return job.nextRetryAt ?? job.updatedAt;
+    default:
+      return job.updatedAt;
+  }
+}
+
+function getProviderRequestId(job: WorkflowJobListItem | WorkflowInspectionJob): string | null {
+  return (
+    job.latestAttempt?.providerRequestId ||
+    job.externalRequestId ||
+    job.providerSummary?.luluJobId ||
+    null
+  );
+}
+
+function getRecentEventTypes(job: WorkflowJobListItem | WorkflowInspectionJob): string[] {
+  if ('recentEvents' in job) {
+    return job.recentEvents.map((event) => event.eventType);
+  }
+  return job.recentEventTypes;
+}
+
+type JobDiagnosis = {
+  tone: 'critical' | 'warning' | 'info';
+  headline: string;
+  detail: string;
+  recommendation?: string;
+  blocking: boolean;
+};
+
+function diagnosisClasses(tone: JobDiagnosis['tone']): string {
+  switch (tone) {
+    case 'critical':
+      return 'border-red-200 bg-red-50 text-red-900';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50 text-amber-900';
+    case 'info':
+    default:
+      return 'border-blue-200 bg-blue-50 text-blue-900';
+  }
+}
+
+function deriveJobDiagnosis(job: WorkflowJobListItem | WorkflowInspectionJob): JobDiagnosis | null {
+  const provider = formatProviderName(job.providerSummary?.provider || job.externalProvider);
+  const providerRequestId = getProviderRequestId(job);
+  const eventTypes = getRecentEventTypes(job);
+  const duplicateSkipped = eventTypes.includes('duplicate-trigger-skipped');
+  const referenceTime = getActiveReferenceTimestamp(job);
+  const referenceAge = formatRelativeAge(referenceTime);
+  const referenceMs = referenceTime ? Date.parse(referenceTime) : NaN;
+  const ageMinutes = Number.isFinite(referenceMs)
+    ? Math.max(0, Math.floor((Date.now() - referenceMs) / 1000 / 60))
+    : null;
+
+  if (job.status === 'dead_lettered') {
+    return {
+      tone: 'critical',
+      headline: 'All retries were exhausted',
+      detail: `This job ended in dead-lettered after ${job.attemptCount} attempt${job.attemptCount === 1 ? '' : 's'}.`,
+      recommendation: 'Use the matching recovery tool before running this stage again.',
+      blocking: true,
+    };
+  }
+
+  if (job.status === 'failed') {
+    return {
+      tone: 'critical',
+      headline: 'Latest attempt failed',
+      detail: job.lastErrorMessage || 'This job failed before it reached a completed state.',
+      recommendation: 'Inspect the attempt details and rerun only after the failure cause is clear.',
+      blocking: true,
+    };
+  }
+
+  if (job.status === 'retry_waiting') {
+    return {
+      tone: 'warning',
+      headline: 'Waiting to retry',
+      detail: `The previous attempt failed. Next retry is ${job.nextRetryAt ? formatTimestamp(job.nextRetryAt) : 'not scheduled yet'}.`,
+      recommendation: 'Let the retry happen, or recover manually if the underlying issue is already known.',
+      blocking: false,
+    };
+  }
+
+  if ((job.status === 'claimed' || job.status === 'queued') && ageMinutes !== null && ageMinutes >= 10) {
+    return {
+      tone: 'warning',
+      headline: job.status === 'claimed' ? 'Claimed but not progressing' : 'Queued but not picked up',
+      detail: `This job has been ${job.status} for ${referenceAge} with no further progress recorded.`,
+      recommendation: 'Check whether the router/worker is actively picking up this stage.',
+      blocking: false,
+    };
+  }
+
+  if (
+    (job.status === 'running' || job.status === 'polling') &&
+    provider &&
+    !providerRequestId &&
+    ageMinutes !== null
+  ) {
+    if (ageMinutes >= 10) {
+      return {
+        tone: 'critical',
+        headline: `Stuck before ${provider} submission`,
+        detail:
+          `This ${job.stage} job has been ${job.status} for ${referenceAge} and still has no provider request ID.` +
+          (duplicateSkipped ? ' Later reruns were skipped because this active job still exists.' : ''),
+        recommendation: 'Cancel the stale active job, then queue a fresh run.',
+        blocking: true,
+      };
+    }
+
+    if (ageMinutes >= 2) {
+      return {
+        tone: 'warning',
+        headline: `Still trying to reach ${provider}`,
+        detail: `This job started ${referenceAge} and has not recorded a provider request ID yet.`,
+        recommendation: 'Watch it briefly. If it stays here, treat it as a stuck pre-submission job.',
+        blocking: false,
+      };
+    }
+  }
+
+  if (duplicateSkipped) {
+    return {
+      tone: 'warning',
+      headline: 'A newer rerun was skipped',
+      detail: 'The system ignored a later retry because an older active job already exists for this stage.',
+      recommendation: 'Inspect the older active job first. If it is stale, cancel it before rerunning.',
+      blocking: true,
+    };
+  }
+
+  if ((job.status === 'running' || job.status === 'polling') && providerRequestId) {
+    return {
+      tone: 'info',
+      headline: job.status === 'polling' ? `Waiting on ${provider}` : `Submitted to ${provider}`,
+      detail: `${provider} request ${providerRequestId} is recorded, so this job is past submission and waiting on provider work.`,
+      blocking: false,
+    };
+  }
+
+  return null;
+}
+
+type InspectionDiagnosis = {
+  jobId: number | null;
+  stage: string | null;
+  tone: JobDiagnosis['tone'];
+  title: string;
+  detail: string;
+  recommendation?: string;
+  canRecoverW3: boolean;
+};
+
+function deriveInspectionDiagnosis(inspectedOrder: WorkflowInspection | null): InspectionDiagnosis | null {
+  if (!inspectedOrder) {
+    return null;
+  }
+
+  const activeJobs = inspectedOrder.jobs.filter((job) =>
+    ['queued', 'claimed', 'running', 'polling', 'retry_waiting'].includes(job.status),
+  );
+  const prioritized = activeJobs
+    .map((job) => ({ job, diagnosis: deriveJobDiagnosis(job) }))
+    .filter(
+      (entry): entry is { job: WorkflowInspectionJob; diagnosis: JobDiagnosis } =>
+        Boolean(entry.diagnosis),
+    )
+    .sort((left, right) => {
+      const score = (tone: JobDiagnosis['tone']) =>
+        tone === 'critical' ? 0 : tone === 'warning' ? 1 : 2;
+      return score(left.diagnosis.tone) - score(right.diagnosis.tone);
+    });
+
+  if (prioritized.length === 0) {
+    return null;
+  }
+
+  const { job, diagnosis } = prioritized[0];
+  let detail = diagnosis.detail;
+  if (job.stage === 'W3' && !inspectedOrder.orderRow?.manifest3Url) {
+    detail += ' Tab 3 will stay empty until a W3 manifest is published.';
+  }
+
+  return {
+    jobId: job.id,
+    stage: job.stage,
+    tone: diagnosis.tone,
+    title: diagnosis.headline,
+    detail,
+    recommendation: diagnosis.recommendation,
+    canRecoverW3:
+      diagnosis.blocking &&
+      job.stage === 'W3' &&
+      Boolean(inspectedOrder.orderRow?.orderId),
+  };
+}
+
 function summarizeCounts(counts: Record<string, number>): string {
   const entries = Object.entries(counts);
   if (entries.length === 0) {
@@ -372,6 +610,7 @@ function WorkflowJobsPageContent() {
   const [alertsData, setAlertsData] = useState<WorkflowAlertsResponse | null>(null);
   const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<number | null>(null);
   const [runningWatchdog, setRunningWatchdog] = useState(false);
+  const [recoveringJobId, setRecoveringJobId] = useState<number | null>(null);
   const [lastWatchdogRun, setLastWatchdogRun] = useState<WorkflowWatchdogRunResponse | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [banner, setBanner] = useState<{ tone: 'error' | 'info'; message: string } | null>(null);
@@ -596,6 +835,71 @@ function WorkflowJobsPageContent() {
   const openAlertCount = data?.summary.openAlertCount ?? 0;
   const inspectedOrder = data?.inspectedOrder ?? null;
   const inspectedHasW2A = inspectedOrder?.jobs.some((job) => job.stage === '2A') ?? false;
+  const inspectionDiagnosis = deriveInspectionDiagnosis(inspectedOrder);
+
+  const handleRecoverStuckW3 = async () => {
+    if (!inspectionDiagnosis?.canRecoverW3 || !inspectionDiagnosis.jobId || !inspectedOrder?.orderRow?.orderId) {
+      return;
+    }
+
+    setRecoveringJobId(inspectionDiagnosis.jobId);
+    try {
+      const cancelResponse = await fetch(`/api/admin/workflow-jobs/${inspectionDiagnosis.jobId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: 'workflow jobs console manual recovery: stale W3 job blocked rerun',
+        }),
+      });
+      const cancelPayload = (await cancelResponse.json()) as WorkflowCancelJobResponse;
+      if (!cancelResponse.ok || !cancelPayload.success) {
+        throw new Error(cancelPayload.error || 'Failed to cancel the stale W3 job');
+      }
+
+      const regenerateResponse = await fetch(
+        `/api/admin/orders/${encodeURIComponent(inspectedOrder.orderRow.orderId)}/regenerate-3`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            regeneration_instructions:
+              'Triggered from Workflow Jobs Console after canceling a stale active W3 job',
+          }),
+        },
+      );
+      const regeneratePayload = (await regenerateResponse.json()) as { success?: boolean; error?: string };
+      if (!regenerateResponse.ok || !regeneratePayload.success) {
+        throw new Error(regeneratePayload.error || 'Canceled the stale job, but failed to queue a fresh W3 run');
+      }
+
+      await Promise.all([
+        fetchData({
+          orderId: selectedOrderId,
+          stage: selectedStage,
+          status: selectedStatus,
+        }),
+        fetchAlerts({ stage: selectedStage }),
+      ]);
+      setBanner({
+        tone: 'info',
+        message:
+          `Canceled stuck W3 job ${inspectionDiagnosis.jobId} and queued a fresh W3 run. ` +
+          'If your router is manual, run it once more so the new W3 job gets picked up.',
+      });
+    } catch (error) {
+      console.error('Failed to recover W3 job:', error);
+      setBanner({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Failed to recover the stuck W3 job',
+      });
+    } finally {
+      setRecoveringJobId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -604,12 +908,13 @@ function WorkflowJobsPageContent() {
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-800">
               <Workflow className="h-4 w-4" />
-              Workflow Jobs Console
+              Workflow Ops Console
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Inspect repo-centric jobs without raw SQL</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Workflow runs and stuck-job diagnosis</h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              This console shows recent `workflow_jobs` across `W2A`, `W2B`, `W3`, `W4`, and `W4.1`, with provider
-              status, webhook freshness, and open alerts pulled from the shared repo-centric logging spine.
+              Use this page to see whether a repo-centric job is queued, actively working, waiting on a provider, or
+              stuck before it ever reached the provider. Data comes directly from the shared `workflow_jobs` spine and
+              auto-refreshes every 60 seconds.
             </p>
           </div>
 
@@ -620,7 +925,7 @@ function WorkflowJobsPageContent() {
               className="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-800 shadow-sm hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <CheckCircle2 className={`mr-2 h-4 w-4 ${runningWatchdog ? 'animate-pulse' : ''}`} />
-              {runningWatchdog ? 'Running Watchdog…' : 'Run Watchdog'}
+              {runningWatchdog ? 'Scanning…' : 'Scan for Stuck Jobs'}
             </button>
             <button
               onClick={() =>
@@ -637,7 +942,7 @@ function WorkflowJobsPageContent() {
               Refresh
             </button>
             <div className="text-sm text-gray-500">
-              Last updated: {lastRefresh ? lastRefresh.toLocaleTimeString() : 'Loading...'}
+              Last updated: {lastRefresh ? lastRefresh.toLocaleTimeString() : 'Loading...'} • auto-refresh 60s
             </div>
           </div>
         </div>
@@ -658,7 +963,8 @@ function WorkflowJobsPageContent() {
           <div className="border-b border-gray-200 px-5 py-4">
             <h2 className="text-lg font-semibold text-gray-900">Workflow tools</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Use this page as the workflow landing surface, then jump into the specialized recovery and production tools when needed.
+              Use this page first to diagnose the run, then jump into a specialized recovery or production tool only if
+              the diagnosis points there.
             </p>
           </div>
           <div className="grid gap-3 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
@@ -684,7 +990,7 @@ function WorkflowJobsPageContent() {
           <div className="mb-6 grid gap-4 md:grid-cols-5">
             <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-                Active
+                Active Now
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.activeCount}</div>
               <p className="mt-2 text-sm text-gray-600">
@@ -693,7 +999,7 @@ function WorkflowJobsPageContent() {
             </div>
             <div className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Retry Waiting
+                Waiting to Retry
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.retryWaitingCount}</div>
               <p className="mt-2 text-sm text-gray-600">
@@ -702,7 +1008,7 @@ function WorkflowJobsPageContent() {
             </div>
             <div className="rounded-xl border border-red-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
-                Needs Attention
+                Failed / Blocked
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{attentionCount}</div>
               <p className="mt-2 text-sm text-gray-600">
@@ -711,7 +1017,7 @@ function WorkflowJobsPageContent() {
             </div>
             <div className="rounded-xl border border-rose-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
-                Open Alerts
+                Watchdog Alerts
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{openAlertCount}</div>
               <p className="mt-2 text-sm text-gray-600">
@@ -720,7 +1026,7 @@ function WorkflowJobsPageContent() {
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                Succeeded
+                Finished
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.succeededCount}</div>
               <p className="mt-2 text-sm text-gray-600">
@@ -736,7 +1042,8 @@ function WorkflowJobsPageContent() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Open workflow alerts</h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  Durable alerts from the watchdog and provider lifecycle checks. Acknowledge them here once an operator has reviewed the issue.
+                  Durable alerts from the watchdog and provider lifecycle checks. These are helpful, but a live job can
+                  still look wrong before a watchdog scan has opened an alert.
                 </p>
               </div>
               <div className="text-sm text-gray-500">
@@ -789,7 +1096,7 @@ function WorkflowJobsPageContent() {
                             {stageDisplayLabel(alert.stage)}
                           </span>
                         )}
-                        <span className="text-sm font-medium text-gray-900">{alert.alert_type}</span>
+                        <span className="text-sm font-medium text-gray-900">{humanizeMachineValue(alert.alert_type)}</span>
                       </div>
                       <div className="mt-2 text-sm font-medium text-gray-900">{alert.summary}</div>
                       <div className="mt-1 text-xs text-gray-500">
@@ -845,13 +1152,13 @@ function WorkflowJobsPageContent() {
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <form className="grid gap-4 lg:grid-cols-[1.6fr_0.7fr_0.7fr_auto]" onSubmit={handleSubmit}>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Inspect exact orderId</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Inspect one order</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
                 <input
                   value={draftOrderId}
                   onChange={(event) => setDraftOrderId(event.target.value)}
-                  placeholder="W3-WFJ-PROOF-20260326195258-safe-v3"
+                  placeholder="Paste orderId, Amazon order id, or root group id"
                   className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500"
                 />
               </div>
@@ -926,7 +1233,7 @@ function WorkflowJobsPageContent() {
                   <div className="mt-1 flex items-center gap-3">
                     <h2 className="text-2xl font-semibold text-gray-900">{inspectedOrder.requestedOrderId}</h2>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                      resolved via {inspectedOrder.resolvedVia}
+                      matched by {humanizeMachineValue(inspectedOrder.resolvedVia)}
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-gray-600">
@@ -944,6 +1251,20 @@ function WorkflowJobsPageContent() {
                       Open Order Detail
                     </Link>
                   )}
+                  {inspectionDiagnosis?.canRecoverW3 && (
+                    <button
+                      onClick={handleRecoverStuckW3}
+                      disabled={recoveringJobId === inspectionDiagnosis.jobId}
+                      className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {recoveringJobId === inspectionDiagnosis.jobId ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                      )}
+                      Recover Stuck W3
+                    </button>
+                  )}
                   {inspectedHasW2A && (
                     <Link
                       href={`/admin/w2a-recovery?orderId=${encodeURIComponent(inspectedOrder.requestedOrderId)}`}
@@ -956,18 +1277,32 @@ function WorkflowJobsPageContent() {
               </div>
             </div>
 
+            {inspectionDiagnosis && (
+              <div className="border-t border-gray-200 px-5 py-4">
+                <div className={`rounded-xl border px-4 py-4 ${diagnosisClasses(inspectionDiagnosis.tone)}`}>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em]">Current diagnosis</div>
+                  <div className="mt-2 text-lg font-semibold">{inspectionDiagnosis.title}</div>
+                  <p className="mt-2 text-sm">{inspectionDiagnosis.detail}</p>
+                  {inspectionDiagnosis.recommendation && (
+                    <p className="mt-2 text-sm font-medium">{inspectionDiagnosis.recommendation}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-5 px-5 py-5 xl:grid-cols-[1fr_1.2fr]">
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <div className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      Parent Row
+                      Order Row
                     </div>
                     <div className="mt-3 space-y-1 text-sm text-gray-900">
-                      <div>workflow_step: {inspectedOrder.orderRow?.workflowStep || 'N/A'}</div>
-                      <div>execution_status: {inspectedOrder.orderRow?.executionStatus || 'N/A'}</div>
-                      <div>current_workflow: {inspectedOrder.orderRow?.currentWorkflow || 'N/A'}</div>
-                      <div>next_workflow: {inspectedOrder.orderRow?.nextWorkflow || 'N/A'}</div>
+                      <div>Workflow step: {humanizeMachineValue(inspectedOrder.orderRow?.workflowStep)}</div>
+                      <div>Execution status: {humanizeMachineValue(inspectedOrder.orderRow?.executionStatus)}</div>
+                      <div>Current workflow: {humanizeMachineValue(inspectedOrder.orderRow?.currentWorkflow)}</div>
+                      <div>Next workflow: {humanizeMachineValue(inspectedOrder.orderRow?.nextWorkflow)}</div>
+                      <div>Order status: {humanizeMachineValue(inspectedOrder.orderRow?.status)}</div>
                     </div>
                   </div>
 
@@ -999,11 +1334,11 @@ function WorkflowJobsPageContent() {
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
                     <Clock3 className="h-4 w-4 text-gray-500" />
-                    Manifest Hints
+                    Manifest State
                   </div>
                   <div className="space-y-2 text-sm text-gray-700">
-                    <div>manifest_2a_url: {inspectedOrder.orderRow?.manifest2aUrl || 'N/A'}</div>
-                    <div>manifest_3_url: {inspectedOrder.orderRow?.manifest3Url || 'N/A'}</div>
+                    <div>2A manifest: {inspectedOrder.orderRow?.manifest2aUrl || 'Missing'}</div>
+                    <div>W3 manifest: {inspectedOrder.orderRow?.manifest3Url || 'Missing'}</div>
                   </div>
                 </div>
               </div>
@@ -1021,6 +1356,10 @@ function WorkflowJobsPageContent() {
                     <div className="divide-y divide-gray-200">
                       {inspectedOrder.jobs.map((job) => (
                         <div key={job.id} className="px-4 py-4">
+                          {(() => {
+                            const diagnosis = deriveJobDiagnosis(job);
+                            return (
+                              <>
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
@@ -1045,6 +1384,12 @@ function WorkflowJobsPageContent() {
                                   {job.openAlertSummary.latestSummary || 'workflow attention required'}
                                 </div>
                               )}
+                              {diagnosis && (
+                                <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${diagnosisClasses(diagnosis.tone)}`}>
+                                  <div className="font-medium">{diagnosis.headline}</div>
+                                  <div className="mt-1 text-xs">{diagnosis.detail}</div>
+                                </div>
+                              )}
                             </div>
 
                             <div className="text-sm text-gray-600 lg:text-right">
@@ -1062,13 +1407,13 @@ function WorkflowJobsPageContent() {
                                 {job.providerSummary && (
                                   <div className="rounded-md border border-gray-200 bg-white px-3 py-2">
                                     <div className="font-medium text-gray-900">
-                                      {job.providerSummary.provider || 'provider'} •{' '}
-                                      {job.providerSummary.latestStatus || 'no status'}
+                                      {formatProviderName(job.providerSummary.provider) || 'provider'} •{' '}
+                                      {job.providerSummary.latestStatus || 'no provider status yet'}
                                     </div>
                                     <div className="mt-1 text-xs text-gray-500">
-                                      {job.providerSummary.luluJobId
-                                        ? `job ${job.providerSummary.luluJobId}`
-                                        : 'no provider request id'}
+                                      {getProviderRequestId(job)
+                                        ? `request ${getProviderRequestId(job)}`
+                                        : 'no provider request id recorded'}
                                       {job.providerSummary.webhookDeliveryState
                                         ? ` • webhook ${job.providerSummary.webhookDeliveryState}`
                                         : ''}
@@ -1097,7 +1442,7 @@ function WorkflowJobsPageContent() {
 
                             <div className="rounded-lg bg-gray-50 p-3">
                               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                                Recent Events / Correlation
+                                Recent Events / Routing
                               </div>
                               <div className="space-y-2 text-sm text-gray-700">
                                 {job.correlation && (
@@ -1116,7 +1461,7 @@ function WorkflowJobsPageContent() {
                                 ) : (
                                   job.recentEvents.map((event) => (
                                     <div key={event.id} className="rounded-md border border-gray-200 bg-white px-3 py-2">
-                                      <div className="font-medium text-gray-900">{event.eventType}</div>
+                                      <div className="font-medium text-gray-900">{humanizeMachineValue(event.eventType)}</div>
                                       <div className="mt-1 text-xs text-gray-500">
                                         {formatTimestamp(event.createdAt)}
                                       </div>
@@ -1126,6 +1471,9 @@ function WorkflowJobsPageContent() {
                               </div>
                             </div>
                           </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -1138,9 +1486,9 @@ function WorkflowJobsPageContent() {
 
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent workflow jobs</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Recent runs</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Filtered view across the last 72 hours unless you inspect a specific order.
+              Filtered live view across the last 72 hours unless you inspect a specific order.
             </p>
           </div>
 
@@ -1169,7 +1517,7 @@ function WorkflowJobsPageContent() {
                       Order / Job
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      Attempts / Provider / Alerts
+                      Health / Provider
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
                       Latest Event
@@ -1201,33 +1549,36 @@ function WorkflowJobsPageContent() {
                         <div className="mt-1 max-w-md truncate text-xs text-gray-400">{job.logicalKey}</div>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">
+                        {(() => {
+                          const diagnosis = deriveJobDiagnosis(job);
+                          return (
+                            <>
                         <div>
-                          {job.attemptCount} / {job.maxAttempts} attempts
+                          {diagnosis?.headline || `${job.attemptCount} / ${job.maxAttempts} attempts`}
                         </div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {job.providerSummary?.provider || job.externalProvider || 'No provider'}
-                          {job.providerSummary?.luluJobId
-                            ? ` • ${job.providerSummary.luluJobId}`
-                            : job.externalRequestId
-                              ? ` • ${job.externalRequestId}`
-                              : ''}
+                          {formatProviderName(job.providerSummary?.provider || job.externalProvider || 'No provider')}
+                          {getProviderRequestId(job) ? ` • ${getProviderRequestId(job)}` : ' • no provider request id'}
                         </div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {job.providerSummary?.latestStatus || 'No provider status'}
-                          {job.providerSummary?.webhookDeliveryState
-                            ? ` • webhook ${job.providerSummary.webhookDeliveryState}`
-                            : ''}
+                          {diagnosis?.detail || job.providerSummary?.latestStatus || 'No provider status yet'}
                         </div>
                         <div className="mt-1 text-xs text-rose-700">
                           {job.openAlertSummary.openCount > 0
                             ? `${job.openAlertSummary.openCount} open alert${job.openAlertSummary.openCount !== 1 ? 's' : ''}`
                             : 'No open alerts'}
                         </div>
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">
-                        <div>{job.latestEvent?.eventType || 'No events'}</div>
+                        <div>{humanizeMachineValue(job.latestEvent?.eventType) || 'No events'}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {job.recentEventTypes.slice(0, 4).join(' • ') || 'No recent event types'}
+                          {job.recentEventTypes
+                            .slice(0, 4)
+                            .map((eventType) => humanizeMachineValue(eventType))
+                            .join(' • ') || 'No recent event types'}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">
@@ -1265,11 +1616,12 @@ function WorkflowJobsPageContent() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 text-indigo-700" />
             <div className="text-sm text-indigo-900">
-              <div className="font-semibold">What this page is for</div>
+              <div className="font-semibold">How to read this console</div>
               <p className="mt-1">
-                Use this as the first stop for repo-centric workflow runs across all active stages. Dedicated
-                `W4` and `W4.1` pages still provide curated operational actions, but the canonical run history,
-                provider state, and watchdog alerts now converge here.
+                Start here whenever a workflow feels slow or stuck. If a row says a job is “stuck before provider
+                submission,” it means the provider was never contacted, so reruns can be blocked until the stale active
+                job is cleared. Dedicated recovery pages still exist, but this console should tell you why you need
+                them before you leave.
               </p>
             </div>
           </div>
