@@ -51,6 +51,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     clampIndex(initialSpread, viewerSpreads.length)
   );
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [imageStatus, setImageStatus] = useState<Record<string, 'loaded' | 'error'>>({});
 
   // Lock body scroll and disable header when image is zoomed
   useEffect(() => {
@@ -111,6 +112,44 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   }, [externalEventName]);
 
   useEffect(() => {
+    if (!Array.isArray(viewerSpreads) || viewerSpreads.length === 0 || typeof Image === 'undefined') {
+      return;
+    }
+
+    const urls = new Set<string>();
+    viewerSpreads.forEach((spread) => {
+      if (spread.leftPage?.imageUrl) urls.add(spread.leftPage.imageUrl);
+      if (spread.rightPage?.imageUrl) urls.add(spread.rightPage.imageUrl);
+      if (spread.coverData?.fullImageUrl) urls.add(spread.coverData.fullImageUrl);
+    });
+
+    let cancelled = false;
+    urls.forEach((url) => {
+      if (!url || imageStatus[url]) return;
+
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        if (cancelled) return;
+        setImageStatus((prev) => (prev[url] ? prev : { ...prev, [url]: 'loaded' }));
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        setImageStatus((prev) => (prev[url] ? prev : { ...prev, [url]: 'error' }));
+      };
+      img.src = url;
+
+      if (img.complete && img.naturalWidth > 0) {
+        setImageStatus((prev) => (prev[url] ? prev : { ...prev, [url]: 'loaded' }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerSpreads, imageStatus]);
+
+  useEffect(() => {
     if (viewerSpreads.length === 0) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -140,6 +179,20 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     return viewerSpreads[currentIndex] ?? viewerSpreads[0];
   }, [viewerSpreads, currentIndex]);
 
+  const currentSpreadUrls = useMemo(() => {
+    if (!currentSpread) return [];
+    const urls: string[] = [];
+    if (currentSpread.leftPage?.imageUrl) urls.push(currentSpread.leftPage.imageUrl);
+    if (currentSpread.rightPage?.imageUrl) urls.push(currentSpread.rightPage.imageUrl);
+    if (currentSpread.coverData?.fullImageUrl) urls.push(currentSpread.coverData.fullImageUrl);
+    return urls;
+  }, [currentSpread]);
+
+  const currentSpreadReady =
+    currentSpreadUrls.length === 0 ||
+    currentSpreadUrls.every((url) => imageStatus[url] === 'loaded');
+  const currentSpreadHasError = currentSpreadUrls.some((url) => imageStatus[url] === 'error');
+
   const goToSpread = (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex >= totalSpreads) return;
     setCurrentIndex(nextIndex);
@@ -152,10 +205,11 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (currentSpread.coverData?.isBackCover && currentSpread.coverData.fullImageUrl) {
       return (
         <div 
+          key={`back-cover-${currentIndex}`}
           className="cover-image-container back-cover zoomable-image"
           onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
         >
-          <img src={currentSpread.coverData.fullImageUrl} alt="Back Cover" />
+          <img src={currentSpread.coverData.fullImageUrl} alt="Back Cover" loading="eager" />
         </div>
       );
     }
@@ -163,10 +217,12 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (currentSpread.leftPage?.imageUrl) {
       return (
         <img
+          key={`left-${currentIndex}-${currentSpread.leftPage.pageNumber}`}
           src={currentSpread.leftPage.imageUrl}
           alt={`Page ${currentSpread.leftPage.pageNumber}`}
           className="zoomable-image"
           onClick={() => setZoomedImage(currentSpread.leftPage!.imageUrl)}
+          loading="eager"
           style={{ cursor: 'pointer' }}
         />
       );
@@ -181,10 +237,11 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (currentSpread.coverData?.isFrontCover && currentSpread.coverData.fullImageUrl) {
       return (
         <div 
+          key={`front-cover-${currentIndex}`}
           className="cover-image-container front-cover zoomable-image"
           onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
         >
-          <img src={currentSpread.coverData.fullImageUrl} alt="Front Cover" />
+          <img src={currentSpread.coverData.fullImageUrl} alt="Front Cover" loading="eager" />
         </div>
       );
     }
@@ -192,10 +249,12 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (currentSpread.rightPage?.imageUrl) {
       return (
         <img
+          key={`right-${currentIndex}-${currentSpread.rightPage.pageNumber}`}
           src={currentSpread.rightPage.imageUrl}
           alt={`Page ${currentSpread.rightPage.pageNumber}`}
           className="zoomable-image"
           onClick={() => setZoomedImage(currentSpread.rightPage!.imageUrl)}
+          loading="eager"
           style={{ cursor: 'pointer' }}
         />
       );
@@ -249,6 +308,16 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
       <div className="spread-viewer">
         <div className="spread-container">
+          {!currentSpreadReady && !currentSpreadHasError && (
+            <div className="spread-loading-state" aria-live="polite">
+              Loading spread…
+            </div>
+          )}
+          {currentSpreadHasError && (
+            <div className="spread-error-state" role="status" aria-live="polite">
+              Some preview images failed to load. Try moving to the next spread and back.
+            </div>
+          )}
           <div className="two-page-spread">
             {renderLeftPage()}
             {renderRightPage()}
@@ -387,6 +456,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
+          position: relative;
         }
 
         .two-page-spread {
@@ -542,6 +612,31 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           background-color: white;
         }
 
+        .spread-loading-state,
+        .spread-error-state {
+          position: absolute;
+          top: 1rem;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 2;
+          padding: 0.5rem 0.85rem;
+          border-radius: 999px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          font-family: var(--font-ui, 'Poppins', sans-serif);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+        }
+
+        .spread-loading-state {
+          background: rgba(255, 255, 255, 0.92);
+          color: #374151;
+        }
+
+        .spread-error-state {
+          background: rgba(127, 29, 29, 0.92);
+          color: white;
+        }
+
         .cover-image-container {
           width: 50%;
           aspect-ratio: 1 / 1;
@@ -614,4 +709,3 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 };
 
 export default BookSpreadViewer;
-
