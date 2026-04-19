@@ -1166,6 +1166,14 @@ const repoCentricW4QaFailedNode = repoCentricW4Workflow.nodes?.find(
 const repoCentricW4ErrorContextNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build Error Context',
 );
+const repoCentricW4ErrorGateNode = repoCentricW4Workflow.nodes?.find(
+  (candidate) => candidate.name === 'IF has valid orderId (Error)',
+);
+const repoCentricW4ErrorGateOutputs = (
+  repoCentricW4Workflow.connections?.['IF has valid orderId (Error)'] as
+    | { main?: Array<Array<{ node?: string }>> }
+    | undefined
+)?.main ?? [];
 const repoCentricW4BuildSubmitNode = repoCentricW4Workflow.nodes?.find(
   (candidate) => candidate.name === 'Build Lulu Print Job Payload',
 );
@@ -1571,8 +1579,14 @@ assert(
 assert(
   repoCentricW4ErrorContextNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('CONFIG.supabase && CONFIG.supabase.serviceRoleKey') &&
-    !JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs'),
-  'Repo-centric W4 generic error context should use runtime Supabase credentials only and must not embed a service-role fallback secret',
+    JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('$env.N8N_API_KEY') &&
+    JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('/executions/${executionId}?includeData=true') &&
+    !JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs') &&
+    repoCentricW4ErrorGateNode?.type === 'n8n-nodes-base.if' &&
+    JSON.stringify(repoCentricW4ErrorGateNode.parameters).includes('hasValidOrderId === true') &&
+    JSON.stringify(repoCentricW4ErrorGateNode.parameters).includes('"operation":"true"') &&
+    repoCentricW4ErrorGateOutputs[0]?.[0]?.node === 'Supabase: mark error',
+  'Repo-centric W4 generic error handling should recover source execution context via the n8n API, avoid embedded service-role fallbacks, and gate Supabase error writes behind a real boolean order-id check',
 );
 assert(
   repoCentricW4BuildSubmitNode?.type === 'n8n-nodes-base.code' &&

@@ -385,6 +385,69 @@ async function testMaterializePrintPdfRoute(): Promise<void> {
       putCalls[0]?.streamed === true,
     'Expected W4 materialize route to stream the downloaded PDF into the orders bucket',
   );
+  assert(
+    result.downloadAttempts === 1,
+    'Expected W4 materialize route to report a single download attempt when the source PDF is immediately available',
+  );
+}
+
+async function testMaterializePrintPdfRouteRetriesTransientDownload503(): Promise<void> {
+  const workflowEvents: JsonRecord[] = [];
+  const statuses: number[] = [];
+
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003A',
+      workflowJobId: 5030,
+      workflowAttemptId: 6030,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-003A:print:test',
+      pdfDownloadUrl: 'https://cdn.example/interior-materialize-retry.pdf',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003A/interior_W4-SANDBOX-PROOF-003A.pdf',
+    },
+    {
+      headObjectImpl: async () => new Response(null, { status: 404 }),
+      sleep: async () => undefined,
+      fetchImpl: async (input) => {
+        const url = resolveUrl(input);
+        if (url !== 'https://cdn.example/interior-materialize-retry.pdf') {
+          throw new Error(`Unexpected materialize retry URL: ${url}`);
+        }
+        if (statuses.length === 0) {
+          statuses.push(503);
+          return new Response('temporary unavailable', { status: 503 });
+        }
+        statuses.push(200);
+        return new Response(new Uint8Array([7, 8, 9]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+          },
+        });
+      },
+      putObjectImpl: async (_bucket, _key, body) => {
+        await new Response(body).arrayBuffer();
+        return { ok: true };
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+      materializeDownloadAttempts: 3,
+      materializeDownloadRetryDelayMs: 1,
+    },
+  );
+
+  assert(
+    statuses.join(',') === '503,200' &&
+      result.success === true &&
+      result.byteSize === 3 &&
+      result.downloadAttempts === 2,
+    'Expected W4 materialize route to retry one transient 503 from the PDF source and succeed on the follow-up attempt',
+  );
+  assert(
+    workflowEvents.length === 1 &&
+      workflowEvents[0]?.eventType === 'artifact-materialized' &&
+      (workflowEvents[0]?.payload as JsonRecord | undefined)?.downloadAttempts === 2,
+    'Expected W4 materialize route to record the final download attempt count in the artifact-materialized event',
+  );
 }
 
 async function testMaterializePrintPdfRouteReusesExistingObject(): Promise<void> {
@@ -894,6 +957,7 @@ async function main(): Promise<void> {
   await testInteriorRenderCanReturnIncompleteForFollowupPoll();
   await testPollPrintDocumentRouteContinuesExistingDocument();
   await testMaterializePrintPdfRoute();
+  await testMaterializePrintPdfRouteRetriesTransientDownload503();
   await testMaterializePrintPdfRouteReusesExistingObject();
   await testMaterializePrintPdfRouteSkipsUploadForProductionDryRun();
   await testQaPassAndFailPaths();

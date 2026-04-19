@@ -128,6 +128,8 @@ export interface W4WorkerOptions {
   rendererInternalToken?: string;
   fetchImpl?: FetchImpl;
   sleep?: (ms: number) => Promise<void>;
+  materializeDownloadAttempts?: number;
+  materializeDownloadRetryDelayMs?: number;
   recordWorkflowEvent?: (body: JsonRecord) => Promise<JsonRecord>;
   maxPollAttempts?: number;
   pollIntervalMs?: number;
@@ -173,6 +175,7 @@ export interface W4MaterializePrintPdfResult extends JsonRecord {
   byteSize: number;
   contentType: string;
   uploadedAt: string;
+  downloadAttempts: number;
   reusedExisting?: boolean;
   materializationSkipped?: boolean;
   pdfR2Key?: string | null;
@@ -294,6 +297,26 @@ function firstString(...values: unknown[]): string | null {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+const DEFAULT_MATERIALIZE_DOWNLOAD_ATTEMPTS = 5;
+const DEFAULT_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 1500;
+
+function isRetryableMaterializeDownloadStatus(status: number): boolean {
+  return [408, 425, 429, 500, 502, 503, 504].includes(status);
+}
+
+function isRetryableMaterializeTransportError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('socket') ||
+    message.includes('econnreset') ||
+    message.includes('timed out') ||
+    message.includes('timeout') ||
+    message.includes('temporarily unavailable')
+  );
 }
 
 function resolveOrderId(input: JsonRecord): string {
@@ -1263,6 +1286,8 @@ export async function materializeW4PrintPdf(
   options: W4WorkerOptions = {},
 ): Promise<W4MaterializePrintPdfResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const headObjectImpl = options.headObjectImpl ?? headObject;
   const putObjectImpl = options.putObjectImpl ?? putObject;
   const recordWorkflowEvent = options.recordWorkflowEvent ?? (async () => ({}));
@@ -1303,6 +1328,16 @@ export async function materializeW4PrintPdf(
   const uploadBucket = getBucketFromKey(r2Key);
   const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
   const shouldSkipUploadForDryRun = toBoolean(input.productionDryRun);
+  const maxDownloadAttempts = Math.max(
+    1,
+    toPositiveInteger(options.materializeDownloadAttempts) ??
+      DEFAULT_MATERIALIZE_DOWNLOAD_ATTEMPTS,
+  );
+  const downloadRetryDelayMs = Math.max(
+    0,
+    toPositiveInteger(options.materializeDownloadRetryDelayMs) ??
+      DEFAULT_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS,
+  );
 
   const logEvent = async (body: JsonRecord): Promise<W4WorkflowEventResult | null> => {
     if (!workflowJobId && !workflowJobIdempotencyKey) {
@@ -1352,6 +1387,7 @@ export async function materializeW4PrintPdf(
         byteSize: 0,
         contentType: 'application/pdf',
         uploadedAt,
+        downloadAttempts: 0,
         materializationSkipped: true,
         workflowLogEvent: {
           materialized,
@@ -1398,6 +1434,7 @@ export async function materializeW4PrintPdf(
         byteSize: Number.isFinite(byteSize) ? byteSize : 0,
         contentType,
         uploadedAt,
+        downloadAttempts: 0,
         reusedExisting: true,
         workflowLogEvent: {
           materialized,
@@ -1409,9 +1446,47 @@ export async function materializeW4PrintPdf(
       };
     }
 
-    const response = await fetchImpl(downloadUrl);
-    if (!response.ok) {
-      throw new Error(`Download failed (${response.status})`);
+    let response: Response | null = null;
+    let downloadAttempts = 0;
+    let lastDownloadError: unknown = null;
+
+    for (let attempt = 1; attempt <= maxDownloadAttempts; attempt += 1) {
+      downloadAttempts = attempt;
+      try {
+        response = await fetchImpl(downloadUrl);
+      } catch (error) {
+        lastDownloadError = error;
+        if (attempt >= maxDownloadAttempts || !isRetryableMaterializeTransportError(error)) {
+          throw error;
+        }
+        await sleep(downloadRetryDelayMs * attempt);
+        continue;
+      }
+
+      if (response.ok) {
+        break;
+      }
+
+      const status = response.status;
+      lastDownloadError = new Error(`Download failed (${status})`);
+      try {
+        await response.body?.cancel();
+      } catch {
+        // Ignore cleanup failures on retryable responses.
+      }
+      response = null;
+
+      if (attempt >= maxDownloadAttempts || !isRetryableMaterializeDownloadStatus(status)) {
+        throw lastDownloadError;
+      }
+
+      await sleep(downloadRetryDelayMs * attempt);
+    }
+
+    if (!response) {
+      throw (lastDownloadError instanceof Error
+        ? lastDownloadError
+        : new Error('Download failed before a response was available'));
     }
 
     const contentType = response.headers.get('content-type') || 'application/pdf';
@@ -1439,18 +1514,20 @@ export async function materializeW4PrintPdf(
     const uploadedAt = new Date().toISOString();
     const materialized = await logEvent({
       eventType: 'artifact-materialized',
-      payload: {
-        orderId,
-        documentKind,
-        r2Key,
-        byteSize,
-      },
-      context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
-        documentKind,
-        r2Key,
-        byteSize,
-      }),
-    });
+        payload: {
+          orderId,
+          documentKind,
+          r2Key,
+          byteSize,
+          downloadAttempts,
+        },
+        context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+          documentKind,
+          r2Key,
+          byteSize,
+          downloadAttempts,
+        }),
+      });
 
     return {
       ...input,
@@ -1460,13 +1537,14 @@ export async function materializeW4PrintPdf(
       rootOrderId,
       backendUrl,
       uploadBucket,
-      r2Key,
-      byteSize,
-      contentType,
-      uploadedAt,
-      workflowLogEvent: {
-        materialized,
-      },
+        r2Key,
+        byteSize,
+        contentType,
+        uploadedAt,
+        downloadAttempts,
+        workflowLogEvent: {
+          materialized,
+        },
       pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
       coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
       pdfUrl: documentKind === 'interior-pdf' ? publicUrl : null,
@@ -1483,15 +1561,18 @@ export async function materializeW4PrintPdf(
         orderId,
         documentKind,
         r2Key,
+        downloadUrl,
       },
       payload: {
         orderId,
         documentKind,
         r2Key,
+        downloadUrl,
       },
       context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
         documentKind,
         r2Key,
+        downloadUrl,
         errorMessage: message,
       }),
     });
