@@ -198,8 +198,8 @@ async function main(): Promise<void> {
   );
   assert(
     typeof standardPreview.coverPreviewItem.coverHTML === 'string' &&
-      standardPreview.coverPreviewItem.coverHTML.includes('left:4427px') &&
-      standardPreview.coverPreviewItem.coverHTML.includes('top:2182px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('left:4421px') &&
+      standardPreview.coverPreviewItem.coverHTML.includes('top:2157px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('width:1200px') &&
       standardPreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)') &&
       standardPreview.coverPreviewItem.coverHTML.includes('position:absolute; height:auto; display:block;') &&
@@ -209,15 +209,15 @@ async function main(): Promise<void> {
   const coverOverridePreview = buildW3PreviewPlanResponse({
     ...standardAssemblyInput,
     coverCharacterPlacement: {
-      left: 4427.375779647436,
-      top: 2181.9684794520554,
+      left: 4420.887663661859,
+      top: 2157.2141614055995,
       width: 1200,
     },
   });
   assert(
     typeof coverOverridePreview.coverPreviewItem.coverHTML === 'string' &&
-      coverOverridePreview.coverPreviewItem.coverHTML.includes('left:4427px') &&
-      coverOverridePreview.coverPreviewItem.coverHTML.includes('top:2182px') &&
+      coverOverridePreview.coverPreviewItem.coverHTML.includes('left:4421px') &&
+      coverOverridePreview.coverPreviewItem.coverHTML.includes('top:2157px') &&
       coverOverridePreview.coverPreviewItem.coverHTML.includes('translate(-86.5%,-80.5%)'),
     'Expected cover placement overrides without explicit anchor fields to inherit the configured cover anchor instead of falling back to the generic 50/100 anchor',
   );
