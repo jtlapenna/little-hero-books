@@ -273,18 +273,12 @@ export function PostPdfStage({
   const customerApprovalStatus = order.customerApprovalStatus ?? '';
   const orderStatus = order.status ?? '';
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
-  const customerRevisionUsed = revisionCount >= 1;
+  const customerApprovedPreview = customerApprovalStatus === 'approved';
 
-  // Button logic:
-  // - First Review (revisionCount === 0): After Send for Customer Approval → Show "Send Proof" button
-  // - Second Review (revisionCount >= 1): After Send for Customer Approval → Show "Send to Print" button
-  //
-  // Show "Send to Print" only if:
-  // 1. Stage is approved
-  // 2. We're in second review (revisionCount >= 1)
-  // This ensures we show "Send to Print" after customer has used their revision
-  // On first approval (revisionCount === 0), show "Send Proof" instead
-  const showPrintAction = isApproved && customerRevisionUsed;
+  // Production handoff should follow explicit customer approval, not revision count.
+  // A clean first-pass approval still needs a visible Send to Print action.
+  const showPrintAction = isApproved && customerApprovedPreview;
+  const actionCardTitle = showPrintAction ? 'Send to Print' : 'Send for Customer Approval';
   const finalApprovalIsLoading = Boolean(finalApprovalLoading);
   const reviewPageContext = resolveReviewPageContext({
     bookId: order.bookContext?.bookId ?? order.project ?? null,
@@ -2745,9 +2739,11 @@ export function PostPdfStage({
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-lg font-medium text-gray-900">Send for Customer Approval</h4>
+            <h4 className="text-lg font-medium text-gray-900">{actionCardTitle}</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {isApproved 
+              {showPrintAction
+                ? 'The customer approved the preview. Queue this order for print production.'
+                : isApproved 
                 ? 'This order has been fully approved and is ready for production.'
                 : requiresPdfWarning
                 ? 'The compiled PDF must be generated before sending for customer approval.'
