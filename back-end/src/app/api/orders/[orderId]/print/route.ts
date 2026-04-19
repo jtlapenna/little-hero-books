@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
+import { normalizeW0Manifest } from '@/lib/books/normalize-w0-manifest';
+import { extractManifestKey } from '@/lib/order-paths';
+import { downloadManifest } from '@/lib/r2-service';
 import { supabase } from '@/lib/supabase-client';
 import {
   describeSiblingPrintSubmissionBlockers,
@@ -13,6 +16,161 @@ import {
 } from '@/lib/sibling-print-policy';
 
 type OrderRowLike = Record<string, unknown>;
+
+function toTrimmedString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function pickFirstNonEmpty(...values: unknown[]): string | null {
+  for (const value of values) {
+    const trimmed = toTrimmedString(value);
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return null;
+}
+
+function normalizeShippingAddressForPrintPreflight(
+  shippingAddress: unknown,
+): Record<string, unknown> | null {
+  const address = toRecord(shippingAddress);
+  if (!address) {
+    return null;
+  }
+
+  const name = pickFirstNonEmpty(address.name, address.recipient_name, address.shippingName);
+  const street1 = pickFirstNonEmpty(
+    address.street1,
+    address.street,
+    address.address,
+    address.address1,
+    address.address_line_1,
+    address.address_line1,
+  );
+  const street2 = pickFirstNonEmpty(
+    address.street2,
+    address.address2,
+    address.address_line_2,
+    address.address_line2,
+  );
+  const city = pickFirstNonEmpty(address.city);
+  const state = pickFirstNonEmpty(address.state, address.state_code, address.stateCode);
+  const zip = pickFirstNonEmpty(
+    address.zip,
+    address.postal_code,
+    address.postalCode,
+    address.postcode,
+  );
+  const country = pickFirstNonEmpty(
+    address.country,
+    address.country_code,
+    address.countryCode,
+  );
+  const phone = pickFirstNonEmpty(
+    address.phone,
+    address.phone_number,
+    address.phoneNumber,
+  );
+
+  const normalized: Record<string, unknown> = { ...address };
+
+  if (name) normalized.name = name;
+  if (street1) {
+    normalized.street1 = street1;
+    normalized.address = street1;
+    normalized.address1 = street1;
+    normalized.address_line_1 = street1;
+    normalized.address_line1 = street1;
+  }
+  if (street2) {
+    normalized.street2 = street2;
+    normalized.address2 = street2;
+    normalized.address_line_2 = street2;
+    normalized.address_line2 = street2;
+  }
+  if (city) normalized.city = city;
+  if (state) {
+    normalized.state = state;
+    normalized.state_code = state;
+  }
+  if (zip) {
+    normalized.zip = zip;
+    normalized.postal_code = zip;
+    normalized.postcode = zip;
+  }
+  if (country) {
+    normalized.country = country;
+    normalized.country_code = country;
+  }
+  if (phone) {
+    normalized.phone = phone;
+    normalized.phone_number = phone;
+  }
+
+  return normalized;
+}
+
+async function hydrateOrderShippingAddressForPrint(orderRow: OrderRowLike): Promise<OrderRowLike> {
+  const normalizedRowShipping = normalizeShippingAddressForPrintPreflight(orderRow.shipping_address);
+  if (getShippingAddressMissingFields(normalizedRowShipping).length === 0) {
+    if (normalizedRowShipping) {
+      orderRow.shipping_address = normalizedRowShipping;
+    }
+    return orderRow;
+  }
+
+  const manifestKey = extractManifestKey(
+    toTrimmedString(orderRow.one_manifest_url) ?? toTrimmedString(orderRow.oneManifestUrl),
+  );
+  if (!manifestKey) {
+    return orderRow;
+  }
+
+  try {
+    const manifest = await downloadManifest(manifestKey);
+    const normalizedManifest = normalizeW0Manifest(manifest, {
+      fallbackManifestKey: manifestKey,
+    });
+    const normalizedManifestShipping = normalizeShippingAddressForPrintPreflight(
+      normalizedManifest.shippingAddress,
+    );
+
+    if (getShippingAddressMissingFields(normalizedManifestShipping).length > 0) {
+      return orderRow;
+    }
+
+    orderRow.shipping_address = normalizedManifestShipping;
+
+    const orderRowId = Number(orderRow.id);
+    if (Number.isFinite(orderRowId)) {
+      await updateOrderRowResilientById(orderRowId, {
+        shipping_address: normalizedManifestShipping,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.warn('[POST /api/orders/[orderId]/print] Failed to hydrate shipping from one-manifest:', {
+      orderId: getPerBookOrderId(orderRow),
+      manifestKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return orderRow;
+}
 
 function parseMissingColumn(error: unknown): string | null {
   const msg = String((error as { message?: string })?.message || '');
@@ -174,19 +332,25 @@ async function updateOrderStatusesResilient(
   }
 }
 
-function validateOrderReadinessForPrint(orderRow: OrderRowLike, targetOrderId: string) {
+async function validateOrderReadinessForPrint(orderRow: OrderRowLike, targetOrderId: string) {
+  const hydratedOrder = await hydrateOrderShippingAddressForPrint(orderRow);
   const missingShippingFields = getShippingAddressMissingFields(orderRow.shipping_address);
   if (missingShippingFields.length > 0) {
+    const platform = String(hydratedOrder.platform || '').toLowerCase();
     const shippingMessage =
       missingShippingFields[0] === 'shipping_address'
-        ? 'shipping information not yet available. Please upload CSV to populate customer data.'
-        : `shipping information is incomplete. Missing: ${missingShippingFields.join(', ')}. Please upload CSV to populate customer data.`;
+        ? platform === 'd2c'
+          ? 'shipping information is not available on the order row or 1-manifest.'
+          : 'shipping information not yet available. Please upload CSV to populate customer data.'
+        : platform === 'd2c'
+          ? `shipping information is incomplete. Missing: ${missingShippingFields.join(', ')}.`
+          : `shipping information is incomplete. Missing: ${missingShippingFields.join(', ')}. Please upload CSV to populate customer data.`;
     throw createValidationError(
       `Order cannot be sent to print fulfillment: ${shippingMessage}`,
     );
   }
 
-  if (!hasWorkflow3Complete(orderRow)) {
+  if (!hasWorkflow3Complete(hydratedOrder)) {
     throw createValidationError(
       `Order ${targetOrderId} cannot be sent to print: book assembly (workflow 3) has not completed. 3-manifest not found.`,
     );
@@ -238,7 +402,7 @@ async function sendToPrint(
     const currentRootOrderId = getRootOrderId(currentOrder);
     const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
 
-    validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
+    await validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
 
     let orderTargets = [
       {
@@ -249,7 +413,11 @@ async function sendToPrint(
 
     if (!isReprint && isSiblingChildOrder(currentOrder)) {
       const siblingRows = (await listOrdersByAmazonRootId(currentRootOrderId)) as OrderRowLike[];
-      const siblingMembers = getSiblingChildMembers(siblingRows, currentRootOrderId);
+      const siblingMembers = await Promise.all(
+        getSiblingChildMembers(siblingRows, currentRootOrderId).map((member) =>
+          hydrateOrderShippingAddressForPrint(member),
+        ),
+      );
 
       if (siblingMembers.length < 2) {
         throw createValidationError(

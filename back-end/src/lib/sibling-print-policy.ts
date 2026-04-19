@@ -58,14 +58,22 @@ export function getShippingAddressMissingFields(shippingAddress: unknown): strin
   const missing: string[] = [];
 
   const addressLine =
+    toTrimmedString(address.street1) ||
+    toTrimmedString(address.street) ||
     toTrimmedString(address.address) ||
     toTrimmedString(address.address1) ||
-    toTrimmedString(address.address_line_1);
+    toTrimmedString(address.address_line_1) ||
+    toTrimmedString(address.address_line1);
   const city = toTrimmedString(address.city);
-  const state = toTrimmedString(address.state);
+  const state =
+    toTrimmedString(address.state) ||
+    toTrimmedString(address.state_code) ||
+    toTrimmedString(address.stateCode);
   const zip =
+    toTrimmedString(address.postcode) ||
     toTrimmedString(address.zip) ||
-    toTrimmedString(address.postal_code);
+    toTrimmedString(address.postal_code) ||
+    toTrimmedString(address.postalCode);
 
   if (!addressLine) missing.push('address');
   if (!city) missing.push('city');
