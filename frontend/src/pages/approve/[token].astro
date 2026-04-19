@@ -493,12 +493,66 @@ const apiBase =
     }
   }
 
+  function normalizeManifestPageLabel(rawLabel) {
+    if (typeof rawLabel !== 'string') return null;
+    const trimmed = rawLabel.trim().toLowerCase();
+    if (!trimmed) return null;
+    if (trimmed === 'p00_dedication') return 'p00';
+    return trimmed;
+  }
+
+  function buildPagePlanMaps(manifest, manifest3) {
+    const rawPagePlan = manifest?.pagePlan || manifest3?.pagePlan || [];
+    const pagePlan = Array.isArray(rawPagePlan) ? rawPagePlan : [];
+    const pagePlanByNumber = new Map();
+    const pagePlanByLabel = new Map();
+
+    pagePlan.forEach((page) => {
+      const index = Number(page?.index);
+      const label = normalizeManifestPageLabel(page?.label);
+      if (Number.isFinite(index)) {
+        pagePlanByNumber.set(index, page);
+      }
+      if (label) {
+        pagePlanByLabel.set(label, page);
+      }
+    });
+
+    return { pagePlanByNumber, pagePlanByLabel };
+  }
+
+  function dedupePreviewImages(previewImages) {
+    const pageMap = new Map();
+
+    for (const img of previewImages) {
+      const dedupeKey = img.pageLabel || `page-${img.pageNumber}`;
+      const existing = pageMap.get(dedupeKey);
+      if (!existing) {
+        pageMap.set(dedupeKey, img);
+        continue;
+      }
+
+      const existingIsDedicationAlias = String(existing.originalKey || '').endsWith('_dedication');
+      const nextIsDedicationAlias = String(img.originalKey || '').endsWith('_dedication');
+      const nextHasBetterAsset =
+        (!existing.r2Key && !!img.r2Key) ||
+        (!existing.imageUrl && !!img.imageUrl);
+
+      if ((nextIsDedicationAlias && !existingIsDedicationAlias) || nextHasBetterAsset) {
+        pageMap.set(dedupeKey, img);
+      }
+    }
+
+    return Array.from(pageMap.values());
+  }
+
   // Create spreads from pages (similar to order page logic)
   function createSpreads(pages, coverImageUrl) {
     const spreads = [];
+    const orderedPages = [...pages].sort((left, right) => left.pageNumber - right.pageNumber);
     
     console.log('[Preview] createSpreads called:', {
-      pagesCount: pages.length,
+      pagesCount: orderedPages.length,
       coverImageUrl: coverImageUrl || 'NULL',
       hasCover: !!coverImageUrl
     });
@@ -522,29 +576,25 @@ const apiBase =
       console.warn('[Preview] ⚠️ No coverImageUrl provided - front cover will not be shown');
     }
     
-    // Find dedication page (page 0) and story pages (pages 1-15)
-    const dedicationPage = pages.find(p => p.pageNumber === 0);
-    const storyPages = pages.filter(p => p.pageNumber >= 1).sort((a, b) => a.pageNumber - b.pageNumber);
-    
-    // Add dedication spread (blank left, page00 right)
-    if (dedicationPage) {
+    // Add the first page as a right-hand page after the front cover.
+    if (orderedPages.length > 0) {
       spreads.push({
         spreadNumber: spreads.length,
         isCover: false,
         isBackCover: false,
         leftPage: null,
-        rightPage: dedicationPage
+        rightPage: orderedPages[0]
       });
     }
     
-    // Interior spreads: pair story pages (1-2, 3-4, 5-6, etc.)
-    for (let i = 0; i < storyPages.length; i += 2) {
+    // Pair the remaining ordered pages sequentially.
+    for (let i = 1; i < orderedPages.length; i += 2) {
       spreads.push({
         spreadNumber: spreads.length,
         isCover: false,
         isBackCover: false,
-        leftPage: storyPages[i],
-        rightPage: storyPages[i + 1] || null
+        leftPage: orderedPages[i],
+        rightPage: orderedPages[i + 1] || null
       });
     }
     
@@ -595,6 +645,46 @@ const apiBase =
       
       // Handle nested manifest structure
       const manifest = manifest3?.manifest || manifest3;
+      const { pagePlanByNumber, pagePlanByLabel } = buildPagePlanMaps(manifest, manifest3);
+
+      const normalizePreviewImage = (img, fallbackKey = null) => {
+        const rawLabel =
+          img?.pageLabel ||
+          img?.originalKey ||
+          img?.label ||
+          fallbackKey ||
+          null;
+        const pageLabel = normalizeManifestPageLabel(rawLabel);
+        const numericPageNumber = Number(img?.pageNumber);
+        const parsedPageNumber =
+          pageLabel && pageLabel.startsWith('p')
+            ? Number.parseInt(pageLabel.slice(1), 10)
+            : NaN;
+        const fallbackPageNumber = Number.isFinite(numericPageNumber)
+          ? numericPageNumber
+          : Number.isFinite(parsedPageNumber)
+          ? parsedPageNumber
+          : 0;
+        const pageMeta =
+          (pageLabel && pagePlanByLabel.get(pageLabel)) ||
+          pagePlanByNumber.get(fallbackPageNumber) ||
+          null;
+
+        return {
+          pageNumber: pageMeta?.index ?? fallbackPageNumber,
+          pageLabel:
+            pageLabel ||
+            normalizeManifestPageLabel(pageMeta?.label) ||
+            `p${String(pageMeta?.index ?? fallbackPageNumber).padStart(2, '0')}`,
+          pageType: pageMeta?.type,
+          storyPageNumber: pageMeta?.storyPageNumber ?? null,
+          originalKey: fallbackKey || img?.originalKey || rawLabel,
+          r2Key: typeof img?.r2Key === 'string' ? img.r2Key : null,
+          imageUrl: typeof img?.imageUrl === 'string' ? img.imageUrl : null,
+          cloudflareImageUrl:
+            typeof img?.cloudflareImageUrl === 'string' ? img.cloudflareImageUrl : null
+        };
+      };
       
       // Get page preview images
       let previewImages = manifest?.pagePreviewImages 
@@ -608,33 +698,28 @@ const apiBase =
         if (pagesObj && Object.keys(pagesObj).length > 0) {
           console.log('[Preview] Building previewImages from pngGeneration.pages, found keys:', Object.keys(pagesObj));
           previewImages = Object.entries(pagesObj)
-            .map(([key, r2Key]) => {
-              let pageNumber = 0;
-              if (key === 'p00_dedication' || key === 'p00') {
-                pageNumber = 0;
-              } else if (key.startsWith('p')) {
-                const num = parseInt(key.substring(1), 10);
-                if (!isNaN(num)) pageNumber = num;
-              }
-              return {
-                pageNumber,
-                r2Key: typeof r2Key === 'string' ? r2Key : null,
-                imageUrl: typeof r2Key === 'string' ? `${API_BASE}/api/assets/${r2Key}` : null
-              };
-            })
-            .filter(img => img.r2Key); // Remove entries without r2Key
-          
-          // Deduplicate page 0 (prefer p00_dedication)
-          const page0Entries = previewImages.filter(p => p.pageNumber === 0);
-          if (page0Entries.length > 1) {
-            const dedication = page0Entries.find(p => p.r2Key?.includes('dedication'));
-            if (dedication) {
-              previewImages = previewImages.filter(p => !(p.pageNumber === 0 && p.r2Key !== dedication.r2Key));
-            }
-          }
+            .map(([key, r2Key]) =>
+              normalizePreviewImage(
+                {
+                  originalKey: key,
+                  r2Key: typeof r2Key === 'string' ? r2Key : null,
+                  imageUrl: typeof r2Key === 'string' ? `${API_BASE}/api/assets/${r2Key}` : null
+                },
+                key,
+              ),
+            )
+            .filter((img) => img.r2Key || img.imageUrl);
+
+          previewImages = dedupePreviewImages(previewImages);
           console.log('[Preview] Built previewImages from pngGeneration.pages:', previewImages.length, 'pages');
         }
       }
+
+      previewImages = dedupePreviewImages(
+        (Array.isArray(previewImages) ? previewImages : [])
+          .map((img) => normalizePreviewImage(img))
+          .filter((img) => img.r2Key || img.imageUrl || img.cloudflareImageUrl),
+      );
       
       console.log('[Preview] Total previewImages found:', previewImages.length);
       
@@ -654,36 +739,56 @@ const apiBase =
       
       const pages = (Array.isArray(previewImages) ? previewImages : []).map((img) => {
         const pageNum = Number(img.pageNumber || 0);
-        const pageKey = pageNum === 0 ? 'p00_dedication' : (pageNum < 10 ? `p0${pageNum}` : `p${pageNum}`);
-        const cfData = pageNum === 0 
-          ? (pagesWithCloudflare['p00_dedication'] || pagesWithCloudflare['p00'] || null)
-          : (pagesWithCloudflare[pageKey] || null);
+        const pageLabel = normalizeManifestPageLabel(img.pageLabel) || `p${String(pageNum).padStart(2, '0')}`;
+        const cloudflareLookupKeys = pageLabel === 'p00' ? ['p00_dedication', 'p00'] : [pageLabel];
+        const cfData = cloudflareLookupKeys
+          .map((key) => pagesWithCloudflare[key] || null)
+          .find(Boolean);
         const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
         
         // Priority 1: Use R2 proxy URL when available (no PROOF overlay)
         if (img.r2Key) {
-          return { pageNumber: pageNum, imageUrl: `${API_BASE}/api/assets/${img.r2Key}` };
+          return { pageNumber: pageNum, pageLabel, imageUrl: `${API_BASE}/api/assets/${img.r2Key}` };
         }
         if (img.imageUrl && isR2ProxyUrl(img.imageUrl)) {
-          return { pageNumber: pageNum, imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}` };
+          return {
+            pageNumber: pageNum,
+            pageLabel,
+            imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}`
+          };
         }
         // Priority 2: Fall back to Cloudflare Images only when R2 not available
         if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
-          return { pageNumber: pageNum, imageUrl: cloudflareImageUrl };
+          return { pageNumber: pageNum, pageLabel, imageUrl: cloudflareImageUrl };
         }
         if (img.imageUrl && isValidCloudflareUrl(img.imageUrl)) {
-          return { pageNumber: pageNum, imageUrl: img.imageUrl };
+          return { pageNumber: pageNum, pageLabel, imageUrl: img.imageUrl };
         }
         if (img.imageUrl) {
-          return { pageNumber: pageNum, imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}` };
+          return {
+            pageNumber: pageNum,
+            pageLabel,
+            imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}`
+          };
         }
         return null;
       }).filter(p => p && p.imageUrl); // Only include pages with valid URLs
       
+      const uniquePages = Array.from(
+        new Map(
+          pages.map((page) => [page.pageLabel || `page-${page.pageNumber}`, page])
+        ).values()
+      );
+
       // Sort pages by pageNumber to ensure correct order
-      pages.sort((a, b) => a.pageNumber - b.pageNumber);
+      uniquePages.sort((a, b) => a.pageNumber - b.pageNumber);
       
-      console.log('[Preview] Final pages array:', pages.length, 'pages', pages.map(p => `p${p.pageNumber}`));
+      console.log(
+        '[Preview] Final pages array:',
+        uniquePages.length,
+        'pages',
+        uniquePages.map((p) => p.pageLabel || `p${p.pageNumber}`),
+      );
       
       // Get cover image URL - check multiple possible locations
       // Priority: Cloudflare Images URL (preview/watermarked), then direct URL, then R2 key
@@ -728,7 +833,7 @@ const apiBase =
         'final coverImageUrl': coverImageUrl || 'NULL - COVER NOT FOUND'
       });
       
-      return { pages, coverImageUrl };
+      return { pages: uniquePages, coverImageUrl };
     } catch (error) {
       console.error('[Preview] Error loading pages:', error);
       return { pages: [], coverImageUrl: null };
