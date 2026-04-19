@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface PageData {
   pageNumber: number;
@@ -31,6 +31,15 @@ interface BookSpreadViewerProps {
   externalEventName?: string;
 }
 
+interface ZoomItem {
+  id: string;
+  src: string;
+  alt: string;
+  spreadIndex: number;
+  kind: 'page' | 'front-cover' | 'back-cover';
+  pageNumber?: number;
+}
+
 const clampIndex = (index: number, total: number) => {
   if (total <= 0) return 0;
   if (index < 0) return 0;
@@ -50,12 +59,13 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   const [currentIndex, setCurrentIndex] = useState(() =>
     clampIndex(initialSpread, viewerSpreads.length)
   );
-  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomedItemIndex, setZoomedItemIndex] = useState<number | null>(null);
   const [imageStatus, setImageStatus] = useState<Record<string, 'loaded' | 'error'>>({});
+  const zoomTouchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Lock body scroll and disable header when image is zoomed
   useEffect(() => {
-    if (zoomedImage) {
+    if (zoomedItemIndex !== null) {
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
       const header = document.getElementById('main-header');
@@ -81,7 +91,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         }
       };
     }
-  }, [zoomedImage]);
+  }, [zoomedItemIndex]);
 
   useEffect(() => {
     const nextSpreads = Array.isArray(spreads) ? spreads : [];
@@ -153,8 +163,24 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     if (viewerSpreads.length === 0) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (zoomedImage && event.key === 'Escape') {
-        setZoomedImage(null);
+      if (zoomedItemIndex !== null) {
+        if (event.key === 'Escape') {
+          closeZoom();
+          return;
+        }
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          goToZoomItem(zoomedItemIndex - 1);
+          return;
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          goToZoomItem(zoomedItemIndex + 1);
+          return;
+        }
+      }
+
+      if (event.key === 'Escape') {
         return;
       }
       if (event.key === 'ArrowLeft') {
@@ -168,7 +194,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, viewerSpreads.length, zoomedImage]);
+  }, [currentIndex, viewerSpreads.length, zoomedItemIndex]);
 
   const totalSpreads = viewerSpreads.length;
 
@@ -178,6 +204,65 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     }
     return viewerSpreads[currentIndex] ?? viewerSpreads[0];
   }, [viewerSpreads, currentIndex]);
+
+  const zoomItems = useMemo<ZoomItem[]>(() => {
+    if (!Array.isArray(viewerSpreads) || viewerSpreads.length === 0) {
+      return [];
+    }
+
+    const items: ZoomItem[] = [];
+    viewerSpreads.forEach((spread, spreadIndex) => {
+      if (spread.coverData?.isFrontCover && spread.coverData.fullImageUrl) {
+        items.push({
+          id: `spread-${spreadIndex}-front-cover`,
+          src: spread.coverData.fullImageUrl,
+          alt: 'Front Cover',
+          spreadIndex,
+          kind: 'front-cover',
+        });
+        return;
+      }
+
+      if (spread.leftPage?.imageUrl) {
+        items.push({
+          id: `spread-${spreadIndex}-left-${spread.leftPage.pageNumber}`,
+          src: spread.leftPage.imageUrl,
+          alt: `Page ${spread.leftPage.pageNumber}`,
+          spreadIndex,
+          kind: 'page',
+          pageNumber: spread.leftPage.pageNumber,
+        });
+      }
+
+      if (spread.rightPage?.imageUrl) {
+        items.push({
+          id: `spread-${spreadIndex}-right-${spread.rightPage.pageNumber}`,
+          src: spread.rightPage.imageUrl,
+          alt: `Page ${spread.rightPage.pageNumber}`,
+          spreadIndex,
+          kind: 'page',
+          pageNumber: spread.rightPage.pageNumber,
+        });
+      }
+
+      if (spread.coverData?.isBackCover && spread.coverData.fullImageUrl) {
+        items.push({
+          id: `spread-${spreadIndex}-back-cover`,
+          src: spread.coverData.fullImageUrl,
+          alt: 'Back Cover',
+          spreadIndex,
+          kind: 'back-cover',
+        });
+      }
+    });
+
+    return items;
+  }, [viewerSpreads]);
+
+  const zoomedItem =
+    zoomedItemIndex !== null && zoomedItemIndex >= 0 && zoomedItemIndex < zoomItems.length
+      ? zoomItems[zoomedItemIndex]
+      : null;
 
   const currentSpreadUrls = useMemo(() => {
     if (!currentSpread) return [];
@@ -193,10 +278,44 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
     currentSpreadUrls.every((url) => imageStatus[url] === 'loaded');
   const currentSpreadHasError = currentSpreadUrls.some((url) => imageStatus[url] === 'error');
 
+  useEffect(() => {
+    if (zoomedItemIndex === null) return;
+    if (zoomItems.length === 0) {
+      setZoomedItemIndex(null);
+      return;
+    }
+    if (zoomedItemIndex >= zoomItems.length) {
+      setZoomedItemIndex(zoomItems.length - 1);
+    }
+  }, [zoomItems, zoomedItemIndex]);
+
   const goToSpread = (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex >= totalSpreads) return;
     setCurrentIndex(nextIndex);
     onSpreadChange?.(nextIndex);
+  };
+
+  const goToZoomItem = (nextIndex: number) => {
+    if (zoomItems.length === 0) return;
+    const clamped = clampIndex(nextIndex, zoomItems.length);
+    const nextItem = zoomItems[clamped];
+    if (!nextItem) return;
+    setZoomedItemIndex(clamped);
+    if (nextItem.spreadIndex !== currentIndex) {
+      setCurrentIndex(nextItem.spreadIndex);
+      onSpreadChange?.(nextItem.spreadIndex);
+    }
+  };
+
+  const openZoomItem = (matcher: (item: ZoomItem) => boolean) => {
+    const index = zoomItems.findIndex(matcher);
+    if (index === -1) return;
+    goToZoomItem(index);
+  };
+
+  const closeZoom = () => {
+    zoomTouchStartRef.current = null;
+    setZoomedItemIndex(null);
   };
 
   const renderLeftPage = () => {
@@ -207,7 +326,11 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         <div 
           key={`back-cover-${currentIndex}`}
           className="cover-image-container back-cover zoomable-image"
-          onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
+          onClick={() =>
+            openZoomItem(
+              (item) => item.kind === 'back-cover' && item.spreadIndex === currentIndex
+            )
+          }
         >
           <img src={currentSpread.coverData.fullImageUrl} alt="Back Cover" loading="eager" />
         </div>
@@ -221,7 +344,14 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           src={currentSpread.leftPage.imageUrl}
           alt={`Page ${currentSpread.leftPage.pageNumber}`}
           className="zoomable-image"
-          onClick={() => setZoomedImage(currentSpread.leftPage!.imageUrl)}
+          onClick={() =>
+            openZoomItem(
+              (item) =>
+                item.kind === 'page' &&
+                item.pageNumber === currentSpread.leftPage!.pageNumber &&
+                item.spreadIndex === currentIndex
+            )
+          }
           loading="eager"
           style={{ cursor: 'pointer' }}
         />
@@ -239,7 +369,11 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         <div 
           key={`front-cover-${currentIndex}`}
           className="cover-image-container front-cover zoomable-image"
-          onClick={() => setZoomedImage(currentSpread.coverData!.fullImageUrl)}
+          onClick={() =>
+            openZoomItem(
+              (item) => item.kind === 'front-cover' && item.spreadIndex === currentIndex
+            )
+          }
         >
           <img src={currentSpread.coverData.fullImageUrl} alt="Front Cover" loading="eager" />
         </div>
@@ -253,7 +387,14 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           src={currentSpread.rightPage.imageUrl}
           alt={`Page ${currentSpread.rightPage.pageNumber}`}
           className="zoomable-image"
-          onClick={() => setZoomedImage(currentSpread.rightPage!.imageUrl)}
+          onClick={() =>
+            openZoomItem(
+              (item) =>
+                item.kind === 'page' &&
+                item.pageNumber === currentSpread.rightPage!.pageNumber &&
+                item.spreadIndex === currentIndex
+            )
+          }
           loading="eager"
           style={{ cursor: 'pointer' }}
         />
@@ -325,19 +466,38 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
         </div>
       </div>
 
-      {zoomedImage && (
+      {zoomedItem && (
         <div 
           className="image-zoom-modal"
           onClick={(e) => {
             // Only close if clicking the backdrop, not the image or button
             if (e.target === e.currentTarget) {
-              setZoomedImage(null);
+              closeZoom();
             }
           }}
           onMouseDown={(e) => {
             // Prevent any clicks from reaching elements behind the modal
             if (e.target === e.currentTarget) {
               e.preventDefault();
+            }
+          }}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            if (!touch) return;
+            zoomTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+          }}
+          onTouchEnd={(e) => {
+            if (zoomedItemIndex === null || !zoomTouchStartRef.current) return;
+            const touch = e.changedTouches[0];
+            if (!touch) return;
+            const deltaX = touch.clientX - zoomTouchStartRef.current.x;
+            const deltaY = touch.clientY - zoomTouchStartRef.current.y;
+            zoomTouchStartRef.current = null;
+            if (Math.abs(deltaX) <= 48 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+            if (deltaX < 0) {
+              goToZoomItem(zoomedItemIndex + 1);
+            } else {
+              goToZoomItem(zoomedItemIndex - 1);
             }
           }}
         >
@@ -347,7 +507,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
               e.preventDefault();
               e.stopPropagation();
               e.nativeEvent?.stopImmediatePropagation?.();
-              setZoomedImage(null);
+              closeZoom();
               return false;
             }}
             onMouseDown={(e) => {
@@ -363,12 +523,51 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           >
             ×
           </button>
-          <img 
-            src={zoomedImage} 
-            alt="Zoomed view"
+
+          <button
+            className="image-zoom-nav image-zoom-nav-left"
+            type="button"
+            aria-label="Previous page"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (zoomedItemIndex !== null) goToZoomItem(zoomedItemIndex - 1);
+            }}
+            disabled={zoomedItemIndex === 0}
+          >
+            ‹
+          </button>
+
+          <div
+            className="image-zoom-content"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-          />
+          >
+            <img 
+              src={zoomedItem.src} 
+              alt={zoomedItem.alt}
+            />
+            <div className="image-zoom-caption">
+              <span>{zoomedItem.alt}</span>
+              <span>
+                {zoomedItemIndex! + 1} / {zoomItems.length}
+              </span>
+            </div>
+          </div>
+
+          <button
+            className="image-zoom-nav image-zoom-nav-right"
+            type="button"
+            aria-label="Next page"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (zoomedItemIndex !== null) goToZoomItem(zoomedItemIndex + 1);
+            }}
+            disabled={zoomedItemIndex === zoomItems.length - 1}
+          >
+            ›
+          </button>
         </div>
       )}
 
@@ -528,6 +727,32 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           cursor: default;
         }
 
+        .image-zoom-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.9rem;
+          width: min(92vw, 1100px);
+          max-height: calc(100vh - 3rem);
+        }
+
+        .image-zoom-caption {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          width: min(92vw, 960px);
+          color: white;
+          font-family: var(--font-ui, 'Poppins', sans-serif);
+          font-size: 0.95rem;
+          background: rgba(17, 24, 39, 0.72);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0.6rem 1rem;
+          backdrop-filter: blur(8px);
+        }
+
         .image-zoom-close {
           position: fixed;
           top: 1rem;
@@ -556,6 +781,45 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
           transform: scale(1.1);
         }
 
+        .image-zoom-nav {
+          position: fixed;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 3rem;
+          height: 3rem;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          background: rgba(17, 24, 39, 0.55);
+          color: white;
+          font-size: 2rem;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          z-index: 2147483647 !important;
+          backdrop-filter: blur(10px);
+        }
+
+        .image-zoom-nav:hover:not(:disabled) {
+          background: rgba(17, 24, 39, 0.8);
+          border-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .image-zoom-nav:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        .image-zoom-nav-left {
+          left: 1rem;
+        }
+
+        .image-zoom-nav-right {
+          right: 1rem;
+        }
+
         @media (max-width: 768px) {
           .image-zoom-close {
             top: calc(env(safe-area-inset-top, 0px) + 3.5rem) !important;
@@ -573,6 +837,34 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
             z-index: 2147483647 !important;
             isolation: isolate;
             pointer-events: auto !important;
+          }
+
+          .image-zoom-content {
+            width: calc(100vw - 1.5rem);
+            max-height: calc(100vh - 5.5rem);
+          }
+
+          .image-zoom-caption {
+            width: 100%;
+            font-size: 0.85rem;
+            padding: 0.55rem 0.8rem;
+          }
+
+          .image-zoom-nav {
+            width: 2.5rem;
+            height: 2.5rem;
+            font-size: 1.75rem;
+            top: auto;
+            bottom: max(1rem, env(safe-area-inset-bottom, 0px) + 0.5rem);
+            transform: none;
+          }
+
+          .image-zoom-nav-left {
+            left: 0.75rem;
+          }
+
+          .image-zoom-nav-right {
+            right: 0.75rem;
           }
 
           .cover-image-container.zoomable-image {
