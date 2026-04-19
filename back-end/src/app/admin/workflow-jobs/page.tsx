@@ -99,6 +99,7 @@ type WorkflowJobListItem = {
   externalRequestId: string | null;
   externalStatusUrl: string | null;
   queuedAt: string;
+  activityAt: string;
   updatedAt: string;
   nextRetryAt: string | null;
   terminalAt: string | null;
@@ -360,11 +361,11 @@ function getActiveReferenceTimestamp(job: WorkflowJobListItem | WorkflowInspecti
     case 'claimed':
     case 'running':
     case 'polling':
-      return job.latestAttempt?.startedAt ?? job.updatedAt;
+      return job.latestEvent?.createdAt ?? job.latestAttempt?.endedAt ?? job.latestAttempt?.startedAt ?? job.activityAt;
     case 'retry_waiting':
       return job.nextRetryAt ?? job.updatedAt;
     default:
-      return job.updatedAt;
+      return job.activityAt;
   }
 }
 
@@ -382,6 +383,10 @@ function getRecentEventTypes(job: WorkflowJobListItem | WorkflowInspectionJob): 
     return job.recentEvents.map((event) => event.eventType);
   }
   return job.recentEventTypes;
+}
+
+function getLuluJobId(job: WorkflowJobListItem | WorkflowInspectionJob): string | null {
+  return job.providerSummary?.luluJobId || job.correlation?.luluJobId || null;
 }
 
 type JobDiagnosis = {
@@ -408,6 +413,7 @@ function deriveJobDiagnosis(job: WorkflowJobListItem | WorkflowInspectionJob): J
   const provider = formatProviderName(job.providerSummary?.provider || job.externalProvider);
   const providerRequestId = getProviderRequestId(job);
   const eventTypes = getRecentEventTypes(job);
+  const latestEventType = job.latestEvent?.eventType ?? null;
   const duplicateSkipped = eventTypes.includes('duplicate-trigger-skipped');
   const referenceTime = getActiveReferenceTimestamp(job);
   const referenceAge = formatRelativeAge(referenceTime);
@@ -415,6 +421,11 @@ function deriveJobDiagnosis(job: WorkflowJobListItem | WorkflowInspectionJob): J
   const ageMinutes = Number.isFinite(referenceMs)
     ? Math.max(0, Math.floor((Date.now() - referenceMs) / 1000 / 60))
     : null;
+  const luluJobId = getLuluJobId(job);
+  const waitingForPrintSubmission =
+    (job.stage === 'W4' || job.stage === 'W4.1') &&
+    !luluJobId &&
+    latestEventType === 'provider-complete';
 
   if (job.status === 'dead_lettered') {
     return {
@@ -495,11 +506,36 @@ function deriveJobDiagnosis(job: WorkflowJobListItem | WorkflowInspectionJob): J
     };
   }
 
+  if ((job.status === 'running' || job.status === 'polling') && waitingForPrintSubmission) {
+    if (ageMinutes !== null && ageMinutes >= 15) {
+      return {
+        tone: 'critical',
+        headline: 'Printable PDF is ready, but print submission stalled',
+        detail:
+          `The PDF step finished ${referenceAge}, but this ${job.stage} run still has no Lulu job id.` +
+          ' It is between PDF generation and print submission.',
+        recommendation: 'Inspect the W4 production handoff before rerunning this stage.',
+        blocking: true,
+      };
+    }
+
+    return {
+      tone: 'info',
+      headline: 'Printable PDF is ready',
+      detail:
+        `PDFMonkey finished ${referenceAge}. This ${job.stage} run is now waiting to submit the finished PDF to Lulu.`,
+      recommendation: 'If it stays here, inspect the W4 production handoff rather than rerunning W3.',
+      blocking: false,
+    };
+  }
+
   if ((job.status === 'running' || job.status === 'polling') && providerRequestId) {
     return {
       tone: 'info',
       headline: job.status === 'polling' ? `Waiting on ${provider}` : `Submitted to ${provider}`,
-      detail: `${provider} request ${providerRequestId} is recorded, so this job is past submission and waiting on provider work.`,
+      detail:
+        `${provider} request ${providerRequestId} is recorded, so this job is past submission and waiting on provider work.` +
+        (job.providerSummary?.latestStatus ? ` Latest provider status: ${job.providerSummary.latestStatus}.` : ''),
       blocking: false,
     };
   }
@@ -913,8 +949,8 @@ function WorkflowJobsPageContent() {
             <h1 className="text-3xl font-bold text-gray-900">Workflow runs and stuck-job diagnosis</h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
               Use this page to see whether a repo-centric job is queued, actively working, waiting on a provider, or
-              stuck before it ever reached the provider. Data comes directly from the shared `workflow_jobs` spine and
-              auto-refreshes every 60 seconds.
+              stuck before it ever reached the provider. “Last activity” is taken from the newest job event or attempt,
+              not just the raw row timestamp, so the timeline stays aligned with what actually happened.
             </p>
           </div>
 
@@ -1238,7 +1274,7 @@ function WorkflowJobsPageContent() {
                   </div>
                   <p className="mt-2 text-sm text-gray-600">
                     {inspectedOrder.jobs.length} related workflow job{inspectedOrder.jobs.length !== 1 ? 's' : ''} • last
-                    activity {formatRelativeAge(inspectedOrder.latestJobUpdateAt)}
+                    last activity {formatRelativeAge(inspectedOrder.latestJobUpdateAt)}
                   </p>
                 </div>
 
@@ -1322,12 +1358,15 @@ function WorkflowJobsPageContent() {
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
                     <Layers3 className="h-4 w-4 text-gray-500" />
-                    Stage / Status Mix
+                    Historical Stage / Status Mix
                   </div>
                   <div className="space-y-3 text-sm text-gray-700">
                     <div>stages: {summarizeCounts(inspectedOrder.stageCounts)}</div>
                     <div>statuses: {summarizeCounts(inspectedOrder.statusCounts)}</div>
                     <div>order row updated: {formatTimestamp(inspectedOrder.orderRow?.updatedAt || null)}</div>
+                    <div className="text-xs text-gray-500">
+                      These counts include the full job history for the order, not just the currently active run.
+                    </div>
                   </div>
                 </div>
 
@@ -1393,8 +1432,9 @@ function WorkflowJobsPageContent() {
                             </div>
 
                             <div className="text-sm text-gray-600 lg:text-right">
-                              <div>updated {formatRelativeAge(job.updatedAt)}</div>
-                              <div className="mt-1 text-xs text-gray-500">{formatTimestamp(job.updatedAt)}</div>
+                              <div>last activity {formatRelativeAge(job.activityAt)}</div>
+                              <div className="mt-1 text-xs text-gray-500">{formatTimestamp(job.activityAt)}</div>
+                              <div className="mt-1 text-xs text-gray-400">row updated {formatTimestamp(job.updatedAt)}</div>
                             </div>
                           </div>
 
@@ -1486,9 +1526,9 @@ function WorkflowJobsPageContent() {
 
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent runs</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Recent workflow activity</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Filtered live view across the last 72 hours unless you inspect a specific order.
+              Shows jobs with activity in the last 72 hours unless you inspect a specific order.
             </p>
           </div>
 
@@ -1523,7 +1563,7 @@ function WorkflowJobsPageContent() {
                       Latest Event
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      Updated
+                      Last Activity
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
                       Inspect
@@ -1575,6 +1615,9 @@ function WorkflowJobsPageContent() {
                       <td className="px-5 py-4 text-sm text-gray-700">
                         <div>{humanizeMachineValue(job.latestEvent?.eventType) || 'No events'}</div>
                         <div className="mt-1 text-xs text-gray-500">
+                          {formatTimestamp(job.latestEvent?.createdAt || null)}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
                           {job.recentEventTypes
                             .slice(0, 4)
                             .map((eventType) => humanizeMachineValue(eventType))
@@ -1582,8 +1625,9 @@ function WorkflowJobsPageContent() {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-700">
-                        <div>{formatRelativeAge(job.updatedAt)}</div>
-                        <div className="mt-1 text-xs text-gray-500">{formatTimestamp(job.updatedAt)}</div>
+                        <div>{formatRelativeAge(job.activityAt)}</div>
+                        <div className="mt-1 text-xs text-gray-500">{formatTimestamp(job.activityAt)}</div>
+                        <div className="mt-1 text-xs text-gray-400">row updated {formatTimestamp(job.updatedAt)}</div>
                       </td>
                       <td className="px-5 py-4 text-sm">
                         {job.orderId ? (

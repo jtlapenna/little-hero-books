@@ -130,6 +130,7 @@ export type WorkflowJobsMonitorListItem = {
   externalRequestId: string | null;
   externalStatusUrl: string | null;
   queuedAt: string;
+  activityAt: string;
   updatedAt: string;
   nextRetryAt: string | null;
   terminalAt: string | null;
@@ -242,6 +243,32 @@ function getLatestTimestamp(job: WorkflowJobRecord): string {
   );
 }
 
+function parseTimestamp(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function pickLatestTimestamp(...values: Array<string | null | undefined>): string | null {
+  let winner: string | null = null;
+  let winnerValue = -Infinity;
+
+  for (const value of values) {
+    const parsed = parseTimestamp(value);
+    if (parsed === null) {
+      continue;
+    }
+    if (parsed > winnerValue) {
+      winner = value ?? null;
+      winnerValue = parsed;
+    }
+  }
+
+  return winner;
+}
+
 function getTerminalTimestamp(job: WorkflowJobRecord): string | null {
   return (
     job.completed_at ||
@@ -303,6 +330,31 @@ function buildAlertSummary(alerts: WorkflowAlertRecord[]): WorkflowJobsMonitorAl
   };
 }
 
+function extractLatestProviderStatus(
+  eventType: string | null,
+  payload: Record<string, unknown>,
+  resultSnapshot: Record<string, unknown>,
+): string | null {
+  return (
+    toTrimmedString(resultSnapshot.luluStatus) ??
+    toTrimmedString(resultSnapshot.providerStatus) ??
+    toTrimmedString(payload.providerStatus) ??
+    toTrimmedString(payload.pdfMonkeyStatus) ??
+    toTrimmedString(payload.luluStatus) ??
+    toTrimmedString(payload.status) ??
+    toTrimmedString(payload.state) ??
+    (eventType === 'provider-complete'
+      ? 'success'
+      : eventType === 'provider-submitted'
+        ? 'submitted'
+        : eventType === 'provider-rejected'
+          ? 'rejected'
+          : eventType === 'provider-canceled'
+            ? 'canceled'
+            : null)
+  );
+}
+
 function extractCorrelation(
   job: WorkflowJobRecord,
   recentEvents: WorkflowJobEventRecord[],
@@ -339,6 +391,7 @@ function extractProviderSummary(
   job: WorkflowJobRecord,
   recentEvents: WorkflowJobEventRecord[],
 ): WorkflowJobsMonitorProviderSummary | null {
+  const latestEventType = toTrimmedString(recentEvents[0]?.event_type);
   const latestPayload = toJsonRecord(recentEvents[0]?.payload) ?? {};
   const resultSnapshot = toJsonRecord(job.result_snapshot) ?? {};
   const luluJobId =
@@ -363,10 +416,11 @@ function extractProviderSummary(
   const summary: WorkflowJobsMonitorProviderSummary = {
     provider,
     luluJobId: luluLikeProvider ? luluJobId : null,
-    latestStatus,
+    latestStatus: extractLatestProviderStatus(latestEventType, latestPayload, resultSnapshot),
     latestStatusUpdatedAt:
       toTrimmedString(resultSnapshot.luluStatusUpdatedAt) ??
-      toTrimmedString(latestPayload.changedAt),
+      toTrimmedString(latestPayload.changedAt) ??
+      toTrimmedString(recentEvents[0]?.created_at),
     webhookDeliveryState: !luluLikeProvider
       ? null
       : nonProduction
@@ -539,6 +593,13 @@ function buildListItem(
 ): WorkflowJobsMonitorListItem {
   const latestAttempt = attempts[0] ? buildAttemptView(attempts[0]) : null;
   const latestEvent = recentEvents[0] ? buildEventView(recentEvents[0]) : null;
+  const activityAt =
+    pickLatestTimestamp(
+      latestEvent?.createdAt,
+      latestAttempt?.endedAt,
+      latestAttempt?.startedAt,
+      getLatestTimestamp(job),
+    ) ?? getLatestTimestamp(job);
 
   return {
     id: job.id,
@@ -558,6 +619,7 @@ function buildListItem(
     externalRequestId: job.external_request_id,
     externalStatusUrl: job.external_status_url,
     queuedAt: job.queued_at,
+    activityAt,
     updatedAt: job.updated_at,
     nextRetryAt: job.next_retry_at,
     terminalAt: getTerminalTimestamp(job),
@@ -609,22 +671,30 @@ export async function listWorkflowJobsMonitorData(filters: WorkflowJobsMonitorFi
   const limit = clampInteger(filters.limit, 1, 100, 40);
   const windowHours = clampInteger(filters.hours, 1, 24 * 30, 72);
   const jobs = sortJobsDescending(await queryMonitorJobs(filters));
-  const visibleJobs = jobs.slice(0, limit);
   const alertsByJobId = await listOpenWorkflowAlertsByJobIds(jobs.map((job) => job.id));
   const { attemptsByJobId, eventsByJobId } = await loadAttemptsAndEvents(
-    visibleJobs.map((job) => job.id),
+    jobs.map((job) => job.id),
   );
-
-  return {
-    summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId),
-    jobs: visibleJobs.map((job) =>
+  const listItems = jobs
+    .map((job) =>
       buildListItem(
         job,
         attemptsByJobId.get(job.id) ?? [],
         eventsByJobId.get(job.id) ?? [],
         alertsByJobId.get(job.id) ?? [],
       ),
-    ),
+    )
+    .sort((left, right) => {
+      return (
+        (parseTimestamp(right.activityAt) ?? 0) -
+        (parseTimestamp(left.activityAt) ?? 0)
+      );
+    });
+  const visibleJobs = listItems.slice(0, limit);
+
+  return {
+    summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId),
+    jobs: visibleJobs,
   };
 }
 
@@ -696,7 +766,8 @@ export async function inspectWorkflowJobsOrder(rawOrderId: string): Promise<Work
       succeededCount += 1;
     }
 
-    const updatedAt = getLatestTimestamp(job);
+    const updatedAt =
+      listItem.activityAt ?? getLatestTimestamp(job);
     if (!latestJobUpdateAt || Date.parse(updatedAt) > Date.parse(latestJobUpdateAt)) {
       latestJobUpdateAt = updatedAt;
     }
@@ -706,6 +777,11 @@ export async function inspectWorkflowJobsOrder(rawOrderId: string): Promise<Work
       attempts: attempts.map(buildAttemptView),
       recentEvents: recentEvents.map(buildEventView),
     };
+  }).sort((left, right) => {
+    return (
+      (parseTimestamp(right.activityAt) ?? 0) -
+      (parseTimestamp(left.activityAt) ?? 0)
+    );
   });
 
   return {
