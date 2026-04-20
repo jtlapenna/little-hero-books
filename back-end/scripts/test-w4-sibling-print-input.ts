@@ -424,20 +424,23 @@ async function main(): Promise<void> {
     'Expected direct sibling input to resolve the same per-sibling ordering as router-style input',
   );
 
-  const wrappedResponse = await buildW4SiblingPrintInputResponse(baseState.wrappedInput, {
-    loadManifest: baseState.loadManifest,
-    loadOrder: baseState.loadOrder,
-    instrumentSiblingJob: async () => ({
-      workflowJobId: 4401,
-      workflowJobIdempotencyKey: 'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test',
-      workflowJobStatus: 'running',
-      workflowAttemptId: 5401,
-      workflowAttempt: 1,
-      workflowClaimed: true,
-      workflowSkipped: false,
-      workflowSkipReason: null,
+  const wrappedResponse = await withW41ProductionEnv(async () =>
+    buildW4SiblingPrintInputResponse(baseState.wrappedInput, {
+      loadManifest: baseState.loadManifest,
+      loadOrder: baseState.loadOrder,
+      instrumentSiblingJob: async () => ({
+        workflowJobId: 4401,
+        workflowJobIdempotencyKey:
+          'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test',
+        workflowJobStatus: 'running',
+        workflowAttemptId: 5401,
+        workflowAttempt: 1,
+        workflowClaimed: true,
+        workflowSkipped: false,
+        workflowSkipReason: null,
+      }),
     }),
-  });
+  );
   assert(
     wrappedResponse.success === true &&
       wrappedResponse.siblings[0].manifest3Url.includes('/api/manifests/') &&
@@ -500,6 +503,39 @@ async function main(): Promise<void> {
     signedKeys.push(`${bucket}:${key}:${expiresIn}`);
     return `https://signed.example/${bucket}/${key}?expiresIn=${expiresIn}`;
   };
+
+  const autoProductionResponse = await withW41ProductionEnv(async () =>
+    buildW4SiblingPrintInputResponse(baseState.wrappedInput, {
+      loadManifest: baseState.loadManifest,
+      loadOrder: baseState.loadOrder,
+      instrumentSiblingJob: async () => ({
+        workflowJobId: 4403,
+        workflowJobIdempotencyKey:
+          'wf:4.1:w4-sibling-aggregation:111-2222222-9999999:sibling-aggregation:test-3',
+        workflowJobStatus: 'running',
+        workflowAttemptId: 5403,
+        workflowAttempt: 1,
+        workflowClaimed: true,
+        workflowSkipped: false,
+        workflowSkipReason: null,
+      }),
+    }),
+  );
+  const autoProductionSubmit = await withW41ProductionEnv(async () =>
+    buildW4SiblingSubmitInputResponse(autoProductionResponse, {
+      loadOrder: baseState.loadOrder,
+      signObjectUrl,
+    }),
+  );
+  assert(
+    autoProductionResponse.allowProductionLulu === true &&
+      typeof autoProductionResponse.productionApprovalToken === 'string' &&
+      autoProductionResponse.productionApprovalToken.length > 20 &&
+      autoProductionSubmit.submitMode === 'production' &&
+      autoProductionSubmit.guard.reason === 'production' &&
+      autoProductionSubmit.productionGuard.reason === 'production_ready',
+    'Expected trusted W4.1 sibling print-input building to auto-attach production approval context for real ready-to-print sibling groups',
+  );
 
   const testModeState = buildFixtureState({
     testMode: true,
@@ -789,6 +825,41 @@ async function main(): Promise<void> {
       process.env.W41_PRODUCTION_APPROVAL_SECRET = originalSiblingApprovalSecret;
     }
   }
+
+  await withW41ProductionEnv(async () => {
+    const approval = issueW41ProductionApprovalToken({
+      rootGroupId: routerStyle.rootGroupId,
+      approvedBy: 'test-suite',
+    });
+
+    const productionShape = await buildW4SiblingSubmitInputResponse(
+      {
+        siblings: routerStyle.siblings,
+        rootGroupId: routerStyle.rootGroupId,
+        rootOrderId: routerStyle.rootOrderId,
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        CONFIG: {
+          ...buildConfig(false),
+          lulu: {
+            apiBase: 'https://api.sandbox.lulu.com',
+          },
+        },
+      },
+      {
+        loadOrder: baseState.loadOrder,
+        signObjectUrl,
+      },
+    );
+
+    assert(
+      productionShape.submitMode === 'production' &&
+        productionShape.luluApiBase === 'https://api.lulu.com' &&
+        ((productionShape.CONFIG.lulu as JsonRecord | undefined)?.apiBase ===
+          'https://api.lulu.com'),
+      'Expected W4.1 production submit shaping to ignore an inbound sandbox Lulu base and force the production API base',
+    );
+  });
 
   console.log(
     JSON.stringify(

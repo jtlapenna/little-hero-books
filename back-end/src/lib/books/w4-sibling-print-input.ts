@@ -7,6 +7,8 @@ type JsonRecord = Record<string, unknown>;
 const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
 const DEFAULT_PRODUCTION_LULU_API_BASE = 'https://api.lulu.com';
 const PRODUCTION_SUBMIT_ENV = 'ENABLE_LULU_PRODUCTION_SUBMIT';
+const LULU_CLIENT_ID_ENV_KEYS = ['LULU_CLIENT_ID', 'LULU_CLIENT_KEY'] as const;
+const LULU_CLIENT_SECRET_ENV_KEYS = ['LULU_CLIENT_SECRET', 'LULU_API_SECRET'] as const;
 const PROOF_ORDER_PATTERN = /(proof|sandbox|disposable|wfj-proof|^test(?:[-_]|$)|[-_]test(?:[-_]|$))/i;
 const NON_PRODUCTION_LULU_STATUSES = new Set(['SKIPPED', 'DRY_RUN', 'TEST_MODE']);
 
@@ -570,6 +572,58 @@ function withSandboxConfig(input: JsonRecord): JsonRecord {
   return withLuluApiBase(input, SANDBOX_LULU_API_BASE);
 }
 
+function getEnvFirstNonEmpty(keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = toTrimmedString(process.env[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function buildLuluBasicAuth(clientKey: string | null, clientSecret: string | null): string | null {
+  if (!clientKey || !clientSecret) {
+    return null;
+  }
+
+  return `Basic ${Buffer.from(`${clientKey}:${clientSecret}`).toString('base64')}`;
+}
+
+function withProductionLuluConfig(input: JsonRecord): JsonRecord {
+  const currentConfig =
+    Object.keys(toRecord(input.CONFIG)).length > 0
+      ? toRecord(input.CONFIG)
+      : toRecord(input);
+  const currentLulu = toRecord(currentConfig.lulu);
+  const inheritedApiBase = toTrimmedString(currentLulu.apiBase);
+  const productionApiBase =
+    inheritedApiBase && !/sandbox/i.test(inheritedApiBase)
+      ? inheritedApiBase
+      : toTrimmedString(process.env.LULU_API_BASE) ?? DEFAULT_PRODUCTION_LULU_API_BASE;
+  const clientKey =
+    getEnvFirstNonEmpty(LULU_CLIENT_ID_ENV_KEYS) ??
+    toTrimmedString(currentLulu.clientKey);
+  const clientSecret =
+    getEnvFirstNonEmpty(LULU_CLIENT_SECRET_ENV_KEYS) ??
+    toTrimmedString(currentLulu.clientSecret);
+  const basicAuth =
+    buildLuluBasicAuth(clientKey, clientSecret) ??
+    toTrimmedString(currentLulu.basicAuth);
+
+  return {
+    ...currentConfig,
+    lulu: {
+      ...currentLulu,
+      ...(clientKey ? { clientKey } : {}),
+      ...(clientSecret ? { clientSecret } : {}),
+      ...(basicAuth ? { basicAuth } : {}),
+      apiBase: productionApiBase.replace(/\/+$/, ''),
+    },
+  };
+}
+
 function isProofOrderIdentifier(value: unknown): boolean {
   const normalized = toTrimmedString(value);
   return normalized ? PROOF_ORDER_PATTERN.test(normalized) : false;
@@ -581,8 +635,7 @@ function isProductionSubmitEnabled(): boolean {
 
 function getProductionLuluApiBase(input: JsonRecord): string {
   const configured =
-    toTrimmedString(toRecord(toRecord(input.CONFIG).lulu).apiBase) ??
-    toTrimmedString(process.env.LULU_API_BASE) ??
+    toTrimmedString(toRecord(withProductionLuluConfig(input).lulu).apiBase) ??
     DEFAULT_PRODUCTION_LULU_API_BASE;
 
   return configured.replace(/\/+$/, '');
@@ -1384,7 +1437,7 @@ export async function buildW4SiblingSubmitInput(
     defaults,
   });
   const productionApiBase = getProductionLuluApiBase(parsed.requestInput);
-  const productionConfig = withLuluApiBase(parsed.config, productionApiBase);
+  const productionConfig = withProductionLuluConfig(parsed.requestInput);
 
   if (existingSubmission) {
     return {
