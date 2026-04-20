@@ -310,6 +310,9 @@ function getErrorMessage(error: unknown): string {
 const DEFAULT_MATERIALIZE_DOWNLOAD_ATTEMPTS = 10;
 const DEFAULT_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 2500;
 const MAX_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 5000;
+const LEGACY_RENDERER_API_BASES: Record<string, string> = {
+  'renderer.littleherobooks.com': 'https://renderer-eta.vercel.app',
+};
 
 function isRetryableMaterializeDownloadStatus(status: number): boolean {
   return [408, 425, 429, 500, 502, 503, 504].includes(status);
@@ -683,6 +686,27 @@ function parseRendererQaPayload(kind: 'interior' | 'cover', response: JsonRecord
     warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
     raw: payload,
   };
+}
+
+function normalizeRendererApiBase(value: unknown): string | null {
+  const raw = toTrimmedString(value);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const candidate = raw.includes('://') ? raw : `https://${raw}`;
+    const parsed = new URL(candidate);
+    const rewritten = LEGACY_RENDERER_API_BASES[parsed.hostname];
+    if (rewritten) {
+      return rewritten.replace(/\/$/, '');
+    }
+
+    const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/$/, '');
+    return `${parsed.origin}${pathname}`;
+  } catch {
+    return raw.replace(/\/$/, '');
+  }
 }
 
 function resolveManifestKey(input: PublishW4PrintManifestInput, orderId: string, manifestStatus: 'submitted' | 'error'): string {
@@ -1705,7 +1729,7 @@ export async function runW4PrintQa(
   const workflowJobIdempotencyKey = toTrimmedString(input.workflowJobIdempotencyKey);
   const rendererConfig = toJsonRecord(toJsonRecord(input.CONFIG).renderer);
   const rendererApiBase =
-    firstString(options.rendererApiBase, rendererConfig.apiBase) ?? '';
+    normalizeRendererApiBase(firstString(options.rendererApiBase, rendererConfig.apiBase)) ?? '';
   const rendererInternalToken =
     firstString(options.rendererInternalToken, rendererConfig.internalToken) ?? '';
   if (!rendererApiBase || !rendererInternalToken) {

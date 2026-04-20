@@ -1031,8 +1031,12 @@ async function testQaSignsCloudflareStorageUrlsWhenDirectInteriorUrlIsMissing():
 async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
   const previousRendererToken = process.env.RENDERER_INTERNAL_TOKEN;
   const previousRendererApiBase = process.env.RENDERER_API_BASE;
+  const previousRendererBaseUrl = process.env.RENDERER_BASE_URL;
+  const previousRendererUrl = process.env.RENDERER_URL;
   process.env.RENDERER_INTERNAL_TOKEN = 'env-renderer-token';
   delete process.env.RENDERER_API_BASE;
+  delete process.env.RENDERER_BASE_URL;
+  process.env.RENDERER_URL = 'https://renderer.littleherobooks.com';
 
   try {
     const result = await runW4PrintQaResponse(
@@ -1062,7 +1066,7 @@ async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
           const authHeader = String(
             (init?.headers as Record<string, string> | undefined)?.Authorization ?? '',
           );
-          if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
+          if (method !== 'POST' || url !== 'https://renderer-eta.vercel.app/qa-pdf') {
             throw new Error(`Unexpected QA env fallback call: ${method} ${url}`);
           }
           assert(
@@ -1095,7 +1099,71 @@ async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
     } else {
       process.env.RENDERER_API_BASE = previousRendererApiBase;
     }
+
+    if (previousRendererBaseUrl === undefined) {
+      delete process.env.RENDERER_BASE_URL;
+    } else {
+      process.env.RENDERER_BASE_URL = previousRendererBaseUrl;
+    }
+
+    if (previousRendererUrl === undefined) {
+      delete process.env.RENDERER_URL;
+    } else {
+      process.env.RENDERER_URL = previousRendererUrl;
+    }
   }
+}
+
+async function testQaNormalizesLegacyRendererHostFromPayloadConfig(): Promise<void> {
+  const result = await runW4PrintQaResponse(
+    {
+      orderId: 'W4-SANDBOX-PROOF-004F',
+      workflowJobId: 5045,
+      workflowAttemptId: 6045,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-004F:print:test',
+      CONFIG: {
+        renderer: {
+          apiBase: 'https://renderer.littleherobooks.com',
+          internalToken: 'renderer-token',
+        },
+      },
+      expectedPageCount: 1,
+      pageLabels: ['p00'],
+      pageImageUrls: ['book/orders/W4-SANDBOX-PROOF-004F/preview-images/p00.png'],
+      coverPreviewUrl: 'book/orders/W4-SANDBOX-PROOF-004F/preview-images/cover-spread.png',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-004F/interior.pdf',
+      coverPdfR2Key: 'book/orders/W4-SANDBOX-PROOF-004F/cover.pdf',
+    },
+    {
+      signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      recordWorkflowEvent: createWorkflowEventRecorder([]),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+        const authHeader = String(
+          (init?.headers as Record<string, string> | undefined)?.Authorization ?? '',
+        );
+        if (method !== 'POST' || url !== 'https://renderer-eta.vercel.app/qa-pdf') {
+          throw new Error(`Unexpected QA legacy-renderer rewrite call: ${method} ${url}`);
+        }
+        assert(
+          authHeader === 'Bearer renderer-token',
+          'Expected W4 QA to preserve the renderer token while rewriting the legacy renderer host',
+        );
+        return jsonResponse({
+          passed: true,
+          failedPages: [],
+          warnings: [],
+          reasonCode: 'legacy-renderer-rewrite-ok',
+        });
+      },
+    },
+  );
+
+  assert(
+    result.success === true && result.qaPassed === true,
+    'Expected W4 QA to normalize legacy renderer host config and still complete successfully',
+  );
 }
 
 async function testQaProbePayloadRejection(): Promise<void> {
@@ -1256,6 +1324,7 @@ async function main(): Promise<void> {
   await testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped();
   await testQaSignsCloudflareStorageUrlsWhenDirectInteriorUrlIsMissing();
   await testQaRouteFallsBackToEnvRendererToken();
+  await testQaNormalizesLegacyRendererHostFromPayloadConfig();
   await testQaProbePayloadRejection();
   await testManifestPublishSuccessAndError();
   console.log('W4 print worker tests passed');

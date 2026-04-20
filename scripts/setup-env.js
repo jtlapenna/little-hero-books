@@ -34,7 +34,7 @@ const envConfigs = {
     DEBUG_MODE: 'false',
     ENABLE_TEST_MODE: 'false',
     MOCK_POD_ORDERS: 'false',
-    RENDERER_BASE_URL: 'https://renderer.littleherobooks.com'
+    RENDERER_BASE_URL: 'https://renderer-eta.vercel.app'
   }
 };
 

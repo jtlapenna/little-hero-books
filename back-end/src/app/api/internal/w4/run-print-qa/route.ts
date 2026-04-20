@@ -50,7 +50,7 @@ export async function runW4PrintQaResponse(
       recordWorkflowEvent: options.recordWorkflowEvent ?? recordWorkflowJobEventResponse,
       rendererApiBase:
         options.rendererApiBase ??
-        firstNonEmptyEnv('RENDERER_API_BASE', 'RENDERER_BASE_URL'),
+        firstNonEmptyEnv('RENDERER_API_BASE', 'RENDERER_BASE_URL', 'RENDERER_URL'),
       rendererInternalToken:
         options.rendererInternalToken ??
         firstNonEmptyEnv('RENDERER_INTERNAL_TOKEN', 'RENDERER_API_TOKEN'),
