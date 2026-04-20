@@ -941,6 +941,93 @@ async function testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped(): Promise<v
   );
 }
 
+async function testQaSignsCloudflareStorageUrlsWhenDirectInteriorUrlIsMissing(): Promise<void> {
+  const signCalls: string[] = [];
+  const rendererCalls: Array<{ type: string; pdfUrl: string }> = [];
+
+  const result = await runW4PrintQaResponse(
+    {
+      orderId: 'W4-SANDBOX-PROOF-004E',
+      workflowJobId: 5044,
+      workflowAttemptId: 6044,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-004E:print:test',
+      allowDirectPdfUrls: true,
+      materializationSkipped: true,
+      CONFIG: {
+        renderer: {
+          apiBase: 'https://renderer.example',
+          internalToken: 'renderer-token',
+        },
+      },
+      expectedPageCount: 1,
+      pageLabels: ['p00'],
+      pageImageUrls: ['book/orders/W4-SANDBOX-PROOF-004E/preview-images/p00.png'],
+      coverPreviewUrl: 'book/orders/W4-SANDBOX-PROOF-004E/preview-images/cover-spread.png',
+      pdfR2Key:
+        'https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book/orders/W4-SANDBOX-PROOF-004E/interior.pdf',
+      coverPdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-004E/cover.pdf',
+      coverPdfR2Key:
+        'https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/book/orders/W4-SANDBOX-PROOF-004E/cover.pdf',
+    },
+    {
+      signObjectUrl: async (key, bucket) => {
+        signCalls.push(`${bucket}:${key}`);
+        return `https://signed.example/${bucket}/${key}`;
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder([]),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+        if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
+          throw new Error(`Unexpected QA cloudflarestorage call: ${method} ${url}`);
+        }
+
+        const parsed = JSON.parse(String(init?.body ?? '{}')) as JsonRecord;
+        rendererCalls.push({
+          type: String(parsed.type),
+          pdfUrl: String(parsed.pdfUrl),
+        });
+
+        return jsonResponse({
+          passed: true,
+          failedPages: [],
+          warnings: [],
+          reasonCode: 'cloudflarestorage-ok',
+        });
+      },
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.qaPassed === true &&
+      result.interiorSignedUrl ===
+        'https://signed.example/little-hero-orders/book/orders/W4-SANDBOX-PROOF-004E/interior.pdf' &&
+      result.coverSignedUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004E/cover.pdf',
+    'Expected W4 QA to sign Cloudflare storage URLs for missing interior direct URLs while preserving direct cover URLs',
+  );
+  assert(
+    rendererCalls.length === 2 &&
+      rendererCalls.some(
+        (call) =>
+          call.type === 'interior' &&
+          call.pdfUrl ===
+            'https://signed.example/little-hero-orders/book/orders/W4-SANDBOX-PROOF-004E/interior.pdf',
+      ) &&
+      rendererCalls.some(
+        (call) =>
+          call.type === 'cover' &&
+          call.pdfUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004E/cover.pdf',
+      ),
+    'Expected renderer QA calls to receive a signed interior PDF URL and the preserved direct cover URL',
+  );
+  assert(
+    signCalls.includes('little-hero-orders:book/orders/W4-SANDBOX-PROOF-004E/interior.pdf') &&
+      signCalls.filter((entry) => entry.includes('/preview-images/')).length === 2,
+    'Expected QA fallback to presign the Cloudflare storage interior PDF reference plus the preview images',
+  );
+}
+
 async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
   const previousRendererToken = process.env.RENDERER_INTERNAL_TOKEN;
   const previousRendererApiBase = process.env.RENDERER_API_BASE;
@@ -1167,6 +1254,7 @@ async function main(): Promise<void> {
   await testQaPassAndFailPaths();
   await testQaUsesDirectPdfUrlsForProductionDryRun();
   await testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped();
+  await testQaSignsCloudflareStorageUrlsWhenDirectInteriorUrlIsMissing();
   await testQaRouteFallsBackToEnvRendererToken();
   await testQaProbePayloadRejection();
   await testManifestPublishSuccessAndError();

@@ -10,7 +10,10 @@ export { DEFAULT_BOOK_ID, normalizeBookId, buildOrderPrefix, isOrderAssetKey };
 
 /**
  * Extract R2 key from URL.
- * Handles: /api/assets/{key} and public R2 URLs (https://pub-*.r2.dev/{key}).
+ * Handles:
+ * - /api/assets/{key}
+ * - public R2 URLs (https://pub-*.r2.dev/{key})
+ * - Cloudflare storage host URLs (https://<bucket>.<account>.r2.cloudflarestorage.com/{key})
  */
 export function extractR2Key(url: string): string | null {
   try {
@@ -26,6 +29,14 @@ export function extractR2Key(url: string): string | null {
     if (apiMatch) return apiMatch[1];
 
     if (hostname.endsWith('.r2.dev') && pathname.startsWith('/') && pathname.length > 1) {
+      return pathname.replace(/^\/+/, '');
+    }
+
+    if (
+      hostname.includes('.r2.cloudflarestorage.com') &&
+      pathname.startsWith('/') &&
+      pathname.length > 1
+    ) {
       return pathname.replace(/^\/+/, '');
     }
 
