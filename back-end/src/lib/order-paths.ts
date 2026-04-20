@@ -65,15 +65,43 @@ function normalizePathLike(value: unknown): string {
     return '';
   }
 
-  const withoutQuery = trimmed.split('#')[0]?.split('?')[0] || '';
-  if (withoutQuery.includes('/api/manifests/')) {
-    return withoutQuery.split('/api/manifests/')[1]?.replace(/^\/+/, '') || '';
-  }
-  if (withoutQuery.includes('/api/assets/')) {
-    return withoutQuery.split('/api/assets/')[1]?.replace(/^\/+/, '') || '';
+  let normalized = trimmed.split('#')[0]?.split('?')[0] || '';
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    if (normalized.includes('/api/manifests/')) {
+      normalized =
+        normalized.split('/api/manifests/')[1]?.replace(/^\/+/, '') || '';
+      continue;
+    }
+    if (normalized.includes('/api/assets/')) {
+      normalized =
+        normalized.split('/api/assets/')[1]?.replace(/^\/+/, '') || '';
+      continue;
+    }
+    break;
   }
 
-  return withoutQuery.replace(/^\/+/, '');
+  try {
+    const parsed = new URL(normalized);
+    const pathname = parsed.pathname || '';
+    const hostname = parsed.hostname || '';
+
+    if (hostname.endsWith('.r2.dev') && pathname.startsWith('/') && pathname.length > 1) {
+      return pathname.replace(/^\/+/, '');
+    }
+
+    if (
+      hostname.includes('.r2.cloudflarestorage.com') &&
+      pathname.startsWith('/') &&
+      pathname.length > 1
+    ) {
+      return pathname.replace(/^\/+/, '');
+    }
+  } catch {
+    // Non-URL pathlikes should fall through to the plain prefix trim below.
+  }
+
+  return normalized.replace(/^\/+/, '');
 }
 
 export function normalizeBookId(bookId: string | null | undefined): string {

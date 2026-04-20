@@ -401,6 +401,55 @@ async function main(): Promise<void> {
     'Expected direct W4 payload fields to override fallback order sources',
   );
 
+  const cloudflareManifest3Url =
+    `https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/` +
+    `${standardThreeManifestKey}`;
+  const cloudflareOneManifestUrl =
+    `https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/` +
+    `${standardOneManifestKey}`;
+
+  const standardCloudflareHintsBuilt = await buildW4PrintInput(
+    {
+      orderId: standardOrderId,
+      manifest_3_url: cloudflareManifest3Url,
+      manifest3Url: cloudflareManifest3Url,
+      backendUrl,
+    },
+    {
+      loadManifest: async (manifestKey) => {
+        if (manifestKey === standardOneManifestKey) {
+          return standardOneManifest;
+        }
+        if (manifestKey === standardThreeManifestKey) {
+          return standardThreeManifest;
+        }
+        return null;
+      },
+      loadOrder: async (orderId) => {
+        if (orderId !== standardOrderId) {
+          return null;
+        }
+        return {
+          orderId: standardOrderId,
+          manifest_3_url: cloudflareManifest3Url,
+          one_manifest_url: cloudflareOneManifestUrl,
+        };
+      },
+    },
+  );
+
+  assert(
+    standardCloudflareHintsBuilt.orderPrefix === standardOrderPrefix &&
+      standardCloudflareHintsBuilt.manifest3Key === standardThreeManifestKey &&
+      standardCloudflareHintsBuilt.manifest4Key ===
+        'book-mvp-simple-adventure/orders/TEST-W4-STANDARD-001/manifests/4-manifest.json' &&
+      standardCloudflareHintsBuilt.pdfR2Key ===
+        'book-mvp-simple-adventure/orders/TEST-W4-STANDARD-001/interior_TEST-W4-STANDARD-001.pdf' &&
+      standardCloudflareHintsBuilt.coverPdfR2Key ===
+        'book-mvp-simple-adventure/orders/TEST-W4-STANDARD-001/cover_TEST-W4-STANDARD-001.pdf',
+    'Expected W4 input to normalize Cloudflare storage manifest hints back to canonical R2 keys',
+  );
+
   const standardTestModeBuilt = await buildW4PrintInput(
     {
       body: {
@@ -619,6 +668,7 @@ async function main(): Promise<void> {
           'preserved per-book, root, and amazon identifiers for W4',
           'derived canonical manifest4 and preview asset paths under the resolved order root',
           'resolved amazon and standard page counts with normalized preview URLs',
+          'normalized Cloudflare storage manifest hints back to canonical W4 R2 keys',
           'resolved Book 2 W4 paths without falling back to the Book 1 namespace',
           'normalized shipping, customer, title, and shipping audit fields',
           'applied a test-mode shipping phone fallback for disposable W4 proofs',

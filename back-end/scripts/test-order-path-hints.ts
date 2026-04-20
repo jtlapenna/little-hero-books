@@ -3,6 +3,7 @@ import {
   buildManifestKeyHintOptionsFromOrderLike,
   inferBookIdHintFromOrderLike,
   resolveOrderPathContext,
+  extractOrderPrefixFromPathLike,
 } from '@/lib/order-paths';
 
 function run(): void {
@@ -35,6 +36,29 @@ function run(): void {
     bookId: 'book-mvp-simple-adventure',
     orderPrefix: `book-mvp-simple-adventure/orders/${orderId}`,
   });
+
+  const cloudflareManifestUrl =
+    `https://little-hero-orders.3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com/` +
+    `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
+
+  assert.equal(
+    extractOrderPrefixFromPathLike(cloudflareManifestUrl),
+    `book-mvp-simple-adventure/orders/${orderId}`,
+    'orderPrefix should resolve from Cloudflare storage manifest URLs',
+  );
+
+  const cloudflareContext = resolveOrderPathContext(orderId, {
+    orderPrefix: cloudflareManifestUrl,
+  });
+
+  assert.deepEqual(
+    cloudflareContext,
+    {
+      bookId: 'book-mvp-simple-adventure',
+      orderPrefix: `book-mvp-simple-adventure/orders/${orderId}`,
+    },
+    'Cloudflare storage manifest URLs should normalize to canonical W4 order paths',
+  );
 
   const nestedBookSpecsOnly = {
     orderId,
