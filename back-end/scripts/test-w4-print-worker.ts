@@ -450,6 +450,92 @@ async function testMaterializePrintPdfRouteRetriesTransientDownload503(): Promis
   );
 }
 
+async function testMaterializePrintPdfRouteRefreshesPdfMonkeyDownloadUrlAfterWarmup503s(): Promise<void> {
+  const workflowEvents: JsonRecord[] = [];
+  const downloadTargets: string[] = [];
+  let statusRefreshCount = 0;
+
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003A2',
+      workflowJobId: 50301,
+      workflowAttemptId: 60301,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-003A2:print:test',
+      pdfDownloadUrl: 'https://cdn.example/interior-materialize-warming.pdf',
+      pdfMonkeyDocumentId: 'pdfmonkey-materialize-123',
+      pdfMonkeyStatusUrl: 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-materialize-123',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003A2/interior_W4-SANDBOX-PROOF-003A2.pdf',
+      CONFIG: {
+        pdfMonkey: {
+          token: 'stub-pdfmonkey-key',
+        },
+      },
+    },
+    {
+      headObjectImpl: async () => new Response(null, { status: 404 }),
+      sleep: async () => undefined,
+      fetchImpl: async (input) => {
+        const url = resolveUrl(input);
+
+        if (url === 'https://cdn.example/interior-materialize-warming.pdf') {
+          downloadTargets.push(url);
+          return new Response('temporary unavailable', { status: 503 });
+        }
+
+        if (url === 'https://cdn.example/interior-materialize-stable.pdf') {
+          downloadTargets.push(url);
+          return new Response(new Uint8Array([4, 5, 6, 7]), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+            },
+          });
+        }
+
+        if (url === 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-materialize-123') {
+          statusRefreshCount += 1;
+          return jsonResponse({
+            data: {
+              id: 'pdfmonkey-materialize-123',
+              status: 'success',
+              download_url:
+                statusRefreshCount >= 2
+                  ? 'https://cdn.example/interior-materialize-stable.pdf'
+                  : 'https://cdn.example/interior-materialize-warming.pdf',
+            },
+          });
+        }
+
+        throw new Error(`Unexpected materialize warmup URL: ${url}`);
+      },
+      putObjectImpl: async (_bucket, _key, body) => {
+        await new Response(body).arrayBuffer();
+        return { ok: true };
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+      materializeDownloadAttempts: 4,
+      materializeDownloadRetryDelayMs: 1,
+    },
+  );
+
+  assert(
+    downloadTargets.join(',') ===
+      'https://cdn.example/interior-materialize-warming.pdf,https://cdn.example/interior-materialize-warming.pdf,https://cdn.example/interior-materialize-stable.pdf' &&
+      statusRefreshCount === 2 &&
+      result.success === true &&
+      result.byteSize === 4 &&
+      result.downloadAttempts === 3,
+    'Expected W4 materialize route to refresh the PDFMonkey document state after repeated warm-up 503s and switch to a stabilized download URL',
+  );
+  assert(
+    workflowEvents.length === 1 &&
+      workflowEvents[0]?.eventType === 'artifact-materialized' &&
+      (workflowEvents[0]?.payload as JsonRecord | undefined)?.downloadAttempts === 3,
+    'Expected W4 materialize route to preserve the final stabilized download attempt count after PDFMonkey state refreshes',
+  );
+}
+
 async function testMaterializePrintPdfRouteReusesExistingObject(): Promise<void> {
   let fetchCalled = false;
   let putCalled = false;
@@ -958,6 +1044,7 @@ async function main(): Promise<void> {
   await testPollPrintDocumentRouteContinuesExistingDocument();
   await testMaterializePrintPdfRoute();
   await testMaterializePrintPdfRouteRetriesTransientDownload503();
+  await testMaterializePrintPdfRouteRefreshesPdfMonkeyDownloadUrlAfterWarmup503s();
   await testMaterializePrintPdfRouteReusesExistingObject();
   await testMaterializePrintPdfRouteSkipsUploadForProductionDryRun();
   await testQaPassAndFailPaths();

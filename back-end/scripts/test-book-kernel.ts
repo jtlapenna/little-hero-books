@@ -1579,14 +1579,15 @@ assert(
 assert(
   repoCentricW4ErrorContextNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('CONFIG.supabase && CONFIG.supabase.serviceRoleKey') &&
-    JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('$env.N8N_API_KEY') &&
+    !JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('$env.') &&
+    JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes("'X-N8N-API-KEY': n8nApiKey") &&
     JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('/executions/${executionId}?includeData=true') &&
     !JSON.stringify(repoCentricW4ErrorContextNode.parameters).includes('wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs') &&
     repoCentricW4ErrorGateNode?.type === 'n8n-nodes-base.if' &&
     JSON.stringify(repoCentricW4ErrorGateNode.parameters).includes('hasValidOrderId === true') &&
     JSON.stringify(repoCentricW4ErrorGateNode.parameters).includes('"operation":"true"') &&
     repoCentricW4ErrorGateOutputs[0]?.[0]?.node === 'Supabase: mark error',
-  'Repo-centric W4 generic error handling should recover source execution context via the n8n API, avoid embedded service-role fallbacks, and gate Supabase error writes behind a real boolean order-id check',
+  'Repo-centric W4 generic error handling should recover source execution context via the n8n API, avoid broken Code-node env access and embedded service-role fallbacks, and gate Supabase error writes behind a real boolean order-id check',
 );
 assert(
   repoCentricW4BuildSubmitNode?.type === 'n8n-nodes-base.code' &&

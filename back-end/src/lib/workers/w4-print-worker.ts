@@ -54,6 +54,11 @@ export interface W4MaterializePrintPdfInput extends JsonRecord {
   pdfFilename?: string | null;
   coverPdfFilename?: string | null;
   productionDryRun?: boolean | null;
+  CONFIG?: JsonRecord;
+  pdfMonkeyStatusUrl?: string | null;
+  pdfMonkeyStatus?: string | null;
+  pdfMonkeyDocumentId?: string | null;
+  pdfMonkeyCoverDocumentId?: string | null;
 }
 
 export interface W4RunPrintQaInput extends JsonRecord {
@@ -299,8 +304,9 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const DEFAULT_MATERIALIZE_DOWNLOAD_ATTEMPTS = 5;
-const DEFAULT_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 1500;
+const DEFAULT_MATERIALIZE_DOWNLOAD_ATTEMPTS = 10;
+const DEFAULT_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 2500;
+const MAX_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS = 5000;
 
 function isRetryableMaterializeDownloadStatus(status: number): boolean {
   return [408, 425, 429, 500, 502, 503, 504].includes(status);
@@ -317,6 +323,10 @@ function isRetryableMaterializeTransportError(error: unknown): boolean {
     message.includes('timeout') ||
     message.includes('temporarily unavailable')
   );
+}
+
+function computeMaterializeRetryDelayMs(baseDelayMs: number, attempt: number): number {
+  return Math.min(baseDelayMs * attempt, MAX_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS);
 }
 
 function resolveOrderId(input: JsonRecord): string {
@@ -523,6 +533,27 @@ async function requestJson(
     throw new Error(`Request failed (${response.status}): ${details}`);
   }
   return payload;
+}
+
+async function refreshPdfMonkeyDocumentState(
+  fetchImpl: FetchImpl,
+  pdfMonkeyApiKey: string,
+  statusUrl: string,
+): Promise<{ status: string | null; downloadUrl: string | null; document: JsonRecord }> {
+  const payload = await requestJson(fetchImpl, statusUrl, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${pdfMonkeyApiKey}`,
+    },
+  });
+  const document = toDocumentRecord(payload.data ?? payload.document ?? payload);
+  return {
+    status: toTrimmedString(document.status),
+    downloadUrl:
+      toTrimmedString(document.download_url) ??
+      toTrimmedString(document.file_url),
+    document,
+  };
 }
 
 function toDocumentRecord(value: unknown): JsonRecord {
@@ -1308,7 +1339,7 @@ export async function materializeW4PrintPdf(
       ? input.workflowAttemptId
       : null;
   const workflowJobIdempotencyKey = toTrimmedString(input.workflowJobIdempotencyKey);
-  const downloadUrl =
+  let downloadUrl =
     firstString(
       documentKind === 'cover-pdf' ? input.coverPdfDownloadUrl : input.pdfDownloadUrl,
       input.pdfDownloadUrl,
@@ -1328,6 +1359,22 @@ export async function materializeW4PrintPdf(
   const uploadBucket = getBucketFromKey(r2Key);
   const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
   const shouldSkipUploadForDryRun = toBoolean(input.productionDryRun);
+  const pdfMonkeyApiKey =
+    firstString(
+      options.pdfMonkeyApiKey,
+      toJsonRecord(toJsonRecord(input.CONFIG).pdfMonkey).token,
+      process.env.PDFMONKEY_API_KEY,
+    ) ?? '';
+  const pdfMonkeyDocumentId = firstString(
+    documentKind === 'cover-pdf' ? input.pdfMonkeyCoverDocumentId : input.pdfMonkeyDocumentId,
+    input.pdfMonkeyDocumentId,
+    input.pdfMonkeyCoverDocumentId,
+  );
+  const pdfMonkeyStatusUrl =
+    firstString(
+      input.pdfMonkeyStatusUrl,
+      pdfMonkeyDocumentId ? `${PDFMONKEY_DOCUMENTS_API}/${pdfMonkeyDocumentId}` : null,
+    ) ?? null;
   const maxDownloadAttempts = Math.max(
     1,
     toPositiveInteger(options.materializeDownloadAttempts) ??
@@ -1459,7 +1506,26 @@ export async function materializeW4PrintPdf(
         if (attempt >= maxDownloadAttempts || !isRetryableMaterializeTransportError(error)) {
           throw error;
         }
-        await sleep(downloadRetryDelayMs * attempt);
+        if (pdfMonkeyStatusUrl && pdfMonkeyApiKey) {
+          try {
+            const refreshed = await refreshPdfMonkeyDocumentState(
+              fetchImpl,
+              pdfMonkeyApiKey,
+              pdfMonkeyStatusUrl,
+            );
+            if (refreshed.downloadUrl) {
+              downloadUrl = refreshed.downloadUrl;
+            }
+            if (refreshed.status === 'error' || refreshed.status === 'failure') {
+              throw new Error(
+                `PDFMonkey ${documentKind} entered ${refreshed.status} during materialization`,
+              );
+            }
+          } catch (refreshError) {
+            lastDownloadError = refreshError;
+          }
+        }
+        await sleep(computeMaterializeRetryDelayMs(downloadRetryDelayMs, attempt));
         continue;
       }
 
@@ -1480,7 +1546,27 @@ export async function materializeW4PrintPdf(
         throw lastDownloadError;
       }
 
-      await sleep(downloadRetryDelayMs * attempt);
+      if (pdfMonkeyStatusUrl && pdfMonkeyApiKey) {
+        try {
+          const refreshed = await refreshPdfMonkeyDocumentState(
+            fetchImpl,
+            pdfMonkeyApiKey,
+            pdfMonkeyStatusUrl,
+          );
+          if (refreshed.downloadUrl) {
+            downloadUrl = refreshed.downloadUrl;
+          }
+          if (refreshed.status === 'error' || refreshed.status === 'failure') {
+            throw new Error(
+              `PDFMonkey ${documentKind} entered ${refreshed.status} during materialization`,
+            );
+          }
+        } catch (refreshError) {
+          lastDownloadError = refreshError;
+        }
+      }
+
+      await sleep(computeMaterializeRetryDelayMs(downloadRetryDelayMs, attempt));
     }
 
     if (!response) {
