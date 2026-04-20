@@ -707,6 +707,40 @@ async function testSandboxFallbackPhonePreventsProofFailure(): Promise<void> {
   );
 }
 
+async function testProductionIgnoresInboundSandboxApiBase(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-LIVE-BASE-001';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        CONFIG: {
+          ...((createBaseInput(orderId).CONFIG as JsonRecord) ?? {}),
+          lulu: {
+            apiBase: 'https://api.sandbox.lulu.com',
+          },
+        },
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'production' &&
+        response.luluApiBase === 'https://api.lulu.com' &&
+        ((response.CONFIG.lulu as JsonRecord)?.apiBase === 'https://api.lulu.com'),
+      'Expected W4 production submit shaping to ignore an inbound sandbox Lulu base and force the production API base',
+    );
+  });
+}
+
 async function main(): Promise<void> {
   await testSandboxSubmitShape();
   await testDirectPdfUrlModeBypassesR2Signing();
@@ -725,6 +759,7 @@ async function main(): Promise<void> {
   await testProductionHonorsRecommendedAddressOverride();
   await testProductionMapsAmazonStandardShippingToMail();
   await testProductionPreservesExplicitGroundShipping();
+  await testProductionIgnoresInboundSandboxApiBase();
   console.log('W4 submit input tests passed');
 }
 

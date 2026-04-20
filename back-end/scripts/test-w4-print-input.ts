@@ -8,6 +8,7 @@ import {
 } from '@/lib/order-paths';
 import { buildW4PrintInput } from '@/lib/books/w4-print-input';
 import { buildW4PrintInputResponse } from '@/app/api/internal/w4/build-print-input/route';
+import { buildW4SubmitInputResponse } from '@/app/api/internal/w4/build-submit-input/route';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -288,6 +289,149 @@ async function main(): Promise<void> {
       wrappedAmazonResponse.workflowSkipped === false,
     'Expected W4 route helper wrapper to preserve CONFIG and attach the durable workflow-job identity',
   );
+
+  const liveProductionOrderId = 'ORDER-W4-LIVE-001';
+  const liveProductionOrderPrefix = buildOrderPrefix(liveProductionOrderId, bookId);
+  const liveProductionOneManifestKey = buildManifestKeyFromOrderPrefix(
+    liveProductionOrderPrefix,
+    '1',
+  );
+  const liveProductionThreeManifestKey = buildManifestKeyFromOrderPrefix(
+    liveProductionOrderPrefix,
+    '3',
+  );
+  const liveProductionOneManifest = buildW0RunManifest({
+    orderId: liveProductionOrderId,
+    rootOrderId: liveProductionOrderId,
+    amazonOrderId: null,
+    platform: 'd2c',
+    bookId,
+    formatId: 'standard',
+    characterHash: 'w4prodhash001122',
+    input: {
+      characterSpecs: {
+        childName: 'Luca',
+      },
+      bookSpecs: {
+        title: "Luca's Inner Voice",
+      },
+      orderDetails: {
+        quantity: 1,
+      },
+      dedicationText: 'For Luca',
+    },
+  });
+  const liveProductionThreeManifest = createThreeManifest({
+    orderId: liveProductionOrderId,
+    characterHash: 'w4prodhash001122',
+    orderPrefix: liveProductionOrderPrefix,
+    formatId: 'standard',
+    includeFirstPageAlias: true,
+  });
+  const liveProductionOrderRow = {
+    id: 111,
+    orderId: liveProductionOrderId,
+    root_order_id: liveProductionOrderId,
+    amazon_order_id: null,
+    character_hash: 'w4prodhash001122',
+    customer_email: 'live-parent@example.com',
+    customer_name: 'Live Parent',
+    shipping_address: {
+      address: '789 Production Lane',
+      city: 'Sacramento',
+      state: 'CA',
+      zip: '95814',
+      country: 'US',
+      phone: '+1-916-555-0100',
+      name: 'Live Parent',
+    },
+    shipping_tier: 'mail',
+    status: 'queued_for_processing',
+  };
+  const liveProductionLoadManifest = async (manifestKey: string) => {
+    if (manifestKey === liveProductionOneManifestKey) {
+      return liveProductionOneManifest;
+    }
+    if (manifestKey === liveProductionThreeManifestKey) {
+      return liveProductionThreeManifest;
+    }
+    return null;
+  };
+  const liveProductionLoadOrder = async (orderId: string) => {
+    return orderId === liveProductionOrderId ? liveProductionOrderRow : null;
+  };
+
+  const originalApprovalSecret = process.env.W4_PRODUCTION_APPROVAL_SECRET;
+  process.env.W4_PRODUCTION_APPROVAL_SECRET = 'test-w4-build-print-input-auto-approval-secret';
+  try {
+    const autoProductionResponse = await buildW4PrintInputResponse(
+      {
+        body: {
+          orderId: liveProductionOrderId,
+          manifest3Key: liveProductionThreeManifestKey,
+          backendUrl,
+        },
+      },
+      {
+        loadManifest: liveProductionLoadManifest,
+        loadOrder: liveProductionLoadOrder,
+        lookupOrderRow: async () => ({
+          orderId: liveProductionOrderId,
+          workflow_step: 'customer_approval',
+          execution_status: 'ready_for_processing',
+          status: 'queued_for_processing',
+          next_workflow: '4',
+          customer_approval_required: true,
+          customer_approval_status: 'approved',
+          lulu_job_id: null,
+          lulu_status: null,
+          print_submitted_at: null,
+        }),
+        instrumentPrintJob: async () => ({
+          workflowJobId: 402,
+          workflowJobIdempotencyKey:
+            'wf:4:w4-print-fulfillment:ORDER-W4-LIVE-001:print:2026-03-27T09:00:01.000Z:test',
+          workflowJobStatus: 'running',
+          workflowAttemptId: 902,
+          workflowAttempt: 1,
+          workflowClaimed: true,
+          workflowSkipped: false,
+          workflowSkipReason: null,
+        }),
+      },
+    );
+
+    const autoProductionSubmit = await buildW4SubmitInputResponse(autoProductionResponse, {
+      loadOrder: async () => ({
+        ...liveProductionOrderRow,
+        workflow_step: 'customer_approval',
+        execution_status: 'ready_for_processing',
+        next_workflow: '4',
+        customer_approval_required: true,
+        customer_approval_status: 'approved',
+        lulu_job_id: null,
+        lulu_status: null,
+        print_submitted_at: null,
+      }),
+      signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+    });
+
+    assert(
+      autoProductionResponse.allowProductionLulu === true &&
+        typeof autoProductionResponse.productionApprovalToken === 'string' &&
+        autoProductionResponse.productionApprovalToken.length > 20 &&
+        autoProductionSubmit.submitMode === 'production' &&
+        autoProductionSubmit.guard.reason === 'production' &&
+        autoProductionSubmit.productionGuard.reason === 'production_ready',
+      'Expected trusted W4 print-input building to auto-attach production approval context for real ready-to-print orders',
+    );
+  } finally {
+    if (originalApprovalSecret === undefined) {
+      delete process.env.W4_PRODUCTION_APPROVAL_SECRET;
+    } else {
+      process.env.W4_PRODUCTION_APPROVAL_SECRET = originalApprovalSecret;
+    }
+  }
 
   const skippedAmazonResponse = await buildW4PrintInputResponse(
     {
@@ -675,6 +819,7 @@ async function main(): Promise<void> {
           'failed clearly when the 3-manifest was missing',
           'failed clearly when the first required preview page was missing',
           'route helper wrapper preserved CONFIG passthrough and durable workflow-job metadata',
+          'route helper wrapper auto-attached production approval context for real ready-to-print orders',
           'route helper wrapper skipped already-submitted W4 orders without claiming a new job',
         ],
       },

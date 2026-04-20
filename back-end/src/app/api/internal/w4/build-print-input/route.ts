@@ -10,6 +10,7 @@ import {
   type LoadManifestForW4,
   type LoadOrderForW4,
 } from '@/lib/books';
+import { issueW4ProductionApprovalToken } from '@/lib/w4-production-approval';
 import {
   buildSkippedW4PrintWorkflowFields,
   claimAndStartW4PrintJob,
@@ -30,6 +31,8 @@ type W4ReplayGuardOrderRow = {
   lulu_status?: string | null;
   print_submitted_at?: string | null;
   next_workflow?: string | number | null;
+  customer_approval_required?: boolean | string | number | null;
+  customer_approval_status?: string | null;
 };
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -84,6 +87,94 @@ function pickBodyValue(body: JsonRecord, key: string): unknown {
   }
 
   return undefined;
+}
+
+function resolveExplicitProductionApprovalToken(body: JsonRecord): string | null {
+  return (
+    toTrimmedString(pickBodyValue(body, 'productionApprovalToken')) ??
+    toTrimmedString(pickBodyValue(body, 'production_approval_token'))
+  );
+}
+
+function resolveExplicitProductionIntent(body: JsonRecord): boolean {
+  return toBoolean(pickBodyValue(body, 'allowProductionLulu'));
+}
+
+function shouldAutoEnableProductionSubmit(
+  orderRow: W4ReplayGuardOrderRow | null,
+  rawBody: JsonRecord,
+): boolean {
+  if (!orderRow) {
+    return false;
+  }
+
+  if (resolveExplicitProductionIntent(rawBody) || resolveExplicitProductionApprovalToken(rawBody)) {
+    return true;
+  }
+
+  const nextWorkflow = toTrimmedString(orderRow.next_workflow);
+  const workflowStep = toTrimmedString(orderRow.workflow_step);
+  const executionStatus = toTrimmedString(orderRow.execution_status);
+  const status = toTrimmedString(orderRow.status);
+  const approvalRequired = toBoolean(orderRow.customer_approval_required);
+  const approvalStatus = toTrimmedString(orderRow.customer_approval_status);
+  const luluJobId = toTrimmedString(orderRow.lulu_job_id);
+  const printSubmittedAt = toTrimmedString(orderRow.print_submitted_at);
+
+  if (luluJobId || printSubmittedAt) {
+    return false;
+  }
+
+  const readyForPrint =
+    nextWorkflow === '4' ||
+    workflowStep === 'print_fulfillment' ||
+    executionStatus === 'ready_for_processing' ||
+    status === 'queued_for_processing' ||
+    status === 'pending_print';
+
+  if (!readyForPrint) {
+    return false;
+  }
+
+  if (approvalRequired && approvalStatus !== 'approved') {
+    return false;
+  }
+
+  return true;
+}
+
+function attachProductionApprovalContext(
+  result: BuildW4PrintInputResult,
+  rawBody: JsonRecord,
+  orderRow: W4ReplayGuardOrderRow | null,
+): BuildW4PrintInputResult {
+  const explicitIntent = resolveExplicitProductionIntent(rawBody);
+  const explicitToken = resolveExplicitProductionApprovalToken(rawBody);
+  const autoEnable = shouldAutoEnableProductionSubmit(orderRow, rawBody);
+
+  if (!explicitIntent && !explicitToken && !autoEnable) {
+    return result;
+  }
+
+  let productionApprovalToken = explicitToken;
+  if (!productionApprovalToken) {
+    productionApprovalToken = issueW4ProductionApprovalToken({
+      orderId: result.orderId,
+      approvedBy: 'internal-w4-build-print-input',
+    }).token;
+  }
+
+  return {
+    ...result,
+    allowProductionLulu: true,
+    productionApprovalToken,
+    production: {
+      ...(isRecord(result.production) ? result.production : {}),
+      allowProductionLulu: true,
+      approvalToken: productionApprovalToken,
+      productionApprovalToken,
+    },
+  };
 }
 
 function shouldSkipCompletedW4Replay(
@@ -145,16 +236,18 @@ export async function buildW4PrintInputResponse(
   if (shouldSkipCompletedW4Replay(orderRow, forceReplay)) {
     return {
       success: true,
-      ...result,
+      ...attachProductionApprovalContext(result, body, orderRow),
       ...buildSkippedW4PrintWorkflowFields('w4-order-already-submitted'),
     };
   }
 
+  const enrichedResult = attachProductionApprovalContext(result, body, orderRow);
+
   const workflowFields =
     options.instrumentPrintJob
-      ? await options.instrumentPrintJob(result, body)
+      ? await options.instrumentPrintJob(enrichedResult, body)
       : await claimAndStartW4PrintJob({
-        ...result,
+        ...enrichedResult,
         claimedAt:
           typeof body.claimedAt === 'string'
             ? body.claimedAt
@@ -168,7 +261,7 @@ export async function buildW4PrintInputResponse(
 
   return {
     success: true,
-    ...result,
+    ...enrichedResult,
     ...workflowFields,
   };
 }
