@@ -8,26 +8,11 @@ import {
 } from '@/constants/statuses';
 import { OrderPhase } from '@/constants/phases';
 
-const FAILURE_STATUSES = new Set<string>([
-  OrderStatus.ACTION_REQUIRED,
-  OrderStatus.FAILED,
-  OrderStatus.CANCELLED,
-]);
-
 const REVISION_STATUSES = new Set<string>([
   OrderStatus.REVISION_BASE,
   OrderStatus.REVISION_BG_REMOVAL,
   OrderStatus.REVISION_ASSEMBLY,
   OrderStatus.CUSTOMER_REVISION_REQUESTED,
-]);
-
-const SENT_TO_PRINT_STATUSES = new Set<string>([
-  OrderStatus.CUSTOMER_APPROVED,
-  OrderStatus.PENDING_PRINT,
-  OrderStatus.PRINT_SUBMISSION_IN_PROGRESS,
-  OrderStatus.PRINT_SUBMISSION_COMPLETED,
-  OrderStatus.IN_PRODUCTION,
-  OrderStatus.PENDING_SHIPPING,
 ]);
 
 const SHIPPED_STATUSES = new Set<string>([OrderStatus.SHIPPED]);
@@ -41,6 +26,10 @@ const NEW_STATUSES = new Set<string>([
   OrderStatus.PENDING_PROCESSING,
   OrderStatus.QUEUED_FOR_PROCESSING,
 ]);
+
+function hasLuluPrintEvidence(order: Order): boolean {
+  return Boolean(order.luluStatus || order.luluJobId);
+}
 
 // Helper function to get phase based on display status and revision count
 function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: number): OrderPhase {
@@ -87,11 +76,6 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
 
 function normalizeStageStatus(status?: string | null): string {
   return (status || 'pending').toLowerCase();
-}
-
-function hasStageAttention(stageStatus: string): boolean {
-  const normalized = normalizeStageStatus(stageStatus);
-  return normalized === ReviewStageStatus.REJECTED || normalized === ReviewStageStatus.FLAGGED;
 }
 
 function stageIsApproved(stageStatus: string): boolean {
@@ -250,22 +234,6 @@ function detectOrderErrors(order: Order): ErrorType[] {
 }
 
 /**
- * Get priority for error type (lower number = higher priority)
- */
-function getErrorPriority(errorType: ErrorType): number {
-  const priorities: Record<ErrorType, number> = {
-    [DisplayStatus.MAX_RETRIES]: 1,
-    [DisplayStatus.WORKFLOW_TIMEOUT]: 2,
-    [DisplayStatus.MISSING_MANIFEST]: 3,
-    [DisplayStatus.API_ERROR]: 4,
-    [DisplayStatus.PRINT_QA_FAILED]: 5,
-    [DisplayStatus.STUCK_PROCESSING]: 6,
-    [DisplayStatus.NOT_PICKED_UP]: 7,
-  };
-  return priorities[errorType] || 99;
-}
-
-/**
  * Calculate workflow status (ignoring technical errors)
  * This shows where the order is in the production workflow
  */
@@ -364,12 +332,11 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
         order.luluStatus === LuluStatus.DELIVERED
       );
       
-      if (rawStatus === OrderStatus.PENDING_PRINT ||
-          isWithLulu ||
-          rawStatus === OrderStatus.PRINT_SUBMISSION_IN_PROGRESS ||
-          rawStatus === OrderStatus.PRINT_SUBMISSION_COMPLETED ||
-          rawStatus === OrderStatus.IN_PRODUCTION ||
-          (rawStatus && SENT_TO_PRINT_STATUSES.has(rawStatus))) {
+      if (
+        isWithLulu ||
+        hasLuluPrintEvidence(order) ||
+        rawStatus === OrderStatus.IN_PRODUCTION
+      ) {
         return DisplayStatus.PRINTING;
       }
       return DisplayStatus.READY_TO_PRINT;
@@ -500,7 +467,7 @@ export function getStageBadgeStatus(stageStatus?: string | null, stageKey?: 'pre
  */
 export function getPhaseForOrder(order: Order | OrderListItem): OrderPhase {
   // Check lifecycle_status first - takes precedence over workflow status
-  const lifecycleStatus = (order as any).lifecycle_status || (order as any).lifecycleStatus;
+  const lifecycleStatus = order.lifecycle_status;
   if (lifecycleStatus === 'recently_delivered') {
     return OrderPhase.RECENTLY_DELIVERED;
   }
@@ -550,6 +517,6 @@ export function buildOrderListItem(order: Order): OrderListItem {
     reprintReason: order.reprintReason,
     reprintNote: order.reprintNote,
     errors: display.errors,
-    lifecycle_status: (order as any).lifecycle_status || 'active',
+    lifecycle_status: order.lifecycle_status || 'active',
   };
 }

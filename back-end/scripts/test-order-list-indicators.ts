@@ -4,7 +4,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { buildOrderListItem } from '../src/lib/status-display';
 import { SiblingCountBadge } from '../src/components/ui/sibling-count-badge';
-import { Order } from '../src/types/order';
+import { Order, OrderListItem } from '../src/types/order';
+import { DisplayStatus, LuluStatus } from '../src/constants/statuses';
+import { OrderPhase } from '../src/constants/phases';
 
 function buildBaseOrder(overrides: Partial<Order> = {}): Order {
   return {
@@ -63,7 +65,7 @@ async function run() {
   assert.equal(listItem.itemNumber, 2);
   assert.equal(listItem.totalSiblings, 3);
 
-  const fallbackListItem = {
+  const fallbackListItem: OrderListItem = {
     orderId: order.orderId,
     platform: order.platform,
     rootOrderId: order.rootOrderId,
@@ -72,11 +74,11 @@ async function run() {
     totalSiblings: order.totalSiblings,
     firstName: order.customer.firstName,
     lastName: order.customer.lastName,
-    workflowStatus: 'action_required' as any,
-    technicalStatus: 'action_required' as any,
-    status: 'action_required' as any,
+    workflowStatus: DisplayStatus.ACTION_REQUIRED,
+    technicalStatus: DisplayStatus.ACTION_REQUIRED,
+    status: DisplayStatus.ACTION_REQUIRED,
     rawStatus: order.status,
-    phase: 'in_queue' as any,
+    phase: OrderPhase.IN_QUEUE,
     orderDate: order.orderDate,
     characterHash: order.characterHash,
     reviewStages: order.reviewStages,
@@ -84,14 +86,54 @@ async function run() {
     hasFlags: order.hasFlags ?? false,
     flags: order.flags || {},
     revisionCount: typeof order.revisionCount === 'number' ? order.revisionCount : 0,
-    errors: ['action_required' as any],
-    lifecycle_status: (order as any).lifecycle_status || 'active',
+    errors: [DisplayStatus.ACTION_REQUIRED],
+    lifecycle_status: order.lifecycle_status || 'active',
   };
 
   assert.equal(fallbackListItem.rootOrderId, 'root-uuid');
   assert.equal(fallbackListItem.isSibling, true);
   assert.equal(fallbackListItem.itemNumber, 2);
   assert.equal(fallbackListItem.totalSiblings, 3);
+
+  const readyToPrintOrder = buildBaseOrder({
+    status: 'pending_print',
+    executionStatus: 'ready_for_processing',
+    nextWorkflow: '4',
+    workflowStep: 'customer_approval',
+    reviewStages: {
+      preBria: { status: 'approved' },
+      postBria: { status: 'approved' },
+      postPdf: { status: 'approved' },
+    },
+    customerApprovalStatus: 'approved',
+    customerApprovalApprovedAt: '2026-04-20T12:00:00.000Z',
+    queuedAt: '2026-04-20T12:01:00.000Z',
+  } as Partial<Order>);
+  const readyToPrintListItem = buildOrderListItem(readyToPrintOrder);
+  assert.equal(
+    readyToPrintListItem.workflowStatus,
+    DisplayStatus.READY_TO_PRINT,
+    'Customer-approved orders without Lulu submission evidence should stay Ready to Print, even if W4 was queued or failed',
+  );
+
+  const printingOrder = buildBaseOrder({
+    status: 'pending_print',
+    luluStatus: LuluStatus.CREATED,
+    luluJobId: 'lulu-job-123',
+    reviewStages: {
+      preBria: { status: 'approved' },
+      postBria: { status: 'approved' },
+      postPdf: { status: 'approved' },
+    },
+    customerApprovalStatus: 'approved',
+    customerApprovalApprovedAt: '2026-04-20T12:00:00.000Z',
+  } as Partial<Order>);
+  const printingListItem = buildOrderListItem(printingOrder);
+  assert.equal(
+    printingListItem.workflowStatus,
+    DisplayStatus.PRINTING,
+    'Orders with Lulu submission evidence should display Printing',
+  );
 
   console.log('test-order-list-indicators: ok');
 }
