@@ -646,6 +646,58 @@ async function testMaterializePrintPdfRouteSkipsUploadForProductionDryRun(): Pro
   );
 }
 
+async function testMaterializePrintPdfRouteSkipsUploadForDirectUrlMode(): Promise<void> {
+  let headCalled = false;
+  let fetchCalled = false;
+  let putCalled = false;
+  const workflowEvents: JsonRecord[] = [];
+
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'interior-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003D',
+      workflowJobId: 5033,
+      workflowAttemptId: 6033,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-003D:print:test',
+      allowDirectPdfUrls: true,
+      pdfDownloadUrl: 'https://cdn.example/interior-materialize-direct.pdf',
+      pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003D/interior_W4-SANDBOX-PROOF-003D.pdf',
+    },
+    {
+      headObjectImpl: async () => {
+        headCalled = true;
+        throw new Error('Expected direct-url mode materialization to bypass headObject');
+      },
+      fetchImpl: async () => {
+        fetchCalled = true;
+        throw new Error('Expected direct-url mode materialization to bypass PDF download');
+      },
+      putObjectImpl: async () => {
+        putCalled = true;
+        throw new Error('Expected direct-url mode materialization to bypass R2 upload');
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.materializationSkipped === true &&
+      result.pdfUrl === 'https://cdn.example/interior-materialize-direct.pdf',
+    'Expected W4 materialize route to short-circuit to the direct PDF URL when direct-url mode is enabled',
+  );
+  assert(
+    headCalled === false && fetchCalled === false && putCalled === false,
+    'Expected direct-url mode materialization to avoid object checks, downloads, and uploads',
+  );
+  assert(
+    workflowEvents.length === 1 &&
+      workflowEvents[0]?.eventType === 'artifact-materialization-skipped' &&
+      ((workflowEvents[0]?.payload as JsonRecord | undefined)?.reason === 'direct_url_mode'),
+    'Expected direct-url mode materialization to record a skipped-upload workflow event',
+  );
+}
+
 async function testQaPassAndFailPaths(): Promise<void> {
   const passEvents: JsonRecord[] = [];
   const passResult = await runW4PrintQaResponse(
@@ -822,6 +874,70 @@ async function testQaUsesDirectPdfUrlsForProductionDryRun(): Promise<void> {
     signCalls.length === 2 &&
       signCalls.every((entry) => entry.includes('/preview-images/')),
     'Expected production dry-run QA to presign only preview images while leaving direct PDF URLs untouched',
+  );
+}
+
+async function testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped(): Promise<void> {
+  const signCalls: string[] = [];
+  const result = await runW4PrintQaResponse(
+    {
+      orderId: 'W4-SANDBOX-PROOF-004D',
+      workflowJobId: 5043,
+      workflowAttemptId: 6043,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-004D:print:test',
+      allowDirectPdfUrls: true,
+      materializationSkipped: true,
+      CONFIG: {
+        renderer: {
+          apiBase: 'https://renderer.example',
+          internalToken: 'renderer-token',
+        },
+      },
+      expectedPageCount: 1,
+      pageLabels: ['p00'],
+      pageImageUrls: ['book/orders/W4-SANDBOX-PROOF-004D/preview-images/p00.png'],
+      coverPreviewUrl: 'book/orders/W4-SANDBOX-PROOF-004D/preview-images/cover-spread.png',
+      pdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-004D/interior.pdf',
+      coverPdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-004D/cover.pdf',
+    },
+    {
+      signObjectUrl: async (key, bucket) => {
+        signCalls.push(`${bucket}:${key}`);
+        return `https://signed.example/${bucket}/${key}`;
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder([]),
+      fetchImpl: async (input, init) => {
+        const url = resolveUrl(input);
+        const method = String(init?.method ?? 'GET').toUpperCase();
+        if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
+          throw new Error(`Unexpected QA skipped-materialization call: ${method} ${url}`);
+        }
+        const parsed = JSON.parse(String(init?.body ?? '{}')) as JsonRecord;
+        return jsonResponse({
+          passed:
+            (String(parsed.type) === 'interior' &&
+              String(parsed.pdfUrl) === 'https://cdn.example/W4-SANDBOX-PROOF-004D/interior.pdf') ||
+            (String(parsed.type) === 'cover' &&
+              String(parsed.pdfUrl) === 'https://cdn.example/W4-SANDBOX-PROOF-004D/cover.pdf'),
+          failedPages: [],
+          warnings: [],
+          reasonCode: 'direct-url-ok',
+        });
+      },
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.qaPassed === true &&
+      result.interiorSignedUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004D/interior.pdf' &&
+      result.coverSignedUrl === 'https://cdn.example/W4-SANDBOX-PROOF-004D/cover.pdf',
+    'Expected W4 QA to honor direct-url mode after materialization is intentionally skipped',
+  );
+  assert(
+    signCalls.length === 2 &&
+      signCalls.every((entry) => entry.includes('/preview-images/')),
+    'Expected skipped-materialization QA to presign only preview images while leaving direct PDF URLs untouched',
   );
 }
 
@@ -1047,8 +1163,10 @@ async function main(): Promise<void> {
   await testMaterializePrintPdfRouteRefreshesPdfMonkeyDownloadUrlAfterWarmup503s();
   await testMaterializePrintPdfRouteReusesExistingObject();
   await testMaterializePrintPdfRouteSkipsUploadForProductionDryRun();
+  await testMaterializePrintPdfRouteSkipsUploadForDirectUrlMode();
   await testQaPassAndFailPaths();
   await testQaUsesDirectPdfUrlsForProductionDryRun();
+  await testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped();
   await testQaRouteFallsBackToEnvRendererToken();
   await testQaProbePayloadRejection();
   await testManifestPublishSuccessAndError();

@@ -149,6 +149,53 @@ async function testSandboxSubmitShape(): Promise<void> {
   );
 }
 
+async function testDirectPdfUrlModeBypassesR2Signing(): Promise<void> {
+  const signCalls: Array<{ key: string; bucket: string; expiresIn: number }> = [];
+  const orderId = 'W4-SANDBOX-PROOF-DIRECT-001';
+  const response = await buildW4SubmitInputResponse(
+    {
+      ...createBaseInput(orderId),
+      allowDirectPdfUrls: true,
+      materializationSkipped: true,
+      pdfR2Key: null,
+      coverPdfR2Key: null,
+      pdfUrl: `https://cdn.example/${orderId}/interior.pdf`,
+      coverPdfUrl: `https://cdn.example/${orderId}/cover.pdf`,
+    },
+    {
+      loadOrder: async () => ({
+        orderId,
+        lulu_job_id: null,
+        lulu_status: null,
+        print_submitted_at: null,
+      }),
+      signObjectUrl: async (key, bucket, expiresIn) => {
+        signCalls.push({ key, bucket, expiresIn });
+        return `https://signed.example/${bucket}/${key}`;
+      },
+    },
+  );
+
+  const lineItem = ((response.luluPayload.line_items as unknown[])?.[0] ?? {}) as JsonRecord;
+  const printableNormalization = (lineItem.printable_normalization ?? {}) as JsonRecord;
+  const interior = (printableNormalization.interior ?? {}) as JsonRecord;
+  const cover = (printableNormalization.cover ?? {}) as JsonRecord;
+
+  assert(
+    response.success === true &&
+      response.submitMode === 'sandbox' &&
+      response.interiorSignedUrl === `https://cdn.example/${orderId}/interior.pdf` &&
+      response.coverSignedUrl === `https://cdn.example/${orderId}/cover.pdf` &&
+      interior.source_url === `https://cdn.example/${orderId}/interior.pdf` &&
+      cover.source_url === `https://cdn.example/${orderId}/cover.pdf`,
+    'Expected W4 submit-input route to preserve direct provider PDF URLs when direct-url mode is enabled',
+  );
+  assert(
+    signCalls.length === 0,
+    'Expected W4 submit-input route to bypass R2 signing entirely when direct PDF URLs are already available',
+  );
+}
+
 async function testProductionRequestRequiresApprovalWithoutEnvGate(): Promise<void> {
   const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
 
@@ -662,6 +709,7 @@ async function testSandboxFallbackPhonePreventsProofFailure(): Promise<void> {
 
 async function main(): Promise<void> {
   await testSandboxSubmitShape();
+  await testDirectPdfUrlModeBypassesR2Signing();
   await testExistingJobSkipsLulu();
   await testDryRunMarkersDoNotBlockLaterProductionPilot();
   await testTestModeSkipsLulu();

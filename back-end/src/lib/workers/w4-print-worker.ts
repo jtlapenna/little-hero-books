@@ -54,6 +54,7 @@ export interface W4MaterializePrintPdfInput extends JsonRecord {
   pdfFilename?: string | null;
   coverPdfFilename?: string | null;
   productionDryRun?: boolean | null;
+  allowDirectPdfUrls?: boolean | null;
   CONFIG?: JsonRecord;
   pdfMonkeyStatusUrl?: string | null;
   pdfMonkeyStatus?: string | null;
@@ -81,6 +82,8 @@ export interface W4RunPrintQaInput extends JsonRecord {
   pdfDownloadUrl?: string | null;
   coverPdfDownloadUrl?: string | null;
   productionDryRun?: boolean | null;
+  allowDirectPdfUrls?: boolean | null;
+  materializationSkipped?: boolean | null;
 }
 
 export interface PublishW4PrintManifestInput extends JsonRecord {
@@ -327,6 +330,14 @@ function isRetryableMaterializeTransportError(error: unknown): boolean {
 
 function computeMaterializeRetryDelayMs(baseDelayMs: number, attempt: number): number {
   return Math.min(baseDelayMs * attempt, MAX_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS);
+}
+
+function shouldUseDirectPdfUrls(input: JsonRecord): boolean {
+  return (
+    toBoolean(input.productionDryRun) ||
+    toBoolean(input.allowDirectPdfUrls) ||
+    toBoolean(input.materializationSkipped)
+  );
 }
 
 function resolveOrderId(input: JsonRecord): string {
@@ -1358,7 +1369,7 @@ export async function materializeW4PrintPdf(
 
   const uploadBucket = getBucketFromKey(r2Key);
   const publicUrl = `${backendUrl}/api/assets/${r2Key}`;
-  const shouldSkipUploadForDryRun = toBoolean(input.productionDryRun);
+  const shouldSkipUploadForDirectUrls = shouldUseDirectPdfUrls(input);
   const pdfMonkeyApiKey =
     firstString(
       options.pdfMonkeyApiKey,
@@ -1403,8 +1414,11 @@ export async function materializeW4PrintPdf(
   };
 
   try {
-    if (shouldSkipUploadForDryRun) {
+    if (shouldSkipUploadForDirectUrls) {
       const uploadedAt = new Date().toISOString();
+      const skipReason = toBoolean(input.productionDryRun)
+        ? 'production_dry_run_direct_url'
+        : 'direct_url_mode';
       const materialized = await logEvent({
         eventType: 'artifact-materialization-skipped',
         payload: {
@@ -1412,7 +1426,7 @@ export async function materializeW4PrintPdf(
           documentKind,
           r2Key,
           sourceUrl: downloadUrl,
-          reason: 'production_dry_run_direct_url',
+          reason: skipReason,
         },
         context: buildPrintContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
           documentKind,
@@ -1698,7 +1712,7 @@ export async function runW4PrintQa(
     throw new Error('W4 print QA requires renderer apiBase and internalToken');
   }
 
-  const allowDirectPdfUrls = toBoolean(input.productionDryRun);
+  const allowDirectPdfUrls = shouldUseDirectPdfUrls(input);
   const pdfR2Key = toTrimmedString(input.pdfR2Key);
   const coverPdfR2Key = toTrimmedString(input.coverPdfR2Key);
   const directInteriorUrl = firstString(input.pdfUrl, input.pdfDownloadUrl);

@@ -1557,8 +1557,10 @@ assert(
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes(
       'current.CONFIG?.backendApiToken',
     ) &&
-    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('this.helpers.httpRequest'),
-  'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route',
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('this.helpers.httpRequest') &&
+    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('allowDirectPdfUrls: true') &&
+    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('allowDirectPdfUrls: true'),
+  'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route and opt into direct provider URLs when worker-side PDF uploads are intentionally skipped',
 );
 assert(
   repoCentricW4QaNode?.type === 'n8n-nodes-base.code' &&

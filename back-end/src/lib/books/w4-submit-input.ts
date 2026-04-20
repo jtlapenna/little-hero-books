@@ -165,6 +165,14 @@ function toInteger(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function shouldUseDirectPdfUrls(input: JsonRecord): boolean {
+  return (
+    toBoolean(input.productionDryRun) ||
+    toBoolean(input.allowDirectPdfUrls) ||
+    toBoolean(input.materializationSkipped)
+  );
+}
+
 function pickFirstNonEmpty<T>(...values: T[]): T | null {
   for (const value of values) {
     if (value === undefined || value === null) {
@@ -904,8 +912,20 @@ export async function buildW4SubmitInput(
 
   const pdfR2Key = toTrimmedString(input.pdfR2Key);
   const coverPdfR2Key = toTrimmedString(input.coverPdfR2Key);
-  if (!pdfR2Key || !coverPdfR2Key) {
+  const allowDirectPdfUrls = shouldUseDirectPdfUrls(input);
+  const directInteriorUrl =
+    toTrimmedString(pickFirstNonEmpty(input.pdfUrl, input.pdfDownloadUrl)) ?? null;
+  const directCoverUrl =
+    toTrimmedString(pickFirstNonEmpty(input.coverPdfUrl, input.coverPdfDownloadUrl)) ?? null;
+  if (!allowDirectPdfUrls && (!pdfR2Key || !coverPdfR2Key)) {
     throw new Error(`W4 submit input is missing PDF keys for ${orderId}`);
+  }
+  if (
+    allowDirectPdfUrls &&
+    (!directInteriorUrl || !directCoverUrl) &&
+    (!pdfR2Key || !coverPdfR2Key)
+  ) {
+    throw new Error(`W4 submit input is missing direct PDF URLs and PDF keys for ${orderId}`);
   }
 
   const loadedOrder = options.loadOrder
@@ -914,16 +934,20 @@ export async function buildW4SubmitInput(
   const loadedOrderRecord = toRecord(loadedOrder);
 
   const signedUrlExpiresIn = options.signedUrlExpiresIn ?? 21600;
-  const interiorSignedUrl = await options.signObjectUrl(
-    pdfR2Key,
-    getBucketFromKey(pdfR2Key),
-    signedUrlExpiresIn,
-  );
-  const coverSignedUrl = await options.signObjectUrl(
-    coverPdfR2Key,
-    getBucketFromKey(coverPdfR2Key),
-    signedUrlExpiresIn,
-  );
+  const interiorSignedUrl = allowDirectPdfUrls && directInteriorUrl
+    ? directInteriorUrl
+    : await options.signObjectUrl(
+        pdfR2Key as string,
+        getBucketFromKey(pdfR2Key as string),
+        signedUrlExpiresIn,
+      );
+  const coverSignedUrl = allowDirectPdfUrls && directCoverUrl
+    ? directCoverUrl
+    : await options.signObjectUrl(
+        coverPdfR2Key as string,
+        getBucketFromKey(coverPdfR2Key as string),
+        signedUrlExpiresIn,
+      );
 
   const sandboxConfig = withLuluApiBase(input, SANDBOX_LULU_API_BASE);
   const defaults = toRecord(sandboxConfig.defaults);
