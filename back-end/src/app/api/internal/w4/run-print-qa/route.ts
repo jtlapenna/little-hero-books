@@ -43,6 +43,10 @@ export async function runW4PrintQaResponse(
   body: W4RunPrintQaInput,
   options: W4WorkerOptions = {},
 ): Promise<W4RunPrintQaResult & { success: true }> {
+  const rendererConfig = isRecord(body.CONFIG) && isRecord(body.CONFIG.renderer)
+    ? body.CONFIG.renderer
+    : {};
+
   return {
     success: true,
     ...(await runW4PrintQa(body, {
@@ -50,9 +54,15 @@ export async function runW4PrintQaResponse(
       recordWorkflowEvent: options.recordWorkflowEvent ?? recordWorkflowJobEventResponse,
       rendererApiBase:
         options.rendererApiBase ??
+        (typeof rendererConfig.apiBase === 'string' && rendererConfig.apiBase.trim()
+          ? rendererConfig.apiBase.trim()
+          : undefined) ??
         firstNonEmptyEnv('RENDERER_API_BASE', 'RENDERER_BASE_URL', 'RENDERER_URL'),
       rendererInternalToken:
         options.rendererInternalToken ??
+        (typeof rendererConfig.internalToken === 'string' && rendererConfig.internalToken.trim()
+          ? rendererConfig.internalToken.trim()
+          : undefined) ??
         firstNonEmptyEnv('RENDERER_INTERNAL_TOKEN', 'RENDERER_API_TOKEN'),
     })),
   };

@@ -698,6 +698,45 @@ async function testMaterializePrintPdfRouteSkipsUploadForDirectUrlMode(): Promis
   );
 }
 
+async function testCoverMaterializationPreservesInteriorDirectUrls(): Promise<void> {
+  const result = await materializeW4PrintPdfResponse(
+    {
+      documentKind: 'cover-pdf',
+      orderId: 'W4-SANDBOX-PROOF-003E',
+      workflowJobId: 5034,
+      workflowAttemptId: 6034,
+      workflowJobIdempotencyKey: 'wf:4:w4-print-fulfillment:W4-SANDBOX-PROOF-003E:print:test',
+      allowDirectPdfUrls: true,
+      pdfUrl: 'https://cdn.example/W4-SANDBOX-PROOF-003E/interior.pdf',
+      pdfDownloadUrl: 'https://cdn.example/W4-SANDBOX-PROOF-003E/interior.pdf',
+      coverPdfDownloadUrl: 'https://cdn.example/W4-SANDBOX-PROOF-003E/cover.pdf',
+      coverPdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003E/cover_W4-SANDBOX-PROOF-003E.pdf',
+    },
+    {
+      headObjectImpl: async () => {
+        throw new Error('Expected cover direct-url mode materialization to bypass headObject');
+      },
+      fetchImpl: async () => {
+        throw new Error('Expected cover direct-url mode materialization to bypass PDF download');
+      },
+      putObjectImpl: async () => {
+        throw new Error('Expected cover direct-url mode materialization to bypass R2 upload');
+      },
+      recordWorkflowEvent: createWorkflowEventRecorder([]),
+    },
+  );
+
+  assert(
+    result.success === true &&
+      result.materializationSkipped === true &&
+      result.pdfUrl === 'https://cdn.example/W4-SANDBOX-PROOF-003E/interior.pdf' &&
+      result.coverPdfUrl === 'https://cdn.example/W4-SANDBOX-PROOF-003E/cover.pdf' &&
+      result.pdfDownloadUrl === 'https://cdn.example/W4-SANDBOX-PROOF-003E/interior.pdf' &&
+      result.coverPdfDownloadUrl === 'https://cdn.example/W4-SANDBOX-PROOF-003E/cover.pdf',
+    'Expected cover materialization to preserve the interior direct PDF URLs while adding the cover direct PDF URL',
+  );
+}
+
 async function testQaPassAndFailPaths(): Promise<void> {
   const passEvents: JsonRecord[] = [];
   const passResult = await runW4PrintQaResponse(
@@ -1066,12 +1105,12 @@ async function testQaRouteFallsBackToEnvRendererToken(): Promise<void> {
           const authHeader = String(
             (init?.headers as Record<string, string> | undefined)?.Authorization ?? '',
           );
-          if (method !== 'POST' || url !== 'https://renderer-eta.vercel.app/qa-pdf') {
+          if (method !== 'POST' || url !== 'https://renderer.example/qa-pdf') {
             throw new Error(`Unexpected QA env fallback call: ${method} ${url}`);
           }
           assert(
             authHeader === 'Bearer env-renderer-token',
-            'Expected W4 QA route to fall back to RENDERER_INTERNAL_TOKEN when the payload omits renderer.internalToken',
+            'Expected W4 QA route to use the payload renderer apiBase while falling back to RENDERER_INTERNAL_TOKEN when the payload omits renderer.internalToken',
           );
           return jsonResponse({
             passed: true,
@@ -1319,6 +1358,7 @@ async function main(): Promise<void> {
   await testMaterializePrintPdfRouteReusesExistingObject();
   await testMaterializePrintPdfRouteSkipsUploadForProductionDryRun();
   await testMaterializePrintPdfRouteSkipsUploadForDirectUrlMode();
+  await testCoverMaterializationPreservesInteriorDirectUrls();
   await testQaPassAndFailPaths();
   await testQaUsesDirectPdfUrlsForProductionDryRun();
   await testQaUsesDirectPdfUrlsWhenMaterializationWasSkipped();

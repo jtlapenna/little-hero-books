@@ -335,6 +335,11 @@ function computeMaterializeRetryDelayMs(baseDelayMs: number, attempt: number): n
   return Math.min(baseDelayMs * attempt, MAX_MATERIALIZE_DOWNLOAD_RETRY_DELAY_MS);
 }
 
+function optionalStringField(key: string, value: unknown): JsonRecord {
+  const normalized = toTrimmedString(value);
+  return normalized ? { [key]: normalized } : {};
+}
+
 function shouldUseDirectPdfUrls(input: JsonRecord): boolean {
   return (
     toBoolean(input.productionDryRun) ||
@@ -1034,10 +1039,22 @@ export async function renderW4PrintDocument(
             polled: lastPollLog,
           },
           pdfMonkeyStatusUrl: statusUrl,
-          pdfMonkeyDocumentId: input.documentKind === 'interior-pdf' ? documentId : null,
-          pdfMonkeyCoverDocumentId: input.documentKind === 'cover-pdf' ? documentId : null,
-          pdfDownloadUrl: input.documentKind === 'interior-pdf' ? downloadUrl : null,
-          coverPdfDownloadUrl: input.documentKind === 'cover-pdf' ? downloadUrl : null,
+          ...optionalStringField(
+            'pdfMonkeyDocumentId',
+            input.documentKind === 'interior-pdf' ? documentId : input.pdfMonkeyDocumentId,
+          ),
+          ...optionalStringField(
+            'pdfMonkeyCoverDocumentId',
+            input.documentKind === 'cover-pdf' ? documentId : input.pdfMonkeyCoverDocumentId,
+          ),
+          ...optionalStringField(
+            'pdfDownloadUrl',
+            input.documentKind === 'interior-pdf' ? downloadUrl : input.pdfDownloadUrl,
+          ),
+          ...optionalStringField(
+            'coverPdfDownloadUrl',
+            input.documentKind === 'cover-pdf' ? downloadUrl : input.coverPdfDownloadUrl,
+          ),
           ...(input.documentKind === 'interior-pdf'
             ? { pages_html: basePayload.html }
             : { cover_html: basePayload.html }),
@@ -1074,10 +1091,22 @@ export async function renderW4PrintDocument(
         polled: lastPollLog,
       },
       pdfMonkeyStatusUrl: statusUrl,
-      pdfMonkeyDocumentId: input.documentKind === 'interior-pdf' ? documentId : null,
-      pdfMonkeyCoverDocumentId: input.documentKind === 'cover-pdf' ? documentId : null,
-      pdfDownloadUrl: input.documentKind === 'interior-pdf' ? downloadUrl : null,
-      coverPdfDownloadUrl: input.documentKind === 'cover-pdf' ? downloadUrl : null,
+      ...optionalStringField(
+        'pdfMonkeyDocumentId',
+        input.documentKind === 'interior-pdf' ? documentId : input.pdfMonkeyDocumentId,
+      ),
+      ...optionalStringField(
+        'pdfMonkeyCoverDocumentId',
+        input.documentKind === 'cover-pdf' ? documentId : input.pdfMonkeyCoverDocumentId,
+      ),
+      ...optionalStringField(
+        'pdfDownloadUrl',
+        input.documentKind === 'interior-pdf' ? downloadUrl : input.pdfDownloadUrl,
+      ),
+      ...optionalStringField(
+        'coverPdfDownloadUrl',
+        input.documentKind === 'cover-pdf' ? downloadUrl : input.coverPdfDownloadUrl,
+      ),
       ...(input.documentKind === 'interior-pdf' ? { pages_html: basePayload.html } : { cover_html: basePayload.html }),
     };
   } catch (error) {
@@ -1479,9 +1508,14 @@ export async function materializeW4PrintPdf(
         },
         pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
         coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
-        pdfUrl: documentKind === 'interior-pdf' ? downloadUrl : toTrimmedString(input.pdfUrl),
-        coverPdfUrl:
-          documentKind === 'cover-pdf' ? downloadUrl : toTrimmedString(input.coverPdfUrl),
+        ...optionalStringField(
+          'pdfUrl',
+          documentKind === 'interior-pdf' ? downloadUrl : input.pdfUrl,
+        ),
+        ...optionalStringField(
+          'coverPdfUrl',
+          documentKind === 'cover-pdf' ? downloadUrl : input.coverPdfUrl,
+        ),
       };
     }
 
@@ -1526,8 +1560,14 @@ export async function materializeW4PrintPdf(
         },
         pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
         coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
-        pdfUrl: documentKind === 'interior-pdf' ? publicUrl : null,
-        coverPdfUrl: documentKind === 'cover-pdf' ? publicUrl : null,
+        ...optionalStringField(
+          'pdfUrl',
+          documentKind === 'interior-pdf' ? publicUrl : input.pdfUrl,
+        ),
+        ...optionalStringField(
+          'coverPdfUrl',
+          documentKind === 'cover-pdf' ? publicUrl : input.coverPdfUrl,
+        ),
       };
     }
 
@@ -1671,8 +1711,14 @@ export async function materializeW4PrintPdf(
         },
       pdfR2Key: documentKind === 'interior-pdf' ? r2Key : toTrimmedString(input.pdfR2Key),
       coverPdfR2Key: documentKind === 'cover-pdf' ? r2Key : toTrimmedString(input.coverPdfR2Key),
-      pdfUrl: documentKind === 'interior-pdf' ? publicUrl : null,
-      coverPdfUrl: documentKind === 'cover-pdf' ? publicUrl : null,
+      ...optionalStringField(
+        'pdfUrl',
+        documentKind === 'interior-pdf' ? publicUrl : input.pdfUrl,
+      ),
+      ...optionalStringField(
+        'coverPdfUrl',
+        documentKind === 'cover-pdf' ? publicUrl : input.coverPdfUrl,
+      ),
     };
   } catch (error) {
     const message = getErrorMessage(error);
