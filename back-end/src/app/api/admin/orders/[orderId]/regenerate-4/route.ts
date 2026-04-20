@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import {
+  appendWorkflowJobEvent,
+  cancelWorkflowJob,
+  getLatestWorkflowJobAttemptForJob,
+  listWorkflowJobsForOrder,
+} from '@/lib/workflow-jobs/repository';
 
 export const dynamic = 'force-dynamic';
+
+type Regenerate4OrderRecord = {
+  id?: unknown;
+  amazon_order_id?: string;
+  lifecycle_status?: unknown;
+  reprint_count?: unknown;
+  review_stages?: unknown;
+};
+
+const ACTIVE_W4_JOB_STATUSES = new Set([
+  'queued',
+  'claimed',
+  'running',
+  'polling',
+  'retry_waiting',
+]);
 
 /**
  * Update order row while tolerating schema drift between environments.
@@ -14,7 +36,7 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
   // - Throw last error if still failing
 
   const dataToUpdate: Record<string, unknown> = { ...updateData };
-  let lastError: any = null;
+  let lastError: unknown = null;
 
   for (let i = 0; i < 8; i++) {
     const { data, error } = await supabase
@@ -81,7 +103,7 @@ async function restoreArchivedOrder(orderId: string): Promise<Record<string, unk
   delete orderData.id;
 
   // Schema-drift-tolerant insert: drop unknown columns and retry
-  let lastInsertError: any = null;
+  let lastInsertError: unknown = null;
   for (let i = 0; i < 8; i++) {
     const { data: inserted, error: insertErr } = await supabase
       .from('orders')
@@ -194,7 +216,8 @@ export async function POST(
       console.log(`[Regenerate 4] Restored order ${orderId} from archived_orders`);
     }
 
-    const orderRowId = Number((currentOrder as { id?: unknown }).id);
+    const orderRecord = currentOrder as Regenerate4OrderRecord;
+    const orderRowId = Number(orderRecord.id);
     if (!Number.isFinite(orderRowId)) {
       return NextResponse.json(
         { error: 'Order row is missing numeric id (cannot queue regenerate safely)' },
@@ -202,12 +225,12 @@ export async function POST(
       );
     }
 
-    const amazonOrderId = (currentOrder as { amazon_order_id?: string }).amazon_order_id ?? orderId.trim();
+    const amazonOrderId = orderRecord.amazon_order_id ?? orderId.trim();
 
     const isReprint =
-      wasArchived || String((currentOrder as any).lifecycle_status || '').toLowerCase() === 'recently_delivered';
+      wasArchived || String(orderRecord.lifecycle_status || '').toLowerCase() === 'recently_delivered';
     const currentReprintCount =
-      typeof (currentOrder as any).reprint_count === 'number' ? (currentOrder as any).reprint_count : 0;
+      typeof orderRecord.reprint_count === 'number' ? orderRecord.reprint_count : 0;
     const reprintReasonRaw = typeof body.reprint_reason === 'string' ? body.reprint_reason.trim() : '';
     const reprintNoteRaw = typeof body.reprint_note === 'string' ? body.reprint_note.trim() : '';
     const reprintReason =
@@ -215,7 +238,7 @@ export async function POST(
     const reprintNote = reprintNoteRaw || null;
 
     // Preserve review_stages when updating (parse JSON string if needed)
-    let review_stages: unknown = (currentOrder as { review_stages?: unknown }).review_stages || {};
+    let review_stages: unknown = orderRecord.review_stages || {};
     if (typeof review_stages === 'string') {
       try {
         review_stages = JSON.parse(review_stages);
@@ -225,6 +248,35 @@ export async function POST(
     }
 
     const queuedAt = new Date().toISOString();
+
+    const existingWorkflowJobs = await listWorkflowJobsForOrder(orderId);
+    const staleActiveW4Jobs = existingWorkflowJobs.filter(
+      (job) =>
+        job.job_type === 'w4-print-fulfillment' &&
+        job.stage === '4' &&
+        ACTIVE_W4_JOB_STATUSES.has(job.status),
+    );
+
+    for (const job of staleActiveW4Jobs) {
+      const latestAttempt = await getLatestWorkflowJobAttemptForJob(job.id);
+      await appendWorkflowJobEvent({
+        jobId: job.id,
+        attemptId: latestAttempt?.id ?? null,
+        eventType: 'admin-regenerate-canceled-active-job',
+        payload: {
+          orderId: amazonOrderId,
+          reason: 'admin regenerate-4 requested',
+        },
+      }).catch((error) => {
+        console.warn(
+          `[Regenerate 4] Failed to append cancellation event for workflow job ${job.id}:`,
+          error,
+        );
+      });
+
+      await cancelWorkflowJob(job.id, 'admin regenerate-4 requested');
+    }
+
     await updateOrderRowResilientById(orderRowId, {
       next_workflow: '4',
       execution_status: 'ready_for_processing',
@@ -249,6 +301,9 @@ export async function POST(
       retry_count: 0,
       last_error_at: null,
       next_retry_at: null,
+      last_skip_reason: null,
+      last_skip_at: null,
+      last_skip_details: null,
       updated_at: queuedAt,
       ...(body.regeneration_instructions !== undefined ? { regeneration_instructions: body.regeneration_instructions ?? null } : {}),
       ...(isReprint
@@ -268,14 +323,16 @@ export async function POST(
       orderId,
       message: `4 regeneration queued (${source}). Router will pick up on next cron run.`,
       luluFieldsCleared: true,
+      canceledWorkflowJobIds: staleActiveW4Jobs.map((job) => job.id),
       wasArchived,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error ?? 'Unknown error');
     console.error('[Regenerate 4] Error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to regenerate 4 workflow',
-        details: error?.message 
+        details: errorMessage,
       },
       { status: 500 }
     );
