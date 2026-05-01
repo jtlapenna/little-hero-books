@@ -3,7 +3,7 @@
 
 **"Every child is the hero of their own story"**
 
-Little Hero Books creates magical, personalized children's stories where each child becomes the hero of *The Adventure Compass* - a journey through enchanted locations before returning home. Our system uses template-based story generation with consistent quality and automated print-on-demand fulfillment.
+Little Hero Labs creates magical, personalized children's stories where each child becomes the hero of *Finding Our Inner Voice* — a journey through enchanted locations where they discover their inner strength. Our system uses template-based story generation with consistent quality and automated print-on-demand fulfillment.
 
 ## 🎯 **Current Status: Ready for n8n Handoff**
 
@@ -28,9 +28,9 @@ Little Hero Books creates magical, personalized children's stories where each ch
 ### 📋 **For n8n Developer**
 See **[N8N_HANDOFF_GUIDE.md](docs/N8N_HANDOFF_GUIDE.md)** for complete implementation instructions.
 
-### 🎨 **The Adventure Compass Story**
+### 🎨 **The Story — *Finding Our Inner Voice***
 
-Each book follows a magical journey where the child discovers a compass that guides them through:
+Each book follows a magical journey where the child discovers their own inner voice through:
 1. **Enchanted Forest** - Meeting friendly creatures
 2. **Tall Mountain** - Climbing with their animal companion  
 3. **Sparkling Sky** - Flying among clouds shaped like their favorite food
@@ -94,8 +94,8 @@ npm run dev:templates # Template system only
 ## 📊 **Technical Specifications**
 
 - **Book Format**: 8.5×8.5 softcover, 16 pages (14 interior + covers)
-- **Target Age**: 3-7 years old
+- **Target Age**: 0-7 years old
 - **Personalization**: Name, appearance, favorite things, hometown, dedication
 - **Art Style**: Watercolor illustrations with character overlays
 - **Shipping**: US-only initially
-- **Price Strategy**: $19.99-$29.99 (introductory to standard pricing)
+- **Price Strategy**: $29.99 launch (promo $24.99)

@@ -4,7 +4,7 @@ Authoritative list of customer-facing personalization fields and allowed values.
 
 ## Required Fields
 - **Child's Name**: text, 1–20 chars (letters/spaces/hyphens)
-- **Age**: 3–8 (UI may show 3–7 in some docs; normalize to 3–8)
+- **Age**: 0–7
 - **Hair Style** (from assets/hair-references):
   - afro, bun, curly-long, curly-medium, curly-short, pigtails, pom-poms, ponytail, side-part, straight-long, straight-medium, straight-short                   
 - **Hair Color** (8 colors - tested and working in n8n workflows):
@@ -43,9 +43,7 @@ Authoritative list of customer-facing personalization fields and allowed values.
 - **Clothing Style**:
   - Orders (labels): "t-shirt and shorts", "dress"
   - Canonical (internal): tee-shorts, dress
-- **Favorite Food**: free text (≤30 chars)
 - **Hometown**: free text (default "Adventure City")
-- **Occasion**: birthday, holiday, milestone, general
 - **Dedication**: free text (≤200–500 chars; UI cap 200 recommended)
 - **Pronouns**: she/her, he/him, they/them (default they/them)
 
@@ -70,10 +68,8 @@ Authoritative list of customer-facing personalization fields and allowed values.
 
 ## Defaults
 - favorite_animal: dog
-- favorite_food: pizza
 - favorite_color: blue
 - hometown: Adventure City
-- occasion: general
 - pronouns: they/them
 
 ## Amazon Custom Surface Terminology

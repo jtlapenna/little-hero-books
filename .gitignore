@@ -156,3 +156,7 @@ amazon/amazon-response-text.txt
 
 # Live n8n cloud exports often contain embedded credentials and signed URLs
 docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
+
+# Outreach state — pipeline.md, sent-log, drafts, do-not-contact, etc.
+# Static playbook + templates live in docs/marketing/outreach/lhl/ and stay version-controlled.
+/outreach-data/
