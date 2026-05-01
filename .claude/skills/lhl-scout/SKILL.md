@@ -44,7 +44,12 @@ Use **`claude-opus-4-7`** for this skill — judgment-heavy (per-candidate decis
 
 1. **Chrome MCP connection check:** call `mcp__Claude_in_Chrome__tabs_context_mcp` with `createIfEmpty: true`. This confirms the extension is connected and gives us a tab to work in. If it errors, surface the error to Jeff and stop — he likely needs to install/connect Claude in Chrome.
 
-2. **Confirm logged-in state:** navigate to `https://www.instagram.com/` (or whichever platform Jeff named). If the page shows a login/signup form rather than the feed, ask Jeff to log in and tell you when ready. Do NOT attempt to log in for him.
+2. **Confirm session mode** — ask Jeff which mode this session is:
+   - **Logged-out** (default, zero account risk): browser is logged out of Instagram. Discovery uses Google search → profile direct loads. Limited hashtag-feed access.
+   - **Logged-in (personal account)**: years-old personal account with trust history. Full IG-native discovery (hashtag feeds, suggested-for-you, comments).
+   - **Logged-in (LHL account)**: brand-new LHL account. **Default to NOT use this** unless the account has had 2+ weeks of organic warm-up activity. Risk of account flag.
+
+   Adjust the discovery flow per the mode (see Step 1 of the main loop).
 
 3. **Ask the scout target:** which hashtag(s), seed creator(s), or niche(s) for this session? Examples Jeff might give:
    - `#kidlit`
@@ -53,9 +58,9 @@ Use **`claude-opus-4-7`** for this skill — judgment-heavy (per-candidate decis
    - `#blackchildrensbooks` and `#multiculturalbooks`
    - `montessori toddler creators`
 
-4. **Set a session goal:** how many candidates is Jeff trying to add this session? Default: 10 approved rows or 45 minutes, whichever comes first.
+4. **Set a session goal:** how many candidates is Jeff trying to add this session? Default: 10 approved rows or 45 minutes, whichever comes first. **For first session in any new mode, start gentle: 5–8 candidates, ~20 min, single hashtag.**
 
-5. **Initialize TodoWrite** with the session plan: hashtags to cover, candidate count target, "review and commit at end".
+5. **Initialize TodoWrite** with the session plan: mode, hashtags to cover, candidate count target, "review and commit at end".
 
 ---
 
@@ -65,17 +70,41 @@ For each hashtag or seed source:
 
 ### Step 1 — Navigate to the discovery surface
 
+**Discovery flow depends on session mode (set in pre-flight):**
+
+#### Logged-out mode (default — zero risk)
+
+IG's hashtag explore pages and "suggested for you" panels typically require login in 2026. So we use Google as the discovery layer:
+
+**For a hashtag:**
+1. `navigate` to `https://www.google.com/search?q=site:instagram.com+%23[hashtag]&tbs=qdr:y` (last-year filter to skip stale results)
+2. `read_page` the SERP. Pull out instagram.com/[handle] URLs from the top results.
+3. Cross-reference with broader search: `[niche keywords] instagram` to find creators who don't surface from hashtag-only.
+4. Skip any handle already in `pipeline.md` or `do-not-contact.md`.
+
+**For a seed creator (find-similar workflow):**
+1. `navigate` to `https://www.instagram.com/[handle]/` (logged-out profile is mostly visible)
+2. Read their bio, recent posts, captions for any tagged collaborator handles.
+3. Search Google: `"@[handle]" instagram similar` or `instagram accounts like [handle]` — find aggregator articles or recent press features.
+4. Build candidate list from those.
+
+**Watch out for:** IG's "Sign up to see more" walls after a few clicks. If we hit one, finish the current candidate's data extraction quickly and move on rather than push through.
+
+#### Logged-in mode (personal or warmed-up LHL)
+
+Use IG's native discovery:
+
 **For a hashtag:**
 ```
 navigate https://www.instagram.com/explore/tags/[hashtag]/
 ```
-Wait for grid to load.
+Wait for grid to load. Pull the top 12 posts and their authors.
 
 **For a seed creator (find-similar workflow):**
 ```
 navigate https://www.instagram.com/[handle]/
 ```
-Once on their profile, scroll to the bottom of their visible feed, then click the "Suggested for you" or follow chain — Instagram's UI surfaces similar accounts there. (UI changes; if the suggested-for-you bar isn't visible, fall back to looking at who they follow + who follows them.)
+Once on their profile, look for the "Suggested for you" follow chain near the top of the profile UI. Click into 2–3 suggestions and add them to the candidate list. (If the suggested-for-you bar isn't visible, fall back to checking their tagged collaborators in recent posts.)
 
 ### Step 2 — Identify candidate creators on the surface
 
@@ -187,6 +216,7 @@ When session ends and Jeff approves the batch, append rows to `outreach-data/lhl
 ## Constraints
 
 - **Never log in for Jeff.** If a platform asks for credentials, surface to Jeff and stop until he handles it.
+- **Respect logged-out mode.** If the session started logged-out, don't navigate to URLs that would force a login (e.g., DM inbox, account settings). If IG presents a "Sign up" modal, close it (`Escape` key) and continue with the visible portion of the page; if the modal blocks the page entirely, finish that candidate and move on.
 - **Never DM, like, comment, or follow** during scouting. This is read-only intelligence-gathering. Pre-engagement (24h before DM outreach) is a separate manual step.
 - **Rate-pace navigation.** Wait for pages to load. Don't spam navigation actions — Instagram's anti-bot will flag rapid sequential profile-loads. Aim for 1 profile per 30+ seconds.
 - **No private accounts** unless Jeff has a specific reason (e.g., a known partner). Skip private profiles in the discovery flow.
