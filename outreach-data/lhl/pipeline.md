@@ -2,7 +2,7 @@
 
 Master record of every creator researched. Append rows; never delete. Update status in place.
 
-**Status flow:** `researched` → `scored` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
+**Status flow:** `researched` → `scored` → `scout-verified` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
 
 **90-day frequency cap:** No re-pitch within 90 days of last activity for any status of `sent`, `follow-up-sent`, `responded`, `negotiating`, `confirmed`. See `lhl-creator-pipeline` skill.
 
