@@ -62,7 +62,9 @@ Examples:
 
 Email is always the highest-confidence channel. If a creator's only channel is a DM, append `(verify DM is open before drafting)` to the Notes column. Multiple channels give us fallback options when one goes unanswered.
 
-**Status values:** `researched` → `scored` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
+**Status values:** `researched` → `scored` → `scout-verified` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
+
+`scout-verified` is set by the [`lhl-scout`](../lhl-scout/SKILL.md) skill when a creator was discovered or audited via a logged-in browser session. It indicates higher data fidelity than `scored` (real follower count, observed engagement, verified contact channels).
 
 Never delete pipeline rows. Update status. The history matters for the 90-day frequency cap.
 
