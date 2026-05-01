@@ -215,13 +215,15 @@ Add 10+ creators per session. Score all of them. Aim for **30+ candidates before
 
 ### Required for every draft
 
-- One specific real observation about the creator's content (no generic "I love your content!")
+- **Default opener: direct founder intro** ("I'm Jeff at Little Hero Labs..."). Specific-reference openers are an A/B variant only — do not default. See [`voice-guide.md`](../../../docs/marketing/outreach/lhl/voice-guide.md).
 - The campaign angle matched to their natural format (see angle table in `email-standard.md`)
-- The Wonderbly differentiation woven in lightly (custom characters, not pre-made)
-- Lead with **gifted book only**. No rate amounts. No bonus tiers.
+- The Wonderbly differentiation is an **A/B variant only**. Default: don't name competitors.
+- Lead with **gifted book only**. No rate amounts. No bonus tiers. **No offer mechanism. No partnership structure.** Specifics come only after the creator expresses interest *and* audience quality is internally confirmed.
 - Sign as **Jeff / Little Hero Labs**. No persona.
 - If a sample preview asset exists, include it. If not, offer to send one.
 - Each draft saved to `outreach-data/lhl/drafts/YYYY-MM-DD-[handle].md`.
+- **No em dashes anywhere.** Use periods, commas, parentheses, colons.
+- **Run [`humanizer`](../humanizer/SKILL.md) on every batch** before presenting to Jeff.
 
 ### Hook bank (campaign angles, not literal copy)
 
@@ -318,7 +320,7 @@ Log the Attribution link in pipeline.md as soon as created. Include in the campa
 
 **Mechanism:** Per-creator Amazon Attribution link + custom discount code (e.g., `JEFF15`). Pay via PayPal or Stripe transfer. No formal affiliate platform yet.
 
-**Never mention dollar amounts in initial outreach.** Always present the proposed tier to Jeff for approval before communicating numbers to the creator.
+**Never mention dollar amounts, mechanism, or partnership structure in initial outreach.** First message leads with the gifted book only. Specifics surface in a follow-up *after* the creator expresses interest **and** audience quality is internally confirmed. Always present proposed tiers to Jeff for approval before communicating numbers or mechanism to the creator.
 
 ---
 
