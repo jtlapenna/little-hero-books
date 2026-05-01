@@ -70,6 +70,48 @@ Never delete pipeline rows. Update status. The history matters for the 90-day fr
 
 ---
 
+## Priority ranking (used by R2 and `priority-queue.md`)
+
+When picking which creators to draft outreach for next, use this ranking algorithm. The `outreach-data/lhl/priority-queue.md` file is a derived view of `pipeline.md` using these rules — regenerate it when pipeline changes meaningfully (after each R1 fire, manual scout batch, or status update).
+
+### Sort criteria (apply in order)
+
+1. **Fit score** (descending). 19/20 before 18/20 before 17/20, etc. Anything below 12/20 is excluded by the skill rubric.
+
+2. **Within same score, contact readiness** (best to worst):
+   1. Direct email confirmed
+   2. Manager/agent email confirmed
+   3. Website contact form (high-trust if it's their professional site)
+   4. Substack inbox-reply
+   5. Verify-via-linktree (no email yet, but linktree exists to check)
+   6. DM-only
+
+3. **Within same score + readiness, tier** (best to worst):
+   1. Nano (2K–20K) and Micro (20K–150K) — no sign-off needed
+   2. Mid-tier (150K–500K) — Jeff sign-off required before any offer
+   3. Macro (500K+) — already excluded by rubric
+
+### Additional placement rules
+
+- **Mid-tier candidates** of any score → `Mid-tier sign-off pile` section, regardless of email readiness. R2 must not auto-draft for these. Each one waits for Jeff's per-candidate rate decision.
+- **Geo-concern candidates** (audience likely outside US-shipping product market) → moved down to `Footnotes / borderline / hold`, even if score is otherwise strong.
+- **Audience-misalignment candidates** (e.g., aspiring writers when we want buyer parents) → `Footnotes / borderline / hold`.
+- **Engagement-pod / fabricated-engagement flags** (e.g., following:followers ratio inverted) → flagged in Notes; usually held until manual verification.
+- **Already-pitched (90-day cap)** → excluded from the queue entirely. They re-enter only after the cap window passes or Jeff explicitly overrides.
+
+### Output sections (priority-queue.md format)
+
+- **First wave** — top scorers, email-confirmed, nano/micro tier. R2 drafts these by default each day.
+- **Second wave** — strong fits with one of: missing email (verify needed), contact-form-only, DM-only, or just-edge-of-nano. R2 drafts these only with explicit Jeff approval.
+- **Mid-tier sign-off pile** — held until Jeff approves rates per candidate.
+- **Footnotes / borderline / hold** — case-by-case; not in the standard drafting flow.
+
+### When R2 picks the daily batch
+
+R2 reads `priority-queue.md` (preferred) or `pipeline.md` (fallback, regenerating the ranking inline). It picks the **top N (5–10)** from First wave that haven't already been drafted, sent, or held. If First wave is exhausted, R2 stops drafting for the day and flags the supply gap to Jeff — it does NOT silently fall through to Second wave or mid-tier.
+
+---
+
 ## 90-day frequency cap (enforce always)
 
 Before drafting outreach for any creator, scan `pipeline.md` for an existing entry. If the creator has any status of `sent`, `follow-up-sent`, `responded`, `negotiating`, or `confirmed` within the last 90 days:
