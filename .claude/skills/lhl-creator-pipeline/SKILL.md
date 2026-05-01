@@ -48,7 +48,19 @@ outreach-data/lhl/
 
 | Handle | Platform | Followers | Avg Views | Niche | Fit Score | Tech Posture | Pre-Engaged | Contact Methods | Attribution Link | Offer Type | Status | Last Activity | Notes |
 
-**Contact Methods convention:** record **all** findable methods, semicolon-separated. Examples: `email: hello@x.com; IG DM: open; YouTube: yes`. Capture as many channels as the creator publicly exposes — email, IG DM availability, TikTok DM, YouTube channel email (clickable on About page), Substack reply, podcast inquiry email, website contact form, manager/agent email if listed. Multiple options give us fallback channels when one goes unanswered.
+**Contact Methods convention:** record **all findable channels**, semicolon-separated. Format: `<channel>: <handle/url>`. **Do NOT claim DM open/closed/restricted state** — that requires platform login the routine doesn't have. Just record the channel exists.
+
+Examples:
+- `email: hello@x.com (from contact page)`
+- `IG: @handle`
+- `TikTok: @handle`
+- `YouTube: @channel (email on About page)`
+- `Substack: handle.substack.com (subscriber-reply enabled)`
+- `Website contact form: example.com/contact`
+- `LinkedIn: linkedin.com/in/handle`
+- `Manager: manager@agency.com`
+
+Email is always the highest-confidence channel. If a creator's only channel is a DM, append `(verify DM is open before drafting)` to the Notes column. Multiple channels give us fallback options when one goes unanswered.
 
 **Status values:** `researched` → `scored` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
 
@@ -201,6 +213,36 @@ For creators contacted via Instagram or TikTok DM:
 ## Daily discovery target
 
 Add 10+ creators per session. Score all of them. Aim for **30+ candidates before the first outreach wave** so Jeff can pick the strongest 20 for week one.
+
+---
+
+## Discovery fidelity
+
+The skill has `WebSearch` and `WebFetch` but **no direct platform API access**. It can search Google/general web and fetch + parse public pages, but **cannot log into Instagram/TikTok/YouTube**. This shapes what data is reliable vs approximate.
+
+### High-confidence (record verbatim)
+- Handle / channel name
+- Public email (from contact pages, review policies, footers)
+- Website URL
+- Niche / content focus (from About bios, content samples)
+- Professional bio claims (librarian, author, educator) when stated on the creator's own site
+
+### Approximate (note source in parens)
+- **Follower / subscriber count** — almost always from a listicle, press mention, or the creator's own marketing copy. Could be stale by 20%+ on either side. **Always note source**: `71K (her About page, 2025)` or `~120K (Brightly listicle Mar 2024)`. If you can't find a verifiable source, skip the candidate.
+
+### Don't fabricate (leave as `—` if not verifiable)
+- Average views / engagement metrics — the routine cannot see these
+- Save rate, comment quality, hold rate — same
+- DM open/closed/restricted state — same
+
+### Source preference for discovery
+- ✅ **Primary sources first**: the creator's own website, official Substack profile, official YouTube channel, podcast show notes, LinkedIn profile.
+- ✅ **Recent press features**: published in the last 12 months.
+- ⚠️ **Listicles**: useful as pointers to find candidates, but verify everything on primary sources before recording. Listicles get stale fast.
+- ❌ **Aggregator-only**: never record a creator who only shows up in one listicle and has no findable primary site.
+
+### Cross-verification rule
+Prefer creators who appear in 2+ independent sources (e.g., listicle + their own website, or press feature + podcast directory). If a candidate appears in only one listicle and no primary source, **skip them** — too low-fidelity to invest outreach in.
 
 ---
 
