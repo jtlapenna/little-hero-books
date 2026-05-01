@@ -46,7 +46,9 @@ outreach-data/lhl/
 
 ### `pipeline.md` schema
 
-| Handle | Platform | Followers | Avg Views | Niche | Fit Score | Tech Posture | Pre-Engaged | Contact Method | Attribution Link | Offer Type | Status | Last Activity | Notes |
+| Handle | Platform | Followers | Avg Views | Niche | Fit Score | Tech Posture | Pre-Engaged | Contact Methods | Attribution Link | Offer Type | Status | Last Activity | Notes |
+
+**Contact Methods convention:** record **all** findable methods, semicolon-separated. Examples: `email: hello@x.com; IG DM: open; YouTube: yes`. Capture as many channels as the creator publicly exposes — email, IG DM availability, TikTok DM, YouTube channel email (clickable on About page), Substack reply, podcast inquiry email, website contact form, manager/agent email if listed. Multiple options give us fallback channels when one goes unanswered.
 
 **Status values:** `researched` → `scored` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
 
