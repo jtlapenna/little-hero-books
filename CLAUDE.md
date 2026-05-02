@@ -51,7 +51,7 @@ Source of truth: [docs/new-planning/Customization_Source_of_Truth.md](docs/new-p
 
 This is the genuine differentiator. Use it when explaining the product:
 
-> Wonderbly lets parents pick from pre-made characters. We let them create their own. Your child's actual hair style, skin tone, color preference, and animal sidekick — that's the hero on every page. Soon: a growing library of stories with the option to bring your child's already-created character into each new book.
+> Wonderbly lets parents pick from pre-made characters. We let them create their own. Your child's actual hair style, skin tone, and color preference are the hero on every page. Their favorite animal joins them for the final reveal. Soon: a growing library of stories with the option to bring your child's already-created character into each new book.
 
 ---
 

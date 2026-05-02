@@ -16,7 +16,7 @@ Reflects the locked voice. See [`voice-guide.md`](../voice-guide.md) for princip
 ```
 Hi [Name], Jeff here, founder of Little Hero Labs.
 
-We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their animal companion at their side.
+We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
 
 We're running partner campaigns this quarter and looking for a few more creators. Would you be open to a gifted collab? I'd send you a personalized copy for your family, no commitment beyond your honest reaction.
 
@@ -84,7 +84,7 @@ When you need to adjust the angle to match how they actually create (instead of 
 | Format | Adjusted middle line |
 |---|---|
 | Read-aloud / storytime | "Could be a natural read-along. Your kid sees themselves on every spread." |
-| Unboxing / reaction | "The first reaction when they see their own hair and animal sidekick on the cover is the moment." |
+| Unboxing / reaction | "The first reaction when they see themselves on the cover is the moment, especially when their favorite animal shows up later in the story." |
 | Gift guide | "Genuinely the best personalized gift I've found for this age." |
 | Amazon finds | "It's on Amazon Custom. Your kid is literally the hero of the story." |
 | Montessori / educational | "The story is about a child finding their own inner voice. Feels aligned with what your audience already cares about." |

@@ -70,7 +70,7 @@ The repo folder is `little-hero-books` (legacy). The actual company is **Little 
 
 This is the genuine competitive edge. Bake this into pitch templates:
 
-> **Wonderbly lets parents pick from pre-made characters. We let them create their own.** Your child's actual hair style, skin tone, color preference, and animal sidekick — that's the hero on every page. And soon: a growing library of stories, with the option to bring your child's already-created character into each new book.
+> **Wonderbly lets parents pick from pre-made characters. We let them create their own.** Your child's actual hair style, skin tone, and color preference are the hero on every page. Their favorite animal joins them for the final reveal. And soon: a growing library of stories, with the option to bring your child's already-created character into each new book.
 
 Use this language (or shorter variants) when explaining what makes LHL distinct in pitches. It answers the implicit "why not just Wonderbly?" question without naming the competitor unless the creator brings it up.
 

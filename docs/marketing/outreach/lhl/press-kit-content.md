@@ -22,7 +22,7 @@ This is the **content draft** for a polished one-pager PDF press kit. Once conte
 ### Story block (middle third)
 **Heading:** What we make
 
-> Little Hero Labs creates personalized children's picture books where the child is the actual protagonist. Their hair style, skin tone, favorite color, and animal companion all show up across a 16-page magical-journey story called *Finding Our Inner Voice*. Unlike most personalized books on the market, parents create their own character rather than picking from pre-made faces. The result is a keepsake that genuinely feels like the child's, illustrated to look like them on every page.
+> Little Hero Labs creates personalized children's picture books where the child is the actual protagonist. Their hair style, skin tone, and favorite color show up across a 16-page magical-journey story called *Finding Our Inner Voice*, with their favorite animal joining for the final reveal. Unlike most personalized books on the market, parents create their own character rather than picking from pre-made faces. The result is a keepsake that genuinely feels like the child's, illustrated to look like them on every page.
 
 **Heading:** What makes it different
 

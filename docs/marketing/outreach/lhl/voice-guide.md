@@ -61,7 +61,7 @@ Use these as the default. They lead with who we are and what we have. Don't say 
 ```
 Hi [Name],
 
-I'm Jeff, founder of Little Hero Labs. We make personalized children's books where your child becomes the hero of the story, illustrated to look like them, with their animal companion at their side.
+I'm Jeff, founder of Little Hero Labs. We make personalized children's books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
 ```
 
 ```
@@ -73,7 +73,7 @@ Jeff here from Little Hero Labs. We make personalized picture books for ages 0â€
 ```
 Hi [Name],
 
-I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of a magical-journey story, illustrated to look like them, with their animal companion at their side.
+I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of a magical-journey story, illustrated to look like them, with their favorite animal joining for the final reveal.
 ```
 
 ## Specific-reference opener (A/B variant only, don't default)
@@ -96,7 +96,7 @@ Use these. Vary across drafts so a recipient seeing two different pitches doesn'
 > "Your child becomes the hero of the story, illustrated to look like them."
 > "It's a personalized picture book where your kid becomes the lead character."
 > "A keepsake picture book starring your child, illustrated to look like them."
-> "Your child is literally the protagonist. Their look, their animal companion, their hometown all show up across the story."
+> "Your child is literally the protagonist. Their look and their hometown show up across the story, and their favorite animal joins for the final reveal."
 
 ## Standard partnership/offer mention
 
