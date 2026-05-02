@@ -69,7 +69,17 @@ R2 appends one row per drafted variant per pass. Jeff appends rows for any manua
 
 | Date | `variant_id` | Reviewer | Status | Notes |
 |---|---|---|---|---|
-| _none yet — R2 deployment will populate first reviews_ | | | | |
+| 2026-05-02 | lhl-librarian-kidlit-curator-v1 | R2 | passed | Batch: @happily.ever.elephants. All checklist items pass. Opener: default founder-direct. Outcome-framed. 145 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism, or animal-throughout claims. Format reference ("school families") verifiable from pipeline. Preview URL present. |
+| 2026-05-02 | lhl-librarian-kidlit-curator-v1 | R2 | passed | Batch: thispicturebooklife. All checklist items pass. Opener: "I'm Jeff at..." variant. Outcome-framed. 145 words. Middle reference ("alongside your picks on connection") verifiable from pipeline blog notes. Preview URL present. |
+| 2026-05-02 | lhl-diverse-representation-v1 | R2 | passed | Batch: @biracialbookworms. All checklist items pass. Opener: "I'm Jeff from..." variant. 165 words (within 180 ceiling). Default comparison framing (no Wonderbly named). Advocacy reference verifiable from handle + stated bio. Preview URL present. |
+| 2026-05-02 | lhl-read-aloud-storytime-v1 | R2 | passed | Batch: @ryan_and_craig. All checklist items pass. Opener: "Jeff here from..." variant. 140 words. First-reaction framing hedged ("tends to be"). Animal placed at final pages, not throughout. Dual-creator offer adapted. Preview URL present. |
+| 2026-05-02 | lhl-literacy-educator-v1 | R2 | passed | Batch: @raisingreaderstobecomeleaders. All checklist items pass. Opener: "I'm Jeff, founder..." 145 words. "Books By Age" reference scout-verified on 2026-05-01. Themes accurate per CLAUDE.md. No curriculum-alignment claims. Preview URL present. |
+| 2026-05-02 | lhl-librarian-kidlit-curator-v1 | R2 | passed | Batch: @picturebookplaydate. All checklist items pass. Opener: "Jeff here from..." (varied from other librarian-kidlit drafts in batch). 130 words. Daily-recs reference verifiable from pipeline. Preview URL present. |
+| 2026-05-02 | lhl-literacy-educator-v1 | R2 | passed | Batch: @growingbookbybook. All checklist items pass. Opener: "I'm Jeff at..." (varied from other literacy-educator draft in batch). 140 words. Audience description verifiable from pipeline notes. Themes accurate. Preview URL present. |
+| 2026-05-02 | lhl-librarian-kidlit-curator-v1 | R2 (humanizer) | flagged | thispicturebooklife: "Their favorite animal joins for the final reveal" repeated verbatim in paragraphs 1 and 2. Also: "Your child is illustrated to look like them on every page" is grammatically awkward mid-paragraph. Draft downgraded to `drafted`. Fix: remove animal reveal from opener or rephrase middle. |
+| 2026-05-02 | lhl-diverse-representation-v1 | R2 (humanizer) | flagged | @biracialbookworms: Animal-reveal sentence repeated across paragraphs 1 and 2. Root cause is a template collision: standard product-description opener + diverse-representation angle both carry the animal reveal. Draft downgraded to `drafted`. Fix: end opener after "illustrated to look like them" and let middle paragraph carry the animal reveal exclusively. |
+| 2026-05-02 | lhl-librarian-kidlit-curator-v1 | R2 (humanizer) | flagged | @picturebookplaydate: Same animal-reveal repetition as thispicturebooklife. Draft downgraded to `drafted`. Fix: same as above. |
+| 2026-05-02 | — | R2 (humanizer) | passed | Batch summary: No em dashes, no AI vocabulary, no curly quotes detected across all 7 drafts. 4 opener variants used. 3 drafts downgraded post-humanizer due to repeated animal-reveal sentence. 4 drafts remain copy-reviewed. |
 
 ---
 
