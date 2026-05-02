@@ -1,13 +1,29 @@
 # LHL Responses Log
 
-Every reply received from a creator. Append, never delete. Each entry includes the full reply, sentiment classification, and the next step that was drafted.
+Every reply received from a creator. Append, never delete. Each entry includes the full reply, sentiment classification, the originating send (via `attempt_id`), and the next step that was drafted.
 
-Format:
+Linking each response back to its `attempt_id` is what lets us learn which angles + variants are working. When you log a reply, find the matching send in `sent-log.md` and copy the `attempt_id` and `variant_id` over.
+
+## Sentiment categories
+
+- `positive` — interested, wants to discuss, asking for the book
+- `asking-rates` — wants to know compensation before agreeing
+- `requesting-info` — wants more about the product, the campaign, the company
+- `neutral` — acknowledged, no clear yes/no
+- `declined` — polite no
+- `bounce` — email hard-bounced (route handle to `do-not-contact.md` with reason `bounce`)
+- `opt_out` — explicit "remove me" / unsubscribe (route to `do-not-contact.md` with reason `opt_out`)
+- `negative` — hostile or complaint (route to `do-not-contact.md` with reason `hostile`)
+
+## Format
 
 ```
 ## YYYY-MM-DD — @[handle] — [Sentiment]
 
-**Sentiment:** [positive / asking-rates / requesting-info / neutral / declined]
+**attempt_id:** att-YYYY-MM-DD-NNN  (from sent-log.md)
+**variant_id:** lhl-{angle_tag}-v{N}  (from message-library.md)
+**angle_tag:** {angle_tag}
+**Sentiment:** [positive / asking-rates / requesting-info / neutral / declined / bounce / opt_out / negative]
 **Reply text:** [paste verbatim]
 **Drafted next step:** [path to draft file or summary]
 **Pipeline status updated to:** [new status]

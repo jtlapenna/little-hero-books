@@ -24,6 +24,10 @@ This is separate from (and stricter than) the 90-day frequency cap in `pipeline.
 - **partner** — existing partner via another channel (not appropriate to cold-pitch)
 - **privacy-risk** — content shows child-identifying details (school, address, full name) — too risky for partnership use rights
 - **out-of-scope** — wrong audience / wrong demographic / outside geo
+- **bounce** — email bounced (hard bounce, address invalid)
+- **opt_out** — explicit unsubscribe / "remove me" / "do not contact me again"
+- **wrong_contact** — email or DM reached the wrong person (e.g., manager who didn't appreciate the pitch)
+- **brand_misalignment** — discovered post-pitch that the creator's content is incompatible with LHL brand
 - **other** — describe in the entry
 
 ---

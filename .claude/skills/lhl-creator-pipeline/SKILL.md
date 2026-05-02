@@ -62,7 +62,15 @@ Examples:
 
 Email is always the highest-confidence channel. If a creator's only channel is a DM, append `(verify DM is open before drafting)` to the Notes column. Multiple channels give us fallback options when one goes unanswered.
 
-**Status values:** `researched` → `scored` → `scout-verified` → `pre-engaged` → `drafted` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
+**Status values:** `researched` → `scored` → `scout-verified` → `pre-engaged` → `drafted` → `copy-reviewed` → `approved` → `sent` → `follow-up-sent` → `responded` → `negotiating` → `confirmed` → `declined` → `no-response` → `do-not-contact`
+
+The middle three statuses (`drafted` → `copy-reviewed` → `approved`) are the new R2 review gate:
+
+- `drafted` — R2 has produced the draft text into `outreach-data/lhl/drafts/{YYYY-MM-DD}-{handle}.md` but has not yet self-checked.
+- `copy-reviewed` — R2 has self-checked the draft against `voice-guide.md`, `anti-patterns.md`, and the checklist in `outreach-data/lhl/copy-review.md`. No red flags found. Logged the pass in `copy-review.md`.
+- `approved` — Jeff has manually reviewed and approved the draft for sending. Only Jeff advances `copy-reviewed` → `approved`. R2 must NOT auto-advance.
+
+If R2 finds a red flag during self-review, the status stays at `drafted`, the draft is flagged in `copy-review.md`, and the daily R2 summary surfaces it for Jeff.
 
 `scout-verified` is set by the [`lhl-scout`](../lhl-scout/SKILL.md) skill when a creator was discovered or audited via a logged-in browser session. It indicates higher data fidelity than `scored` (real follower count, observed engagement, verified contact channels).
 
@@ -303,15 +311,42 @@ Prefer creators who appear in 2+ independent sources (e.g., listicle + their own
 
 ### Required for every draft
 
+- **Pick a named angle** from [`outreach-angles.md`](../../../docs/marketing/outreach/lhl/outreach-angles.md). One of: `librarian-kidlit-curator`, `literacy-educator`, `diverse-representation`, `read-aloud-storytime`, `gift-curator`. If no angle matches confidently, flag the creator for Jeff. Don't invent a new angle on the fly.
 - **Default opener: direct founder intro** ("I'm Jeff at Little Hero Labs..."). Specific-reference openers are an A/B variant only — do not default. See [`voice-guide.md`](../../../docs/marketing/outreach/lhl/voice-guide.md).
-- The campaign angle matched to their natural format (see angle table in `email-standard.md`)
+- The campaign angle's body framing (matches the chosen `angle_tag`); the channel-format tweaks come from the angle tables in `email-standard.md` and `dm-instagram.md`.
 - The Wonderbly differentiation is an **A/B variant only**. Default: don't name competitors.
 - Lead with **gifted book only**. No rate amounts. No bonus tiers. **No offer mechanism. No partnership structure.** Specifics come only after the creator expresses interest *and* audience quality is internally confirmed.
 - Sign as **Jeff / Little Hero Labs**. No persona.
-- If a sample preview asset exists, include it. If not, offer to send one.
-- Each draft saved to `outreach-data/lhl/drafts/YYYY-MM-DD-[handle].md`.
+- Include the live preview URL: `https://www.littleherolabs.com/preview` (full URL in emails; `littleherolabs.com/preview` for DMs).
+- Each draft saved to `outreach-data/lhl/drafts/YYYY-MM-DD-[handle].md` with required frontmatter (see below).
+- Each draft is also registered in [`message-library.md`](../../../outreach-data/lhl/message-library.md) (one variant entry per unique angle+channel+revision combo) with a per-variant file at `outreach-data/lhl/message-variants/{variant_id}.md`.
+- After producing the draft, run the **copy-review checklist** from [`copy-review.md`](../../../outreach-data/lhl/copy-review.md). If clean, advance the per-creator pipeline status from `drafted` → `copy-reviewed` and log the pass in `copy-review.md`. If flagged, status stays `drafted` and the flag is surfaced in the R2 summary.
 - **No em dashes anywhere.** Use periods, commas, parentheses, colons.
 - **Run [`humanizer`](../humanizer/SKILL.md) on every batch** before presenting to Jeff.
+
+### Required draft frontmatter
+
+Every per-creator draft file starts with this YAML block:
+
+```
+---
+handle: '@handle'
+platform: Instagram | TikTok | Substack | Web | etc.
+channel: email | dm-instagram | dm-tiktok | dm-substack
+contact: email@example.com  # or @handle for DMs
+attempt_id: ''  # filled in by Jeff at send time, not by R2
+variant_id: lhl-{angle_tag}-v{N}  # from message-library.md
+angle_tag: {angle_tag}  # from outreach-angles.md
+score: 18/20
+tier: nano | micro | mid
+created: YYYY-MM-DD
+status: drafted | copy-reviewed | approved | sent
+copy_review_status: pending | passed | passed_with_notes | flagged | rejected
+copy_review_notes: ''
+---
+```
+
+The body that follows is the per-creator pitch text (subject + body for email; just body for DMs).
 
 ### Hook bank (campaign angles, not literal copy)
 
