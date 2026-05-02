@@ -158,6 +158,37 @@ async function auditLog(entry: {
   }
 }
 
+async function hasRecentD2CShippedEmailLog(params: {
+  orderId: string;
+  recipient: string;
+  shippedAt?: string | null;
+}): Promise<boolean> {
+  let query = supabase
+    .from('notification_logs')
+    .select('id')
+    .eq('order_id', params.orderId)
+    .eq('notification_type', 'email')
+    .eq('status', 'sent')
+    .eq('recipient', params.recipient);
+
+  if (params.shippedAt) {
+    const parsed = new Date(params.shippedAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      parsed.setMinutes(parsed.getMinutes() - 5);
+      query = query.gte('created_at', parsed.toISOString());
+    }
+  } else {
+    query = query.ilike('error_message', '%emailType=d2c_shipped%');
+  }
+
+  const { data, error } = await query.limit(1);
+  if (error) {
+    console.warn('[LULU WEBHOOK] D2C shipped email idempotency lookup failed:', error.message);
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
 export async function POST(request: NextRequest) {
   let printJobId: string | null = null;
   let statusName: string | null = null;
@@ -349,37 +380,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // D2C shipped email: one per D2C order row with customer_email
-    if (statusName === 'SHIPPED' || statusName === 'DELIVERED') {
+    // D2C shipped email: one per D2C order row with customer_email.
+    // Do not send this for DELIVERED. If we missed the SHIPPED event, a late
+    // "on its way" email after delivery is worse than no shipped email.
+    if (statusName === 'SHIPPED') {
       for (const ord of orderList) {
         if ((ord.platform ?? 'amazon') !== 'd2c' || !ord.customer_email?.trim()) continue;
         const orderIdForLog = ord.order_id ?? ord.orderId ?? String(ord.id);
-        const { data: existingSent } = await supabase
-          .from('notification_logs')
-          .select('id')
-          .eq('order_id', String(orderIdForLog))
-          .eq('notification_type', 'd2c_shipped_email')
-          .eq('status', 'sent')
-          .maybeSingle();
+        const recipient = ord.customer_email.trim();
+        const existingSent = await hasRecentD2CShippedEmailLog({
+          orderId: String(orderIdForLog),
+          recipient,
+          shippedAt: ord.shipped_at ?? null,
+        });
         if (existingSent) continue;
         try {
           const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
           const childName = ord.character_specs?.childName ?? ord.character_specs?.child_name ?? undefined;
           const result = await sendD2CShippedEmail({
-            to: ord.customer_email.trim(),
+            to: recipient,
             childName: childName ?? undefined,
             trackingUrl: shippingTrackingUrl ?? undefined,
             trackingNumber: shippingTrackingNumber ?? undefined,
             carrier: shippingCarrier ?? undefined,
             orderId: orderIdForLog,
-          });
-          await supabase.from('notification_logs').insert({
-            order_id: String(orderIdForLog),
-            notification_type: 'd2c_shipped_email',
-            status: result.success ? 'sent' : 'failed',
-            recipient: ord.customer_email.trim(),
-            error_message: result.error ?? null,
-            sent_at: result.success ? new Date().toISOString() : null,
           });
           if (result.success) console.log(`[LULU WEBHOOK] D2C shipped email sent for order ${orderIdForLog}`);
           else console.warn(`[LULU WEBHOOK] D2C shipped email failed for ${orderIdForLog}:`, result.error);

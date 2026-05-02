@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { LULU_TO_ORDER_STATUS } from '@/lib/lulu-status-map';
+import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
 import {
   getPerBookOrderId,
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
       const TIME_BUDGET_MS = 10_000;
       const { data: inProdOrders } = await supabase
         .from('orders')
-        .select('id,amazon_order_id,lulu_job_id,lulu_status,platform,product_info,error_type')
+        .select('id,orderId,amazon_order_id,lulu_job_id,lulu_status,platform,product_info,error_type,shipped_at,delivered_at,customer_email,character_specs')
         .not('lulu_job_id', 'is', null)
         .in('lulu_status', ['IN_PRODUCTION', 'SHIPPED'])
         .is('shipped_at', null)
@@ -238,6 +238,11 @@ export async function GET(request: NextRequest) {
               const sd = await res.json();
               const name = sd.name || sd.status || null;
               if (name !== 'SHIPPED' && name !== 'DELIVERED') continue;
+              const changedAt = typeof sd.changed === 'string'
+                ? sd.changed
+                : typeof sd.status?.changed === 'string'
+                  ? sd.status.changed
+                  : null;
 
               // Extract tracking using the nested messages pattern
               const items = sd.line_item_statuses || [];
@@ -249,29 +254,15 @@ export async function GET(request: NextRequest) {
               const cr = msgs.CARRIER_NAME || msgs.carrier_name || first?.CARRIER_NAME || first?.carrier_name || first?.carrier || null;
 
               const nowIso = new Date().toISOString();
-              const updates: Record<string, any> = {
-                lulu_status: name,
-                // IMPORTANT: only set shipped_at when we see SHIPPED (never overwrite it on DELIVERED).
-                ...(name === 'SHIPPED' ? { shipped_at: nowIso, delivered_at: nowIso } : {}),
-                ...(name === 'DELIVERED'
-                  ? {
-                      delivered_at: nowIso,
-                      lifecycle_status: 'recently_delivered',
-                      assumed_delivered_at: nowIso,
-                    }
-                  : {}),
-                print_fulfillment_finished_at: nowIso,
-                updated_at: nowIso,
-                status: LULU_TO_ORDER_STATUS[name] ?? 'pending_print',
-                workflow_step: 'done',
-                execution_status: 'done',
-                ...(o.error_type === 'workflow_timeout'
-                  ? { error_type: null, error_message: null }
-                  : {}),
-              };
-              if (tn) updates.tracking_number = tn;
-              if (tu) updates.tracking_url = tu;
-              if (cr) updates.carrier = cr;
+              const updates = buildLuluOrderUpdate({
+                statusName: String(name),
+                order: o,
+                changedAt,
+                trackingNumber: tn,
+                trackingUrl: tu,
+                carrier: cr,
+                now: nowIso,
+              });
 
               const { error: ue } = await supabase.from('orders').update(updates).eq('id', o.id);
               if (ue) { luluPollSummary.errors++; continue; }
@@ -287,6 +278,20 @@ export async function GET(request: NextRequest) {
                   await supabase.from('notification_logs').insert({ order_id: String(orderId), notification_type: 'amazon_confirm_shipment', status: r.success ? 'sent' : 'failed', recipient: String(orderId), error_message: r.error ?? null, sent_at: r.success ? nowIso : null });
                   if (r.success) luluPollSummary.confirmed++;
                 }
+              }
+
+              if (name === 'SHIPPED' && (o.platform ?? 'amazon') === 'd2c' && o.customer_email?.trim()) {
+                const orderIdForLog = o.order_id ?? o.orderId ?? String(o.id);
+                const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
+                const childName = o.character_specs?.childName ?? o.character_specs?.child_name ?? undefined;
+                await sendD2CShippedEmail({
+                  to: o.customer_email.trim(),
+                  childName,
+                  trackingUrl: tu ?? undefined,
+                  trackingNumber: tn ?? undefined,
+                  carrier: cr ?? undefined,
+                  orderId: String(orderIdForLog),
+                });
               }
             } catch (pollErr: any) {
               luluPollSummary.errors++;

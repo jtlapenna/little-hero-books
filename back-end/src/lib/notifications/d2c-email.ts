@@ -75,14 +75,20 @@ async function logNotification(params: {
   status: 'sent' | 'failed';
   errorMessage?: string | null;
   messageId?: string | null;
+  emailType?: string | null;
 }): Promise<void> {
   const now = new Date().toISOString();
+  const sentMessage = [
+    params.emailType ? `emailType=${params.emailType}` : null,
+    params.messageId ? `messageId=${params.messageId}` : null,
+  ].filter(Boolean).join('; ') || null;
+
   await supabase.from('notification_logs').insert({
     order_id: params.orderId,
     notification_type: 'email',
     status: params.status,
     recipient: params.recipient,
-    error_message: params.status === 'sent' ? (params.messageId ? `messageId=${params.messageId}` : null) : params.errorMessage,
+    error_message: params.status === 'sent' ? sentMessage : params.errorMessage,
     sent_at: params.status === 'sent' ? now : null,
     created_at: now,
   });
@@ -567,7 +573,12 @@ export async function sendD2CPrintSubmittedEmail(
 
     const messageId = id ?? undefined;
     if (params.orderId) {
-      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'sent', messageId: messageId ?? null });
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'sent',
+        messageId: messageId ?? null,
+      });
     }
     return { success: true, messageId };
   } catch (err: unknown) {
@@ -653,7 +664,13 @@ export async function sendD2CShippedEmail(
 
     const messageId = id ?? undefined;
     if (params.orderId) {
-      await logNotification({ orderId: params.orderId, recipient: params.to, status: 'sent', messageId: messageId ?? null });
+      await logNotification({
+        orderId: params.orderId,
+        recipient: params.to,
+        status: 'sent',
+        messageId: messageId ?? null,
+        emailType: 'd2c_shipped',
+      });
     }
     return { success: true, messageId };
   } catch (err: unknown) {
