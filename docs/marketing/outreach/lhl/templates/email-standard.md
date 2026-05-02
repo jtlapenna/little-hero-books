@@ -8,7 +8,7 @@ Reflects the locked voice. See [`voice-guide.md`](../voice-guide.md) and [`anti-
 - Aim 100–180 words. Long enough to be clear, short enough to actually get read.
 - **Default opener:** direct founder intro. Specific-reference openers go in A/B variants only.
 - Sign as **Jeff / Little Hero Labs** with the URL.
-- Include the sample-preview link if one exists (asset phase output). Without a preview, mention "happy to send a preview" instead.
+- Include the sample-preview link: `https://www.littleherolabs.com/preview` (one-page visual walkthrough, noindex, dedicated for outreach).
 - Run [humanizer](../../../../.claude/skills/humanizer/SKILL.md) on every batch before Jeff reviews.
 - No em dashes. Periods, commas, parentheses, colons only.
 - Paragraph break every 1–3 sentences.
@@ -34,11 +34,7 @@ We're running partner campaigns this quarter and looking for a few more creators
 
 If you like the book, I'll share more about our campaign offers.
 
-[If sample preview asset exists:]
-You can see what the book looks like here: [Sample preview URL]
-
-[If no preview yet:]
-Happy to send a preview first if it helps you decide.
+You can see what the book looks like here: https://www.littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com
@@ -55,9 +51,9 @@ I'm Jeff at Little Hero Labs. We make personalized picture books where your chil
 
 We're running partner campaigns this quarter and looking for a few editorial mentions. If you're putting together gift-focused roundups (birthday, holiday, baby shower), I'd love to be considered.
 
-Happy to make a personalized copy for your child first so you can see it before deciding. If you like the book, I'll share more about our campaign offers.
+You can see what the book looks like here: https://www.littleherolabs.com/preview
 
-No expectation either way.
+If you like what you see, I'll share more about our campaign offers. No expectation either way.
 
 Jeff
 Little Hero Labs | littleherolabs.com
@@ -80,7 +76,7 @@ We're running partner campaigns this quarter and looking for a few more creators
 
 If you like the book, I'll share more about our campaign offers.
 
-Happy to send a preview first if helpful.
+You can see what the book looks like here: https://www.littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com
@@ -99,7 +95,7 @@ We're running partner campaigns this quarter and looking for a few more creators
 
 If you like the book, I'll share more about our campaign offers.
 
-Happy to send a preview first if helpful.
+You can see what the book looks like here: https://www.littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com

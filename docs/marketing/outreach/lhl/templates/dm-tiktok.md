@@ -20,7 +20,7 @@ We make personalized kids' books where your child becomes the hero of the story,
 
 We're running partner campaigns this quarter. Open to a gifted collab? I'd send a personalized copy for your family, no commitment beyond your honest reaction.
 
-If you like the book, I'll share more about our campaign offers.
+If you like the book, I'll share more about our campaign offers. Quick walkthrough: littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com
@@ -35,7 +35,7 @@ Hi [Name], your [specific recent thing] caught my attention. I'm Jeff at Little 
 
 We make personalized kids' books where your child becomes the hero of the story, illustrated to look like them. Running partner campaigns this quarter, looking for a few more creators. Open to a gifted collab? I'd send a personalized copy, no commitment beyond your honest reaction.
 
-If you like the book, I'll share more about our campaign offers.
+If you like the book, I'll share more about our campaign offers. Quick walkthrough: littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com
@@ -48,7 +48,7 @@ Hi [Name], Jeff here from Little Hero Labs. We make personalized kids' books, bu
 
 Running partner campaigns this quarter, looking for a few more creators. Open to a gifted collab? I'd send a personalized copy, no commitment beyond your honest reaction.
 
-If you like the book, I'll share more about our campaign offers.
+If you like the book, I'll share more about our campaign offers. Quick walkthrough: littleherolabs.com/preview
 
 Jeff
 Little Hero Labs | littleherolabs.com

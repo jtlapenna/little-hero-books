@@ -97,3 +97,4 @@ Pick 3–4 interior spreads that show the journey arc and personalization variet
 | Date | Change |
 |---|---|
 | 2026-04-30 | Initial outline. Awaiting Jeff to select renders + design pass. |
+| 2026-05-01 | Shipped as a custom Astro page (`/preview`) instead of a PDF. Live at https://www.littleherolabs.com/preview, noindex, dedicated for outreach. The PDF approach above is no longer the plan — the web page covers the same surface area with better OG tags and brand consistency. The PDF version stays a Cycle 2 nice-to-have if creators ask for a downloadable. |

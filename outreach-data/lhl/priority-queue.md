@@ -2,6 +2,8 @@
 
 **Generated:** 2026-05-01 from `pipeline.md` (43 creators)
 
+**Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL. R2 is now unblocked.
+
 This is a **derived view** of `pipeline.md`, sorted by fit score + contact readiness + tier. Regenerate when pipeline changes meaningfully (e.g., after each R1 fire, manual scout batch, or status update). The full ranking algorithm is documented in [`lhl-creator-pipeline/SKILL.md`](../../../.claude/skills/lhl-creator-pipeline/SKILL.md) under "Priority ranking."
 
 R2 (when deployed) will draft outreach for **First wave** by default, plus any **Second wave** candidates Jeff explicitly approves.

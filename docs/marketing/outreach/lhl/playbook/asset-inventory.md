@@ -52,7 +52,7 @@ Single source of truth for what outreach assets exist, what's in production, and
 
 | Asset | Status | Notes |
 |---|---|---|
-| Sample preview PDF (4–6 pages) | 🟠 — outline drafted | See [`sample-preview-outline.md`](sample-preview-outline.md). Needs 1–2 rendered spreads selected + design pass. |
+| Sample preview page (web) | ✅ — live | https://www.littleherolabs.com/preview. Custom Astro page with 1 cover, 6 spreads, lifestyle photo, 6-character showcase, quick facts, CTA. Noindex so it stays out of search. Replaces the originally-planned PDF (see `sample-preview-outline.md` iteration log). |
 | Press kit one-pager (PDF) | 🟠 — content drafted | See [`press-kit-content.md`](../press-kit-content.md). Needs design pass. |
 | Personalization screen recording (~15s) | ⛔ | See [`personalization-screen-recording.md`](personalization-screen-recording.md). Jeff to record from D2C site (D2C looks better than Amazon). |
 | 30-second product video | ⛔ — approach drafted | See [`video-approach-guide.md`](video-approach-guide.md). Faceless approach. |
@@ -64,7 +64,7 @@ Single source of truth for what outreach assets exist, what's in production, and
 
 - [x] Brand assets (logos, colors, typography)
 - [x] Lifestyle photo (we have one strong shot)
-- [ ] **Sample preview PDF** — blocker. Needs Jeff to pick spreads + design pass.
+- [x] **Sample preview page** — live at https://www.littleherolabs.com/preview. Unblocks R2 drafting.
 - [ ] **Press kit PDF** (designed) — important for press/Substack/podcast outreach.
 - [ ] At least 3 reviewer photos from Amazon — improves response rate when offering "happy to share more."
 
@@ -79,3 +79,4 @@ Single source of truth for what outreach assets exist, what's in production, and
 | Date | Change |
 |---|---|
 | 2026-04-30 | Initial inventory drafted. Captured: lifestyle photo (tiger spread reading), Emma cover + insert, all brand assets. Outlined production needs. |
+| 2026-05-01 | Sample preview shipped as a live web page (`/preview`) instead of a PDF. R2 drafting unblocked. |
