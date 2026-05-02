@@ -147,7 +147,7 @@ Editorial mention or gifted personalized copy. Either path.
 ## How R2 picks an angle
 
 1. Read the creator's row in `pipeline.md` (niche, bio summary, content type).
-2. Match against the public-signals list above. The first matching angle wins. If two match equally, prefer the one with stronger signal density (e.g., a librarian who also runs gift guides → `librarian-kidlit-curator` because the librarian credential is the stronger trust anchor).
+2. Match against the public-signals list above. **Pick the angle with the strongest signal density** for that creator (most matching signals, highest-trust credential). For example, a librarian who also runs gift guides → `librarian-kidlit-curator` because the librarian credential is the stronger trust anchor than gift-roundup activity. Don't stop at the first match if a later angle has clearly more signal.
 3. If no angle matches confidently, **flag the creator for Jeff** rather than inventing an angle. Note the mismatch in `copy-review.md`.
 
 R2 records the chosen angle in:
@@ -170,3 +170,4 @@ R2 records the chosen angle in:
 | Date | Change |
 |---|---|
 | 2026-05-01 | Initial 5-angle catalog drafted from First-wave creator characteristics in `priority-queue.md`. |
+| 2026-05-02 | Tiebreaker rule rewritten to "strongest signal density" (was "first matching wins") to align with R2 prompt. |

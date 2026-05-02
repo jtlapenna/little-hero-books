@@ -25,14 +25,17 @@ R2 produces `drafted` → self-checks against voice guide + anti-patterns → ad
 
 `lhl-{angle_tag}-v{N}` where `angle_tag` matches `docs/marketing/outreach/lhl/outreach-angles.md`.
 
-Examples:
-- `lhl-librarian-kidlit-curator-v1`
-- `lhl-literacy-educator-v2`
-- `lhl-diverse-representation-v1`
-- `lhl-read-aloud-storytime-v1`
-- `lhl-gift-curator-v1`
+**One variant per (angle_tag, channel) pair.** The same angle delivered as email vs. IG-DM is two distinct variants because body length, opener phrasing, and sign-off differ materially. Track the channel in the `channel` column of the registry; the `variant_id` itself doesn't encode channel — the registry row is the source of truth.
 
-Increment the `vN` suffix when a meaningful change is made (new opening sentence, different CTA shape, new claim). Cosmetic edits (typo fixes, single-word tweaks) keep the same ID.
+Examples:
+- `lhl-librarian-kidlit-curator-v1` (channel: email)
+- `lhl-librarian-kidlit-curator-v2` (channel: dm-instagram — same angle, different channel, separate variant)
+- `lhl-literacy-educator-v1` (channel: email)
+- `lhl-diverse-representation-v1` (channel: email)
+- `lhl-read-aloud-storytime-v1` (channel: dm-instagram)
+- `lhl-gift-curator-v1` (channel: email)
+
+Increment the `vN` suffix when a meaningful change is made (new opening sentence, different CTA shape, new claim, or new channel for the same angle). Cosmetic edits (typo fixes, single-word tweaks) keep the same ID.
 
 ---
 
@@ -102,3 +105,4 @@ The draft body is the variant text with creator-specific personalization tokens 
 | Date | Change |
 |---|---|
 | 2026-05-01 | Library schema created. R2 deployment will populate first variants. |
+| 2026-05-02 | Clarified: one variant per (angle_tag, channel) pair. |
