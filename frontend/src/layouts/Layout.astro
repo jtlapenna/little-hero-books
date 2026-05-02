@@ -8,16 +8,19 @@ interface Props {
   title: string;
   description?: string;
   image?: string;
+  noindex?: boolean;
 }
 
-const { title, description = "Little Hero Labs - Become the hero of your own story", image } = Astro.props;
+const { title, description = "Little Hero Labs - Become the hero of your own story", image, noindex = false } = Astro.props;
 
 // Get current URL for canonical and og:url (env-driven for correct domain in all environments).
 // No-op deployment marker for Cloudflare Pages verification.
 const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
 const currentPath = Astro.url.pathname;
 const canonicalUrl = `${siteUrl}${currentPath}`;
-const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
+const ogImage = image
+  ? (image.startsWith('http') ? image : `${siteUrl}${image}`)
+  : `${siteUrl}/og-image.jpg`; // Default OG image
 ---
 
 <!doctype html>
@@ -59,6 +62,8 @@ const ogImage = image || `${siteUrl}/og-image.jpg`; // Default OG image
     
     <!-- Canonical URL - Fixes duplicate pages issue -->
     <link rel="canonical" href={canonicalUrl} />
+
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     
     <!-- SEO Meta Tags -->
     <title>{title}</title>
