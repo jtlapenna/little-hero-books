@@ -159,7 +159,7 @@ docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
 
 # Outreach state.
 # Track durable state files (pipeline.md, sent-log.md, responses.md, do-not-contact.md)
-# so cloud-run routines can persist via git. Drafts/ stays gitignored — ephemeral.
+# so cloud-run routines can persist via git.
+# Drafts produced by R2 (cloud routine) need to be in the remote so Jeff can read them
+# from his laptop without rerunning R2 — drafts/ is now version-controlled.
 # Static playbook + templates live in docs/marketing/outreach/lhl/ and stay version-controlled.
-/outreach-data/lhl/drafts/
-/outreach-data/**/drafts/

@@ -28,6 +28,7 @@ Run this against every draft / variant. R2 should explicitly enumerate which box
 - [ ] No negative parallelism ("It's not just X, it's Y")
 - [ ] No rule-of-three flourishes when 1–2 items would suffice
 - [ ] Sentence openers vary across drafts in the same batch
+- [ ] **No verbatim repetition of product-attribute sentences across paragraphs.** Specifically watch for the "their favorite animal joins for the final reveal" beat appearing in both the opener and the body. The opener (from voice-guide standard openers) already carries it; angle bodies should not restate it. If both contain it, drop the body restatement.
 
 ### Claims discipline
 - [ ] No fabricated social proof, partner names, or sales numbers
