@@ -1,39 +1,37 @@
 # LHL Priority Queue
 
-**Generated:** 2026-05-02 from `pipeline.md` (43 creators)
-**Previous generation:** 2026-05-01
+**Generated:** 2026-05-03 from `pipeline.md` (43 creators)
+**Previous generation:** 2026-05-02
 
 **Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL.
 
 This is a **derived view** of `pipeline.md`, sorted by fit score + contact readiness + tier. Regenerate when pipeline changes meaningfully (e.g., after each R1 fire, manual scout batch, or status update). The full ranking algorithm is documented in [`lhl-creator-pipeline/SKILL.md`](../../../.claude/skills/lhl-creator-pipeline/SKILL.md) under "Priority ranking."
 
-**R2 2026-05-02 note:** No new R1 Saturday batch additions detected in pipeline.md. Total creator count unchanged at 43. @littlereaders.futureleaders promoted from Second wave 2a to First wave: email confirmed, scout-verified, nano 8K, 17/20 — meets all First-wave criteria (email-confirmed, nano/micro, score 17+). First wave grows from 12 to 13 candidates.
-
-**R2 2026-05-02 morning drafting batch:** Drafts produced for handles 1-4 (all 19/20) + handles 5, 6, 10 (18/20 email-confirmed). 7 drafts total. After humanizer pass: 4 copy-reviewed (#1, 4, 5, 10), 3 downgraded to `drafted` (#2, 3, 6) due to animal-reveal repetition collision (templates have since been fixed).
-
-**R2 2026-05-02 re-fire batch (Saturday):** Drafts produced for handles 7-9, 11-13. 6 drafts; all passed copy review. Handle #11 (@thetututeacher) carries a business flag (talent-managed) — Jeff should review before approving to send. First wave is now fully drafted (13/13).
+**R2 2026-05-03 note:** No new R1 Sunday batch additions detected in pipeline.md. Total creator count unchanged at 43. R2 drafted the 7 remaining scored First-wave creators (priority queue positions 1-6 and 10). After humanizer pass: 4 copy-reviewed (#2, 3, 4, 6), 3 downgraded to `drafted`/flagged (#1, 5, 10 — opener repetition and/or theme-sentence repetition). **First wave is now fully processed (13/13): 10 copy-reviewed, 3 drafted/flagged awaiting Jeff fixes.** No new creators available from First wave for next R2 run. Supply gap: next batch requires Jeff approval of Second wave candidates.
 
 ---
 
-## First wave — ready to draft
+## First wave — fully processed
 
-13 candidates, 17-19/20, all email-confirmed direct, all nano/micro tier (no rate sign-off needed). R2 drafts these by default each day.
+13 candidates, 17-19/20, all email-confirmed direct, all nano/micro tier (no rate sign-off needed).
 
 | # | Handle | Score | Tier | Niche | Contact | Angle | Draft status |
 |---|---|---|---|---|---|---|---|
-| 1 | @happily.ever.elephants (Lauren) | 19/20 | micro 71K | Librarian / kidlit reviewer | `lauren@happilyeverelephants.com` | librarian-kidlit-curator | copy-reviewed 2026-05-02 |
-| 2 | thispicturebooklife (Danielle Davis) | 19/20 | multi-platform | Picture book curator + author | `danielledaviswrites@me.com` | librarian-kidlit-curator | drafted 2026-05-02 (humanizer flagged: animal-reveal repetition; needs Jeff fix) |
-| 3 | @biracialbookworms (Bethany Edwards) | 19/20 | nano 12K | Biracial / multicultural kidlit | `Bethany@biracialbookworms.com` | diverse-representation | drafted 2026-05-02 (humanizer flagged: animal-reveal repetition; needs Jeff fix) |
-| 4 | @ryan_and_craig | 19/20 | micro 39K | Read-aloud comedy duo (two dads) | `lagodtovey@gmail.com` | read-aloud-storytime | copy-reviewed 2026-05-02 |
-| 5 | @raisingreaderstobecomeleaders (Elizabeth) | 18/20 | micro 88K | M.A. Literacy / homeschooling / play-based | `raisingreaders2020@gmail.com` | literacy-educator | copy-reviewed 2026-05-02 |
-| 6 | @picturebookplaydate (Lauren) | 18/20 | micro 22K | Daily picture-book recs, Austin TX | `picturebookplaydate@gmail.com` | librarian-kidlit-curator | drafted 2026-05-02 (humanizer flagged: animal-reveal repetition; needs Jeff fix) |
+| 1 | @happily.ever.elephants (Lauren) | 19/20 | micro 71K | Librarian / kidlit reviewer | `lauren@happilyeverelephants.com` | librarian-kidlit-curator | drafted 2026-05-03 (humanizer flagged: opener dup with #10; fix opener before approving) |
+| 2 | thispicturebooklife (Danielle Davis) | 19/20 | multi-platform | Picture book curator + author | `danielledaviswrites@me.com` | librarian-kidlit-curator | copy-reviewed 2026-05-03 |
+| 3 | @biracialbookworms (Bethany Edwards) | 19/20 | nano 12K | Biracial / multicultural kidlit | `Bethany@biracialbookworms.com` | diverse-representation | copy-reviewed 2026-05-03 |
+| 4 | @ryan_and_craig | 19/20 | micro 39K | Read-aloud comedy duo (two dads) | `lagodtovey@gmail.com` | read-aloud-storytime | copy-reviewed 2026-05-03 |
+| 5 | @raisingreaderstobecomeleaders (Elizabeth) | 18/20 | micro 88K | M.A. Literacy / homeschooling / play-based | `raisingreaders2020@gmail.com` | literacy-educator | drafted 2026-05-03 (humanizer flagged: theme-sentence dup with #10; vary phrasing before approving) |
+| 6 | @picturebookplaydate (Lauren) | 18/20 | micro 22K | Daily picture-book recs, Austin TX | `picturebookplaydate@gmail.com` | librarian-kidlit-curator | copy-reviewed 2026-05-03 |
 | 7 | @thechildrensbookreview (Bianca Schulze) | 18/20 | micro 23K | Review site since 2008 | `growingreaders@thechildrensbookreview.com` | librarian-kidlit-curator | copy-reviewed 2026-05-02 |
 | 8 | @blackbabybooks (Veronica Chapman) | 18/20 | micro 135K | Black Children's Book Week founder | `info@boxxout.com` | diverse-representation | copy-reviewed 2026-05-02 |
 | 9 | @thetinyactivists (Corrie) | 18/20 | micro 35K | Diverse / LGBTQ+ kidlit | `queerkidlitcamp@gmail.com` | diverse-representation | copy-reviewed 2026-05-02 |
-| 10 | @growingbookbybook (Jodie Rodriguez) | 18/20 | micro 29K | Early-childhood literacy / educator | `jodie@growingbookbybook.com` | literacy-educator | copy-reviewed 2026-05-02 |
+| 10 | @growingbookbybook (Jodie Rodriguez) | 18/20 | micro 29K | Early-childhood literacy / educator | `jodie@growingbookbybook.com` | literacy-educator | drafted 2026-05-03 (humanizer flagged: opener dup with #1, theme-sentence dup with #5, "demo" wording; fix all three before approving) |
 | 11 | @thetututeacher (Vera Ahiyya) | 18/20 | micro 147K | Diverse kidlit / kindergarten teacher-author | `thetututeacher@gmail.com` | diverse-representation | copy-reviewed 2026-05-02 (business flag: talent-managed; Jeff review before sending) |
 | 12 | @kaylynjohnson_slp (Kaylyn Johnson) | 17/20 | nano 20K | Pediatric SLP + toddler mom | `kaylyn.johnson@yahoo.com` | literacy-educator | copy-reviewed 2026-05-02 |
 | 13 | @littlereaders.futureleaders (Holly) | 17/20 | nano 8K | Kid Lit recs / early-childhood educator | `holly@littlereaders.blog` | literacy-educator | copy-reviewed 2026-05-02 |
+
+**Supply gap: First wave exhausted.** 10 copy-reviewed (ready for Jeff approval + send), 3 drafted/flagged (need Jeff fixes). Next R2 run has nothing to draft from First wave. Jeff must approve Second wave candidates before R2 can proceed.
 
 ---
 
@@ -125,4 +123,4 @@ Lower-priority, case-by-case. Either lower score, audience misalignment, geo con
 | Verify-via-linktree pending | 8 |
 | Borderline / hold | 7 |
 
-**First-wave drafting capacity:** 13 total, fully processed as of 2026-05-02 re-fire. 10 copy-reviewed (ready for Jeff approval + send), 3 drafted/flagged (need Jeff fix: animal-reveal repetition in #2, 3, 6). Next batch: Second wave requires Jeff per-batch approval. See Second wave section for 5 candidates waiting on channel verification or pre-engagement setup.
+**First-wave drafting capacity:** 13 total, fully processed as of 2026-05-03. 10 copy-reviewed (ready for Jeff approval + send), 3 drafted/flagged (need Jeff fixes: #1 opener, #5 theme sentence, #10 opener + theme sentence + "demo"). **First wave supply is exhausted. Next R2 run requires Jeff per-batch approval of Second wave candidates.**
