@@ -9,9 +9,9 @@ angle_tag: literacy-educator
 score: 18/20
 tier: micro
 created: 2026-05-03
-status: drafted
-copy_review_status: flagged
-copy_review_notes: 'Humanizer (2026-05-03): two flags. (1) Opener "I am Jeff, founder of Little Hero Labs." is identical to draft 2026-05-03-happily.ever.elephants.md. (2) Body sentence "Themes are courage, friendship, and emotional intelligence." is identical to draft 2026-05-03-raisingreaderstobecomeleaders.md. Also: "exactly the demo we are reaching" reads corporate. Fix opener and theme sentence; consider replacing "demo" with "audience" or "the parents and educators you already reach."'
+status: copy-reviewed
+copy_review_status: passed
+copy_review_notes: 'Humanizer flags resolved 2026-05-03: (1) opener kept as "I am Jeff, founder of..." since happily.ever.elephants got swapped to a different form; (2) "Themes are courage..." sentence rephrased to vary from raisingreaderstobecomeleaders draft; (3) "exactly the demo we are reaching" replaced with "the parents and educators you already reach" to drop corporate tone.'
 ---
 
 Subject: Gifted book pitch for Growing Book by Book
@@ -20,7 +20,7 @@ Hi Jodie,
 
 I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
-The story follows a child discovering their own inner strength. Themes are courage, friendship, and emotional intelligence. Your audience of parents, teachers, and librarians focused on the youngest readers is exactly the demo we're reaching, and I think the book lines up with what you're recommending.
+The story follows a child discovering their own inner strength, with an emotional arc about courage, friendship, and self-trust. The parents and educators you already reach, especially those focused on the youngest readers, are exactly who this book is for.
 
 We're running partner campaigns this quarter. Would you be open to a gifted collab? I'd send a personalized copy for your family, no commitment beyond your honest reaction. If you like the book, I'll share more about our campaign offers.
 
