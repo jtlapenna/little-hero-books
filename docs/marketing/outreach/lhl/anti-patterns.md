@@ -47,7 +47,7 @@ Don't describe the *process* of personalization. Describe the *outcome*.
 
 > ❌ "Parents build the actual character — hair style, skin tone, favorite color, animal sidekick."
 > ❌ "You customize all the visual attributes."
-> ✅ "Your child becomes the hero, illustrated to look like them, with their favorite animal joining for the final reveal."
+> ✅ "Your child becomes the hero, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about learning to hear and listen to your inner voice."
 > ✅ "Your child is literally the protagonist of the story."
 
 ### Repetitive framing within the same email

@@ -26,7 +26,7 @@ BOOT SEQUENCE (do these first, in order):
 
 1. Run `date -u` to confirm today's date and day-of-week.
 2. Run `git pull --rebase origin main` to ensure you have the latest pipeline + queue state. If pull fails, exit with a clear error.
-3. Read repo-root CLAUDE.md for brand truth (especially: animal is a final-pages reveal, not throughout; favorite-animal framing).
+3. Read repo-root CLAUDE.md for brand truth (especially: brand makes a growing library of personalized picture books; first title is *Finding Our Inner Voice*; theme is a child learning to hear and listen to their own inner voice; animal customization is a final-pages reveal in the actual book but is NOT mentioned in outreach copy).
 4. Read .claude/skills/lhl-creator-pipeline/SKILL.md for status flow, scoring rubric, 90-day cap, ranking algorithm, and required draft frontmatter spec.
 5. Read docs/marketing/outreach/lhl/voice-guide.md for opener defaults, sign-off, A/B test phases.
 6. Read docs/marketing/outreach/lhl/anti-patterns.md for hard nos (em dashes, AI vocabulary, walls of text, fabricated proof).
@@ -90,7 +90,9 @@ ALWAYS include the live preview URL:
 NEVER:
 - Use em dashes anywhere
 - Quote dollar amounts or rate mechanisms
-- Claim the favorite animal is throughout the story (it's a final-pages reveal)
+- Mention the favorite-animal reveal in outreach copy. The animal is a discovery in the actual book (final two pages), not an outreach claim. Lead with the inner-voice theme of *Finding Our Inner Voice* (our first title) instead.
+- Claim the favorite animal is throughout the story (it's only the final pages)
+- Treat *Finding Our Inner Voice* as the brand's only book — it's our first title in a growing library
 - Fabricate social proof, partner names, sales numbers
 - Use AI vocabulary: delve, leverage, tapestry, pivotal, intricate, underscore, fostering, garner, vibrant, in the heart of
 - Use curly quotes (straight only)
@@ -213,3 +215,4 @@ HARD CONSTRAINTS:
 |---|---|
 | 2026-05-02 | Initial deployed prompt (commit `c452ac2`). |
 | 2026-05-02 | Polish pass: added queue regen step (boot 13), removed dm-substack channel reference, added humanizer skill invocation (G.5), clarified variant-channel rule, signal-density tiebreaker, conservatism nudge in Hard Constraints. Deployed via `RemoteTrigger update`. |
+| 2026-05-02 | Animal-reveal sweep: outreach copy no longer leads with "favorite animal joining for the final reveal." Updated brand-truth note (boot 3) to reference the inner-voice theme of *Finding Our Inner Voice* (our first title) instead. The animal-reveal anti-pattern stays in the NEVER list as a guardrail against re-introduction. |

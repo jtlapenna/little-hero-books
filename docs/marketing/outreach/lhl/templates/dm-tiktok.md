@@ -16,7 +16,7 @@ Reflects the locked voice. See [`voice-guide.md`](../voice-guide.md) and [`anti-
 ```
 Hi [Name], Jeff here from Little Hero Labs.
 
-We make personalized kids' books where your child becomes the hero of the story, illustrated to look like them.
+We make personalized kids' books where your child becomes the hero of the story, illustrated to look like them. Our first title is about a child learning to hear their own inner voice.
 
 We're running partner campaigns this quarter. Open to a gifted collab? I'd send a personalized copy for your family, no commitment beyond your honest reaction.
 
@@ -33,7 +33,7 @@ Little Hero Labs | littleherolabs.com
 ```
 Hi [Name], your [specific recent thing] caught my attention. I'm Jeff at Little Hero Labs.
 
-We make personalized kids' books where your child becomes the hero of the story, illustrated to look like them. Running partner campaigns this quarter, looking for a few more creators. Open to a gifted collab? I'd send a personalized copy, no commitment beyond your honest reaction.
+We make personalized kids' books where your child becomes the hero of the story, illustrated to look like them. Our first title is about a child learning to hear their own inner voice. Running partner campaigns this quarter. Open to a gifted collab? I'd send a personalized copy, no commitment beyond your honest reaction.
 
 If you like the book, I'll share more about our campaign offers. Quick walkthrough: littleherolabs.com/preview
 

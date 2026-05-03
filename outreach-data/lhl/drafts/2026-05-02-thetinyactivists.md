@@ -18,7 +18,7 @@ Subject: A children's book where your kid is the hero, gifted collab?
 
 Hi Corrie,
 
-I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child is literally the hero on every page, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child is literally the hero on every page, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 Most personalized books let parents pick from pre-made characters. We let them create their own. Hair style, skin tone, hometown, and pronouns all show up across the story. Every child gets to be the actual hero, not a closest-match. For the LGBTQ+ and diverse families connected through Queer Kid Lit Camp, custom pronouns are one of the personalization options, and that feels worth knowing about.
 

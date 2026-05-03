@@ -61,19 +61,19 @@ Use these as the default. They lead with who we are and what we have. Don't say 
 ```
 Hi [Name],
 
-I'm Jeff, founder of Little Hero Labs. We make personalized children's books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff, founder of Little Hero Labs. We make personalized children's books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 ```
 
 ```
 Hi [Name],
 
-Jeff here from Little Hero Labs. We make personalized picture books for ages 0–7 where your child is the hero of the story, illustrated to look like them.
+Jeff here from Little Hero Labs. We make personalized picture books where your child is the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is for ages 0–7 and is about a child learning to hear and listen to their own inner voice.
 ```
 
 ```
 Hi [Name],
 
-I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of a magical-journey story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is a magical-journey story about a child learning to hear and listen to their own inner voice.
 ```
 
 ## Specific-reference opener (A/B variant only, don't default)
@@ -96,7 +96,7 @@ Use these. Vary across drafts so a recipient seeing two different pitches doesn'
 > "Your child becomes the hero of the story, illustrated to look like them."
 > "It's a personalized picture book where your kid becomes the lead character."
 > "A keepsake picture book starring your child, illustrated to look like them."
-> "Your child is literally the protagonist. Their look and their hometown show up across the story, and their favorite animal joins for the final reveal."
+> "Your child is literally the protagonist. Their look and their hometown show up across the story. Our first title, *Finding Our Inner Voice*, is about learning to hear and listen to your inner voice."
 
 ## Standard partnership/offer mention
 

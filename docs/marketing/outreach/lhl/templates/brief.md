@@ -70,7 +70,7 @@ DO / DON'T
 
 THE DIFFERENTIATION (in case it helps your hook)
 
-Most personalized books, including Wonderbly, let you pick from pre-made characters. We let you create your own. Your child's actual hair style, skin tone, and favorite color show up across the story; their favorite animal joins them for the final reveal.
+Most personalized books, including Wonderbly, let you pick from pre-made characters. We let you create your own. Your child's actual hair style, skin tone, and favorite color show up across the story. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 If your audience knows Wonderbly, this contrast lands well.
 

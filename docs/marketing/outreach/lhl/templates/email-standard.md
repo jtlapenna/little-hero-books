@@ -28,7 +28,7 @@ Pick based on the creator's tone. All sentence case, no em dashes, no clickbait.
 ```
 Hi [Name],
 
-I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 We're running partner campaigns this quarter and looking for a few more creators. Would you be open to a gifted collab? I'd send you a personalized copy for your family, no commitment beyond your honest reaction.
 
@@ -47,7 +47,7 @@ For Substack writers, newsletter editors, and gift-guide creators where the natu
 ```
 Hi [Name],
 
-I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 We're running partner campaigns this quarter and looking for a few editorial mentions. If you're putting together gift-focused roundups (birthday, holiday, baby shower), I'd love to be considered.
 
@@ -70,7 +70,7 @@ Hi [Name],
 
 [Specific reference: a recent post, a named episode, a recurring theme.] I'm Jeff, founder of Little Hero Labs.
 
-We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 We're running partner campaigns this quarter and looking for a few more creators. Would you be open to a gifted collab? I'd send you a personalized copy for your family, no commitment beyond your honest reaction.
 
