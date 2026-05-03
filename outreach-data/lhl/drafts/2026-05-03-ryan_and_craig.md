@@ -18,7 +18,7 @@ Subject: Gifted book pitch for Ryan and Craig
 
 Hi Ryan and Craig,
 
-Jeff here from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+Jeff here from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 The on-camera moment when a kid sees themselves on the page for the first time tends to be something special. The story's emotional arc reads naturally aloud, and the final pages carry a surprise beat that tends to land well on video. Your read-aloud format fits this book well.
 

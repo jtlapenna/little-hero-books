@@ -18,7 +18,7 @@ Subject: Gifted book pitch for Growing Book by Book
 
 Hi Jodie,
 
-I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 The story follows a child discovering their own inner strength. Themes are courage, friendship, and emotional intelligence. Your audience of parents, teachers, and librarians focused on the youngest readers is exactly the demo we're reaching, and I think the book lines up with what you're recommending.
 

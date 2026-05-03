@@ -18,7 +18,7 @@ Subject: Personalized kids book, gifted collab?
 
 Hi Bethany,
 
-I'm Jeff from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 Most personalized books let parents pick from pre-made characters. Ours doesn't. Hair style, skin tone, hometown, and pronouns all show up across the story. Every child gets to be the actual hero, not a closest-match. For the biracial and multicultural families your work reaches, that representation lands differently than a stock character would.
 

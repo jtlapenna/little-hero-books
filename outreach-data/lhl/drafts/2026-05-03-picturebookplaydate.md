@@ -18,7 +18,7 @@ Subject: Gifted book pitch for Picture Book Playdate
 
 Hi Lauren,
 
-Jeff here, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+Jeff here, founder of Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 It's a 16-page picture book for ages 0-7, watercolor illustrations, with a story that follows a child finding their own voice. The child's look and hometown show up across every spread. Could be a good fit for your daily picture-book recs.
 

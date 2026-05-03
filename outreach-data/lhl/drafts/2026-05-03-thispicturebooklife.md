@@ -18,7 +18,7 @@ Subject: Gifted book pitch for This Picture Book Life
 
 Hi Danielle,
 
-Jeff here from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+Jeff here from Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 The book is a 16-page story for ages 0-7, watercolor art, built around a child discovering their own inner strength. Personalization runs all the way through: hair style, skin tone, and hometown all show up on the pages. I think it could sit well alongside the picture books you pair and recommend.
 

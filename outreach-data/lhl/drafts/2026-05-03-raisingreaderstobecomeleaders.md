@@ -18,7 +18,7 @@ Subject: Gifted book pitch for Raising Readers to Become Leaders
 
 Hi Elizabeth,
 
-I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them, with their favorite animal joining for the final reveal.
+I'm Jeff at Little Hero Labs. We make personalized picture books where your child becomes the hero of the story, illustrated to look like them. Our first title, *Finding Our Inner Voice*, is about a child learning to hear and listen to their own inner voice.
 
 The story is built around a child finding their own inner voice. Themes are courage, friendship, and emotional intelligence. For an audience that follows your Books By Age recommendations, I think this is a natural fit for the 0-7 range.
 
