@@ -163,3 +163,8 @@ docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
 # Drafts produced by R2 (cloud routine) need to be in the remote so Jeff can read them
 # from his laptop without rerunning R2 — drafts/ is now version-controlled.
 # Static playbook + templates live in docs/marketing/outreach/lhl/ and stay version-controlled.
+
+# Generated output of build-mailmeteor-batch.mjs — regenerable from drafts/ + statuses.
+# Contains personalized email content and recipient addresses; we have sent-log.md
+# for the durable audit trail of actual sends.
+/outreach-data/lhl/mailmeteor-batch.csv

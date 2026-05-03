@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "setup": "node scripts/setup-env.js",
+    "lhl:prep-mailmeteor": "node scripts/lhl/build-mailmeteor-batch.mjs",
     "dev": "cd renderer && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:amazon": "cd amazon && npm run dev",
