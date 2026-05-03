@@ -47,6 +47,7 @@ Increment the `vN` suffix when a meaningful change is made (new opening sentence
 | lhl-diverse-representation-v1 | diverse-representation | email | copy_reviewed | 2026-05-02 | — | 0 | 0 | First version. Default "Most personalized books..." comparison (no Wonderbly name). Advocacy reference varies per creator. Used for @biracialbookworms, @blackbabybooks, @thetinyactivists, @thetututeacher (business flag: talent-managed; Jeff review before send). |
 | lhl-read-aloud-storytime-v1 | read-aloud-storytime | email | copy_reviewed | 2026-05-02 | — | 0 | 0 | First version. Hedged first-reaction framing ("tends to be"). Dual-creator offer token noted in template. Used for @ryan_and_craig. |
 | lhl-literacy-educator-v1 | literacy-educator | email | copy_reviewed | 2026-05-02 | — | 0 | 0 | First version. Themes from CLAUDE.md only (emotional intelligence, courage, friendship). No curriculum-alignment claims. Audience reference varies per creator. Used for @raisingreaderstobecomeleaders, @growingbookbybook, @kaylynjohnson_slp, @littlereaders.futureleaders. |
+| lhl-gift-curator-v1 | gift-curator | email | copy_reviewed | 2026-05-03 | — | 0 | 0 | First version. Baby-shower / birthday / registry gift-context framing. Middle paragraph audience-context sentence varies per creator. Used for @bfppodcast (podcast, passed_with_notes: angle contextual/audience-driven), @newmodernmom. |
 
 ---
 
