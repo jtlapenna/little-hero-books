@@ -9,7 +9,7 @@ angle_tag: diverse-representation
 score: 18/20
 tier: micro
 created: 2026-05-02
-status: copy-reviewed
+status: approved
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "Jeff here from..." (varied). Outcome-framed. ~155 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism. Default diverse-rep comparison framing (no Wonderbly named). "Black Children Book Week" reference verified from pipeline. Animal reveal in opener only; body paragraph does not repeat. Preview URL present.'
 ---
