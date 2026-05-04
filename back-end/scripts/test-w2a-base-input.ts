@@ -71,7 +71,9 @@ async function main(): Promise<void> {
   assert(
     bookTwoBuilt.systemInstructionText.includes('dress MUST be #4575A5') &&
       bookTwoBuilt.userPromptText.includes('IMAGE A = base character style guide') &&
-      bookTwoBuilt.userPromptText.includes('HAIRSTYLE LOCK'),
+      bookTwoBuilt.userPromptText.includes('HAIRSTYLE LOCK') &&
+      bookTwoBuilt.userPromptText.includes('EYEBROW LOCK') &&
+      bookTwoBuilt.systemInstructionText.includes('two visible natural eyebrows'),
     'Expected repo-owned SW0 prompt construction to emit the base-generation contract',
   );
   assert(

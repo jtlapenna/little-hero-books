@@ -12,6 +12,7 @@ import {
 } from '@/lib/books/runtime-book-config';
 import type { BookConfig } from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import { EYEBROW_PROMPT_GUARDRAIL } from '@/lib/books/character-prompt-guardrails';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -240,12 +241,16 @@ function resolvePathLikes(primary: JsonRecord, orderContext: JsonRecord): string
     primary.order_prefix,
     primary.assetPrefix,
     primary.asset_prefix,
+    primary.assetsRoot,
+    primary.assets_root,
     orderContext.oneManifestUrl,
     orderContext.one_manifest_url,
     orderContext.orderPrefix,
     orderContext.order_prefix,
     orderContext.assetPrefix,
     orderContext.asset_prefix,
+    orderContext.assetsRoot,
+    orderContext.assets_root,
   ];
 
   return values
@@ -402,6 +407,7 @@ function buildPosePromptBlock(input: {
   lines.push(
     'STYLE TRANSFER TASK:',
     'Use BASE for appearance, palette, facial features, and hair color.',
+    'Preserve BASE facial features exactly, including two visible natural eyebrows above the eyes.',
     'Use POSE for body pose only.',
     input.hasHairRef
       ? 'Use HAIR CHIP for hair silhouette only. Hair color must still match BASE exactly.'
@@ -409,6 +415,7 @@ function buildPosePromptBlock(input: {
     'Render exactly one child on a pure white background.',
     'Show the full body, including hands and feet.',
     'Do not transfer props, textures, or background details from the pose reference.',
+    EYEBROW_PROMPT_GUARDRAIL,
   );
 
   if (input.childName) {

@@ -80,7 +80,9 @@ async function main(): Promise<void> {
     bookTwoBuilt.clothingTypeCanonical === "dress" &&
       bookTwoBuilt.posePromptBlock.includes("BASE") &&
       bookTwoBuilt.posePromptBlock.includes("POSE") &&
-      bookTwoBuilt.posePromptBlock.includes("HAIR CHIP"),
+      bookTwoBuilt.posePromptBlock.includes("HAIR CHIP") &&
+      bookTwoBuilt.posePromptBlock.includes("EYEBROW LOCK") &&
+      bookTwoBuilt.posePromptBlock.includes("two visible natural eyebrows"),
     "Expected repo-owned prompt construction to emit the core BASE/POSE/HAIR contract",
   );
   assert(
@@ -98,6 +100,7 @@ async function main(): Promise<void> {
   const minimalBuilt = await buildW2APoseInput(
     {
       orderId: "FIXTURE-W2A-DEFAULT-001",
+      bookId: "book-mvp-simple-adventure",
       characterHash: "defaultposehash001",
       poseNumber: 1,
       characterSpecs: {
@@ -261,6 +264,7 @@ async function main(): Promise<void> {
       orderId: "",
       amazonOrderId: "",
       correlationId: "TEST-ORDER-016-99fc097781e57ed7-STYLE05",
+      bookId: "book-mvp-simple-adventure",
       characterHash: "99fc097781e57ed7",
       poseNumber: 5,
       currentPoseNumber: 5,
@@ -300,6 +304,7 @@ async function main(): Promise<void> {
       orderId: "FIXTURE-W2A-REPLAY-001",
       rootOrderId: "FIXTURE-W2A-REPLAY-001",
       amazonOrderId: "FIXTURE-W2A-REPLAY-001",
+      bookId: "book-mvp-simple-adventure",
       characterHash: "replayposehash001",
       poseNumber: 2,
       publicR2Url: "https://pub.example.r2.dev",

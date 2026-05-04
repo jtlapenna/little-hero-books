@@ -10,6 +10,10 @@ import {
 } from '@/lib/books/runtime-book-config';
 import type { BookConfig } from '@/lib/books/types';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import {
+  EYEBROW_PROMPT_GUARDRAIL,
+  EYEBROW_SYSTEM_INSTRUCTION,
+} from '@/lib/books/character-prompt-guardrails';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -256,12 +260,16 @@ function resolvePathLikes(primary: JsonRecord, orderContext: JsonRecord): string
     primary.order_prefix,
     primary.assetPrefix,
     primary.asset_prefix,
+    primary.assetsRoot,
+    primary.assets_root,
     orderContext.oneManifestUrl,
     orderContext.one_manifest_url,
     orderContext.orderPrefix,
     orderContext.order_prefix,
     orderContext.assetPrefix,
     orderContext.asset_prefix,
+    orderContext.assetsRoot,
+    orderContext.assets_root,
   ];
 
   return values
@@ -396,6 +404,7 @@ function buildBasePromptContract(input: {
         : '- Keep the requested hair color unchanged.',
     ].join('\n'),
     input.hairPromptBlock,
+    EYEBROW_PROMPT_GUARDRAIL,
     [
       'IMAGE ROLES:',
       '- IMAGE A = base character style guide.',
@@ -421,6 +430,7 @@ function buildBasePromptContract(input: {
       : null,
     `CRITICAL: ${input.skinColorLock}`,
     'CRITICAL: Show the full body from head to feet.',
+    EYEBROW_SYSTEM_INSTRUCTION,
     'Do not add props, logos, text, or extra characters.',
   ]
     .filter(Boolean)
