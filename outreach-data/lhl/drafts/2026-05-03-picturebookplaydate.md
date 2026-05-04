@@ -9,7 +9,7 @@ angle_tag: librarian-kidlit-curator
 score: 18/20
 tier: micro
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "Jeff here, founder of..." (varied). Outcome-framed. ~124 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism. Animal reveal in opener only; body does not restate. "daily picture-book recs" verifiable from pipeline ("daily picture-book recommendations"). Preview URL present.'
 ---

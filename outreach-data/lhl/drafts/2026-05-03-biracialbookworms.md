@@ -9,7 +9,7 @@ angle_tag: diverse-representation
 score: 19/20
 tier: nano
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "I am Jeff from..." (varied). Outcome-framed. ~146 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism. Default comparison framing (no Wonderbly named). Animal reveal in opener only; body focuses on representation angle. Advocacy references verifiable from handle and pipeline bio (biracial/multicultural families, M.A. Reading and Literacy). Preview URL present.'
 ---

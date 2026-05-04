@@ -9,7 +9,7 @@ angle_tag: read-aloud-storytime
 score: 19/20
 tier: micro
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "Jeff here from..." (duo salutation "Hi Ryan and Craig"). Outcome-framed. ~133 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism. Animal reveal in opener only; body covers on-camera moment and final pages, both hedged ("tends to be"). No viral promise. "personalized copies" plural for duo. Read-aloud format reference verifiable from pipeline (YouTube + IG read-alouds). Preview URL present.'
 ---

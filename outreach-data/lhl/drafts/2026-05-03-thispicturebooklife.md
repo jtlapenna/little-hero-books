@@ -9,7 +9,7 @@ angle_tag: librarian-kidlit-curator
 score: 19/20
 tier: micro
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "Jeff here from..." (varied). Outcome-framed. ~127 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism. Animal reveal in opener only; body does not restate. "picture books you pair and recommend" verifiable from pipeline (long-running picture-book pairing blog). Preview URL present.'
 ---

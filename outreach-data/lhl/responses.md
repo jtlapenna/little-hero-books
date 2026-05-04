@@ -33,3 +33,24 @@ Linking each response back to its `attempt_id` is what lets us learn which angle
 ---
 
 <!-- Append entries below. Most recent at the bottom. -->
+
+## 2026-05-04 — @happily.ever.elephants — declined
+
+**attempt_id:** att-2026-05-04-003 (inferred; sent-log not back-filled for first batch)
+**variant_id:** lhl-librarian-kidlit-curator-v1
+**angle_tag:** librarian-kidlit-curator
+**Sentiment:** declined
+**Reply text:**
+> Hi there! Hope you are well.
+>
+> I wanted to let you know I've taken a break from blogging as I have gone back to practicing trademark and intellectual property law at my new firm, Storylock Legal.
+>
+> Thank you for the many years of phenomenal books! I'll reach out if I pick it up again in the future.
+>
+> Wishing you all the best,
+> Lauren Bercuson
+> Happily Ever Elephants
+
+**Drafted next step:** none — auto-reply-style polite decline; no follow-up warranted.
+**Pipeline status updated to:** declined
+**Notes:** Career change away from blogging (gone back to IP law at Storylock Legal). Not a fit-issue with LHL — she's out of the kidlit-blogging space entirely. She left the door open: "I'll reach out if I pick it up again." Reply arrived ~within minutes of send, consistent with a saved decline template. Worth keeping her warm in pipeline as `declined` (not `do-not-contact`); revisit only if she signals a return to blogging.

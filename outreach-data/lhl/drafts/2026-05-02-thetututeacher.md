@@ -9,9 +9,9 @@ angle_tag: diverse-representation
 score: 18/20
 tier: micro
 created: 2026-05-02
-status: copy-reviewed
+status: sent
 copy_review_status: passed_with_notes
-copy_review_notes: 'Copy checklist: all items pass. Opener: "I am Jeff from..." (varied). Outcome-framed. ~150 words. No em dashes, curly quotes, AI vocab, dollar amounts. Advocacy reference ("books where every child can see themselves") verified from pipeline. Animal reveal in opener only. Preview URL present. BUSINESS FLAG: talent-managed (Serendipity Lit + How Now Booking) and 147K followers near micro ceiling. Jeff should review before approving for send; if she responds with agent involvement, do not discuss compensation until Jeff has reviewed rates per skill guidance.'
+copy_review_notes: 'Copy checklist: all items pass. Opener: "I am Jeff from..." (varied). Outcome-framed. ~150 words. No em dashes, curly quotes, AI vocab, dollar amounts. Advocacy reference ("books where every child can see themselves") verified from pipeline. Animal reveal in opener only. Preview URL present. BUSINESS FLAG (acknowledged 2026-05-04 by Jeff at approval): talent-managed (Serendipity Lit + How Now Booking) and 147K followers near micro ceiling. If she or her agent responds with rate questions or agency involvement, hold the conversation and consult lhl-campaign-ops skill before quoting compensation; do not negotiate inline.'
 ---
 
 Subject: Personalized kids book, gifted collab?
