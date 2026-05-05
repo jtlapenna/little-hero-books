@@ -6,6 +6,7 @@
 import { createHash } from 'crypto';
 
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
+const DEFAULT_BOOK_ID = 'book-mvp-simple-adventure';
 
 /** Generate a synthetic per-book orderId from a parent/root ID and a suffix. */
 export function buildSiblingOrderId(
@@ -47,8 +48,26 @@ export function buildSiblingOrderRow(opts: {
   purchaseDate: string | null;
   orderItemId?: string | null;
   isSibling?: boolean;
+  bookId?: string | null;
+  formatId?: string | null;
+  lineItem?: Record<string, unknown> | null;
+  lineItems?: Record<string, unknown>[];
+  unitIndex?: number;
+  unitCount?: number;
 }): Record<string, unknown> {
   const now = new Date().toISOString();
+  const bookId = opts.bookId?.trim() || DEFAULT_BOOK_ID;
+  const formatId = opts.formatId?.trim() || (opts.platform === 'amazon' ? 'amazon' : 'standard');
+  const bookSpecs = {
+    bookId,
+    formatId,
+    title: `${(opts.characterSpecs.childName as string) ?? 'Child'} and the Adventure Compass`,
+    totalPages: 16,
+    format: '8.5x8.5_softcover',
+    bookType: 'adventure',
+    channel: opts.platform,
+  };
+
   return {
     orderId: opts.orderId,
     // Purpose: root_order_id is the canonical group key; amazon_order_id remains for legacy compatibility.
@@ -70,6 +89,16 @@ export function buildSiblingOrderRow(opts: {
     purchase_date: opts.purchaseDate ?? now,
     product_info: {
       _created_via_csv: true,
+      bookId,
+      book_id: bookId,
+      formatId,
+      format_id: formatId,
+      bookSpecs,
+      book_specs: bookSpecs,
+      line_item: opts.lineItem ?? null,
+      line_items: opts.lineItems ?? (opts.lineItem ? [opts.lineItem] : []),
+      _quantity_unit_index: opts.unitIndex ?? 1,
+      _quantity_unit_count: opts.unitCount ?? 1,
       ...(opts.isSibling
         ? {
             _sibling_order: true,
@@ -96,6 +125,12 @@ export function buildW0Payload(opts: {
   characterSpecs: Record<string, unknown>;
   characterHash: string;
   dedicationText?: string | null;
+  bookId?: string | null;
+  formatId?: string | null;
+  lineItem?: Record<string, unknown> | null;
+  lineItems?: Record<string, unknown>[];
+  unitIndex?: number;
+  unitCount?: number;
 }): Record<string, unknown> {
   const sa =
     typeof opts.shippingAddress === 'string'
@@ -108,10 +143,27 @@ export function buildW0Payload(opts: {
         })()
       : opts.shippingAddress;
 
+  const platform = opts.amazonOrderId ? 'amazon' : 'd2c';
+  const bookId = opts.bookId?.trim() || DEFAULT_BOOK_ID;
+  const formatId = opts.formatId?.trim() || (platform === 'amazon' ? 'amazon' : 'standard');
+  const bookSpecs = {
+    bookId,
+    formatId,
+    title: `${(opts.characterSpecs.childName as string) ?? 'Child'} and the Adventure Compass`,
+    totalPages: 16,
+    format: '8.5x8.5_softcover',
+    bookType: 'adventure',
+    channel: platform,
+  };
+
   return {
     amazonOrderId: opts.amazonOrderId ?? opts.orderId,
     orderId: opts.orderId,
     id: opts.orderId,
+    bookId,
+    book_id: bookId,
+    formatId,
+    format_id: formatId,
     orderDate: opts.purchaseDate ?? new Date().toISOString(),
     purchaseDate: opts.purchaseDate ?? new Date().toISOString(),
     status: 'pending_w0',
@@ -125,12 +177,8 @@ export function buildW0Payload(opts: {
     characterSpecs: opts.characterSpecs,
     character_specs: opts.characterSpecs,
     CharacterSpecs: opts.characterSpecs,
-    bookSpecs: {
-      title: `${(opts.characterSpecs.childName as string) ?? 'Child'} and the Adventure Compass`,
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'adventure',
-    },
+    bookSpecs,
+    book_specs: bookSpecs,
     orderDetails: { quantity: 1, shippingAddress: sa },
     dedication:
       opts.dedicationText ??
@@ -140,7 +188,11 @@ export function buildW0Payload(opts: {
       opts.dedicationText ??
       (opts.characterSpecs.dedication as string) ??
       null,
-    items: [],
+    items: opts.lineItems ?? (opts.lineItem ? [opts.lineItem] : []),
+    lineItem: opts.lineItem ?? null,
+    line_item: opts.lineItem ?? null,
+    unitIndex: opts.unitIndex ?? 1,
+    unitCount: opts.unitCount ?? 1,
     characterHash: opts.characterHash,
     character_hash: opts.characterHash,
   };

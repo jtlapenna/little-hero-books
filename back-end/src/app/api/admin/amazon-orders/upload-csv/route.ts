@@ -11,12 +11,14 @@ import {
   extractCustomerEmail,
   extractCustomizationUrl,
   extractPurchaseDate,
+  buildLineItemFromRow,
 } from '@/lib/csv-upload-helpers';
 import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
 import {
   calculateSiblingCharacterHash,
+  buildSiblingOrderId,
   buildSiblingOrderRow,
   buildW0Payload,
   triggerW0,
@@ -27,6 +29,8 @@ export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const AMAZON_CSV_BOOK_ID = 'book-mvp-simple-adventure';
+const AMAZON_CSV_FORMAT_ID = 'amazon';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -222,15 +226,25 @@ export async function POST(request: NextRequest) {
       const rowSpecs: Array<{
         rowNumber: number;
         orderItemId: string | null;
+        unitIndex: number;
+        unitCount: number;
         customizationUrl: string | null;
         customizedUrlHash: string | null;
+        lineItem: Record<string, unknown>;
         characterSpecs: Record<string, unknown> | null;
         customizationFailure: string | null;
       }> = [];
+      const sourceLineItems: Record<string, unknown>[] = [];
 
       for (const { row, rowNumber } of group) {
         const orderItemId = extractOrderItemId(row as string[], headers);
         const customizationUrl = extractCustomizationUrl(row as string[], headers);
+        const sourceLineItem = buildLineItemFromRow(row as string[], headers);
+        sourceLineItems.push(sourceLineItem);
+        const quantity =
+          typeof sourceLineItem.quantity === 'number' && Number.isFinite(sourceLineItem.quantity)
+            ? Math.max(1, Math.floor(sourceLineItem.quantity))
+            : 1;
         const stableCustomizationKey = customizationUrl
           ? (() => {
               // Purpose: ignore query params that may rotate between downloads.
@@ -265,23 +279,47 @@ export async function POST(request: NextRequest) {
         } else {
           failure = 'No customization URL in this row';
         }
-        rowSpecs.push({
-          rowNumber,
-          orderItemId,
-          customizationUrl: customizationUrl ?? null,
-          customizedUrlHash,
-          characterSpecs: specs,
-          customizationFailure: failure,
-        });
+        for (let unitIndex = 1; unitIndex <= quantity; unitIndex++) {
+          rowSpecs.push({
+            rowNumber,
+            orderItemId,
+            unitIndex,
+            unitCount: quantity,
+            customizationUrl: customizationUrl ?? null,
+            customizedUrlHash,
+            lineItem: {
+              ...sourceLineItem,
+              quantity: 1,
+              source_quantity: quantity,
+              quantity_unit_index: unitIndex,
+            },
+            characterSpecs: specs,
+            customizationFailure: failure,
+          });
+        }
       }
 
       // Process each row as its own order
+      const totalUnits = rowSpecs.length;
       for (let idx = 0; idx < rowSpecs.length; idx++) {
-        const { rowNumber, orderItemId, characterSpecs, customizationFailure, customizedUrlHash } = rowSpecs[idx];
-        const isSibling = idx > 0;
-        // Purpose: deterministic per-book orderId, even when order-item-id is missing.
-        const suffix = (orderItemId?.trim() || customizedUrlHash || String(idx + 1)).trim();
-        const effectiveOrderId = isSibling ? `${amazonOrderId}-item-${suffix}` : amazonOrderId;
+        const {
+          rowNumber,
+          orderItemId,
+          unitIndex,
+          unitCount,
+          lineItem,
+          characterSpecs,
+          customizationFailure,
+          customizedUrlHash,
+        } = rowSpecs[idx];
+        const isMultiUnitOrder = totalUnits > 1;
+        const isSibling = isMultiUnitOrder;
+        // Purpose: single-book orders keep the Amazon order id; multi-item/quantity orders get stable per-book ids.
+        const suffixBase = (orderItemId?.trim() || customizedUrlHash || String(idx + 1)).trim();
+        const suffix = unitCount > 1 ? `${suffixBase}-unit-${unitIndex}` : suffixBase;
+        const effectiveOrderId = isMultiUnitOrder
+          ? buildSiblingOrderId(amazonOrderId, suffix)
+          : amazonOrderId;
 
         try {
           // Purpose: existence check by per-book identity (orderId), not amazon_order_id.
@@ -307,6 +345,23 @@ export async function POST(request: NextRequest) {
               _created_via_csv: true,
               _csv_sibling_index: idx,
               _customized_url_hash: customizedUrlHash,
+              bookId: AMAZON_CSV_BOOK_ID,
+              book_id: AMAZON_CSV_BOOK_ID,
+              formatId: AMAZON_CSV_FORMAT_ID,
+              format_id: AMAZON_CSV_FORMAT_ID,
+              bookSpecs: {
+                bookId: AMAZON_CSV_BOOK_ID,
+                formatId: AMAZON_CSV_FORMAT_ID,
+                title: `${(characterSpecs?.childName as string) ?? 'Child'} and the Adventure Compass`,
+                totalPages: 16,
+                format: '8.5x8.5_softcover',
+                bookType: 'adventure',
+                channel: 'amazon',
+              },
+              line_item: lineItem,
+              line_items: sourceLineItems,
+              _quantity_unit_index: unitIndex,
+              _quantity_unit_count: unitCount,
               ...(isSibling ? { _sibling_order: true, _parent_amazon_order_id: amazonOrderId, _order_item_id: orderItemId ?? null } : {}),
             };
 
@@ -346,6 +401,12 @@ export async function POST(request: NextRequest) {
               purchaseDate,
               orderItemId,
               isSibling,
+              bookId: AMAZON_CSV_BOOK_ID,
+              formatId: AMAZON_CSV_FORMAT_ID,
+              lineItem,
+              lineItems: sourceLineItems,
+              unitIndex,
+              unitCount,
             });
             // Purpose: stable debug keys for re-upload + recovery.
             const orderRowRecord = orderRow as Record<string, unknown>;
@@ -353,6 +414,8 @@ export async function POST(request: NextRequest) {
               ...(((orderRowRecord.product_info as Record<string, unknown> | null) ?? {})),
               _csv_sibling_index: idx,
               _customized_url_hash: customizedUrlHash,
+              line_item: lineItem,
+              line_items: sourceLineItems,
             };
 
             const { error: insertError } = await supabase
@@ -419,6 +482,12 @@ export async function POST(request: NextRequest) {
             shippingAddress,
             characterSpecs: specsForW0,
             characterHash: charHash,
+            bookId: AMAZON_CSV_BOOK_ID,
+            formatId: AMAZON_CSV_FORMAT_ID,
+            lineItem,
+            lineItems: [lineItem],
+            unitIndex,
+            unitCount,
           });
 
           const w0Result = await triggerW0(payload);
@@ -471,4 +540,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

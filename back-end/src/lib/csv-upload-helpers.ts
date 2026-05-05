@@ -121,6 +121,18 @@ export function buildLineItemFromRow(
 ): Record<string, unknown> {
   const orderItemId = extractOrderItemId(row, headers);
   const customizationUrl = extractCustomizationUrl(row, headers);
+  const readString = (names: string[]): string | undefined => {
+    const index = findColumnIndex(headers, names);
+    if (index === null) return undefined;
+    const value = row[index]?.toString().trim();
+    return value || undefined;
+  };
+  const readNumber = (names: string[]): number | undefined => {
+    const value = readString(names);
+    if (!value) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
   const quantityIndex = findColumnIndex(headers, [
     'quantity-purchased',
     'quantity_purchased',
@@ -135,8 +147,16 @@ export function buildLineItemFromRow(
   const customizedPage = customizedPageIndex !== null ? row[customizedPageIndex]?.toString().trim() : null;
   const item: Record<string, unknown> = {
     order_item_id: orderItemId ?? undefined,
+    sku: readString(['sku']),
+    product_name: readString(['product-name', 'product_name', 'productName']),
     customization_url: customizationUrl ?? undefined,
     customized_page: customizedPage ?? undefined,
+    currency: readString(['currency']),
+    item_price: readNumber(['item-price', 'item_price']),
+    item_tax: readNumber(['item-tax', 'item_tax']),
+    shipping_price: readNumber(['shipping-price', 'shipping_price']),
+    shipping_tax: readNumber(['shipping-tax', 'shipping_tax']),
+    ship_service_level: readString(['ship-service-level', 'ship_service_level']),
     quantity: Number.isNaN(quantity) ? 1 : quantity,
   };
   return item;
@@ -271,8 +291,6 @@ export function buildShippingAddress(
     const rawPhone = row[phoneIndex]?.toString().trim();
     if (rawPhone) {
       // Clean phone number to remove extensions (Lulu API doesn't accept extensions)
-      // Import at top of file would be better, but this works for now
-      const { cleanPhoneNumber } = require('@/lib/phone-utils');
       const cleanedPhone = cleanPhoneNumber(rawPhone);
       if (cleanedPhone) {
         shippingAddress.phone = cleanedPhone;
@@ -406,4 +424,3 @@ export function validateCsvHeaders(headers: string[]): {
     missing
   };
 }
-
