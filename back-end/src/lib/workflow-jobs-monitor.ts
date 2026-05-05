@@ -685,6 +685,14 @@ function isActiveOrderRow(row: MonitorOrderRow): boolean {
   return executionStatus === 'ready_for_processing' && Boolean(toTrimmedString(row.next_workflow));
 }
 
+function stripMissingOrderIdField(select: string): string {
+  return select
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part && part !== 'order_id')
+    .join(', ');
+}
+
 async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promise<MonitorOrderRow[]> {
   const hours = clampInteger(filters.hours, 1, 24 * 30, 72);
   const stage = normalizeStage(filters.stage);
@@ -699,7 +707,7 @@ async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promis
     const lookup = await fetchOrderRowByAnyId<MonitorOrderRow>(supabase, orderId, select);
     rows = lookup.row ? [lookup.row] : [];
   } else {
-    const { data, error } = await supabase
+    let result = await supabase
       .from('orders')
       .select(select)
       .or('execution_status.eq.processing,execution_status.eq.ready_for_processing')
@@ -707,10 +715,20 @@ async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promis
       .order('updated_at', { ascending: false })
       .limit(100);
 
-    if (error) {
-      throw error;
+    if (result.error?.code === '42703') {
+      result = await supabase
+        .from('orders')
+        .select(stripMissingOrderIdField(select))
+        .or('execution_status.eq.processing,execution_status.eq.ready_for_processing')
+        .gte('updated_at', since)
+        .order('updated_at', { ascending: false })
+        .limit(100);
     }
-    rows = (data ?? []) as MonitorOrderRow[];
+
+    if (result.error) {
+      throw result.error;
+    }
+    rows = (result.data ?? []) as MonitorOrderRow[];
   }
 
   return rows.filter((row) => {
