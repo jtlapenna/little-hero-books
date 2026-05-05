@@ -1,7 +1,7 @@
 # LHL Priority Queue
 
-**Generated:** 2026-05-04 (R2 daily run) from `pipeline.md` (60 creators)
-**Previous generation:** 2026-05-03 (52 creators)
+**Generated:** 2026-05-05 (R2 daily run) from `pipeline.md` (60 creators)
+**Previous generation:** 2026-05-04 (60 creators)
 
 **Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL.
 
@@ -9,7 +9,9 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 
 **R2 2026-05-04 regen note:** R1 added 8 creators today (Montessori + gentle parenting category). Pipeline grows from 52 to 60. None of the 8 new additions qualify for First Wave: 3 are mid-tier (150K+), 2 have geo concerns (AU, Dubai), 2 have unverified email (verify-via-website), and 1 is IG-DM-only. Second wave gains 3 actionable candidates (@hapafamilyvlog, @nickav25, @ourpurposefulplay). Mid-tier gains 3 (@montessoriinreallife, @themontessorinotebook, @happytoddlerplaytime). Footnotes gains 2 (@howwemontessori, @thegentlemama).
 
-**SUPPLY GAP (2026-05-04):** First Wave is fully exhausted. All 16 First Wave creators have been drafted or copy-reviewed (or are pending Jeff action). Zero creators meet today's R2 drafting criteria. R2 is stopping and surfacing the gap. See supply gap section below.
+**R2 2026-05-05 regen note:** No new creators added today. Pipeline unchanged at 60. First Wave status updates since 2026-05-04: 3 creators advanced to `approved` (Jeff approved 2026-05-04): @happily.ever.elephants (Jeff resolved opener-dup flag before approving), @blackbabybooks, @kaylynjohnson_slp. No new First Wave candidates. Supply gap is unchanged in kind -- zero creators eligible for R2 drafting today.
+
+**SUPPLY GAP (2026-05-05):** First Wave remains fully exhausted. 3 creators advanced to `approved` since yesterday (Jeff approved 2026-05-04). Zero new eligible candidates. R2 stops and surfaces the gap. See supply gap section below.
 
 ---
 
@@ -17,28 +19,28 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 
 16 candidates. All email-confirmed direct, all nano/micro tier (no rate sign-off needed). R2 drafts these by default.
 
-**ALL FIRST WAVE CREATORS ARE PROCESSED. No eligible candidates remain for R2 today.**
+**ALL FIRST WAVE CREATORS ARE PROCESSED. No eligible candidates remain for R2 today (2026-05-05). 3 approved, 10 copy-reviewed, 2 drafted/flagged, 1 needs angle designation.**
 
 | # | Handle | Score | Tier | Niche | Contact | Angle | Draft status |
 |---|---|---|---|---|---|---|---|
-| 1 | @happily.ever.elephants (Lauren) | 19/20 | micro 71K | Librarian / kidlit reviewer | `lauren@happilyeverelephants.com` | librarian-kidlit-curator | drafted 2026-05-03 (humanizer flagged: opener dup with #10; Jeff must swap opener before approving) |
+| 1 | @happily.ever.elephants (Lauren) | 19/20 | micro 71K | Librarian / kidlit reviewer | `lauren@happilyeverelephants.com` | librarian-kidlit-curator | approved 2026-05-04 (Jeff resolved opener-dup flag before approving) |
 | 2 | thispicturebooklife (Danielle Davis) | 19/20 | multi-platform | Picture book curator + author | `danielledaviswrites@me.com` | librarian-kidlit-curator | copy-reviewed 2026-05-03 |
 | 3 | @biracialbookworms (Bethany Edwards) | 19/20 | nano 12K | Biracial / multicultural kidlit | `Bethany@biracialbookworms.com` | diverse-representation | copy-reviewed 2026-05-03 |
 | 4 | @ryan_and_craig | 19/20 | micro 39K | Read-aloud comedy duo (two dads) | `lagodtovey@gmail.com` | read-aloud-storytime | copy-reviewed 2026-05-03 |
 | 5 | @raisingreaderstobecomeleaders (Elizabeth) | 18/20 | micro 88K | M.A. Literacy / homeschooling / play-based | `raisingreaders2020@gmail.com` | literacy-educator | drafted 2026-05-03 (humanizer flagged: theme-sentence dup with #10; Jeff must vary phrasing before approving) |
 | 6 | @picturebookplaydate (Lauren) | 18/20 | micro 22K | Daily picture-book recs, Austin TX | `picturebookplaydate@gmail.com` | librarian-kidlit-curator | copy-reviewed 2026-05-03 |
 | 7 | @thechildrensbookreview (Bianca Schulze) | 18/20 | micro 23K | Review site since 2008 | `growingreaders@thechildrensbookreview.com` | librarian-kidlit-curator | copy-reviewed 2026-05-02 |
-| 8 | @blackbabybooks (Veronica Chapman) | 18/20 | micro 135K | Black Children's Book Week founder | `info@boxxout.com` | diverse-representation | copy-reviewed 2026-05-02 |
+| 8 | @blackbabybooks (Veronica Chapman) | 18/20 | micro 135K | Black Children's Book Week founder | `info@boxxout.com` | diverse-representation | approved 2026-05-04 |
 | 9 | @thetinyactivists (Corrie) | 18/20 | micro 35K | Diverse / LGBTQ+ kidlit | `queerkidlitcamp@gmail.com` | diverse-representation | copy-reviewed 2026-05-02 |
 | 10 | @growingbookbybook (Jodie Rodriguez) | 18/20 | micro 29K | Early-childhood literacy / educator | `jodie@growingbookbybook.com` | literacy-educator | drafted 2026-05-03 (humanizer flagged: opener dup with #1, theme-sentence dup with #5, "demo" wording; Jeff must fix all three before approving) |
 | 11 | @thetututeacher (Vera Ahiyya) | 18/20 | micro 147K | Diverse kidlit / kindergarten teacher-author | `thetututeacher@gmail.com` | diverse-representation | copy-reviewed 2026-05-02 (business flag: talent-managed Serendipity Lit + How Now Booking; Jeff review before sending) |
 | 12 | @bfppodcast (Laura Birek + Shanna Micko) | 18/20 | micro (podcast) | Weekly pregnancy + new-mom podcast | `contact@bigfatpositivepodcast.com` | gift-curator | copy-reviewed 2026-05-03 (passed_with_notes: angle is audience-driven, not creator-content-catalog match; Jeff should confirm angle fit before approving) |
-| 13 | @kaylynjohnson_slp (Kaylyn Johnson) | 17/20 | nano 20K | Pediatric SLP + toddler mom | `kaylyn.johnson@yahoo.com` | literacy-educator | copy-reviewed 2026-05-02 |
+| 13 | @kaylynjohnson_slp (Kaylyn Johnson) | 17/20 | nano 20K | Pediatric SLP + toddler mom | `kaylyn.johnson@yahoo.com` | literacy-educator | approved 2026-05-04 |
 | 14 | @littlereaders.futureleaders (Holly) | 17/20 | nano 8K | Kid Lit recs / early-childhood educator | `holly@littlereaders.blog` | literacy-educator | copy-reviewed 2026-05-02 |
 | 15 | @newmodernmom (Barbara Mighdoll) | 16/20 | nano 10K | Modern-mom lifestyle / baby registry | `barbara@newmodernmom.com` | gift-curator | copy-reviewed 2026-05-03 |
 | 16 | @bridgetteyler (Bridget Teyler) | 16/20 | micro 30K | Childbirth educator + birth doula | `bridget@builttobirth.com` | none (flagged) | NOT DRAFTED 2026-05-03: no confident angle match. Closest was gift-curator but creator content has no gift-roundup signals. Jeff must designate angle before R2 can draft. |
 
-**Supply gap (detail):** First wave has 12 copy-reviewed (ready for Jeff approval + send), 3 drafted/flagged (need Jeff edits: #1 opener swap, #5 theme sentence vary, #10 opener + theme sentence + "demo" fix), 1 needs Jeff angle designation (#16 @bridgetteyler). R2 cannot produce new First Wave drafts until Jeff either (a) unlocks Second Wave candidates per-candidate, or (b) designates an angle for @bridgetteyler. See supply gap section below.
+**Supply gap (detail, as of 2026-05-05):** First wave has 3 approved (ready to send: #1 @happily.ever.elephants, #8 @blackbabybooks, #13 @kaylynjohnson_slp), 10 copy-reviewed (ready for Jeff approval + send: #2 thispicturebooklife, #3 @biracialbookworms, #4 @ryan_and_craig, #6 @picturebookplaydate, #7 @thechildrensbookreview, #9 @thetinyactivists, #11 @thetututeacher (business flag: talent-managed), #12 @bfppodcast (angle-fit note), #14 @littlereaders.futureleaders, #15 @newmodernmom), 2 drafted/flagged (need Jeff edits: #5 @raisingreaderstobecomeleaders theme sentence vary, #10 @growingbookbybook theme sentence + "demo" fix), 1 needs Jeff angle designation (#16 @bridgetteyler). R2 cannot produce new First Wave drafts until Jeff either (a) unlocks Second Wave candidates per-candidate, or (b) designates an angle for @bridgetteyler. See supply gap section below.
 
 ---
 
@@ -127,17 +129,16 @@ Lower-priority, case-by-case. Either lower score, audience misalignment, geo con
 
 ## Supply gap -- action required from Jeff
 
-**First wave is fully exhausted as of 2026-05-04.** R2 cannot produce new outreach drafts today without Jeff action on one of the following:
+**First wave is fully exhausted as of 2026-05-05.** R2 cannot produce new outreach drafts today without Jeff action on one of the following:
 
-### Option A: Fix the 3 flagged First Wave drafts (quick)
+### Option A: Fix the 2 remaining flagged First Wave drafts (quick)
 
-These 3 drafts are fully written but blocked on small humanizer fixes. Jeff edits, then advances to `approved`:
+One flag was resolved by Jeff before approving @happily.ever.elephants on 2026-05-04. Two drafts remain blocked on small humanizer fixes. Jeff edits, then advances to `approved`:
 
 | Draft file | Flag | Suggested fix |
 |---|---|---|
-| `outreach-data/lhl/drafts/2026-05-03-happily.ever.elephants.md` | Opener "I'm Jeff, founder of Little Hero Labs." duplicates growingbookbybook draft | Swap to "Jeff here from Little Hero Labs." or "I'm Jeff at Little Hero Labs." |
 | `outreach-data/lhl/drafts/2026-05-03-raisingreaderstobecomeleaders.md` | Body sentence "Themes are courage, friendship, and emotional intelligence." duplicates growingbookbybook draft | Rephrase to e.g. "The story's themes (emotional intelligence, courage, self-discovery) map directly to what your audience cares about." |
-| `outreach-data/lhl/drafts/2026-05-03-growingbookbybook.md` | Two flags: opener dup + theme-sentence dup + "exactly the demo" wording | Fix opener (same as above), vary theme sentence, replace "demo" with "audience" |
+| `outreach-data/lhl/drafts/2026-05-03-growingbookbybook.md` | Theme-sentence dup with @raisingreaderstobecomeleaders + "exactly the demo we're reaching" wording (opener-dup may be resolved depending on what Jeff changed in @happily.ever.elephants) | Vary the theme sentence; replace "demo" with "audience" or rephrase the whole line; verify opener is not a dup of the now-approved @happily.ever.elephants draft |
 
 ### Option B: Designate an angle for @bridgetteyler
 
@@ -188,4 +189,4 @@ Jeff approves any of the below for R2 drafting. Each requires its setup action f
 | Verify-via-linktree/website pending | 11 |
 | Borderline / hold | 9 |
 
-**First-wave drafting capacity:** 16 total. 12 copy-reviewed (ready for Jeff approval + send), 3 drafted/flagged (need Jeff fixes: #1 opener, #5 theme sentence, #10 opener + theme sentence + "demo"), 1 needs Jeff angle designation (#16 @bridgetteyler). **First wave is fully exhausted. See supply gap section above for next steps.**
+**First-wave drafting capacity (as of 2026-05-05):** 16 total. 3 approved (ready to send: #1, #8, #13). 10 copy-reviewed (ready for Jeff approval + send). 2 drafted/flagged (need Jeff fixes: #5 theme sentence vary, #10 theme sentence + "demo" fix). 1 needs Jeff angle designation (#16 @bridgetteyler). **First wave is fully exhausted. See supply gap section above for next steps.**
