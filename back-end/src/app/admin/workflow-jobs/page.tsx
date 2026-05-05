@@ -20,6 +20,7 @@ type WorkflowJobsSummary = {
   matchingJobCount: number;
   visibleJobCount: number;
   activeCount: number;
+  activeOrderRowCount: number;
   retryWaitingCount: number;
   failedCount: number;
   deadLetteredCount: number;
@@ -561,6 +562,27 @@ function deriveInspectionDiagnosis(inspectedOrder: WorkflowInspection | null): I
   const activeJobs = inspectedOrder.jobs.filter((job) =>
     ['queued', 'claimed', 'running', 'polling', 'retry_waiting'].includes(job.status),
   );
+  const orderRowActive =
+    inspectedOrder.orderRow?.executionStatus === 'processing' ||
+    (inspectedOrder.orderRow?.executionStatus === 'ready_for_processing' &&
+      Boolean(inspectedOrder.orderRow?.nextWorkflow));
+
+  if (activeJobs.length === 0 && orderRowActive) {
+    const currentWorkflow = inspectedOrder.orderRow?.currentWorkflow;
+    const nextWorkflow = inspectedOrder.orderRow?.nextWorkflow;
+    return {
+      jobId: null,
+      stage: currentWorkflow ?? nextWorkflow ?? null,
+      tone: 'info',
+      title: currentWorkflow
+        ? `${humanizeMachineValue(currentWorkflow)} is active on the order row`
+        : `${humanizeMachineValue(nextWorkflow)} is queued on the order row`,
+      detail:
+        'This run is tracked by the legacy order-row workflow fields, not by a repo-centric workflow_jobs row. ' +
+        'The router has already claimed it if current workflow is set; wait for the workflow callback or use the matching recovery page if it goes stale.',
+      canRecoverW3: false,
+    };
+  }
   const prioritized = activeJobs
     .map((job) => ({ job, diagnosis: deriveJobDiagnosis(job) }))
     .filter(
@@ -1030,8 +1052,13 @@ function WorkflowJobsPageContent() {
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.activeCount}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Jobs still queued, claimed, running, polling, or waiting to retry.
+                Repo jobs plus active legacy order-row workflows still queued or processing.
               </p>
+              {data.summary.activeOrderRowCount > 0 && (
+                <p className="mt-2 text-xs font-medium text-blue-700">
+                  Includes {data.summary.activeOrderRowCount} order-row workflow{data.summary.activeOrderRowCount === 1 ? '' : 's'}.
+                </p>
+              )}
             </div>
             <div className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -1389,7 +1416,7 @@ function WorkflowJobsPageContent() {
                 <div className="max-h-[38rem] overflow-y-auto">
                   {inspectedOrder.jobs.length === 0 ? (
                     <div className="px-4 py-10 text-center text-sm text-gray-500">
-                      No workflow jobs found for this order.
+                      No repo-centric workflow_jobs rows found for this order. Check the Order Row panel above for active legacy workflow state.
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-200">

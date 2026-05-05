@@ -15,7 +15,7 @@ import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
-import { AlertCircle, ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer } from 'lucide-react';
+import { AlertCircle, ArrowLeft, User, Calendar, Package, Flag, RotateCcw, Loader2, Printer, Workflow } from 'lucide-react';
 import { getDisplayStatusForOrder, getStageBadgeStatus } from '@/lib/status-display';
 import { ManualReviewAlert } from '@/components/ui/manual-review-alert';
 import { SiblingGroupPanel } from '@/components/ui/sibling-group-panel';
@@ -85,6 +85,55 @@ function formatCorrectionValue(value: unknown): string {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
   return String(value);
+}
+
+function humanizeWorkflowStage(value?: string | null): string {
+  const normalized = String(value || '').trim().toUpperCase();
+  switch (normalized) {
+    case '0':
+    case 'W0':
+      return 'W0 order intake';
+    case '2A':
+    case 'W2A':
+      return 'W2A base character generation';
+    case '2B':
+    case 'W2B':
+      return 'W2B background removal';
+    case '3':
+    case 'W3':
+      return 'W3 book assembly';
+    case '4':
+    case 'W4':
+      return 'W4 print preparation';
+    case '4.1':
+    case 'W4.1':
+      return 'W4.1 grouped print fulfillment';
+    default:
+      return normalized ? `Workflow ${normalized}` : 'No active workflow';
+  }
+}
+
+function humanizeMachineValue(value?: string | null): string {
+  if (!value) return 'N/A';
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatElapsedSince(value?: string | null): string {
+  if (!value) return 'N/A';
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return 'N/A';
+  const elapsedMs = Date.now() - timestamp;
+  if (elapsedMs < 0) return 'just now';
+  const minutes = Math.floor(elapsedMs / 60000);
+  if (minutes < 1) return 'less than a minute';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours} hour${hours === 1 ? '' : 's'}${remainingMinutes ? ` ${remainingMinutes} min` : ''}`;
 }
 
 interface FinalApprovalResult {
@@ -518,6 +567,17 @@ export default function OrderDetailPage() {
     latestCorrection?.submittedAt && latestCorrection.submittedAt.length > 0
       ? formatDate(latestCorrection.submittedAt)
       : null;
+  const isWorkflowProcessing =
+    order.executionStatus === 'processing' || Boolean(order.currentWorkflow && order.startedAt);
+  const isWorkflowQueued =
+    !isWorkflowProcessing &&
+    (order.executionStatus === 'ready_for_processing' || order.status === 'queued_for_processing');
+  const workflowPanelTone = isWorkflowProcessing ? 'blue' : 'amber';
+  const workflowPanelClasses =
+    workflowPanelTone === 'blue'
+      ? 'border-blue-200 bg-blue-50 text-blue-900'
+      : 'border-amber-200 bg-amber-50 text-amber-900';
+  const workflowInspectHref = `/admin/workflow-jobs?orderId=${encodeURIComponent(order.orderId)}`;
 
   const handleStageApprove = async (stage: ReviewStage, explicitStatus?: 'approved' | 'pending') => {
     if (!order) return;
@@ -1113,8 +1173,44 @@ export default function OrderDetailPage() {
             errorType={order.errorType}
             retryCount={order.retryCount}
             workflowStep={order.workflowStep}
-            currentWorkflow={undefined} // TODO: Add currentWorkflow to Order type if needed
+            currentWorkflow={order.currentWorkflow}
           />
+        )}
+
+        {(isWorkflowProcessing || isWorkflowQueued) && (
+          <div className={`mb-6 rounded-lg border p-4 ${workflowPanelClasses}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex gap-3">
+                {isWorkflowProcessing ? (
+                  <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-blue-600" />
+                ) : (
+                  <Workflow className="mt-0.5 h-5 w-5 text-amber-600" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold">
+                    {isWorkflowProcessing ? 'Workflow in progress' : 'Waiting for workflow router'}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    {isWorkflowProcessing
+                      ? `${humanizeWorkflowStage(order.currentWorkflow || order.nextWorkflow)} is currently processing this order.`
+                      : `${humanizeWorkflowStage(order.nextWorkflow)} is queued and waiting for the cron router to claim it.`}
+                  </p>
+                  <div className="mt-3 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                    <div>Execution: {humanizeMachineValue(order.executionStatus)}</div>
+                    <div>Current: {humanizeWorkflowStage(order.currentWorkflow)}</div>
+                    <div>Next: {humanizeWorkflowStage(order.nextWorkflow)}</div>
+                    <div>Elapsed: {formatElapsedSince(order.startedAt || order.queuedAt)}</div>
+                  </div>
+                </div>
+              </div>
+              <a
+                href={workflowInspectHref}
+                className="inline-flex items-center justify-center rounded-md border border-current bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white"
+              >
+                Inspect Workflow
+              </a>
+            </div>
+          </div>
         )}
 
         {/* Recovery Actions Section - Only show if there are actual recovery actions available */}

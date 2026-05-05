@@ -111,6 +111,7 @@ export interface Order {
   finalBookUrl?: string;
   finalCoverUrl?: string;
   workflowStep?: string;
+  nextWorkflow?: string; // next_workflow from Supabase (2A, 2B, 3, etc.)
   currentWorkflow?: string; // current_workflow from Supabase (2A, 2B, 3, etc.)
   luluStatus?: string;
   luluJobId?: string; // Lulu job ID from lulu_job_id

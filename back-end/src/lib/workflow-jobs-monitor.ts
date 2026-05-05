@@ -40,6 +40,8 @@ type MonitorOrderRow = {
   manifest_2a_url?: string | null;
   manifest_3_url?: string | null;
   next_workflow?: string | null;
+  queued_at?: string | null;
+  started_at?: string | null;
 };
 
 export type WorkflowJobsMonitorFilters = {
@@ -55,6 +57,7 @@ export type WorkflowJobsMonitorSummary = {
   matchingJobCount: number;
   visibleJobCount: number;
   activeCount: number;
+  activeOrderRowCount: number;
   retryWaitingCount: number;
   failedCount: number;
   deadLetteredCount: number;
@@ -443,6 +446,7 @@ function buildSummary(
   visibleJobCount: number,
   windowHours: number,
   alertsByJobId: Map<number, WorkflowAlertRecord[]>,
+  activeOrderRows: MonitorOrderRow[],
 ): WorkflowJobsMonitorSummary {
   const byStage = new Map<string, number>();
   const byStatus = new Map<string, number>();
@@ -488,11 +492,19 @@ function buildSummary(
     infoAlertCount += alertSummary.infoCount;
   }
 
+  for (const order of activeOrderRows) {
+    const stage = stageLabel(order.current_workflow ?? order.next_workflow ?? 'order');
+    const status = toTrimmedString(order.execution_status) ?? 'order_row_active';
+    byStage.set(stage, (byStage.get(stage) ?? 0) + 1);
+    byStatus.set(status, (byStatus.get(status) ?? 0) + 1);
+  }
+
   return {
     windowHours,
     matchingJobCount: jobs.length,
     visibleJobCount,
-    activeCount,
+    activeCount: activeCount + activeOrderRows.length,
+    activeOrderRowCount: activeOrderRows.length,
     retryWaitingCount,
     failedCount,
     deadLetteredCount,
@@ -667,10 +679,53 @@ async function queryMonitorJobs(filters: WorkflowJobsMonitorFilters): Promise<Wo
   return (data ?? []) as WorkflowJobRecord[];
 }
 
+function isActiveOrderRow(row: MonitorOrderRow): boolean {
+  const executionStatus = toTrimmedString(row.execution_status);
+  if (executionStatus === 'processing') return true;
+  return executionStatus === 'ready_for_processing' && Boolean(toTrimmedString(row.next_workflow));
+}
+
+async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promise<MonitorOrderRow[]> {
+  const hours = clampInteger(filters.hours, 1, 24 * 30, 72);
+  const stage = normalizeStage(filters.stage);
+  const status = normalizeStatus(filters.status);
+  const orderId = toTrimmedString(filters.orderId);
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const select =
+    'id, orderId, order_id, root_order_id, amazon_order_id, workflow_step, execution_status, current_workflow, updated_at, status, manifest_2a_url, manifest_3_url, next_workflow, queued_at, started_at';
+
+  let rows: MonitorOrderRow[] = [];
+  if (orderId) {
+    const lookup = await fetchOrderRowByAnyId<MonitorOrderRow>(supabase, orderId, select);
+    rows = lookup.row ? [lookup.row] : [];
+  } else {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(select)
+      .or('execution_status.eq.processing,execution_status.eq.ready_for_processing')
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      throw error;
+    }
+    rows = (data ?? []) as MonitorOrderRow[];
+  }
+
+  return rows.filter((row) => {
+    if (!isActiveOrderRow(row)) return false;
+    if (stage && normalizeStage(row.current_workflow ?? row.next_workflow) !== stage) return false;
+    if (status && normalizeStatus(row.execution_status) !== status) return false;
+    return true;
+  });
+}
+
 export async function listWorkflowJobsMonitorData(filters: WorkflowJobsMonitorFilters) {
   const limit = clampInteger(filters.limit, 1, 100, 40);
   const windowHours = clampInteger(filters.hours, 1, 24 * 30, 72);
   const jobs = sortJobsDescending(await queryMonitorJobs(filters));
+  const activeOrderRows = await queryActiveOrderRows(filters);
   const alertsByJobId = await listOpenWorkflowAlertsByJobIds(jobs.map((job) => job.id));
   const { attemptsByJobId, eventsByJobId } = await loadAttemptsAndEvents(
     jobs.map((job) => job.id),
@@ -693,7 +748,7 @@ export async function listWorkflowJobsMonitorData(filters: WorkflowJobsMonitorFi
   const visibleJobs = listItems.slice(0, limit);
 
   return {
-    summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId),
+    summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId, activeOrderRows),
     jobs: visibleJobs,
   };
 }
