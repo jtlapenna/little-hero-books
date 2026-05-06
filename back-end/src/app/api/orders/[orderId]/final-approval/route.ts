@@ -25,46 +25,91 @@ type NotificationLogWriter = {
   };
 };
 
+type NotificationLogInsertResult = {
+  error?: { message?: string } | null;
+};
+
+type NotificationLogAttemptResult = {
+  recorded: boolean;
+  error?: string;
+};
+
 function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
 }
 
-function logAmazonPreviewNotificationAttempt(params: {
+function getNotificationLogInsertError(result: unknown): string | null {
+  const record = toRecord(result);
+  const error = (record as NotificationLogInsertResult).error;
+  if (!error) {
+    return null;
+  }
+
+  return error.message || JSON.stringify(error);
+}
+
+function buildAmazonPreviewNotificationLogNote(params: {
+  status: 'sent' | 'failed';
+  errorMessage?: string | null;
+  messageId?: string | null;
+  documentId?: string | null;
+}) {
+  if (params.status !== 'sent') {
+    return params.errorMessage || 'Unknown error';
+  }
+
+  const parts = [];
+  if (params.messageId) {
+    parts.push(`messageId=${params.messageId}`);
+  }
+  if (params.documentId) {
+    parts.push(`documentId=${params.documentId}`);
+  }
+
+  return parts.length > 0 ? parts.join('; ') : null;
+}
+
+async function logAmazonPreviewNotificationAttempt(params: {
   amazonOrderId: string;
   status: 'sent' | 'failed';
   errorMessage?: string | null;
   messageId?: string | null;
-}) {
+  documentId?: string | null;
+}): Promise<NotificationLogAttemptResult> {
   const now = new Date().toISOString();
-  const logInsert = (supabase as unknown as NotificationLogWriter)
-    .from('notification_logs')
-    .insert({
-      order_id: params.amazonOrderId,
-      notification_type: 'amazon_message',
-      status: params.status,
-      recipient: `amazon:${params.amazonOrderId}`,
-      error_message:
-        params.status === 'sent'
-          ? params.messageId
-            ? `messageId=${params.messageId}`
-            : null
-          : params.errorMessage || 'Unknown error',
-      sent_at: params.status === 'sent' ? now : null,
-      created_at: now
-    });
+  try {
+    const result = await (supabase as unknown as NotificationLogWriter)
+      .from('notification_logs')
+      .insert({
+        order_id: params.amazonOrderId,
+        notification_type: 'amazon_message',
+        status: params.status,
+        recipient: `amazon:${params.amazonOrderId}`,
+        error_message: buildAmazonPreviewNotificationLogNote(params),
+        sent_at: params.status === 'sent' ? now : null,
+        created_at: now
+      });
 
-  void Promise.resolve(logInsert)
-    .then(() => {
-      // Successfully logged (no action needed)
-    })
-    .catch((error: unknown) => {
+    const insertError = getNotificationLogInsertError(result);
+    if (insertError) {
       console.error(
         '[Final Approval] Failed to log Amazon notification:',
-        error
+        insertError
       );
-    });
+      return { recorded: false, error: insertError };
+    }
+
+    return { recorded: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      '[Final Approval] Failed to log Amazon notification:',
+      error
+    );
+    return { recorded: false, error: message };
+  }
 }
 
 async function handleFinalApproval(
@@ -213,6 +258,8 @@ async function handleFinalApproval(
     reason?: string;
     response?: unknown;
     channel?: 'email' | 'amazon_message';
+    logRecorded?: boolean;
+    logError?: string;
   } = {
     attempted: false,
     sent: false
@@ -276,11 +323,19 @@ async function handleFinalApproval(
           error: configCheck.error,
           issues: configCheck.issues,
         };
-        logAmazonPreviewNotificationAttempt({
+        const logResult = await logAmazonPreviewNotificationAttempt({
           amazonOrderId,
           status: 'failed',
           errorMessage: notificationResult.reason,
         });
+        notificationResult.logRecorded = logResult.recorded;
+        notificationResult.logError = logResult.error;
+        if (!logResult.recorded) {
+          notificationResult.response = {
+            ...toRecord(notificationResult.response),
+            logError: logResult.error,
+          };
+        }
         
         // Log detailed diagnostic info
         const resolvedAmazonEnv = resolveAmazonSpApiEnv();
@@ -330,12 +385,21 @@ async function handleFinalApproval(
               : 'Unknown error sending Amazon message');
         }
 
-        logAmazonPreviewNotificationAttempt({
+        const logResult = await logAmazonPreviewNotificationAttempt({
           amazonOrderId,
           status: response.success ? 'sent' : 'failed',
           errorMessage: response.success ? null : response.error || 'Unknown error',
           messageId: response.messageId ?? null,
+          documentId: response.documentId ?? null,
         });
+        notificationResult.logRecorded = logResult.recorded;
+        notificationResult.logError = logResult.error;
+        if (!logResult.recorded) {
+          notificationResult.response = {
+            ...toRecord(notificationResult.response),
+            logError: logResult.error,
+          };
+        }
       }
     } catch (error: unknown) {
       notificationResult.sent = false;
@@ -381,6 +445,13 @@ async function handleFinalApproval(
       }
       
       notificationResult.reason = detailedReason;
+      const logResult = await logAmazonPreviewNotificationAttempt({
+        amazonOrderId,
+        status: 'failed',
+        errorMessage: detailedReason,
+      });
+      notificationResult.logRecorded = logResult.recorded;
+      notificationResult.logError = logResult.error;
       
       // Log FULL error details for server-side diagnosis
       console.error('[Final Approval] Amazon preview notification error - COMPLETE DIAGNOSTICS:', {
