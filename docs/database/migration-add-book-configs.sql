@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS book_configs (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE book_configs ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE book_configs
     ALTER COLUMN book_id SET NOT NULL,
     ALTER COLUMN version SET NOT NULL,
@@ -42,27 +44,30 @@ ALTER TABLE book_configs
     ALTER COLUMN created_at SET NOT NULL,
     ALTER COLUMN updated_at SET NOT NULL;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'book_configs_version_positive'
-    ) THEN
-        ALTER TABLE book_configs
-            ADD CONSTRAINT book_configs_version_positive CHECK (version > 0);
-    END IF;
+ALTER TABLE book_configs
+    DROP CONSTRAINT IF EXISTS book_configs_version_positive,
+    DROP CONSTRAINT IF EXISTS book_configs_status_valid,
+    DROP CONSTRAINT IF EXISTS book_configs_checksum_sha256,
+    DROP CONSTRAINT IF EXISTS book_configs_config_json_object,
+    DROP CONSTRAINT IF EXISTS book_configs_identity_matches_payload;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'book_configs_status_valid'
-    ) THEN
-        ALTER TABLE book_configs
-            ADD CONSTRAINT book_configs_status_valid
-            CHECK (status IN ('draft', 'active', 'archived'));
-    END IF;
-END $$;
+ALTER TABLE book_configs
+    ADD CONSTRAINT book_configs_version_positive CHECK (version > 0),
+    ADD CONSTRAINT book_configs_status_valid CHECK (status IN ('draft', 'active', 'archived')),
+    ADD CONSTRAINT book_configs_checksum_sha256 CHECK (checksum ~ '^[a-f0-9]{64}$'),
+    ADD CONSTRAINT book_configs_config_json_object CHECK (jsonb_typeof(config_json) = 'object'),
+    ADD CONSTRAINT book_configs_identity_matches_payload CHECK (
+        config_json ? 'bookId'
+        AND config_json ? 'version'
+        AND config_json ? 'schema'
+        AND config_json ? 'status'
+        AND config_json ? 'defaultFormatId'
+        AND book_id = config_json->>'bookId'
+        AND version = (config_json->>'version')::integer
+        AND schema = config_json->>'schema'
+        AND status = config_json->>'status'
+        AND default_format_id = config_json->>'defaultFormatId'
+    );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_book_configs_book_version
     ON book_configs(book_id, version);

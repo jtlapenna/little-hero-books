@@ -146,6 +146,23 @@ export type WorkflowJobsMonitorListItem = {
   openAlertSummary: WorkflowJobsMonitorAlertSummary;
 };
 
+export type WorkflowJobsMonitorActiveOrderRow = {
+  id: number;
+  orderId: string | null;
+  rootOrderId: string | null;
+  amazonOrderId: string | null;
+  workflowStep: string | null;
+  executionStatus: string | null;
+  currentWorkflow: string | null;
+  nextWorkflow: string | null;
+  status: string | null;
+  queuedAt: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
+  manifest2aUrl: string | null;
+  manifest3Url: string | null;
+};
+
 export type WorkflowJobsMonitorInspectionJob = WorkflowJobsMonitorListItem & {
   attempts: WorkflowJobsMonitorLatestAttempt[];
   recentEvents: WorkflowJobsMonitorEvent[];
@@ -448,6 +465,16 @@ function buildSummary(
   alertsByJobId: Map<number, WorkflowAlertRecord[]>,
   activeOrderRows: MonitorOrderRow[],
 ): WorkflowJobsMonitorSummary {
+  const activeOrderKeys = new Set(
+    activeOrderRows.flatMap((order) =>
+      [
+        toTrimmedString(order.orderId),
+        toTrimmedString(order.order_id),
+        toTrimmedString(order.root_order_id),
+        toTrimmedString(order.amazon_order_id),
+      ].filter((value): value is string => Boolean(value)),
+    ),
+  );
   const byStage = new Map<string, number>();
   const byStatus = new Map<string, number>();
   let activeCount = 0;
@@ -466,7 +493,14 @@ function buildSummary(
     byStage.set(stage, (byStage.get(stage) ?? 0) + 1);
     byStatus.set(job.status, (byStatus.get(job.status) ?? 0) + 1);
 
-    if (ACTIVE_STATUSES.has(job.status)) {
+    const jobOrderKeys = [
+      toTrimmedString(job.order_id),
+      toTrimmedString(job.root_group_id),
+      toTrimmedString(job.amazon_order_id),
+    ].filter((value): value is string => Boolean(value));
+    const representedByActiveOrderRow = jobOrderKeys.some((value) => activeOrderKeys.has(value));
+
+    if (ACTIVE_STATUSES.has(job.status) && !representedByActiveOrderRow) {
       activeCount += 1;
     }
     if (job.status === 'retry_waiting') {
@@ -685,6 +719,25 @@ function isActiveOrderRow(row: MonitorOrderRow): boolean {
   return executionStatus === 'ready_for_processing' && Boolean(toTrimmedString(row.next_workflow));
 }
 
+function buildActiveOrderRow(row: MonitorOrderRow): WorkflowJobsMonitorActiveOrderRow {
+  return {
+    id: row.id,
+    orderId: toTrimmedString(row.orderId) ?? toTrimmedString(row.order_id),
+    rootOrderId: toTrimmedString(row.root_order_id),
+    amazonOrderId: toTrimmedString(row.amazon_order_id),
+    workflowStep: toTrimmedString(row.workflow_step),
+    executionStatus: toTrimmedString(row.execution_status),
+    currentWorkflow: toTrimmedString(row.current_workflow),
+    nextWorkflow: toTrimmedString(row.next_workflow),
+    status: toTrimmedString(row.status),
+    queuedAt: toTrimmedString(row.queued_at),
+    startedAt: toTrimmedString(row.started_at),
+    updatedAt: toTrimmedString(row.updated_at),
+    manifest2aUrl: toTrimmedString(row.manifest_2a_url),
+    manifest3Url: toTrimmedString(row.manifest_3_url),
+  };
+}
+
 function stripMissingOrderIdField(select: string): string {
   return select
     .split(',')
@@ -694,11 +747,9 @@ function stripMissingOrderIdField(select: string): string {
 }
 
 async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promise<MonitorOrderRow[]> {
-  const hours = clampInteger(filters.hours, 1, 24 * 30, 72);
   const stage = normalizeStage(filters.stage);
   const status = normalizeStatus(filters.status);
   const orderId = toTrimmedString(filters.orderId);
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const select =
     'id, orderId, order_id, root_order_id, amazon_order_id, workflow_step, execution_status, current_workflow, updated_at, status, manifest_2a_url, manifest_3_url, next_workflow, queued_at, started_at';
 
@@ -711,7 +762,6 @@ async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promis
       .from('orders')
       .select(select)
       .or('execution_status.eq.processing,execution_status.eq.ready_for_processing')
-      .gte('updated_at', since)
       .order('updated_at', { ascending: false })
       .limit(100);
 
@@ -720,7 +770,6 @@ async function queryActiveOrderRows(filters: WorkflowJobsMonitorFilters): Promis
         .from('orders')
         .select(stripMissingOrderIdField(select))
         .or('execution_status.eq.processing,execution_status.eq.ready_for_processing')
-        .gte('updated_at', since)
         .order('updated_at', { ascending: false })
         .limit(100);
     }
@@ -768,6 +817,7 @@ export async function listWorkflowJobsMonitorData(filters: WorkflowJobsMonitorFi
   return {
     summary: buildSummary(jobs, visibleJobs.length, windowHours, alertsByJobId, activeOrderRows),
     jobs: visibleJobs,
+    activeOrderRows: activeOrderRows.map(buildActiveOrderRow),
   };
 }
 

@@ -113,6 +113,23 @@ type WorkflowJobListItem = {
   openAlertSummary: WorkflowAlertSummary;
 };
 
+type WorkflowActiveOrderRow = {
+  id: number;
+  orderId: string | null;
+  rootOrderId: string | null;
+  amazonOrderId: string | null;
+  workflowStep: string | null;
+  executionStatus: string | null;
+  currentWorkflow: string | null;
+  nextWorkflow: string | null;
+  status: string | null;
+  queuedAt: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
+  manifest2aUrl: string | null;
+  manifest3Url: string | null;
+};
+
 type WorkflowInspectionJob = WorkflowJobListItem & {
   attempts: WorkflowAttempt[];
   recentEvents: WorkflowEvent[];
@@ -150,6 +167,7 @@ type WorkflowJobsResponse = {
   success: boolean;
   summary: WorkflowJobsSummary;
   jobs: WorkflowJobListItem[];
+  activeOrderRows: WorkflowActiveOrderRow[];
   inspectedOrder: WorkflowInspection | null;
   error?: string;
 };
@@ -273,6 +291,17 @@ function formatRelativeAge(value: string | null): string {
   return `${hours}h ${remainingMinutes}m ago`;
 }
 
+function getAgeMinutes(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 1000 / 60));
+}
+
 function statusClasses(status: string): string {
   switch (status) {
     case 'succeeded':
@@ -285,6 +314,7 @@ function statusClasses(status: string): string {
       return 'border-amber-200 bg-amber-50 text-amber-800';
     case 'running':
     case 'polling':
+    case 'processing':
       return 'border-blue-200 bg-blue-50 text-blue-800';
     case 'claimed':
     case 'queued':
@@ -328,6 +358,33 @@ function stageDisplayLabel(stage: string | null): string {
     default:
       return stage || 'Unknown';
   }
+}
+
+function workflowName(stage: string | null | undefined): string {
+  switch ((stage || '').toLowerCase()) {
+    case '2a':
+      return '2A base character generation';
+    case '2b':
+      return '2B background removal';
+    case '3':
+      return 'W3 book assembly';
+    case '4':
+      return 'W4 print preparation';
+    case '4.1':
+      return 'W4.1 print fulfillment';
+    default:
+      return stage ? `Workflow ${stage}` : 'Workflow pending';
+  }
+}
+
+function activeOrderReferenceAt(order: WorkflowActiveOrderRow): string | null {
+  return order.startedAt || order.queuedAt || order.updatedAt;
+}
+
+function orderIdentityKeys(...values: Array<string | null | undefined>): string[] {
+  return values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
 }
 
 function humanizeMachineValue(value: string | null | undefined): string {
@@ -891,6 +948,25 @@ function WorkflowJobsPageContent() {
     (data?.summary.retryWaitingCount ?? 0) +
     (data?.summary.deadLetteredCount ?? 0);
   const openAlertCount = data?.summary.openAlertCount ?? 0;
+  const activeOrderRows = data?.activeOrderRows ?? [];
+  const activeOrderKeys = new Set(
+    activeOrderRows.flatMap((order) =>
+      orderIdentityKeys(order.orderId, order.rootOrderId, order.amazonOrderId),
+    ),
+  );
+  const activeRepoJobs =
+    data?.jobs.filter((job) => {
+      if (!['queued', 'claimed', 'running', 'polling', 'retry_waiting'].includes(job.status)) {
+        return false;
+      }
+      const representedByActiveOrderRow = orderIdentityKeys(
+        job.orderId,
+        job.rootOrderId,
+        job.amazonOrderId,
+      ).some((value) => activeOrderKeys.has(value));
+      return !representedByActiveOrderRow;
+    }) ?? [];
+  const activeWorkCount = activeOrderRows.length + activeRepoJobs.length;
   const inspectedOrder = data?.inspectedOrder ?? null;
   const inspectedHasW2A = inspectedOrder?.jobs.some((job) => job.stage === '2A') ?? false;
   const inspectionDiagnosis = deriveInspectionDiagnosis(inspectedOrder);
@@ -968,11 +1044,9 @@ function WorkflowJobsPageContent() {
               <Workflow className="h-4 w-4" />
               Workflow Ops Console
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Workflow runs and stuck-job diagnosis</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Workflow operations</h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              Use this page to see whether a repo-centric job is queued, actively working, waiting on a provider, or
-              stuck before it ever reached the provider. “Last activity” is taken from the newest job event or attempt,
-              not just the raw row timestamp, so the timeline stays aligned with what actually happened.
+              Start here to answer: what is running, what needs attention, and what should I inspect next.
             </p>
           </div>
 
@@ -1017,42 +1091,15 @@ function WorkflowJobsPageContent() {
           </div>
         )}
 
-        <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b border-gray-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Workflow tools</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Use this page first to diagnose the run, then jump into a specialized recovery or production tool only if
-              the diagnosis points there.
-            </p>
-          </div>
-          <div className="grid gap-3 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
-            {WORKFLOW_LINKS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 transition hover:border-indigo-200 hover:bg-indigo-50"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{item.label}</div>
-                    <p className="mt-1 text-sm text-gray-600">{item.description}</p>
-                  </div>
-                  <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 transition group-hover:text-indigo-600" />
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
         {data && (
-          <div className="mb-6 grid gap-4 md:grid-cols-5">
+          <div className="mb-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
                 Active Now
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.activeCount}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Repo jobs plus active legacy order-row workflows still queued or processing.
+                Running or queued workflows across both tracking systems.
               </p>
               {data.summary.activeOrderRowCount > 0 && (
                 <p className="mt-2 text-xs font-medium text-blue-700">
@@ -1060,22 +1107,13 @@ function WorkflowJobsPageContent() {
                 </p>
               )}
             </div>
-            <div className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Waiting to Retry
-              </div>
-              <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.retryWaitingCount}</div>
-              <p className="mt-2 text-sm text-gray-600">
-                Jobs that have already failed once and are waiting for another attempt.
-              </p>
-            </div>
             <div className="rounded-xl border border-red-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
-                Failed / Blocked
+                Needs Attention
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{attentionCount}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Failed, dead-lettered, or retry-waiting jobs in the current 72 hour window.
+                Failed, dead-lettered, or retry-waiting jobs.
               </p>
             </div>
             <div className="rounded-xl border border-rose-200 bg-white p-5 shadow-sm">
@@ -1084,7 +1122,7 @@ function WorkflowJobsPageContent() {
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{openAlertCount}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Durable workflow alerts from the watchdog and provider lifecycle checks.
+                Durable alerts from watchdog checks.
               </p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
@@ -1098,6 +1136,174 @@ function WorkflowJobsPageContent() {
             </div>
           </div>
         )}
+
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-5 py-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Active work</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Orders that are currently queued or processing. This is the first place to look when Active Now is nonzero.
+                </p>
+              </div>
+              <div className="text-sm font-medium text-gray-600">
+                {loading && !data ? 'Loading...' : `${activeWorkCount} active item${activeWorkCount === 1 ? '' : 's'}`}
+              </div>
+            </div>
+          </div>
+
+          {loading && !data ? (
+            <div className="px-5 py-10 text-center text-sm text-gray-500">
+              <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-gray-400" />
+              Loading active work...
+            </div>
+          ) : activeWorkCount === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <CheckCircle2 className="mx-auto h-9 w-9 text-emerald-500" />
+              <div className="mt-3 text-base font-semibold text-gray-900">No active work</div>
+              <p className="mt-1 text-sm text-gray-500">
+                Nothing is currently queued, claimed, running, polling, or waiting to retry.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {activeOrderRows.map((activeOrder) => {
+                const orderId = activeOrder.orderId || activeOrder.amazonOrderId || activeOrder.rootOrderId || String(activeOrder.id);
+                const activeStage = activeOrder.currentWorkflow || activeOrder.nextWorkflow;
+                const referenceAt = activeOrderReferenceAt(activeOrder);
+                const waitingForCallback = activeOrder.executionStatus === 'processing';
+                const activeAgeMinutes = getAgeMinutes(referenceAt);
+                const isStaleActiveOrder = waitingForCallback && activeAgeMinutes !== null && activeAgeMinutes >= 45;
+                return (
+                  <div
+                    key={`${activeOrder.id}-${orderId}`}
+                    className={`px-5 py-4 ${isStaleActiveOrder ? 'bg-amber-50/60' : ''}`}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${stageClasses(stageDisplayLabel(activeStage || null))}`}>
+                            {stageDisplayLabel(activeStage || null)}
+                          </span>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                              isStaleActiveOrder
+                                ? 'border-amber-300 bg-amber-100 text-amber-900'
+                                : statusClasses(activeOrder.executionStatus || 'queued')
+                            }`}
+                          >
+                            {isStaleActiveOrder ? 'Stale processing' : humanizeMachineValue(activeOrder.executionStatus)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatRelativeAge(referenceAt)}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-gray-900">{orderId}</div>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {workflowName(activeStage)}{' '}
+                          {isStaleActiveOrder
+                            ? 'has been processing for more than 45 minutes with no completion callback. Check the n8n execution and requeue after fixing the failure.'
+                            : waitingForCallback
+                              ? 'is running and waiting for its completion callback.'
+                              : 'is waiting for the router to claim it.'}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
+                          <span>started {formatTimestamp(activeOrder.startedAt)}</span>
+                          <span>queued {formatTimestamp(activeOrder.queuedAt)}</span>
+                          <span>row updated {formatTimestamp(activeOrder.updatedAt)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {activeOrder.orderId && (
+                          <Link
+                            href={`/orders/${activeOrder.orderId}`}
+                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                          >
+                            Open Order
+                          </Link>
+                        )}
+                        <button
+                          onClick={() =>
+                            replaceUrl({
+                              orderId,
+                              stage: selectedStage,
+                              status: selectedStatus,
+                            })
+                          }
+                          className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                        >
+                          Inspect
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {activeRepoJobs.map((job) => {
+                const diagnosis = deriveJobDiagnosis(job);
+                const orderId = job.orderId || job.rootOrderId || job.amazonOrderId || '';
+                return (
+                  <div key={`repo-${job.id}`} className="px-5 py-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${stageClasses(job.stage)}`}>
+                            {job.stage}
+                          </span>
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(job.status)}`}>
+                            {humanizeMachineValue(job.status)}
+                          </span>
+                          <span className="text-xs text-gray-500">{formatRelativeAge(job.activityAt)}</span>
+                        </div>
+                        <div className="mt-2 text-base font-semibold text-gray-900">
+                          {orderId || `workflow job ${job.id}`}
+                        </div>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {diagnosis?.headline || `${job.jobType} is active.`}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
+                          <span>job {job.id}</span>
+                          <span>type {job.jobType}</span>
+                          <span>last activity {formatTimestamp(job.activityAt)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {job.orderId && (
+                          <Link
+                            href={`/orders/${job.orderId}`}
+                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                          >
+                            Open Order
+                          </Link>
+                        )}
+                        {orderId ? (
+                          <button
+                            onClick={() =>
+                              replaceUrl({
+                                orderId,
+                                stage: selectedStage,
+                                status: selectedStatus,
+                              })
+                            }
+                            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                          >
+                            Inspect
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">No order id</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-4">
@@ -1553,9 +1759,9 @@ function WorkflowJobsPageContent() {
 
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent workflow activity</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Repo job details</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Shows jobs with activity in the last 72 hours unless you inspect a specific order.
+              Child job rows for the current filter. Active order-row workflows are summarized above.
             </p>
           </div>
 
@@ -1683,20 +1889,26 @@ function WorkflowJobsPageContent() {
           )}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 text-indigo-700" />
-            <div className="text-sm text-indigo-900">
-              <div className="font-semibold">How to read this console</div>
-              <p className="mt-1">
-                Start here whenever a workflow feels slow or stuck. If a row says a job is “stuck before provider
-                submission,” it means the provider was never contacted, so reruns can be blocked until the stale active
-                job is cleared. Dedicated recovery pages still exist, but this console should tell you why you need
-                them before you leave.
-              </p>
-            </div>
+        <details className="mt-6 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-700">
+          <summary className="cursor-pointer font-semibold text-gray-900">Specialized recovery tools</summary>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {WORKFLOW_LINKS.filter((item) => item.href !== '/admin/workflow-jobs').map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{item.label}</div>
+                    <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                  </div>
+                  <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 transition group-hover:text-blue-600" />
+                </div>
+              </Link>
+            ))}
           </div>
-        </div>
+        </details>
       </div>
     </div>
   );

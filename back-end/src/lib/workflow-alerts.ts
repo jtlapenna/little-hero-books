@@ -270,6 +270,32 @@ export async function resolveWorkflowAlertsByDedupeKeys(
   }
 }
 
+export async function resolveWorkflowAlertsByAlertType(
+  alertType: string,
+  client: SupabaseLike = supabase,
+): Promise<void> {
+  const normalizedAlertType = toTrimmedString(alertType);
+  if (!normalizedAlertType) {
+    return;
+  }
+
+  const { error } = await client
+    .from('workflow_alerts')
+    .update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+    })
+    .eq('alert_type', normalizedAlertType)
+    .neq('status', 'resolved');
+
+  if (error) {
+    if (isMissingWorkflowAlertsTableError(error)) {
+      return;
+    }
+    throw error;
+  }
+}
+
 export async function listWorkflowAlerts(
   filters: WorkflowAlertListFilters = {},
   client: SupabaseLike = supabase,

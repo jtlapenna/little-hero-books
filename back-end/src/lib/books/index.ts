@@ -1,6 +1,7 @@
 export * from '@/lib/books/types';
 export * from '@/lib/books/load-book-config';
 export * from '@/lib/books/runtime-book-config';
+export * from '@/lib/books/book-config-integrity';
 export * from '@/lib/books/resolve-page-plan';
 export * from '@/lib/books/character-placement';
 export * from '@/lib/books/animal-placement';

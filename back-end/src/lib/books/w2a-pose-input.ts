@@ -408,13 +408,15 @@ function buildPosePromptBlock(input: {
     'STYLE TRANSFER TASK:',
     'Use BASE for appearance, palette, facial features, and hair color.',
     'Preserve BASE facial features exactly, including two visible natural eyebrows above the eyes.',
+    'Preserve BASE clothing and footwear exactly, including shoe shape, shoe color, sole color, trim, and any visible shoe details.',
     'Use POSE for body pose only.',
     input.hasHairRef
       ? 'Use HAIR CHIP for hair silhouette only. Hair color must still match BASE exactly.'
       : 'No HAIR CHIP is provided. Keep both hair silhouette and hair color aligned to BASE.',
     'Render exactly one child on a pure white background.',
+    'The pure white background must remain empty: no cast shadow, contact shadow, floor, ground plane, reflection, dark blob, gray haze, vignette, or under-body shading.',
     'Show the full body, including hands and feet.',
-    'Do not transfer props, textures, or background details from the pose reference.',
+    'Do not transfer props, textures, background details, or shoe designs from the pose reference.',
     EYEBROW_PROMPT_GUARDRAIL,
   );
 
@@ -449,9 +451,11 @@ function buildPosePromptBlock(input: {
     '- Exactly one child.',
     '- Keep the base character identity stable.',
     '- Keep the pose locked to POSE.',
+    '- Keep shoe design locked to BASE; do not change sneakers into socks, boots, bare feet, sandals, or a different shoe color.',
     '- No extra limbs.',
     '- No crop above the feet.',
     '- No colored or textured background.',
+    '- No shadows or dark shapes under the child; keep all non-character pixels pure white.',
   );
 
   return lines.join('\n').trim();

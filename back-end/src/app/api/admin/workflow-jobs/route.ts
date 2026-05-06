@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       },
       summary: monitor.summary,
       jobs: monitor.jobs,
+      activeOrderRows: monitor.activeOrderRows,
       inspectedOrder,
     });
   } catch (error) {
