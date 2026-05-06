@@ -122,6 +122,24 @@ function humanizeMachineValue(value?: string | null): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+async function readJsonResponse<T extends Record<string, unknown> = Record<string, unknown>>(
+  response: Response,
+): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    return {} as T;
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed as T : {} as T;
+  } catch {
+    return {
+      error: text.trim() || `Server returned invalid JSON (${response.status})`,
+    } as unknown as T;
+  }
+}
+
 function formatElapsedSince(value?: string | null): string {
   if (!value) return 'N/A';
   const timestamp = Date.parse(value);
@@ -149,6 +167,17 @@ interface FinalApprovalResult {
     channel?: 'email' | 'amazon_message';
   };
 }
+
+type FinalApprovalApiResponse = {
+  previewUrl: string;
+  token: string;
+  requestedAt?: string;
+  tokenCreated?: boolean;
+  notification?: FinalApprovalResult['notification'];
+  order?: Order & {
+    customerApprovalRequestedAt?: string;
+  };
+} & Record<string, unknown>;
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -810,10 +839,12 @@ export default function OrderDetailPage() {
           })
         });
 
-        const result = await response.json();
+        const result = await readJsonResponse<FinalApprovalApiResponse>(response);
 
         if (!response.ok) {
-          throw new Error(result?.error || 'Failed to initiate customer preview.');
+          throw new Error(
+            extractApiErrorMessage(result, 'Failed to initiate customer preview.'),
+          );
         }
 
         setFinalApprovalResult({
@@ -826,6 +857,13 @@ export default function OrderDetailPage() {
           tokenCreated: result.tokenCreated,
           notification: result.notification
         });
+
+        if (result.notification && !result.notification.sent) {
+          setFinalApprovalError(
+            result.notification.reason ||
+              'Preview link was generated, but the customer notification was not sent.',
+          );
+        }
 
         if (result.order) {
           setOrder(result.order);

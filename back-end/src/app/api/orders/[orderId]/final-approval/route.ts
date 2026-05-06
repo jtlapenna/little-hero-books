@@ -18,6 +18,18 @@ interface FinalApprovalPayload {
   notifyCustomer?: boolean;
 }
 
+type NotificationLogWriter = {
+  from(table: 'notification_logs'): {
+    insert(payload: Record<string, unknown>): PromiseLike<unknown>;
+  };
+};
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 async function handleFinalApproval(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -33,7 +45,7 @@ async function handleFinalApproval(
   if (request.body) {
     try {
       payload = await request.json();
-    } catch (error) {
+    } catch {
       // Ignore JSON parse errors and fallback to defaults
       payload = {};
     }
@@ -158,7 +170,7 @@ async function handleFinalApproval(
   // Use parent order ID for Amazon Messaging when this is a sibling (second+ item)
   const amazonOrderId = getAmazonOrderIdForMessaging(orderRecord);
 
-  let notificationResult: {
+  const notificationResult: {
     attempted: boolean;
     sent: boolean;
     reason?: string;
@@ -222,6 +234,11 @@ async function handleFinalApproval(
         
         notificationResult.sent = false;
         notificationResult.reason = `Configuration incomplete: ${missingVars}`;
+        notificationResult.response = {
+          success: false,
+          error: configCheck.error,
+          issues: configCheck.issues,
+        };
         
         // Log detailed diagnostic info
         console.error('[Final Approval] Amazon messaging config check failed:', {
@@ -240,88 +257,106 @@ async function handleFinalApproval(
             CUSTOMER_SITE_URL: process.env.CUSTOMER_SITE_URL || 'NOT SET (using default)',
           }
         });
-        return; // Exit early - don't attempt to send
-      }
+      } else {
+        const revisionsRemaining = Math.max(
+          0,
+          2 - (orderRecord.revision_count || 0)
+        );
+        const childName =
+          (orderRecord.character_specs &&
+            (orderRecord.character_specs.childName ||
+              orderRecord.character_specs.child_name)) ||
+          undefined;
 
-      const revisionsRemaining = Math.max(
-        0,
-        2 - (orderRecord.revision_count || 0)
-      );
-      const childName =
-        (orderRecord.character_specs &&
-          (orderRecord.character_specs.childName ||
-            orderRecord.character_specs.child_name)) ||
-        undefined;
-
-      const response = await sendAmazonPreviewMessage({
-        amazonOrderId,
-        reminderType: 'initial',
-        previewUrl,
-        childName,
-        revisionsRemaining
-      });
-
-      notificationResult.response = response;
-      notificationResult.sent = response.success;
-
-      // If sending failed, include the error reason
-      if (!response.success) {
-        notificationResult.reason = response.error || 
-          (response.issues && response.issues.length > 0 
-            ? `Configuration issues: ${response.issues.map(i => i.message || i.path.join('.')).join(', ')}`
-            : 'Unknown error sending Amazon message');
-      }
-
-      // Log notification attempt (fire and forget - don't await to avoid blocking)
-      // FIX: Removed await before .catch() - await resolves promise, making .catch() unavailable
-      const now = new Date().toISOString();
-      supabase
-        .from('notification_logs')
-        .insert({
-          order_id: amazonOrderId,
-          notification_type: 'amazon_message',
-          status: response.success ? 'sent' : 'failed',
-          recipient: `amazon:${amazonOrderId}`,
-          error_message: response.success
-            ? response.messageId
-              ? `messageId=${response.messageId}`
-              : null
-            : response.error || 'Unknown error',
-          sent_at: response.success ? now : null,
-          created_at: now
-        })
-        .then(() => {
-          // Successfully logged (no action needed)
-        })
-        .catch((error) => {
-          console.error(
-            '[Final Approval] Failed to log Amazon notification:',
-            error
-          );
+        const response = await sendAmazonPreviewMessage({
+          amazonOrderId,
+          reminderType: 'initial',
+          previewUrl,
+          childName,
+          revisionsRemaining
         });
-    } catch (error: any) {
+
+        notificationResult.response = response;
+        notificationResult.sent = response.success;
+
+        // If sending failed, include the error reason
+        if (!response.success) {
+          notificationResult.reason = response.error ||
+            (response.issues && response.issues.length > 0
+              ? `Configuration issues: ${response.issues.map(i => i.message || i.path.join('.')).join(', ')}`
+              : 'Unknown error sending Amazon message');
+        }
+
+        // Log notification attempt (fire and forget - don't await to avoid blocking)
+        // FIX: Removed await before .catch() - await resolves promise, making .catch() unavailable
+        const now = new Date().toISOString();
+        const logInsert = (supabase as unknown as NotificationLogWriter)
+          .from('notification_logs')
+          .insert({
+            order_id: amazonOrderId,
+            notification_type: 'amazon_message',
+            status: response.success ? 'sent' : 'failed',
+            recipient: `amazon:${amazonOrderId}`,
+            error_message: response.success
+              ? response.messageId
+                ? `messageId=${response.messageId}`
+                : null
+              : response.error || 'Unknown error',
+            sent_at: response.success ? now : null,
+            created_at: now
+          });
+        void Promise.resolve(logInsert)
+          .then(() => {
+            // Successfully logged (no action needed)
+          })
+          .catch((error: unknown) => {
+            console.error(
+              '[Final Approval] Failed to log Amazon notification:',
+              error
+            );
+          });
+      }
+    } catch (error: unknown) {
       notificationResult.sent = false;
       
       // Include COMPREHENSIVE error information for troubleshooting
-      const errorDetails = error?.details || error?.response || {};
-      const errorCode = error?.code || errorDetails?.errors?.[0]?.code;
-      const errorMessage = error?.message || 'Failed to send Amazon notification.';
-      const errorPath = error?.path || 'unknown';
-      const errorUrl = error?.url || 'unknown';
+      const errorRecord = toRecord(error);
+      const errorDetails = toRecord(errorRecord.details || errorRecord.response);
+      const firstError = Array.isArray(errorDetails.errors)
+        ? toRecord(errorDetails.errors[0])
+        : {};
+      const errorCode =
+        typeof errorRecord.code === 'string'
+          ? errorRecord.code
+          : typeof firstError.code === 'string'
+            ? firstError.code
+            : undefined;
+      const errorStatus =
+        typeof errorRecord.status === 'number' || typeof errorRecord.status === 'string'
+          ? errorRecord.status
+          : undefined;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof errorRecord.message === 'string'
+            ? errorRecord.message
+            : 'Failed to send Amazon notification.';
+      const errorPath = typeof errorRecord.path === 'string' ? errorRecord.path : 'unknown';
+      const errorUrl = typeof errorRecord.url === 'string' ? errorRecord.url : 'unknown';
       
       // Build detailed error message with all available info
       let detailedReason = errorMessage;
       if (errorCode) {
         detailedReason += ` (Code: ${errorCode})`;
       }
-      if (error?.status) {
-        detailedReason += ` (HTTP ${error.status})`;
+      if (errorStatus) {
+        detailedReason += ` (HTTP ${errorStatus})`;
       }
       if (errorPath && errorPath !== 'unknown') {
         detailedReason += ` (Endpoint: ${errorPath})`;
       }
-      if (errorDetails?.errors?.[0]?.details) {
-        detailedReason += ` | Details: ${JSON.stringify(errorDetails.errors[0].details)}`;
+      if (firstError.details) {
+        detailedReason += ` | Details: ${JSON.stringify(firstError.details)}`;
       }
       
       notificationResult.reason = detailedReason;
@@ -330,12 +365,12 @@ async function handleFinalApproval(
       console.error('[Final Approval] Amazon preview notification error - COMPLETE DIAGNOSTICS:', {
         message: errorMessage,
         code: errorCode,
-        status: error?.status,
+        status: errorStatus,
         path: errorPath,
         url: errorUrl,
         details: errorDetails,
         fullError: error,
-        stack: error?.stack
+        stack: error instanceof Error ? error.stack : undefined
       });
     }
   }
@@ -356,4 +391,3 @@ async function handleFinalApproval(
 }
 
 export const POST = withErrorHandling(handleFinalApproval);
-
