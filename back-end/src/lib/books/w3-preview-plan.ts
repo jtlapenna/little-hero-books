@@ -1010,15 +1010,26 @@ function buildInteriorHtml(
     ) ?? '';
 
   const findStoryText = (page: BookPageConfig): string => {
-    const byPage = storyTexts.find((entry) => Number(entry.pageNumber) === Number(page.index));
-    if (toTrimmedString(byPage?.text)) {
-      return String(byPage?.text);
-    }
     const storyPageNumber = Number(page.storyPageNumber);
-    const byStoryPage = storyTexts.find(
-      (entry) => Number(entry.pageNumber) === storyPageNumber || Number(entry.storyPageNumber) === storyPageNumber,
+    if (Number.isFinite(storyPageNumber) && storyPageNumber > 0) {
+      const byStoryPage = storyTexts.find(
+        (entry) =>
+          Number(entry.storyPageNumber) === storyPageNumber ||
+          Number(entry.pageNumber) === storyPageNumber,
+      );
+      const text = toTrimmedString(byStoryPage?.text);
+      if (text) {
+        return text;
+      }
+    }
+
+    const pageNumber = Number(page.index);
+    const byPhysicalPage = storyTexts.find(
+      (entry) =>
+        Number(entry.physicalPageNumber) === pageNumber ||
+        toTrimmedString(entry.pageLabel) === page.label,
     );
-    return toTrimmedString(byStoryPage?.text) ?? '';
+    return toTrimmedString(byPhysicalPage?.text) ?? '';
   };
 
   const findOverlayUrl = (page: BookPageConfig): string | null => {

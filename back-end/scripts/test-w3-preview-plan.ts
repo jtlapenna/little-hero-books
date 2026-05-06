@@ -299,6 +299,51 @@ async function main(): Promise<void> {
       !amazonPreview.coverPreviewItem.coverHTML.includes('__preloads'),
     'Expected amazon preview plan to emit the repo-owned amazon cover personalization HTML without hidden preload tags that can duplicate cover assets',
   );
+  const fullAmazonPreview = buildW3PreviewPlanResponse({
+    ...amazonAssemblyInput,
+    testMode: false,
+    testModePages: 0,
+  });
+  assert(fullAmazonPreview.success === true, 'Expected full amazon preview plan to return success');
+  assert(
+    fullAmazonPreview.pagePreviewItems.length === 17 &&
+      fullAmazonPreview.pagePreviewItems[3]?.pageLabel === 'p03' &&
+      fullAmazonPreview.pagePreviewItems[16]?.pageLabel === 'p16',
+    'Expected full amazon preview plan to preserve all 17 physical pages',
+  );
+  const amazonStoryPageOne = fullAmazonPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 3,
+  );
+  const amazonStoryPageTwo = fullAmazonPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 4,
+  );
+  const amazonStoryPageThree = fullAmazonPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 5,
+  );
+  const amazonStoryPageFourteen = fullAmazonPreview.pagePreviewItems.find(
+    (item) => item.pageNumber === 16,
+  );
+  assert(
+    typeof amazonStoryPageOne?.pageHtml === 'string' &&
+      amazonStoryPageOne.pageHtml.includes('It was bedtime') &&
+      !amazonStoryPageOne.pageHtml.includes('glowing door'),
+    'Expected amazon physical p03 to render story page 1 text, not story page 3 text',
+  );
+  assert(
+    typeof amazonStoryPageTwo?.pageHtml === 'string' &&
+      amazonStoryPageTwo.pageHtml.includes('Outside, the night sparkled'),
+    'Expected amazon physical p04 to render story page 2 text',
+  );
+  assert(
+    typeof amazonStoryPageThree?.pageHtml === 'string' &&
+      amazonStoryPageThree.pageHtml.includes('glowing door'),
+    'Expected amazon physical p05 to render story page 3 text',
+  );
+  assert(
+    typeof amazonStoryPageFourteen?.pageHtml === 'string' &&
+      amazonStoryPageFourteen.pageHtml.includes('Ready to fly home?'),
+    'Expected amazon physical p16 to render story page 14 text',
+  );
 
   const bookTwoAssemblyInput = await buildAssemblyInput({
     orderId: 'TEST-W3-PREVIEW-BOOK2-001',
