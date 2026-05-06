@@ -268,18 +268,58 @@ export function PostPdfStage({
     order.customerPreview?.requestedAt ||
     order.customerApprovalRequestedAt;
   const previewExpiresAt = order.customerPreview?.expiresAt;
+  const finalApprovalIsLoading = Boolean(finalApprovalLoading);
   const hasExistingPreview = Boolean(order.customerPreview?.url);
   const previewJustSent = Boolean(finalApprovalResult?.previewUrl);
+  const latestNotification = finalApprovalResult?.notification ?? order.customerPreview?.notification ?? null;
+  const notificationWasSent =
+    Boolean(finalApprovalResult?.notification?.sent) ||
+    order.customerPreview?.notification?.status === 'sent';
+  const notificationFailed =
+    Boolean(finalApprovalResult?.notification && !finalApprovalResult.notification.sent) ||
+    order.customerPreview?.notification?.status === 'failed';
   const customerApprovalStatus = order.customerApprovalStatus ?? '';
   const orderStatus = order.status ?? '';
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
   const customerApprovedPreview = customerApprovalStatus === 'approved';
+  const customerApprovalStatusLabel =
+    customerApprovalStatus === 'pending'
+      ? notificationWasSent
+        ? 'sent, awaiting customer'
+        : hasExistingPreview || previewJustSent
+          ? 'link created, notification not sent'
+          : 'not sent'
+      : customerApprovalStatus
+        ? customerApprovalStatus.replace(/_/g, ' ')
+        : 'not requested';
+  const customerApprovalStatusClass =
+    customerApprovalStatus === 'approved'
+      ? 'bg-green-100 text-green-800'
+      : customerApprovalStatus === 'revision_requested'
+      ? 'bg-orange-100 text-orange-800'
+      : customerApprovalStatus === 'pending' && notificationWasSent
+      ? 'bg-purple-100 text-purple-800'
+      : customerApprovalStatus === 'pending'
+      ? 'bg-amber-100 text-amber-800'
+      : 'bg-gray-100 text-gray-700';
+  const approvalSendDisabled =
+    finalApprovalIsLoading || (previewJustSent && notificationWasSent);
+  const approvalSendLabel = notificationFailed
+    ? 'Retry Customer Notification'
+    : finalApprovalIsLoading
+    ? 'Sending for Customer Approval...'
+    : previewJustSent && notificationWasSent
+    ? 'Preview Sent'
+    : hasExistingPreview && notificationWasSent
+    ? 'Resend Customer Notification'
+    : hasExistingPreview
+    ? 'Send Customer Notification'
+    : 'Send for Customer Approval';
 
   // Production handoff should follow explicit customer approval, not revision count.
   // A clean first-pass approval still needs a visible Send to Print action.
   const showPrintAction = isApproved && customerApprovedPreview;
   const actionCardTitle = showPrintAction ? 'Send to Print' : 'Send for Customer Approval';
-  const finalApprovalIsLoading = Boolean(finalApprovalLoading);
   const reviewPageContext = resolveReviewPageContext({
     bookId: order.bookContext?.bookId ?? order.project ?? null,
     formatId: order.bookContext?.formatId ?? null,
@@ -2743,8 +2783,12 @@ export function PostPdfStage({
             <p className="text-sm text-gray-600 mt-1">
               {showPrintAction
                 ? 'The customer approved the preview. Queue this order for print production.'
-                : isApproved 
-                ? 'This order has been fully approved and is ready for production.'
+                : isApproved && notificationWasSent
+                ? 'Customer preview was sent. Wait for customer approval before printing.'
+                : isApproved && hasExistingPreview
+                ? 'Preview link exists, but the customer notification has not been sent.'
+                : isApproved
+                ? 'Internal PDF review is approved. Send the customer preview before printing.'
                 : requiresPdfWarning
                 ? 'The compiled PDF must be generated before sending for customer approval.'
                 : !isPostBriaApproved
@@ -2784,29 +2828,25 @@ export function PostPdfStage({
               ) : (
               <button
                 onClick={onInitiateWorkflow}
-                  disabled={finalApprovalIsLoading || previewJustSent}
+                  disabled={approvalSendDisabled}
                   className={`inline-flex items-center whitespace-nowrap px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     finalApprovalIsLoading
                       ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
-                      : previewJustSent
+                      : previewJustSent && notificationWasSent
                       ? 'bg-gray-300 text-gray-600 cursor-not-allowed focus:ring-gray-400'
+                      : notificationFailed
+                      ? 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500'
                       : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                 }`}
               >
                   {finalApprovalIsLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : previewJustSent ? (
+                  ) : previewJustSent && notificationWasSent ? (
                     <CheckCircle className="h-4 w-4 mr-2" />
                 ) : (
                   <Play className="h-4 w-4 mr-2" />
                 )}
-                  {previewJustSent
-                    ? 'Preview Sent'
-                    : finalApprovalIsLoading
-                    ? 'Sending for Customer Approval...'
-                    : hasExistingPreview
-                    ? 'Resend for Customer Approval'
-                    : 'Send for Customer Approval'}
+                  {approvalSendLabel}
               </button>
               )
             ) : (
@@ -2861,7 +2901,9 @@ export function PostPdfStage({
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start space-x-3">
               <AlertCircle className="h-5 w-5 mt-0.5" />
               <div>
-                <p className="font-medium">Failed to send customer preview</p>
+                <p className="font-medium">
+                  {previewUrl ? 'Customer notification not sent' : 'Failed to send customer preview'}
+                </p>
                 <p>{finalApprovalError}</p>
               </div>
             </div>
@@ -2874,16 +2916,10 @@ export function PostPdfStage({
                 <span className="font-medium">Status:</span>
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    order.customerApprovalStatus === 'approved'
-                      ? 'bg-green-100 text-green-800'
-                      : order.customerApprovalStatus === 'revision_requested'
-                      ? 'bg-orange-100 text-orange-800'
-                      : order.customerApprovalStatus === 'pending'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-gray-100 text-gray-700'
+                    customerApprovalStatusClass
                   }`}
                 >
-                  {order.customerApprovalStatus ? order.customerApprovalStatus.replace(/_/g, ' ') : 'not requested'}
+                  {customerApprovalStatusLabel}
                 </span>
               </div>
 
@@ -2913,8 +2949,10 @@ export function PostPdfStage({
                   <div className="space-y-1">
                     <p className="font-medium text-gray-900">Preview Link</p>
                     <p className="text-xs text-gray-600">
-                      {previewJustSent || hasExistingPreview
+                      {notificationWasSent
                         ? 'Preview generated and awaiting customer response.'
+                        : previewJustSent || hasExistingPreview
+                        ? 'Preview link generated. Customer notification has not been sent.'
                         : 'Share this URL with the customer if Amazon messaging is unavailable.'}
                     </p>
                   </div>
@@ -3001,7 +3039,9 @@ export function PostPdfStage({
 
                 {(previewJustSent || hasExistingPreview) && order.customerApprovalStatus === 'pending' && (
                   <p className="text-xs text-gray-500">
-                    Use the copy button above if you need to resend manually.
+                    {notificationWasSent
+                      ? 'Use the copy button above if you need to resend manually.'
+                      : 'Use Send Customer Notification after fixing configuration, or copy the link manually.'}
                   </p>
                 )}
 
@@ -3011,17 +3051,19 @@ export function PostPdfStage({
                   </p>
                 )}
 
-                {finalApprovalResult?.notification && (
+                {latestNotification && (
                   <div className="space-y-1 text-xs">
                     <p className="font-medium text-gray-900">
-                      {finalApprovalResult.notification.channel === 'email' ? 'Email' : 'Amazon Message Center'}
+                      {latestNotification.channel === 'email' ? 'Email' : 'Amazon Message Center'}
                     </p>
                     <p className="text-gray-700">
-                      {finalApprovalResult.notification.sent
-                        ? (finalApprovalResult.notification.channel === 'email'
+                      {notificationWasSent
+                        ? (latestNotification.channel === 'email'
                           ? 'Preview link sent via email.'
                           : 'Preview link sent via Amazon Message Center.')
-                        : finalApprovalResult.notification.reason || 'Notification not sent (see logs for details).'}
+                        : finalApprovalResult?.notification?.reason ||
+                          order.customerPreview?.notification?.errorMessage ||
+                          'Notification not sent.'}
                     </p>
                   </div>
                 )}

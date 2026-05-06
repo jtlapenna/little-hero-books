@@ -40,6 +40,13 @@ function toTrimmedString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+type PreviewNotificationLogRow = {
+  notification_type?: string | null;
+  status?: string | null;
+  error_message?: string | null;
+  sent_at?: string | null;
+  created_at?: string | null;
+};
 
 async function getOrder(
   request: NextRequest,
@@ -271,6 +278,44 @@ async function getOrder(
         expiresAt: previewToken.expiresAt,
         usedAt: previewToken.usedAt || undefined,
       };
+
+      const notificationOrderIds = Array.from(
+        new Set(
+          [order.orderId, order.amazonOrderId, order.rootOrderId]
+            .map((value) => toTrimmedString(value))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+      const { data: notificationRows, error: notificationError } = await supabase
+        .from('notification_logs')
+        .select('notification_type,status,error_message,sent_at,created_at')
+        .in('order_id', notificationOrderIds)
+        .in('notification_type', ['amazon_message', 'email'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (notificationError) {
+        console.warn(
+          `[GET /api/orders/[orderId]] Failed to fetch preview notification status for ${order.orderId}:`,
+          notificationError.message || notificationError,
+        );
+      }
+
+      const latestNotification = notificationRows?.[0] as PreviewNotificationLogRow | undefined;
+      order.customerPreview.notification = latestNotification
+        ? {
+            status: latestNotification.status === 'sent' ? 'sent' : 'failed',
+            channel:
+              latestNotification.notification_type === 'email'
+                ? 'email'
+                : 'amazon_message',
+            sentAt: toTrimmedString(latestNotification.sent_at) ?? undefined,
+            createdAt: toTrimmedString(latestNotification.created_at) ?? undefined,
+            errorMessage: toTrimmedString(latestNotification.error_message) ?? undefined,
+          }
+        : {
+            status: 'not_sent',
+          };
     }
   } catch (error: any) {
     console.error(

@@ -62,6 +62,7 @@
     "test:w4-sibling-print-input": "tsx scripts/test-w4-sibling-print-input.ts",
     "test:r2-client": "tsx scripts/test-r2-client.ts",
     "test:customer-email": "tsx scripts/test-customer-email.ts",
+    "test:amazon-sp-api-config": "tsx scripts/test-amazon-sp-api-config.ts",
     "test:preview-token": "dotenv -e .env.local -- tsx scripts/test-preview-token.ts",
     "smoke:admin-backend": "tsx scripts/smoke-admin-backend.ts",
     "check:tokens": "dotenv -e .env.local -- tsx scripts/check-preview-tokens.ts",

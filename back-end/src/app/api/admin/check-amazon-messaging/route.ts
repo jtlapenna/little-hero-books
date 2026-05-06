@@ -1,35 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAmazonMessagingConfig } from '@/lib/notifications/amazon-message-center';
+import {
+  AMAZON_SP_API_ENV_ALIASES,
+  resolveAmazonSpApiEnv,
+} from '@/lib/amazon-sp-api';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Maps field names to environment variable names
  */
-function getEnvVarNameForField(fieldName: string): string {
-  const mapping: Record<string, string> = {
-    lwaClientId: 'AMZ_APP_CLIENT_ID',
-    lwaClientSecret: 'AMZ_APP_CLIENT_SECRET',
-    lwaRefreshToken: 'AMZ_REFRESH_TOKEN',
-    sellerId: 'AMZ_SELLER_ID',
-    marketplaceId: 'AMZ_MARKETPLACE_ID',
-    spRegion: 'AMZ_REGION',
-    awsAccessKeyId: 'AWS_ACCESS_KEY_ID',
-    awsSecretAccessKey: 'AWS_SECRET_ACCESS_KEY',
-    awsRegion: 'AWS_REGION',
-    customerSiteUrl: 'CUSTOMER_SITE_URL',
-    autoApprovalHours: 'PREVIEW_AUTO_APPROVAL_HOURS'
+function getEnvVarNamesForField(fieldName: string): string[] {
+  if (fieldName in AMAZON_SP_API_ENV_ALIASES) {
+    const aliases =
+      AMAZON_SP_API_ENV_ALIASES[fieldName as keyof typeof AMAZON_SP_API_ENV_ALIASES];
+    const mode = process.env.AMAZON_SANDBOX_MODE?.trim().toLowerCase() === 'true'
+      ? 'sandbox'
+      : 'production';
+    return [...aliases[mode]];
+  }
+
+  const mapping: Record<string, string[]> = {
+    customerSiteUrl: ['CUSTOMER_SITE_URL'],
+    autoApprovalHours: ['PREVIEW_AUTO_APPROVAL_HOURS']
   };
-  return mapping[fieldName] || fieldName;
+  return mapping[fieldName] || [fieldName];
 }
 
 /**
  * Diagnostic endpoint to check Amazon Messaging API configuration
  * GET /api/admin/check-amazon-messaging
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const configResult = getAmazonMessagingConfig(true); // Force refresh
+    const resolvedSpApiEnv = resolveAmazonSpApiEnv();
 
     // Check multiple sources for the notification flag
     const rawEnvVar = process.env.AMAZON_PREVIEW_NOTIFICATIONS_ENABLED || 
@@ -42,7 +47,12 @@ export async function GET(request: NextRequest) {
     const allAmazonEnvVars: Record<string, string> = {};
     Object.keys(process.env).forEach(key => {
       const upperKey = key.toUpperCase();
-      if (upperKey.includes('AMAZON') || upperKey.includes('PREVIEW') || upperKey.includes('AWS_')) {
+      if (
+        upperKey.includes('AMAZON') ||
+        upperKey.includes('PREVIEW') ||
+        upperKey.includes('AWS_') ||
+        upperKey.startsWith('AMZ_')
+      ) {
         const value = process.env[key];
         // Mask sensitive values but show first few chars to confirm they're set
         if (value && (key.includes('SECRET') || key.includes('KEY') || key.includes('TOKEN'))) {
@@ -57,12 +67,14 @@ export async function GET(request: NextRequest) {
       // Provide detailed breakdown of what's missing
       const missingFields = configResult.issues.map(issue => {
         const fieldName = Array.isArray(issue.path) ? issue.path.join('.') : String(issue.path);
-        const envVarName = getEnvVarNameForField(fieldName);
+        const envVarNames = getEnvVarNamesForField(fieldName);
         return {
           field: fieldName,
-          envVar: envVarName,
+          envVar: envVarNames.join(' or '),
           message: issue.message,
-          currentValue: process.env[envVarName] ? 'SET (but invalid)' : 'MISSING'
+          currentValue: envVarNames.some((name) => process.env[name]?.trim())
+            ? 'SET (but invalid or placeholder)'
+            : 'MISSING'
         };
       });
 
@@ -85,10 +97,10 @@ export async function GET(request: NextRequest) {
           message: 'Amazon Messaging API is not properly configured. Check environment variables.',
           diagnostic: {
             requiredEnvVars: [
-              'AMZ_APP_CLIENT_ID',
-              'AMZ_APP_CLIENT_SECRET',
-              'AMZ_REFRESH_TOKEN',
-              'AMZ_SELLER_ID',
+              'AMZ_LWA_CLIENT_ID_PROD or AMZ_APP_CLIENT_ID or AMAZON_SP_API_CLIENT_ID',
+              'AMZ_LWA_CLIENT_SECRET_PROD or AMZ_APP_CLIENT_SECRET or AMAZON_SP_API_CLIENT_SECRET',
+              'AMZ_APP_PROD_REFRESH_TOKEN or AMZ_REFRESH_TOKEN or AMAZON_SP_API_REFRESH_TOKEN',
+              'AMZ_SELLER_ID or AMAZON_SP_API_SELLER_ID',
               'AWS_ACCESS_KEY_ID',
               'AWS_SECRET_ACCESS_KEY'
             ],
@@ -99,15 +111,15 @@ export async function GET(request: NextRequest) {
               'CUSTOMER_SITE_URL (default: https://littleherolabs.com)'
             ],
             currentStatus: {
-              AMZ_APP_CLIENT_ID: process.env.AMZ_APP_CLIENT_ID ? '✅ SET' : '❌ MISSING',
-              AMZ_APP_CLIENT_SECRET: process.env.AMZ_APP_CLIENT_SECRET ? '✅ SET' : '❌ MISSING',
-              AMZ_REFRESH_TOKEN: process.env.AMZ_REFRESH_TOKEN ? '✅ SET' : '❌ MISSING',
-              AMZ_SELLER_ID: process.env.AMZ_SELLER_ID ? '✅ SET' : '❌ MISSING',
-              AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? '✅ SET' : '❌ MISSING',
-              AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? '✅ SET' : '❌ MISSING',
-              AMZ_MARKETPLACE_ID: process.env.AMZ_MARKETPLACE_ID || '⚠️ Using default (ATVPDKIKX0DER)',
-              AMZ_REGION: process.env.AMZ_REGION || '⚠️ Using default (na)',
-              AWS_REGION: process.env.AWS_REGION || '⚠️ Using default (us-east-1)',
+              lwaClientId: resolvedSpApiEnv.lwaClientId ? '✅ SET' : '❌ MISSING',
+              lwaClientSecret: resolvedSpApiEnv.lwaClientSecret ? '✅ SET' : '❌ MISSING',
+              lwaRefreshToken: resolvedSpApiEnv.lwaRefreshToken ? '✅ SET' : '❌ MISSING',
+              sellerId: resolvedSpApiEnv.sellerId ? '✅ SET' : '❌ MISSING',
+              awsAccessKeyId: resolvedSpApiEnv.awsAccessKeyId ? '✅ SET' : '❌ MISSING',
+              awsSecretAccessKey: resolvedSpApiEnv.awsSecretAccessKey ? '✅ SET' : '❌ MISSING',
+              marketplaceId: resolvedSpApiEnv.marketplaceId || '⚠️ Using default (ATVPDKIKX0DER)',
+              spRegion: resolvedSpApiEnv.spRegion || '⚠️ Using default (na)',
+              awsRegion: resolvedSpApiEnv.awsRegion || '⚠️ Using default (us-east-1)',
               CUSTOMER_SITE_URL: process.env.CUSTOMER_SITE_URL || '⚠️ Using default (https://littleherolabs.com)',
               AMAZON_PREVIEW_NOTIFICATIONS_ENABLED: rawEnvVar || '❌ MISSING (set to "true" to enable)'
             },
@@ -161,15 +173,14 @@ export async function GET(request: NextRequest) {
       vercelEnv: process.env.VERCEL_ENV,
       note: 'Sensitive values are masked. All required fields appear to be configured.'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         configured: false,
-        error: error?.message || 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error',
         message: 'Failed to check Amazon Messaging API configuration'
       },
       { status: 500 }
     );
   }
 }
-

@@ -140,6 +140,13 @@ export interface Order {
     requestedAt?: string;
     expiresAt?: string;
     usedAt?: string;
+    notification?: {
+      status: 'sent' | 'failed' | 'not_sent';
+      channel?: 'email' | 'amazon_message';
+      sentAt?: string;
+      createdAt?: string;
+      errorMessage?: string;
+    };
   };
   bookContext?: OrderBookContext;
   webhooks: {

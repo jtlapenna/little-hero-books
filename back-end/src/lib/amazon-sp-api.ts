@@ -10,16 +10,106 @@ import { z } from 'zod';
 // Config
 // ---------------------------------------------------------------------------
 
+type JsonRecord = Record<string, unknown>;
+type SpApiJsonResponse = JsonRecord & {
+  access_token?: string;
+  expires_in?: number;
+  error_description?: string;
+  error?: string;
+  errors?: Array<JsonRecord>;
+  message?: string;
+  __apiCallDetails?: unknown;
+};
+
+export const AMAZON_SP_API_ENV_ALIASES = {
+  lwaClientId: {
+    production: ['AMZ_LWA_CLIENT_ID_PROD', 'AMZ_APP_CLIENT_ID', 'AMAZON_SP_API_CLIENT_ID'],
+    sandbox: ['AMZ_LWA_CLIENT_ID_SANDBOX', 'AMZ_APP_CLIENT_ID', 'AMAZON_SP_API_CLIENT_ID'],
+  },
+  lwaClientSecret: {
+    production: ['AMZ_LWA_CLIENT_SECRET_PROD', 'AMZ_APP_CLIENT_SECRET', 'AMAZON_SP_API_CLIENT_SECRET'],
+    sandbox: ['AMZ_LWA_CLIENT_SECRET_SANDBOX', 'AMZ_APP_CLIENT_SECRET', 'AMAZON_SP_API_CLIENT_SECRET'],
+  },
+  lwaRefreshToken: {
+    production: ['AMZ_APP_PROD_REFRESH_TOKEN', 'AMZ_REFRESH_TOKEN', 'AMAZON_SP_API_REFRESH_TOKEN'],
+    sandbox: ['AMZ_APP_SANDBOX_REFRESH_TOKEN', 'AMZ_REFRESH_TOKEN', 'AMAZON_SP_API_REFRESH_TOKEN'],
+  },
+  sellerId: {
+    production: ['AMZ_SELLER_ID', 'AMAZON_SP_API_SELLER_ID'],
+    sandbox: ['AMZ_SELLER_ID', 'AMAZON_SP_API_SELLER_ID'],
+  },
+  marketplaceId: {
+    production: ['AMZ_MARKETPLACE_ID', 'AMAZON_SP_API_MARKETPLACE_ID'],
+    sandbox: ['AMZ_MARKETPLACE_ID', 'AMAZON_SP_API_MARKETPLACE_ID'],
+  },
+  spRegion: {
+    production: ['AMZ_REGION', 'AMAZON_SP_API_REGION'],
+    sandbox: ['AMZ_REGION', 'AMAZON_SP_API_REGION'],
+  },
+  awsAccessKeyId: {
+    production: ['AWS_ACCESS_KEY_ID'],
+    sandbox: ['AWS_ACCESS_KEY_ID'],
+  },
+  awsSecretAccessKey: {
+    production: ['AWS_SECRET_ACCESS_KEY'],
+    sandbox: ['AWS_SECRET_ACCESS_KEY'],
+  },
+  awsRegion: {
+    production: ['AWS_REGION'],
+    sandbox: ['AWS_REGION'],
+  },
+} as const;
+
+type AmazonSpApiEnvField = keyof typeof AMAZON_SP_API_ENV_ALIASES;
+
+function isPlaceholderEnvValue(value: string): boolean {
+  return /^your[_-]/i.test(value.trim()) || /^replace[_-]/i.test(value.trim());
+}
+
+function firstEnvValue(names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value && !isPlaceholderEnvValue(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function parseJsonObject(text: string): SpApiJsonResponse {
+  try {
+    const parsed = text ? JSON.parse(text) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as SpApiJsonResponse
+      : { raw: text };
+  } catch {
+    return { raw: text };
+  }
+}
+
+function aliasesFor(field: AmazonSpApiEnvField): readonly string[] {
+  const mode = process.env.AMAZON_SANDBOX_MODE?.trim().toLowerCase() === 'true'
+    ? 'sandbox'
+    : 'production';
+  return AMAZON_SP_API_ENV_ALIASES[field][mode];
+}
+
+function requiredEnvString(field: AmazonSpApiEnvField) {
+  const message = `Set one of: ${aliasesFor(field).join(', ')}`;
+  return z.string({ error: message }).min(1, message);
+}
+
 const spApiBaseSchema = z.object({
-  lwaClientId: z.string().min(1, 'AMZ_APP_CLIENT_ID is required'),
-  lwaClientSecret: z.string().min(1, 'AMZ_APP_CLIENT_SECRET is required'),
-  lwaRefreshToken: z.string().min(1, 'AMZ_REFRESH_TOKEN is required'),
-  sellerId: z.string().min(1, 'AMZ_SELLER_ID is required'),
-  marketplaceId: z.string().min(1, 'AMZ_MARKETPLACE_ID is required').default('ATVPDKIKX0DER'),
-  spRegion: z.string().min(1, 'AMZ_REGION is required').default('na'),
-  awsAccessKeyId: z.string().min(1, 'AWS_ACCESS_KEY_ID is required'),
-  awsSecretAccessKey: z.string().min(1, 'AWS_SECRET_ACCESS_KEY is required'),
-  awsRegion: z.string().min(1, 'AWS_REGION is required').default('us-east-1'),
+  lwaClientId: requiredEnvString('lwaClientId'),
+  lwaClientSecret: requiredEnvString('lwaClientSecret'),
+  lwaRefreshToken: requiredEnvString('lwaRefreshToken'),
+  sellerId: requiredEnvString('sellerId'),
+  marketplaceId: requiredEnvString('marketplaceId').default('ATVPDKIKX0DER'),
+  spRegion: requiredEnvString('spRegion').default('na'),
+  awsAccessKeyId: requiredEnvString('awsAccessKeyId'),
+  awsSecretAccessKey: requiredEnvString('awsSecretAccessKey'),
+  awsRegion: requiredEnvString('awsRegion').default('us-east-1'),
 });
 
 export type AmazonSpApiConfig = z.infer<typeof spApiBaseSchema>;
@@ -30,23 +120,27 @@ export type SpApiConfigResult =
 
 let cachedBaseConfig: AmazonSpApiConfig | null = null;
 
+export function resolveAmazonSpApiEnv(): Partial<Record<AmazonSpApiEnvField, string>> {
+  return {
+    lwaClientId: firstEnvValue(aliasesFor('lwaClientId')),
+    lwaClientSecret: firstEnvValue(aliasesFor('lwaClientSecret')),
+    lwaRefreshToken: firstEnvValue(aliasesFor('lwaRefreshToken')),
+    sellerId: firstEnvValue(aliasesFor('sellerId')),
+    marketplaceId: firstEnvValue(aliasesFor('marketplaceId')),
+    spRegion: firstEnvValue(aliasesFor('spRegion')),
+    awsAccessKeyId: firstEnvValue(aliasesFor('awsAccessKeyId')),
+    awsSecretAccessKey: firstEnvValue(aliasesFor('awsSecretAccessKey')),
+    awsRegion: firstEnvValue(aliasesFor('awsRegion')),
+  };
+}
+
 /** Load base SP-API config from env vars (auth-only, no messaging extras). */
 export function getAmazonSpApiConfig(forceRefresh = false): SpApiConfigResult {
   if (!forceRefresh && cachedBaseConfig) {
     return { ok: true, config: cachedBaseConfig };
   }
 
-  const parseResult = spApiBaseSchema.safeParse({
-    lwaClientId: process.env.AMZ_APP_CLIENT_ID,
-    lwaClientSecret: process.env.AMZ_APP_CLIENT_SECRET,
-    lwaRefreshToken: process.env.AMZ_REFRESH_TOKEN,
-    sellerId: process.env.AMZ_SELLER_ID,
-    marketplaceId: process.env.AMZ_MARKETPLACE_ID,
-    spRegion: process.env.AMZ_REGION,
-    awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    awsRegion: process.env.AWS_REGION,
-  });
+  const parseResult = spApiBaseSchema.safeParse(resolveAmazonSpApiEnv());
 
   if (!parseResult.success) {
     return { ok: false, error: 'Amazon SP-API env configuration is incomplete', issues: parseResult.error.issues };
@@ -65,6 +159,7 @@ export class AmazonSpApiError extends Error {
   public readonly status?: number;
   public readonly code?: string;
   public readonly details?: unknown;
+  public apiCallDetails?: unknown;
 
   constructor(message: string, options: { retryable?: boolean; status?: number; code?: string; details?: unknown } = {}) {
     super(message);
@@ -111,8 +206,7 @@ export async function getAccessToken(config: AmazonSpApiConfig): Promise<string>
   });
 
   const responseText = await response.text();
-  let data: any;
-  try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { raw: responseText }; }
+  const data = parseJsonObject(responseText);
 
   if (!response.ok) {
     const errorMessage = data.error_description || data.error || responseText || 'Unknown error';
@@ -219,8 +313,7 @@ export async function callSellingPartnerApi(options: CallSpApiOptions) {
   const requestId = responseHeaders['x-amzn-requestid'] || responseHeaders['x-amzn-RequestId'] || '';
 
   const text = await response.text().catch(() => '');
-  let data: any;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  const data = parseJsonObject(text);
 
   const apiCallDetails = {
     request: fullRequestDetails,
@@ -242,22 +335,26 @@ export async function callSellingPartnerApi(options: CallSpApiOptions) {
   if (!responseOk) {
     console.error('[Amazon SP-API] Request failed:', JSON.stringify({
       status: responseStatus, url: url.toString(), path: options.path,
-      errors: data?.errors, rawResponse: text.substring(0, 1000),
+      errors: data.errors, rawResponse: text.substring(0, 1000),
     }, null, 2));
 
-    const errorMessage = data?.errors?.[0]?.message || data?.message || `Amazon SP-API request failed with status ${responseStatus}`;
-    const errorCode = data?.errors?.[0]?.code;
-    const errorDetailsStr = data?.errors?.[0]?.details ? ` Details: ${JSON.stringify(data.errors[0].details)}` : '';
+    const firstError = data.errors?.[0] ?? {};
+    const errorMessage =
+      (typeof firstError.message === 'string' ? firstError.message : null) ||
+      data.message ||
+      `Amazon SP-API request failed with status ${responseStatus}`;
+    const errorCode = typeof firstError.code === 'string' ? firstError.code : undefined;
+    const errorDetailsStr = firstError.details ? ` Details: ${JSON.stringify(firstError.details)}` : '';
     const detailedError = errorCode ? `${errorMessage} (Code: ${errorCode}${errorDetailsStr})` : errorMessage;
 
     const error = new AmazonSpApiError(detailedError, {
       retryable: responseStatus >= 500, status: responseStatus, code: errorCode, details: data,
     });
-    (error as any).apiCallDetails = apiCallDetails;
+    error.apiCallDetails = apiCallDetails;
     throw error;
   }
 
-  (data as any).__apiCallDetails = apiCallDetails;
+  data.__apiCallDetails = apiCallDetails;
   return data;
 }
 

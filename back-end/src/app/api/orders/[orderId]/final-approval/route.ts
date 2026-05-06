@@ -11,6 +11,7 @@ import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
+import { resolveAmazonSpApiEnv } from '@/lib/amazon-sp-api';
 
 interface FinalApprovalPayload {
   reviewer?: string;
@@ -28,6 +29,42 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+function logAmazonPreviewNotificationAttempt(params: {
+  amazonOrderId: string;
+  status: 'sent' | 'failed';
+  errorMessage?: string | null;
+  messageId?: string | null;
+}) {
+  const now = new Date().toISOString();
+  const logInsert = (supabase as unknown as NotificationLogWriter)
+    .from('notification_logs')
+    .insert({
+      order_id: params.amazonOrderId,
+      notification_type: 'amazon_message',
+      status: params.status,
+      recipient: `amazon:${params.amazonOrderId}`,
+      error_message:
+        params.status === 'sent'
+          ? params.messageId
+            ? `messageId=${params.messageId}`
+            : null
+          : params.errorMessage || 'Unknown error',
+      sent_at: params.status === 'sent' ? now : null,
+      created_at: now
+    });
+
+  void Promise.resolve(logInsert)
+    .then(() => {
+      // Successfully logged (no action needed)
+    })
+    .catch((error: unknown) => {
+      console.error(
+        '[Final Approval] Failed to log Amazon notification:',
+        error
+      );
+    });
 }
 
 async function handleFinalApproval(
@@ -239,18 +276,24 @@ async function handleFinalApproval(
           error: configCheck.error,
           issues: configCheck.issues,
         };
+        logAmazonPreviewNotificationAttempt({
+          amazonOrderId,
+          status: 'failed',
+          errorMessage: notificationResult.reason,
+        });
         
         // Log detailed diagnostic info
+        const resolvedAmazonEnv = resolveAmazonSpApiEnv();
         console.error('[Final Approval] Amazon messaging config check failed:', {
           error: configCheck.error,
           issues: configCheck.issues,
           envVars: {
-            AMZ_APP_CLIENT_ID: process.env.AMZ_APP_CLIENT_ID ? 'SET' : 'MISSING',
-            AMZ_APP_CLIENT_SECRET: process.env.AMZ_APP_CLIENT_SECRET ? 'SET' : 'MISSING',
-            AMZ_REFRESH_TOKEN: process.env.AMZ_REFRESH_TOKEN ? 'SET' : 'MISSING',
-            AMZ_SELLER_ID: process.env.AMZ_SELLER_ID ? 'SET' : 'MISSING',
-            AMZ_MARKETPLACE_ID: process.env.AMZ_MARKETPLACE_ID || 'NOT SET (using default)',
-            AMZ_REGION: process.env.AMZ_REGION || 'NOT SET (using default)',
+            lwaClientId: resolvedAmazonEnv.lwaClientId ? 'SET' : 'MISSING',
+            lwaClientSecret: resolvedAmazonEnv.lwaClientSecret ? 'SET' : 'MISSING',
+            lwaRefreshToken: resolvedAmazonEnv.lwaRefreshToken ? 'SET' : 'MISSING',
+            sellerId: resolvedAmazonEnv.sellerId ? 'SET' : 'MISSING',
+            marketplaceId: resolvedAmazonEnv.marketplaceId || 'NOT SET (using default)',
+            spRegion: resolvedAmazonEnv.spRegion || 'NOT SET (using default)',
             AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'MISSING',
             AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'MISSING',
             AWS_REGION: process.env.AWS_REGION || 'NOT SET (using default)',
@@ -287,34 +330,12 @@ async function handleFinalApproval(
               : 'Unknown error sending Amazon message');
         }
 
-        // Log notification attempt (fire and forget - don't await to avoid blocking)
-        // FIX: Removed await before .catch() - await resolves promise, making .catch() unavailable
-        const now = new Date().toISOString();
-        const logInsert = (supabase as unknown as NotificationLogWriter)
-          .from('notification_logs')
-          .insert({
-            order_id: amazonOrderId,
-            notification_type: 'amazon_message',
-            status: response.success ? 'sent' : 'failed',
-            recipient: `amazon:${amazonOrderId}`,
-            error_message: response.success
-              ? response.messageId
-                ? `messageId=${response.messageId}`
-                : null
-              : response.error || 'Unknown error',
-            sent_at: response.success ? now : null,
-            created_at: now
-          });
-        void Promise.resolve(logInsert)
-          .then(() => {
-            // Successfully logged (no action needed)
-          })
-          .catch((error: unknown) => {
-            console.error(
-              '[Final Approval] Failed to log Amazon notification:',
-              error
-            );
-          });
+        logAmazonPreviewNotificationAttempt({
+          amazonOrderId,
+          status: response.success ? 'sent' : 'failed',
+          errorMessage: response.success ? null : response.error || 'Unknown error',
+          messageId: response.messageId ?? null,
+        });
       }
     } catch (error: unknown) {
       notificationResult.sent = false;
@@ -373,6 +394,20 @@ async function handleFinalApproval(
         stack: error instanceof Error ? error.stack : undefined
       });
     }
+  }
+
+  if (mappedOrder?.customerPreview) {
+    mappedOrder.customerPreview.notification = {
+      status: notificationResult.sent
+        ? 'sent'
+        : notificationResult.reason
+          ? 'failed'
+          : 'not_sent',
+      channel: notificationResult.channel,
+      sentAt: notificationResult.sent ? nowIso : undefined,
+      createdAt: nowIso,
+      errorMessage: notificationResult.sent ? undefined : notificationResult.reason,
+    };
   }
 
   return NextResponse.json({
