@@ -392,7 +392,7 @@ def post_9():
     line1 = "See what your kid's"
     line2 = "book would look like."
     sub = "Pick the hair, skin tone, animal companion."
-    cta = "littleherolabs.com/preview"
+    cta = "littleherolabs.com"
 
     y = cy + ch + 60
     bbox = draw.textbbox((0, 0), line1, font=title_font)
