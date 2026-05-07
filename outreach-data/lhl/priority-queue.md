@@ -1,7 +1,7 @@
 # LHL Priority Queue
 
-**Generated:** 2026-05-06 (R2 daily run) from `pipeline.md` (70 creators)
-**Previous generation:** 2026-05-05 (60 creators)
+**Generated:** 2026-05-07 (R2 daily run) from `pipeline.md` (80 creators)
+**Previous generation:** 2026-05-06 (70 creators)
 
 **Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL.
 
@@ -13,15 +13,17 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 
 **R2 2026-05-06 regen note:** R1 added 10 creators today (gift-guide / Amazon-finds category). Pipeline grows from 60 to 70. None of the 10 new additions qualify for First Wave: 4 are mid-tier 150K+ (@heysleepybaby 578K macro-threshold concern, @heybrittinirae 306K, @mrskatiecarlson 326K, @amylittleson 338K talent-managed), 5 have unverified email requiring Jeff verification before drafting (@theforevermillennials, @themadisonrae, @alifewellsaved, @3littleplums, @acupofambition), and 1 is Substack-only pending dm-substack template (@twotruthsmotherhood). Second Wave gains 6 candidates (#61-#66). Mid-tier sign-off pile gains 4 candidates (#67-#70). First Wave remains fully exhausted. See supply gap section.
 
-**SUPPLY GAP (2026-05-06):** First Wave remains fully exhausted. 10 new creators added today; zero qualify for First Wave. R2 stops and surfaces the gap. See supply gap section below.
+**R2 2026-05-07 regen note:** R1 added 10 creators today (educational / child-development category: clinical psychologist, therapist, pediatric OTs, child life specialist, parenting strategist, EI parent coach). Pipeline grows from 70 to 80. New additions breakdown: 1 adds to First Wave but is immediately flagged "NOT DRAFTED" (#71 @childlifetherapist, email confirmed, nano 5K, 18/20, but pipeline note requires aesthetic-fit verification before drafting); 4 add to Second Wave 2b (#73-#76, verify-email); 1 adds to Second Wave 2c (#72 @drsarahbren, contact form, 19/20); 1 adds to Second Wave 2d (#77 @ot_mama_of_twins, DM-only); 3 add to Mid-tier (#78-#80: @theworkspaceforchildren 19/20, @theotbutterfly 18/20, @emotionally.intelligent.parent 19/20 + AU geo). **First Wave remains fully exhausted after this addition.** R2 stops and surfaces supply gap.
+
+**SUPPLY GAP (2026-05-07):** First Wave remains fully exhausted. Today's R1 batch adds 10 creators; the one with confirmed email at nano/micro tier (@childlifetherapist, #71) carries a pipeline-level "verify aesthetic match before drafting" flag and is not eligible for auto-drafting. R2 stops and surfaces the gap. See supply gap section below.
 
 ---
 
 ## First wave
 
-16 candidates. All email-confirmed direct, all nano/micro tier (no rate sign-off needed). R2 drafts these by default.
+17 candidates. All email-confirmed direct, all nano/micro tier (no rate sign-off needed). R2 drafts these by default.
 
-**ALL FIRST WAVE CREATORS ARE PROCESSED. No eligible candidates remain for R2 today (2026-05-06). 3 approved, 10 copy-reviewed, 2 drafted/flagged, 1 needs angle designation.**
+**ALL FIRST WAVE CREATORS ARE PROCESSED OR FLAGGED. No eligible candidates remain for R2 today (2026-05-07). 3 approved, 10 copy-reviewed, 2 drafted/flagged, 2 need Jeff review before R2 can draft.**
 
 | # | Handle | Score | Tier | Niche | Contact | Angle | Draft status |
 |---|---|---|---|---|---|---|---|
@@ -41,8 +43,9 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 | 14 | @littlereaders.futureleaders (Holly) | 17/20 | nano 8K | Kid Lit recs / early-childhood educator | `holly@littlereaders.blog` | literacy-educator | copy-reviewed 2026-05-02 |
 | 15 | @newmodernmom (Barbara Mighdoll) | 16/20 | nano 10K | Modern-mom lifestyle / baby registry | `barbara@newmodernmom.com` | gift-curator | copy-reviewed 2026-05-03 |
 | 16 | @bridgetteyler (Bridget Teyler) | 16/20 | micro 30K | Childbirth educator + birth doula | `bridget@builttobirth.com` | none (flagged) | NOT DRAFTED 2026-05-03: no confident angle match. Closest was gift-curator but creator content has no gift-roundup signals. Jeff must designate angle before R2 can draft. |
+| 71 | @childlifetherapist (Kelsey Mora) | 18/20 | nano 5.1K | Child Life Specialist + LCPC + author ("The Dot Method"); helping kids cope with illness/grief/stress | `kelsey@childlifetherapist.com` | literacy-educator (nearest) | NOT DRAFTED 2026-05-07 (new): pipeline note requires aesthetic-fit verification before drafting. Creator's work centers children in medical/grief/stress contexts; R2 flagging to Jeff: does LHL's "courage + inner voice" theme frame naturally for this community, or does the joyful-journey framing need care? If Jeff confirms fit, R2 drafts on next run using literacy-educator angle (therapist credentials + dual MA CCLS LCPC + emotional-intelligence themes align). |
 
-**Supply gap (detail, as of 2026-05-06):** First wave has 3 approved (ready to send: #1 @happily.ever.elephants, #8 @blackbabybooks, #13 @kaylynjohnson_slp), 10 copy-reviewed (ready for Jeff approval + send: #2 thispicturebooklife, #3 @biracialbookworms, #4 @ryan_and_craig, #6 @picturebookplaydate, #7 @thechildrensbookreview, #9 @thetinyactivists, #11 @thetututeacher (business flag: talent-managed), #12 @bfppodcast (angle-fit note), #14 @littlereaders.futureleaders, #15 @newmodernmom), 2 drafted/flagged (need Jeff edits: #5 @raisingreaderstobecomeleaders theme sentence vary, #10 @growingbookbybook theme sentence + "demo" fix), 1 needs Jeff angle designation (#16 @bridgetteyler). R2 cannot produce new First Wave drafts until Jeff either (a) unlocks Second Wave candidates per-candidate, or (b) designates an angle for @bridgetteyler. See supply gap section below.
+**Supply gap (detail, as of 2026-05-07):** First wave has 3 approved (ready to send: #1 @happily.ever.elephants, #8 @blackbabybooks, #13 @kaylynjohnson_slp), 10 copy-reviewed (ready for Jeff approval + send: #2 thispicturebooklife, #3 @biracialbookworms, #4 @ryan_and_craig, #6 @picturebookplaydate, #7 @thechildrensbookreview, #9 @thetinyactivists, #11 @thetututeacher (business flag: talent-managed), #12 @bfppodcast (angle-fit note), #14 @littlereaders.futureleaders, #15 @newmodernmom), 2 drafted/flagged (need Jeff edits: #5 @raisingreaderstobecomeleaders theme sentence vary, #10 @growingbookbybook theme sentence + "demo" fix), 2 need Jeff call before R2 drafts (#16 @bridgetteyler angle designation, #71 @childlifetherapist aesthetic-fit verification). **First wave is fully exhausted. See supply gap section below for next steps.**
 
 ---
 
@@ -59,11 +62,15 @@ These need one of: verified email, contact-form channel, or pre-engagement for D
 | 19 | @hapafamilyvlog (Ashley Yeh) | 18/20 | micro 56K | Verify email via ashley-yeh.com; Montessori author | literacy-educator | 2026-05-04 |
 | 20 | @nickav25 (Nicole Kavanaugh) | 18/20 | micro 88K | Verify email via thekavanaughreport.com/p/contact.html; Montessori blogger + podcast host | literacy-educator | 2026-05-04 |
 | 21 | @thehomeschoolhowtopodcast (Cheryl) | 17/20 | micro 118K | Verify email via thehomeschoolhowto.com | literacy-educator | 2026-05-01 |
-| 61 | @acupofambition (Jessica Wilen, PhD) | 17/20 | Substack-micro | Email: drjessicawilen@gmail.com (cross-verified via Yale + coaching site; verify before use); Substack: acupofambition.substack.com | gift-curator | 2026-05-06 (new) |
-| 62 | @theforevermillennials (Samantha Matt) | 16/20 | micro 93K | Verify email via forevermillennials.com or Substack contact; former shopping editor + gift guide writer | gift-curator | 2026-05-06 (new) |
-| 63 | @themadisonrae (Madison Rae) | 16/20 | micro 64K | Verify email via tribecamomsclub.substack.com contact; 6+ gift-guide categories on Substack | gift-curator | 2026-05-06 (new) |
-| 64 | @alifewellsaved (Stephanie Covington) | 16/20 | micro 73K | Verify email via alifewell-saved.com contact; annual holiday gift guide + baby guide | gift-curator | 2026-05-06 (new) |
-| 65 | @3littleplums (Aida Garcia-Toledo) | 16/20 | micro 41K | Verify email via LinkedIn (linkedin.com/in/aida-m-garcia-toledo-6279193) or website; annual gift guide with Ages 0-2 + 3-5 categories | gift-curator | 2026-05-06 (new) |
+| 61 | @acupofambition (Jessica Wilen, PhD) | 17/20 | Substack-micro | Email: drjessicawilen@gmail.com (cross-verified via Yale + coaching site; verify before use); Substack: acupofambition.substack.com | gift-curator | 2026-05-06 |
+| 62 | @theforevermillennials (Samantha Matt) | 16/20 | micro 93K | Verify email via forevermillennials.com or Substack contact; former shopping editor + gift guide writer | gift-curator | 2026-05-06 |
+| 63 | @themadisonrae (Madison Rae) | 16/20 | micro 64K | Verify email via tribecamomsclub.substack.com contact; 6+ gift-guide categories on Substack | gift-curator | 2026-05-06 |
+| 64 | @alifewellsaved (Stephanie Covington) | 16/20 | micro 73K | Verify email via alifewell-saved.com contact; annual holiday gift guide + baby guide | gift-curator | 2026-05-06 |
+| 65 | @3littleplums (Aida Garcia-Toledo) | 16/20 | micro 41K | Verify email via LinkedIn (linkedin.com/in/aida-m-garcia-toledo-6279193) or website; annual gift guide with Ages 0-2 + 3-5 categories | gift-curator | 2026-05-06 |
+| 73 | @therealparent (Amie Anger) | 18/20 | micro 85K | Verify email via realparent.com; Yale Child Study Center-trained therapist mom of 6; toddlers-to-teens | literacy-educator | 2026-05-07 (new) |
+| 74 | @gabriellatheot (Gabriella Shelley) | 18/20 | micro 106K | Verify email via gabriellatheot.com or babyogacards.com; pediatric OT + Babyoga Cards founder; ages 6 weeks-12 months | literacy-educator | 2026-05-07 (new) |
+| 75 | @littleroospediatrictherapy (Laurel McMillan) | 18/20 | micro 118K | Verify email via littleroos.llc; pediatric OT practice founder; Scottsdale AZ; infant/baby focus | literacy-educator | 2026-05-07 (new) |
+| 76 | @playtheotway (Brittini) | 17/20 | nano 20K | Verify email via playtheotway.com; pediatric OT + toddler mom; no-prep household-item activities | literacy-educator | 2026-05-07 (new) |
 
 ### 2c. Contact form only (no public email)
 
@@ -71,6 +78,7 @@ These need one of: verified email, contact-form channel, or pre-engagement for D
 |---|---|---|---|---|---|---|
 | 22 | @picturebookrecommendations (Charlotte Offsay) | 18/20 | nano 19K | Form: charlotteoffsay.com/contact (high-trust author site) | librarian-kidlit-curator | 2026-05-01 |
 | 23 | @librarymombooks (Rosie D'Urso) | 18/20 | micro 122K | Form: librarymom.com/faq/review-policy | librarian-kidlit-curator | 2026-05-01 |
+| 72 | @drsarahbren (Dr. Sarah Bren) | 19/20 | nano 21K | Form: drsarahbren.com/contact (clinical psychologist + podcast host; high-trust professional practice site); PhD Clinical Psychology, LIU; Securely Attached podcast | literacy-educator | 2026-05-07 (new) |
 
 ### 2d. DM-only (pre-engagement 24h required) or Substack-only (template missing)
 
@@ -82,11 +90,12 @@ These need one of: verified email, contact-form channel, or pre-engagement for D
 | 27 | @inclusivelibrary (Emily Liebel) | 17/20 | nano 2.6K | IG DM; Utah; no public email surfaced | diverse-representation | 2026-05-01 |
 | 28 | @readingwithredandthemagpie (Kristin) | 17/20 | nano 15K | IG DM; verify email first | diverse-representation | 2026-05-01 |
 | 29 | julesacree (Jules Acree) | 17/20 | micro (Substack) | **Substack-only: skip until dm-substack template exists.** IG: @julesacree | gift-curator | 2026-05-03 |
-| 66 | @twotruthsmotherhood (Cassie Shortsleeve + Kelsey Haywood Lucas) | 17/20 | Substack-bestseller | **Substack-only: skip until dm-substack template exists.** IG secondary: @twotruthsmotherhood (5K) + @cassieshortsleeve (77K personal -- could be Jeff's IG fallback if approved). Two gift guides per year + motherhood gift roundups. | gift-curator | 2026-05-06 (new) |
+| 66 | @twotruthsmotherhood (Cassie Shortsleeve + Kelsey Haywood Lucas) | 17/20 | Substack-bestseller | **Substack-only: skip until dm-substack template exists.** IG secondary: @twotruthsmotherhood (5K) + @cassieshortsleeve (77K personal -- could be Jeff's IG fallback if approved). Two gift guides per year + motherhood gift roundups. | gift-curator | 2026-05-06 |
 | 30 | @ourpurposefulplay (Jill) | 16/20 | micro 68K | IG DM only; pre-engagement required; no website surfaced; Montessori boy-mum | literacy-educator | 2026-05-04 |
 | 31 | babybrain (Charlotte Stephens) | 16/20 | micro (Substack, UK) | **Substack-only: skip until dm-substack template exists.** UK shipping note | gift-curator | 2026-05-03 |
 | 32 | yourinternetmomfriend (Lael O) | 16/20 | micro-equiv (20K+ free subs) | **Substack-only: skip until dm-substack template exists.** Broad-motherhood scope (category edge) | gift-curator | 2026-05-03 |
 | 33 | scaredtobeamom (Jen Glantz) | 15/20 | sub-nano ~971 subs | **Substack-only: skip until dm-substack template exists.** Note: sub count below nano floor (971 < 2K) | gift-curator | 2026-05-03 |
+| 77 | @ot_mama_of_twins (Julia) | 16/20 | micro 60K | IG DM only; pre-engagement (24h) required; no public website or email surfaced; pediatric OT mama of 3 boys incl. neurodivergent twins; sensory-seeking activities | literacy-educator | 2026-05-07 (new) |
 
 ---
 
@@ -117,6 +126,9 @@ Score-qualified but mid-tier (150K-500K). Per skill: "Discuss with Jeff before a
 | 68 | @heybrittinirae (Brittini) | 17/20 | 306K | email: heybrittinirae@gmail.com (per AmraAndElma 2025 listicle; verify before drafting) | gift-curator | "Finds for Moms"; Amazon storefront with "Gifts for Babies" list; mid-tier |
 | 69 | @mrskatiecarlson (Katie Carlson) | 17/20 | 326K | Collabstr: collabstr.com/mrskatiecarlson (brand-friendly); email unverified -- verify via Collabstr or DM | gift-curator | "Amazon Mom Finds" handle suffix; Collabstr-listed partnership profile; mid-tier |
 | 70 | @amylittleson (Amy Littleson McNitt) | 16/20 | 338K | manager: TeamAmy@thedigitaldept.com (Digital Dept, confirmed); personal: amylittleson14@gmail.com (verify before use) | gift-curator | Talent-managed (Digital Dept); blog since 2013; Amazon storefront; mid-tier |
+| 78 | @theworkspaceforchildren (Lizzie Assa) | 19/20 | 247K | email: management@workspaceforchildren.com | literacy-educator | MsED Bank Street College; play expert + author "But I'm Bored"; active brand partnerships (Lalo, Rose & Rex); exceptional fit; mid-tier -- Jeff sign-off required | 2026-05-07 (new) |
+| 79 | @theotbutterfly (Laura Petix) | 18/20 | 240K | talent: stephanie@stephgtalent.com (StephGTalent) | literacy-educator | Pediatric OT; A Kids Co. author "A Kids Book About Neurodiversity"; talent-managed; mid-tier | 2026-05-07 (new) |
+| 80 | @emotionally.intelligent.parent (Stephanie Pinto) | 19/20 | 226K | email: hello@stephaniepinto.com | literacy-educator | **Geo concern: Sydney AU** -- verify Lulu AU shipping cost before drafting. EI parenting consultant; best-selling author; podcast host; 130K Facebook community; exceptional topical fit with "Finding Our Inner Voice"; mid-tier + AU geo -- Jeff sign-off required | 2026-05-07 (new) |
 
 ---
 
@@ -141,7 +153,7 @@ Lower-priority, case-by-case. Either lower score, audience misalignment, geo con
 
 ## Supply gap -- action required from Jeff
 
-**First wave is fully exhausted as of 2026-05-06.** R2 cannot produce new outreach drafts today. Today's R1 run added 10 creators (gift-guide / Amazon-finds category); none qualify for First Wave. Supply gap options below are unchanged from 2026-05-05, with new Second Wave candidates now available.
+**First wave is fully exhausted as of 2026-05-07.** R2 cannot produce new outreach drafts today. Today's R1 run added 10 creators (educational / child-development category); the one candidate with confirmed email at nano tier (#71 @childlifetherapist) carries an explicit "verify aesthetic match before drafting" pipeline flag and cannot be auto-drafted.
 
 ### Option A: Fix the 2 remaining flagged First Wave drafts (quick)
 
@@ -149,12 +161,17 @@ One flag was resolved by Jeff before approving @happily.ever.elephants on 2026-0
 
 | Draft file | Flag | Suggested fix |
 |---|---|---|
-| `outreach-data/lhl/drafts/2026-05-03-raisingreaderstobecomeleaders.md` | Body sentence "Themes are courage, friendship, and emotional intelligence." duplicates growingbookbybook draft | Rephrase to e.g. "The story's themes -- emotional intelligence, courage, self-discovery -- map directly to what your audience cares about." |
+| `outreach-data/lhl/drafts/2026-05-03-raisingreaderstobecomeleaders.md` | Body sentence "Themes are courage, friendship, and emotional intelligence." duplicates growingbookbybook draft | Rephrase to e.g. "The story's themes -- courage, self-discovery, emotional intelligence -- speak to what your audience already cares about." |
 | `outreach-data/lhl/drafts/2026-05-03-growingbookbybook.md` | Theme-sentence dup with @raisingreaderstobecomeleaders + "exactly the demo we're reaching" wording (opener-dup may be resolved depending on what Jeff changed in @happily.ever.elephants) | Vary the theme sentence; replace "demo" with "audience" or rephrase the whole line; verify opener is not a dup of the now-approved @happily.ever.elephants draft |
 
-### Option B: Designate an angle for @bridgetteyler
+### Option B: Approve these 2 flagged First Wave entries for R2 drafting
 
-If Jeff designates an angle (closest candidates: `gift-curator` if Bridget's podcast or course content has any gift-rec signals R2 missed; or `literacy-educator` if Jeff sees a developmental-literacy frame), R2 can draft immediately on next run.
+Each requires a Jeff judgment call before R2 can proceed:
+
+| Entry | Flag | What Jeff needs to decide |
+|---|---|---|
+| #16 @bridgetteyler | No confident angle match (gift-curator was rejected as no gift-roundup signals). | Designate an angle. Closest fallback: `literacy-educator` if Jeff sees developmental / prenatal-wellness framing in Bridget's Built To Birth content. If approved, R2 drafts on next run. |
+| #71 @childlifetherapist (Kelsey Mora) | Aesthetic-fit flag. Work centers children in medical/grief/clinical contexts. | Does LHL's "courage + inner voice" theme frame naturally for Kelsey's community? If yes, R2 drafts on next run using `literacy-educator` angle (credentials: MA CCLS LCPC + emotional-intelligence themes + Motherly/CNBC contributor). If no, move to Footnotes. Email confirmed: kelsey@childlifetherapist.com. |
 
 ### Option C: Approve Second Wave candidates per-candidate
 
@@ -163,29 +180,35 @@ Jeff approves any of the below for R2 drafting. Each requires its setup action f
 **Fastest-to-activate (contact form, high trust):**
 - @picturebookrecommendations (Charlotte Offsay) -- contact form: charlotteoffsay.com/contact -- 18/20 nano -- librarian-kidlit-curator
 - @librarymombooks (Rosie D'Urso) -- contact form: librarymom.com/faq/review-policy -- 18/20 micro -- librarian-kidlit-curator
+- @drsarahbren (Dr. Sarah Bren) -- contact form: drsarahbren.com/contact -- **19/20 nano 21K** -- literacy-educator (clinical psychologist + Securely Attached podcast; new 2026-05-07)
 
 **Next fastest (verify email, then R2 drafts):**
 - @claire_linney -- verify: clairelinney.com/links -- 19/20 micro -- diverse-representation (UK, verify Lulu shipping)
 - @enquiryco (Layne) -- verify: linktr.ee/enquiryco -- 18/20 micro -- literacy-educator
 - @hapafamilyvlog (Ashley Yeh) -- verify: ashley-yeh.com -- 18/20 micro -- literacy-educator (Montessori)
 - @nickav25 (Nicole Kavanaugh) -- verify: thekavanaughreport.com/p/contact.html -- 18/20 micro -- literacy-educator (Montessori/homeschool)
-- @acupofambition (Jessica Wilen, PhD) -- verify: drjessicawilen@gmail.com (Yale/coaching-site cross-ref) -- 17/20 Substack-micro -- gift-curator (multi-year gift guides for working moms) **NEW 2026-05-06**
-- @theforevermillennials (Samantha Matt) -- verify: forevermillennials.com or Substack contact -- 16/20 micro 93K -- gift-curator (former shopping editor) **NEW 2026-05-06**
-- @themadisonrae (Madison Rae) -- verify: tribecamomsclub.substack.com contact -- 16/20 micro 64K -- gift-curator (6+ Substack gift guides) **NEW 2026-05-06**
-- @alifewellsaved (Stephanie Covington) -- verify: alifewell-saved.com contact -- 16/20 micro 73K -- gift-curator (holiday gift guide + baby guide) **NEW 2026-05-06**
-- @3littleplums (Aida Garcia-Toledo) -- verify: LinkedIn or website -- 16/20 micro 41K -- gift-curator (gift guide with Ages 0-2 + 3-5 categories) **NEW 2026-05-06**
+- @therealparent (Amie Anger) -- verify: realparent.com -- 18/20 micro 85K -- literacy-educator (Yale Child Study Center-trained therapist; new 2026-05-07)
+- @gabriellatheot (Gabriella Shelley) -- verify: gabriellatheot.com -- 18/20 micro 106K -- literacy-educator (pediatric OT + Babyoga Cards; new 2026-05-07)
+- @littleroospediatrictherapy (Laurel McMillan) -- verify: littleroos.llc -- 18/20 micro 118K -- literacy-educator (pediatric OT practice founder; new 2026-05-07)
+- @acupofambition (Jessica Wilen, PhD) -- verify: drjessicawilen@gmail.com (Yale/coaching-site cross-ref) -- 17/20 Substack-micro -- gift-curator (multi-year gift guides for working moms)
+- @playtheotway (Brittini) -- verify: playtheotway.com -- 17/20 nano 20K -- literacy-educator (pediatric OT + toddler mom; new 2026-05-07)
+- @theforevermillennials (Samantha Matt) -- verify: forevermillennials.com or Substack contact -- 16/20 micro 93K -- gift-curator (former shopping editor)
+- @themadisonrae (Madison Rae) -- verify: tribecamomsclub.substack.com contact -- 16/20 micro 64K -- gift-curator (6+ Substack gift guides)
+- @alifewellsaved (Stephanie Covington) -- verify: alifewell-saved.com contact -- 16/20 micro 73K -- gift-curator (holiday gift guide + baby guide)
+- @3littleplums (Aida Garcia-Toledo) -- verify: LinkedIn or website -- 16/20 micro 41K -- gift-curator (gift guide with Ages 0-2 + 3-5 categories)
 
 **DM wave (pre-engagement 24h, then R2 drafts):**
 - @bookbairn (Kim Duffy) -- IG DM -- 18/20 micro -- librarian-kidlit-curator (UK, verify shipping)
 - @_what_the_teacher_reads_ -- IG DM -- 18/20 micro -- literacy-educator (UK, verify shipping)
 - @inclusivelibrary (Emily Liebel) -- IG DM -- 17/20 nano -- diverse-representation
+- @ot_mama_of_twins (Julia) -- IG DM -- 16/20 micro 60K -- literacy-educator (pediatric OT + neurodivergent twins; new 2026-05-07)
 
 **Substack wave (new dm-substack template needed first):**
 - canweread (Sarah Miller), julesacree, @twotruthsmotherhood, babybrain, yourinternetmomfriend -- all waiting for dm-substack template. Note: @twotruthsmotherhood also has secondary IG @cassieshortsleeve (77K) -- Jeff could approve IG DM as an alternative channel.
 
 ---
 
-## Source split (70 total)
+## Source split (80 total)
 
 - Cloud R1 batch #1: 10 creators (kidlit/storytime/librarians, 2026-05-01)
 - Cloud R1 batch #2: 10 creators (kidlit/diverse representation, 2026-05-01)
@@ -195,16 +218,19 @@ Jeff approves any of the below for R2 drafting. Each requires its setup action f
 - R1 daily discovery pregnancy/baby batch: 9 creators (2026-05-03)
 - R1 daily discovery Montessori/parenting batch: 8 creators (2026-05-04)
 - R1 daily discovery gift-guide/Amazon-finds batch: 10 creators (2026-05-06)
+- R1 daily discovery educational/child-development batch: 10 creators (2026-05-07)
 
 ## Channel readiness across pipeline
 
 | Channel | Count |
 |---|---|
-| Direct email confirmed | 24 |
-| Manager / agent email | 3 (+1: @amylittleson via Digital Dept TeamAmy@thedigitaldept.com) |
-| Contact form only | 5 |
-| Substack-reply / DM only | 10 (+1: @twotruthsmotherhood) |
-| Verify-via-linktree/website pending | 19 (+8: @heysleepybaby, @heybrittinirae, @acupofambition, @mrskatiecarlson, @theforevermillennials, @themadisonrae, @alifewellsaved, @3littleplums) |
+| Direct email confirmed | 27 (+3 new: @childlifetherapist kelsey@childlifetherapist.com, @theworkspaceforchildren management@workspaceforchildren.com, @emotionally.intelligent.parent hello@stephaniepinto.com) |
+| Manager / agent email | 4 (+1 new: @theotbutterfly via StephGTalent stephanie@stephgtalent.com) |
+| Contact form only | 6 (+1 new: @drsarahbren drsarahbren.com/contact) |
+| Substack-reply / DM only | 11 (+1 new: @ot_mama_of_twins IG DM) |
+| Verify-via-linktree/website pending | 23 (+4 new: @therealparent, @gabriellatheot, @littleroospediatrictherapy, @playtheotway) |
 | Borderline / hold | 9 |
 
-**First-wave drafting capacity (as of 2026-05-06):** 16 total. 3 approved (ready to send: #1, #8, #13). 10 copy-reviewed (ready for Jeff approval + send). 2 drafted/flagged (need Jeff fixes: #5 theme sentence vary, #10 theme sentence + "demo" fix). 1 needs Jeff angle designation (#16 @bridgetteyler). **First wave is fully exhausted. See supply gap section above for next steps.**
+**Total:** 80 creators
+
+**First-wave drafting capacity (as of 2026-05-07):** 17 total. 3 approved (ready to send: #1, #8, #13). 10 copy-reviewed (ready for Jeff approval + send). 2 drafted/flagged (need Jeff fixes: #5 theme sentence vary, #10 theme sentence + "demo" fix). 2 not drafted (need Jeff call: #16 @bridgetteyler angle designation, #71 @childlifetherapist aesthetic-fit verification). **First wave is fully exhausted. See supply gap section above for next steps.**
