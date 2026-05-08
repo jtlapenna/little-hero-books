@@ -54,3 +54,15 @@ Linking each response back to its `attempt_id` is what lets us learn which angle
 **Drafted next step:** none — auto-reply-style polite decline; no follow-up warranted.
 **Pipeline status updated to:** declined
 **Notes:** Career change away from blogging (gone back to IP law at Storylock Legal). Not a fit-issue with LHL — she's out of the kidlit-blogging space entirely. She left the door open: "I'll reach out if I pick it up again." Reply arrived ~within minutes of send, consistent with a saved decline template. Worth keeping her warm in pipeline as `declined` (not `do-not-contact`); revisit only if she signals a return to blogging.
+
+
+## 2026-05-07 — @thenaptimeprepclub — bounce
+
+**attempt_id:** att-2026-05-07-027
+**variant_id:** lhl-talent-route-v1
+**angle_tag:** gift-curator
+**Sentiment:** bounce
+**Reply text:** [hard bounce from Envision Agency mail server — no human reply]
+**Drafted next step:** Recovery options: (1) IG DM Holly O'Dea directly via @thenaptimeprepclub, (2) find alternate Envision Agency contact (info@ or partnerships@ alias). NOT adding @thenaptimeprepclub to do-not-contact.md because the creator herself remains reachable; only the agent email pathway (gracie@envisionagency.com) is invalid.
+**Pipeline status updated to:** agent-email-invalid (creator still pursueable via DM)
+**Notes:** Bounced 58 seconds after send (T-23:00 PST 2026-05-07). The email gracie@envisionagency.com was per public agency contact info but appears invalid or aggressively filtered. No "this address is invalid" auto-message was received — just a delivery failure event from Mailmeteor. Talent-route variant did not get its chance to be evaluated.
