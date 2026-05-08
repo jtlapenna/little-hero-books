@@ -39,7 +39,7 @@ A fully personalized children's storybook. The child is the hero — name, look,
 
 Source of truth: [docs/new-planning/Customization_Source_of_Truth.md](docs/new-planning/Customization_Source_of_Truth.md). Skills and outreach should reflect what's there.
 
-**Required (7):** name, age (0–7), hair style (12 options), hair color (8), skin tone (5: light/medium/tan/olive/dark), favorite color (9), animal guide (8: dog/cat/owl/lion/tiger/penguin/t-rex/unicorn).
+**Required (7):** name, age (0–7), hair style (17 options), hair color (8), skin tone (5: light/medium/tan/medium-dark/deep), favorite color (9), animal guide (8: dog/cat/owl/lion/tiger/penguin/t-rex/unicorn).
 
 **Optional (4):** clothing style (t-shirt+shorts / dress), hometown (default "Adventure City"), dedication (≤200 chars), pronouns (she/he/they; default they/them).
 

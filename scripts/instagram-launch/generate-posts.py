@@ -156,11 +156,11 @@ def post_6a():
     draw = ImageDraw.Draw(canvas)
 
     title_font = font(SANS, 44, index=2)  # Avenir medium
-    bbox = draw.textbbox((0, 0), "12 hair styles", font=title_font)
+    bbox = draw.textbbox((0, 0), "17 hair styles", font=title_font)
     tw = bbox[2] - bbox[0]
-    draw.text(((SIZE - tw) // 2, 50), "12 hair styles", font=title_font, fill=(50, 40, 30))
+    draw.text(((SIZE - tw) // 2, 50), "17 hair styles", font=title_font, fill=(50, 40, 30))
 
-    # Pick 12 representative styles. Prefer color-diverse using `generated/` if available.
+    # Full list from frontend/src/lib/createFlow/traitOptions.ts
     styles = [
         "side-part",
         "straight-short",
@@ -169,37 +169,54 @@ def post_6a():
         "curly-short",
         "curly-medium",
         "curly-long",
+        "curly-tight",
+        "curly-crop",
         "afro",
         "bun",
         "pigtails",
         "ponytail",
+        "puffy-ponytail",
+        "small-puffy-ponytail",
+        "pom-poms",
         "buzz",
     ]
-    # Use generated color variants for variety
+    # Color cycle for visual variety across the 17-item grid.
     color_cycle = [
         "blonde",
+        "strawberry-blonde",
+        "medium-brown",
+        "light-brown",
         "dark-brown",
         "red",
-        "black",
         "auburn",
-        "medium-brown",
+        "black",
         "blonde",
-        "dark-brown",
+        "strawberry-blonde",
+        "light-brown",
+        "medium-brown",
+        "light-brown",
+        "auburn",
         "red",
         "black",
-        "auburn",
-        "medium-brown",
+        "blonde",
     ]
 
-    cols, rows = 4, 3
-    grid_top = 140
-    grid_bottom = SIZE - 60
+    cols, rows = 5, 4
+    grid_top = 130
+    grid_bottom = SIZE - 50
     cell_w = SIZE // cols
     cell_h = (grid_bottom - grid_top) // rows
+    last_row_count = len(styles) - cols * (rows - 1)
+    last_row_x_offset = (SIZE - last_row_count * cell_w) // 2
     for i, (style, color) in enumerate(zip(styles, color_cycle)):
-        col = i % cols
         row = i // cols
-        cx = col * cell_w
+        col = i % cols
+        is_last_row = row == rows - 1
+        if is_last_row:
+            col = i - cols * (rows - 1)
+            cx = last_row_x_offset + col * cell_w
+        else:
+            cx = col * cell_w
         cy = grid_top + row * cell_h
         # Try color variant first
         candidate = HAIR / "generated" / f"{style}-{color}.jpg"
@@ -209,7 +226,7 @@ def post_6a():
             ref = Image.open(candidate).convert("RGB")
         except Exception:
             continue
-        thumb = fit_into(ref, cell_w - 16, cell_h - 28, pad=8, bg=CANVAS_BG)
+        thumb = fit_into(ref, cell_w - 16, cell_h - 20, pad=6, bg=CANVAS_BG)
         canvas.paste(thumb, (cx + 8, cy))
 
     out = OUT / "post-6a-hair-styles.png"
@@ -233,6 +250,21 @@ def post_6b():
     tw = bbox[2] - bbox[0]
     draw.text(((SIZE - tw) // 2, 60), "5 skin tones, 8 hair colors", font=h1, fill=(50, 40, 30))
 
+    swatch_label = font(SANS, 24, index=0)
+
+    def draw_centered_label(text, cx, top_y, width):
+        # Wrap to 2 lines on a space if it doesn't fit; vertical-align top.
+        bbox = draw.textbbox((0, 0), text, font=swatch_label)
+        tw = bbox[2] - bbox[0]
+        lines = [text]
+        if tw > width and " " in text:
+            parts = text.split(" ", 1)
+            lines = [parts[0], parts[1]]
+        for j, line in enumerate(lines):
+            lb = draw.textbbox((0, 0), line, font=swatch_label)
+            lw = lb[2] - lb[0]
+            draw.text((cx - lw // 2, top_y + j * 30), line, font=swatch_label, fill=(80, 60, 40))
+
     # Skin tones row
     label_y = 200
     draw.text((100, label_y), "Skin tones", font=section_title, fill=(80, 60, 40))
@@ -244,9 +276,10 @@ def post_6b():
     for i, (name, hex_) in enumerate(SKIN_TONES):
         x = skin_x_start + i * (swatch_d + 30)
         draw.ellipse([x, skin_y, x + swatch_d, skin_y + swatch_d], fill=hex_to_rgb(hex_), outline=(225, 215, 200), width=2)
+        draw_centered_label(name, x + swatch_d // 2, skin_y + swatch_d + 16, swatch_d + 24)
 
     # Hair colors row
-    label2_y = skin_y + swatch_d + 90
+    label2_y = skin_y + swatch_d + 130
     draw.text((100, label2_y), "Hair colors", font=section_title, fill=(80, 60, 40))
     hair_d = 90
     hair_y = label2_y + 60
@@ -256,6 +289,7 @@ def post_6b():
     for i, (name, hex_) in enumerate(HAIR_COLORS):
         x = hair_x_start + i * (hair_d + 18)
         draw.ellipse([x, hair_y, x + hair_d, hair_y + hair_d], fill=hex_to_rgb(hex_), outline=(225, 215, 200), width=2)
+        draw_centered_label(name, x + hair_d // 2, hair_y + hair_d + 14, hair_d + 18)
 
     out = OUT / "post-6b-skin-and-hair-colors.png"
     canvas.save(out, "PNG", optimize=True)
@@ -318,43 +352,45 @@ def post_6c():
 # POST 7: theme quote on watercolor
 # ----------------------------------------------------------------------
 def post_7():
-    bg = Image.open(PAGES / "page01-twilight-walk.jpg").convert("RGB")
-    img = cover_crop(bg, SIZE, SIZE)
+    # Real rendered Page 6 (tall-forest) from the book.
+    bg = Image.open(OUT / "post-7-theme-quote-alt.jpg").convert("RGB")
+    img = bg.resize((SIZE, SIZE), Image.LANCZOS).convert("RGBA")
 
-    # Soft dark gradient at bottom for legibility
+    # Strong cream wash at the top so both quote and attribution sit clean.
     overlay = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
-    grad_top = int(SIZE * 0.55)
-    for i in range(grad_top, SIZE):
-        alpha = int(120 * (i - grad_top) / (SIZE - grad_top))
-        od.line([(0, i), (SIZE, i)], fill=(0, 0, 0, alpha))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    wash_bottom = int(SIZE * 0.42)
+    for i in range(wash_bottom):
+        # Solid for the top 60% of the wash, then fade.
+        if i < wash_bottom * 0.60:
+            alpha = 175
+        else:
+            t = (i - wash_bottom * 0.60) / (wash_bottom * 0.40)
+            alpha = int(175 * (1 - t))
+        od.line([(0, i), (SIZE, i)], fill=(255, 248, 230, alpha))
+    img = Image.alpha_composite(img, overlay).convert("RGB")
 
     draw = ImageDraw.Draw(img)
-    quote_font = font(SERIF, 56, index=1)  # italic
+    quote_font = font(SERIF, 60, index=1)  # italic
     attr_font = font(SERIF, 28, index=0)
 
     quote_lines = [
-        "Sometimes the bravest voice",
-        "is the one only you can hear.",
+        "Listening brings courage.",
+        "It can feel like joy.",
     ]
-    text_color = (252, 248, 242)
-    line_h = 70
-    total_h = line_h * len(quote_lines)
-    start_y = SIZE - 230 - total_h // 2
+    text_color = (52, 36, 22)  # dark warm brown
+    line_h = 78
+    start_y = int(SIZE * 0.10)
     for line in quote_lines:
         bbox = draw.textbbox((0, 0), line, font=quote_font)
         tw = bbox[2] - bbox[0]
-        # subtle drop shadow
-        draw.text(((SIZE - tw) // 2 + 2, start_y + 2), line, font=quote_font, fill=(0, 0, 0))
         draw.text(((SIZE - tw) // 2, start_y), line, font=quote_font, fill=text_color)
         start_y += line_h
 
     attr = "— Finding Our Inner Voice"
     bbox = draw.textbbox((0, 0), attr, font=attr_font)
     tw = bbox[2] - bbox[0]
-    draw.text(((SIZE - tw) // 2 + 1, SIZE - 110 + 1), attr, font=attr_font, fill=(0, 0, 0))
-    draw.text(((SIZE - tw) // 2, SIZE - 110), attr, font=attr_font, fill=text_color)
+    draw.text(((SIZE - tw) // 2, start_y + 16), attr, font=attr_font, fill=(82, 58, 36))
 
     out = OUT / "post-7-theme-quote.png"
     img.save(out, "PNG", optimize=True)
