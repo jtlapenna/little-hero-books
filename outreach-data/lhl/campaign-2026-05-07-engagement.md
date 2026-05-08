@@ -150,3 +150,23 @@ The Events tab shows 123 events total (sends + opens). At ~22 sends + 14 first-o
 ---
 
 *Snapshot at T+~2h. Next snapshot triggered by: first reply, T+24h checkpoint (~7 PM Pacific tomorrow May 8), or notable engagement change.*
+
+
+---
+
+## First reply received (2026-05-08 7:34 AM Pacific)
+
+**Recipient:** libby.oneill@shinetalentgroup.com (talent agent for @haleyreidtay)
+**Sentiment:** declined
+**Reply velocity:** ~12 hours from first open
+**Total replies so far:** 1 (declined)
+**Reply rate vs opens:** 1/14 = 7.1% (within typical 5-10% benchmark for cold outreach)
+
+This was the first talent-agent decline I predicted at T+58min — Shine Talent Group filtered the inquiry on behalf of @haleyreidtay. Confirms the expected pattern that talent agents tend to filter gifted-only outreach since it generates no commission for them.
+
+**Action taken:**
+- Logged in responses.md as `declined` sentiment
+- Added @haleyreidtay to do-not-contact.md (reason: declined; 90-day cap; no override)
+- NOT attempting to bypass agent via Haley's IG DM (would damage agent relationship)
+
+**Notable:** No replies yet from any of the 13 other openers. Watch for second reply over the next 12-24 hours, especially from Mandisa (@happytoddlerplaytime), Stephanie (@alifewellsaved), or Charnaie (@hereweeread) if she opens.

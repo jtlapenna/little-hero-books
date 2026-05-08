@@ -66,3 +66,17 @@ Linking each response back to its `attempt_id` is what lets us learn which angle
 **Drafted next step:** Recovery options: (1) IG DM Holly O'Dea directly via @thenaptimeprepclub, (2) find alternate Envision Agency contact (info@ or partnerships@ alias). NOT adding @thenaptimeprepclub to do-not-contact.md because the creator herself remains reachable; only the agent email pathway (gracie@envisionagency.com) is invalid.
 **Pipeline status updated to:** agent-email-invalid (creator still pursueable via DM)
 **Notes:** Bounced 58 seconds after send (T-23:00 PST 2026-05-07). The email gracie@envisionagency.com was per public agency contact info but appears invalid or aggressively filtered. No "this address is invalid" auto-message was received — just a delivery failure event from Mailmeteor. Talent-route variant did not get its chance to be evaluated.
+
+
+## 2026-05-08 — @haleyreidtay — declined
+
+**attempt_id:** att-2026-05-07-034
+**variant_id:** lhl-talent-route-v1
+**angle_tag:** gift-curator
+**Sentiment:** declined
+**Reply text:** "Hi Jeff, Thank you so much for reaching out! We kindly going to pass!"
+**Drafted next step:** Optional brief thanks-for-the-consideration reply to maintain relationship. NO follow-up. Add to do-not-contact.md per 90-day rule.
+**Pipeline status updated to:** declined
+**Notes:** Reply came from talent manager Libby O'Neill at Shine Talent Group, not from Haley directly. This is a talent-agent decline on behalf of the creator — same effect as a creator decline for our purposes. Reply velocity ~12 hours from open (opened 5/7 7:03 PM, replied 5/8 7:34 AM). Tone is warm but final. The "kindly going to pass" phrasing has a typo (likely "are kindly going to pass") but the meaning is unambiguous. First reply of Wave 2.
+
+CRITICAL: do not bypass the agent by DMing Haley directly. That would damage the agent relationship and is bad practice across the talent-management ecosystem. Respect the no via the official channel.
