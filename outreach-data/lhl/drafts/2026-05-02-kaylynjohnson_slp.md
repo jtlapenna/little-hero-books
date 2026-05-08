@@ -9,7 +9,7 @@ angle_tag: literacy-educator
 score: 17/20
 tier: nano
 created: 2026-05-02
-status: approved
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "Jeff here from..." (varied). Outcome-framed. ~163 words (within ceiling). No em dashes, curly quotes, AI vocab, dollar amounts. "Toddler and preschool years" audience reference and SLP language-development reference both verified from pipeline. Animal reveal in opener only. Preview URL present.'
 ---

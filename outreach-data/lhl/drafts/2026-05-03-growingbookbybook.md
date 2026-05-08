@@ -9,7 +9,7 @@ angle_tag: literacy-educator
 score: 18/20
 tier: micro
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'Humanizer flags resolved 2026-05-03: (1) opener kept as "I am Jeff, founder of..." since happily.ever.elephants got swapped to a different form; (2) "Themes are courage..." sentence rephrased to vary from raisingreaderstobecomeleaders draft; (3) "exactly the demo we are reaching" replaced with "the parents and educators you already reach" to drop corporate tone.'
 ---

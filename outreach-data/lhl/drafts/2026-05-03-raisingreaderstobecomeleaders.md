@@ -9,7 +9,7 @@ angle_tag: literacy-educator
 score: 18/20
 tier: micro
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'Humanizer flag resolved 2026-05-03: body sentence rephrased to keep the themes (courage, friendship, emotional intelligence) but with different cadence than growingbookbybook draft.'
 ---

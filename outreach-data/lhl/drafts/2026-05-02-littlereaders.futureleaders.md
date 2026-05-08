@@ -9,7 +9,7 @@ angle_tag: literacy-educator
 score: 17/20
 tier: nano
 created: 2026-05-02
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: 'All checklist items pass. Opener: "I am Jeff at..." (varied). Outcome-framed. ~143 words. No em dashes, curly quotes, AI vocab, dollar amounts. "Books that support conversations" reference verbatim from pipeline niche description. Animal reveal in opener only. Preview URL present.'
 ---

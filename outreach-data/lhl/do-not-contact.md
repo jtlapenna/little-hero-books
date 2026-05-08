@@ -47,3 +47,12 @@ This is separate from (and stricter than) the 90-day frequency cap in `pipeline.
 ## Recently declined (added by skill from `responses.md`)
 
 <!-- The skill appends here when a creator declines. Format the same as above. -->
+
+
+## @haleyreidtay — declined
+
+**Added:** 2026-05-08
+**Reason:** Talent agent (Libby O'Neill, Shine Talent Group) declined gifted-collab on behalf of creator. Polite, no specific reason given. Reply 12 hours after opening original.
+**Channel applies to:** all
+**Override allowed?:** N — respect the no. 90-day cap applies.
+**Notes:** Decline came from agent, not creator. Per Shine Talent Group's standard process. Do not attempt to DM Haley directly to bypass — this damages agent relationships and is bad practice. attempt_id: att-2026-05-07-034.

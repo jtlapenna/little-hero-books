@@ -9,7 +9,7 @@ angle_tag: gift-curator
 score: 16/20
 tier: nano
 created: 2026-05-03
-status: copy-reviewed
+status: sent
 copy_review_status: passed
 copy_review_notes: ''
 ---
