@@ -19,8 +19,11 @@ import Button from '../components/Button.astro';
       <img src="/how-it-works-hero-mobile.webp" alt="How It Works - Little Hero Labs" class="hiw-mobile" />
       <div class="hiw-hero-content">
         <div class="container">
-          <h1 class="hiw-title">How to Create Your Personalized Children's Book</h1>
-          <p class="hiw-subtitle">Three simple steps to bring your child's custom storybook adventure to life.</p>
+          <h1 class="hiw-title">
+            <span class="hiw-title-line">How to Create Your</span>
+            <span class="hiw-title-line">Personalized <span class="keep-together">Children&rsquo;s Book</span></span>
+          </h1>
+          <p class="hiw-subtitle">Three simple steps to bring your child&rsquo;s custom storybook adventure <span class="keep-together">to life.</span></p>
           <div class="button-container">
             <Button href="/create/character" variant="primary" size="lg">Get Started</Button>
           </div>
@@ -260,15 +263,28 @@ import Button from '../components/Button.astro';
     font-family: var(--font-heading);
     font-size: 3rem;
     font-weight: 700;
-    margin-bottom: var(--spacing-md);
+    line-height: 1.12;
+    margin: 0 auto var(--spacing-md);
+    max-width: 760px;
+    text-wrap: balance;
+  }
+
+  .hiw-title-line {
+    display: block;
   }
 
   .hiw-subtitle {
     color: var(--color-soft-charcoal);
     font-size: 1.125rem;
     font-family: var(--font-ui);
-    margin-bottom: var(--spacing-lg);
+    margin: 0 auto var(--spacing-lg);
     line-height: 1.6;
+    max-width: 640px;
+    text-wrap: balance;
+  }
+
+  .keep-together {
+    white-space: nowrap;
   }
 
   .hiw-mobile { display: none; }
@@ -478,4 +494,3 @@ import Button from '../components/Button.astro';
     }
   }
 </style>
-
