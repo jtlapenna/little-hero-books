@@ -141,6 +141,7 @@ renderer-mock/out/
 # Temporary files
 *.tmp
 *.temp
+.claude/worktrees/
 # Build artifacts
 .open-next/
 
