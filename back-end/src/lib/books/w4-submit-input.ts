@@ -64,6 +64,7 @@ export interface BuildW4SubmitInputResult extends JsonRecord {
       | 'order_not_ready'
       | 'shipping_address_invalid'
       | 'page_count_invalid'
+      | 'direct_pdf_urls_forbidden'
       | 'approval_missing'
       | 'approval_invalid'
       | 'existing_job'
@@ -574,6 +575,10 @@ function isProductionDryRun(input: JsonRecord): boolean {
   );
 }
 
+function hasDirectPdfUrlMode(input: JsonRecord): boolean {
+  return toBoolean(input.allowDirectPdfUrls) || toBoolean(input.materializationSkipped);
+}
+
 function resolveProductionApprovalToken(input: JsonRecord): string | null {
   return toTrimmedString(
     pickFirstNonEmpty(
@@ -876,6 +881,18 @@ function evaluateProductionGuard(params: {
     };
   }
 
+  if (!dryRun && hasDirectPdfUrlMode(params.input)) {
+    return {
+      requested,
+      allowed: false,
+      reason: 'direct_pdf_urls_forbidden',
+      checkedAt,
+      envEnabled,
+      dryRun,
+      details: 'production_submit_requires_r2_pdf_artifacts',
+    };
+  }
+
   let approvalVerification:
     | ReturnType<typeof verifyW4ProductionApprovalToken>
     | null = null;
@@ -1100,7 +1117,7 @@ export async function buildW4SubmitInput(
       : productionPageCountGuard
         ? {
             ...productionGuard,
-            details: productionPageCountGuard.details,
+            details: productionPageCountGuard.details ?? productionGuard.details,
             expectedPageCount: productionPageCountGuard.expectedPageCount,
             minAllowedPages: productionPageCountGuard.minAllowedPages,
             maxAllowedPages: productionPageCountGuard.maxAllowedPages,

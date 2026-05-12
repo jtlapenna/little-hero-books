@@ -317,6 +317,57 @@ async function testProductionDryRunValidatesWithoutSubmit(): Promise<void> {
   }
 }
 
+async function testProductionDryRunAllowsDirectPdfUrls(): Promise<void> {
+  const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+  const signCalls: Array<{ key: string; bucket: string; expiresIn: number }> = [];
+
+  try {
+    delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    const orderId = 'REAL-W4-PILOT-002-DIRECT';
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionDryRun: true,
+        allowDirectPdfUrls: true,
+        materializationSkipped: true,
+        pdfR2Key: null,
+        coverPdfR2Key: null,
+        pdfUrl: `https://cdn.example/${orderId}/interior.pdf`,
+        coverPdfUrl: `https://cdn.example/${orderId}/cover.pdf`,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket, expiresIn) => {
+          signCalls.push({ key, bucket, expiresIn });
+          return `https://signed.example/${bucket}/${key}`;
+        },
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_dry_run' &&
+        response.productionGuard.allowed === true &&
+        response.productionGuard.dryRun === true &&
+        response.interiorSignedUrl === `https://cdn.example/${orderId}/interior.pdf` &&
+        response.coverSignedUrl === `https://cdn.example/${orderId}/cover.pdf`,
+      'Expected production dry-run direct URL mode to remain available without submitting to Lulu',
+    );
+    assert(
+      signCalls.length === 0,
+      'Expected production dry-run direct URL mode to bypass R2 signing',
+    );
+  } finally {
+    if (originalEnv === undefined) {
+      delete process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
+    } else {
+      process.env.ENABLE_LULU_PRODUCTION_SUBMIT = originalEnv;
+    }
+  }
+}
+
 async function testProductionRejectsProofOrders(): Promise<void> {
   const originalEnv = process.env.ENABLE_LULU_PRODUCTION_SUBMIT;
 
@@ -352,6 +403,7 @@ async function testProductionRejectsProofOrders(): Promise<void> {
 async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
   await withApprovalEnv(async () => {
     const orderId = 'REAL-W4-PILOT-003';
+    const signCalls: Array<{ key: string; bucket: string; expiresIn: number }> = [];
     const approval = issueW4ProductionApprovalToken({
       orderId,
       approvedBy: 'test-suite',
@@ -364,7 +416,10 @@ async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
       },
       {
         loadOrder: async () => createReadyProductionOrder(orderId),
-        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+        signObjectUrl: async (key, bucket, expiresIn) => {
+          signCalls.push({ key, bucket, expiresIn });
+          return `https://signed.example/${bucket}/${key}`;
+        },
       },
     );
 
@@ -377,6 +432,49 @@ async function testProductionSubmitShapeWhenGateEnabled(): Promise<void> {
         response.luluApiBase === 'https://api.lulu.com' &&
         ((response.CONFIG.lulu as JsonRecord)?.apiBase === 'https://api.lulu.com'),
       'Expected explicit W4 production requests to emit a real production submit contract only when every repo-side guard passes',
+    );
+    assert(
+      signCalls.length === 2 &&
+        signCalls[0]?.bucket === 'little-hero-orders' &&
+        signCalls[1]?.bucket === 'little-hero-orders',
+      'Expected W4 production submit shaping to sign stored R2 PDFs from the orders bucket',
+    );
+  });
+}
+
+async function testProductionRejectsDirectPdfUrls(): Promise<void> {
+  await withApprovalEnv(async () => {
+    const orderId = 'REAL-W4-PILOT-DIRECT-003';
+    const approval = issueW4ProductionApprovalToken({
+      orderId,
+      approvedBy: 'test-suite',
+    });
+    const response = await buildW4SubmitInputResponse(
+      {
+        ...createBaseInput(orderId),
+        allowProductionLulu: true,
+        productionApprovalToken: approval.token,
+        allowDirectPdfUrls: true,
+        materializationSkipped: true,
+        pdfR2Key: null,
+        coverPdfR2Key: null,
+        pdfUrl: `https://cdn.example/${orderId}/interior.pdf`,
+        coverPdfUrl: `https://cdn.example/${orderId}/cover.pdf`,
+      },
+      {
+        loadOrder: async () => createReadyProductionOrder(orderId),
+        signObjectUrl: async (key, bucket) => `https://signed.example/${bucket}/${key}`,
+      },
+    );
+
+    assert(
+      response.submitMode === 'skip' &&
+        response.__skipLulu === true &&
+        response.guard.reason === 'production_blocked' &&
+        response.productionGuard.reason === 'direct_pdf_urls_forbidden' &&
+        response.productionGuard.allowed === false &&
+        response.productionGuard.details === 'production_submit_requires_r2_pdf_artifacts',
+      'Expected real W4 production submit shaping to reject direct provider PDF URLs',
     );
   });
 }
@@ -751,9 +849,11 @@ async function main(): Promise<void> {
   await testProductionRequestRequiresApprovalWithoutEnvGate();
   await testProductionSubmitShapeWithApprovalWithoutEnvGate();
   await testProductionDryRunValidatesWithoutSubmit();
+  await testProductionDryRunAllowsDirectPdfUrls();
   await testProductionRejectsProofOrders();
   await testProductionRequiresApprovalToken();
   await testProductionSubmitShapeWhenGateEnabled();
+  await testProductionRejectsDirectPdfUrls();
   await testProductionRequiresRealShippingPhone();
   await testProductionBlocksInvalidInteriorPageCount();
   await testProductionHonorsRecommendedAddressOverride();

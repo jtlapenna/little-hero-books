@@ -1549,6 +1549,7 @@ assert(
       'current.CONFIG?.backendApiToken',
     ) &&
     JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('this.helpers.httpRequest') &&
+    !JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('allowDirectPdfUrls: true') &&
     repoCentricW4MaterializeCoverNode?.type === 'n8n-nodes-base.code' &&
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes(
       '/api/internal/w4/materialize-print-pdf',
@@ -1558,9 +1559,8 @@ assert(
       'current.CONFIG?.backendApiToken',
     ) &&
     JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('this.helpers.httpRequest') &&
-    JSON.stringify(repoCentricW4MaterializeInteriorNode.parameters).includes('allowDirectPdfUrls: true') &&
-    JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('allowDirectPdfUrls: true'),
-  'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route and opt into direct provider URLs when worker-side PDF uploads are intentionally skipped',
+    !JSON.stringify(repoCentricW4MaterializeCoverNode.parameters).includes('allowDirectPdfUrls: true'),
+  'Repo-centric W4 workflow should route both interior and cover PDF materialization through the repo-owned materialize-print-pdf route and require R2 archival before QA/Lulu submit',
 );
 assert(
   repoCentricW4QaNode?.type === 'n8n-nodes-base.code' &&

@@ -57,6 +57,7 @@
     "test:lulu-webhook-signal": "tsx scripts/test-lulu-webhook-signal.ts",
     "test:w4-submit-input": "tsx scripts/test-w4-submit-input.ts",
     "test:w4-print-worker": "tsx scripts/test-w4-print-worker.ts",
+    "test:backfill-w4-pdfs": "tsx scripts/test-backfill-w4-pdfs.ts",
     "test:w4-print-qa-failed": "tsx scripts/test-w4-print-qa-failed.ts",
     "test:w4-print-submitted": "tsx scripts/test-w4-print-submitted.ts",
     "test:w4-sibling-print-input": "tsx scripts/test-w4-sibling-print-input.ts",
@@ -86,7 +87,8 @@
     "fetch:all-orders": "dotenv -e .env.local -- tsx scripts/fetch-all-orders.ts",
     "compare:status": "dotenv -e .env.local -- tsx scripts/compare-order-status.ts",
     "create-sibling": "dotenv -e .env.local -- tsx scripts/create-sibling-order-from-line-item.ts",
-    "create-sibling-from-json": "dotenv -e .env.local -- tsx scripts/create-sibling-from-json-file.ts"
+    "create-sibling-from-json": "dotenv -e .env.local -- tsx scripts/create-sibling-from-json-file.ts",
+    "backfill:w4-pdfs": "dotenv -e .env.local -- tsx scripts/backfill-w4-pdfs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
