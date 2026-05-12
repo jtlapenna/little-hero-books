@@ -162,9 +162,14 @@ Decisions to make:
 
 ## Skill / Automation Decision
 
-Do not create a custom GA4/GSC skill yet. The moving pieces are mostly Amazon Ads and Seller Central, which are not currently exposed as a Codex MCP in this workspace.
+Project-local Codex skill created:
 
-Use this doc as the operating runbook for the first week. If the weekly scorecard becomes repetitive after 1-2 reviews, create either:
+- `.codex/skills/lhl-launch-analytics/SKILL.md`
 
-- a project-specific Codex skill for the launch analytics workflow, or
-- a weekly automation that reminds the team to pull Amazon Ads, Seller Central, GA4, and GSC numbers into the scorecard.
+Use that skill for future launch check-ins. It encodes the current reality:
+
+- GA4 MCP is available in this workspace and can query `properties/513268817`.
+- GSC MCP is not currently exposed, so Search Console data still needs a manual export or browser/UI workflow.
+- Amazon Ads and Seller Central are the source of truth for this pilot and currently require manual export/screenshot/paste.
+
+After 1-2 weekly reviews, consider adding a recurring automation that reminds the team to pull Amazon Ads, Seller Central, GA4, and GSC numbers into the scorecard.

@@ -788,7 +788,8 @@ Measurement plan:
 
 Tooling decision:
 
-- Do not create a custom GA4/GSC skill yet. The weekly runbook is now documented in `docs/marketing/amazon-launch-pilot-2026-05-12.md`.
+- Project-local Codex skill created at `.codex/skills/lhl-launch-analytics/SKILL.md` for future launch analytics check-ins.
+- The weekly runbook is documented in `docs/marketing/amazon-launch-pilot-2026-05-12.md`.
 - Revisit a Codex skill or recurring automation after the first 1-2 weekly reviews, once the metric schema is stable and we know which reports are worth repeating.
 - If we later add non-Amazon paid traffic, consider GTM plus Amazon Attribution links so website and Amazon traffic can be separated cleanly.
 
