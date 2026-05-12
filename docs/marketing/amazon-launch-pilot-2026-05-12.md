@@ -89,7 +89,7 @@ Website analytics are supportive, not decisive for Amazon Sponsored Products:
 - GA4 should be used for DTC funnel learning, not Amazon listing conversion.
 - GSC should be used for organic search query learning, not Amazon ad conversion.
 - GSC verification is supported through `PUBLIC_GSC_VERIFICATION` in the Astro layouts.
-- No GSC MCP/tool is currently exposed in this Codex workspace, so export Search Console data manually for now.
+- GSC follows the Build More Better pattern: use `npm run marketing:gsc:pull` to call Google's official Search Console API through local Google ADC. There is no third-party GSC MCP dependency.
 - GTM is not currently installed. Do not add it as a blocker for this Amazon pilot.
 
 Keywords Everywhere:
@@ -169,7 +169,9 @@ Project-local Codex skill created:
 Use that skill for future launch check-ins. It encodes the current reality:
 
 - GA4 MCP is available in this workspace and can query `properties/513268817`.
-- GSC MCP is not currently exposed, so Search Console data still needs a manual export or browser/UI workflow.
+- GA4 uses the same official Google Analytics MCP pattern as Build More Better.
+- GSC uses `npm run marketing:gsc:pull`, matching Build More Better's local official-API workflow.
+- If GSC auth fails, verify `gcloud auth application-default login`, Search Console API access, and `LHL_GSC_SITE_URL` in `.lhl-growth/.env.local`.
 - Amazon Ads and Seller Central are the source of truth for this pilot and currently require manual export/screenshot/paste.
 
 After 1-2 weekly reviews, consider adding a recurring automation that reminds the team to pull Amazon Ads, Seller Central, GA4, and GSC numbers into the scorecard.

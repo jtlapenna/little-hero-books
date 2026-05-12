@@ -782,7 +782,9 @@ Measurement plan:
 - GA4 Data API query on 2026-05-12 returned zero rows for the last 7 days, so verify live website event flow once pilot traffic starts.
 - The GA4 property has a Google Ads link to customer id `2448506241` with ads personalization disabled. This is useful for future Google Ads/DTC work, not for Amazon Sponsored Products attribution.
 - GTM is not currently installed. It is not a blocker for this Amazon pilot because Amazon Ads/Seller Central are the primary sources of truth.
-- GSC verification support exists in the Astro layouts through `PUBLIC_GSC_VERIFICATION`. No GSC MCP/tool is currently exposed in this Codex workspace, so use Search Console UI/export manually for the weekly organic search section.
+- GSC verification support exists in the Astro layouts through `PUBLIC_GSC_VERIFICATION`.
+- GSC follows the Build More Better pattern: use `npm run marketing:gsc:pull` to call Google's official Search Console API through local Google ADC. There is no third-party GSC MCP dependency.
+- If GSC auth fails, verify `gcloud auth application-default login`, Search Console API access, and `LHL_GSC_SITE_URL` in `.lhl-growth/.env.local`. Until then, use Search Console UI/export manually for the weekly organic search section.
 - Use Amazon Attribution for off-Amazon campaigns that send traffic to Amazon.
 - Use Keywords Everywhere for keyword discovery and DTC/SEO research, not as the final source of Amazon conversion truth.
 

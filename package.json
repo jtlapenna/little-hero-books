@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "node scripts/setup-env.js",
     "lhl:prep-mailmeteor": "node scripts/lhl/build-mailmeteor-batch.mjs",
+    "marketing:gsc:pull": "node scripts/marketing/fetch_gsc_report.js",
     "dev": "cd renderer && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:amazon": "cd amazon && npm run dev",
