@@ -44,7 +44,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -130,7 +130,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -195,7 +195,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -404,7 +404,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -438,49 +438,6 @@
       "continueOnFail": true
     }
   ],
-  "pinData": {
-    "Webhook Trigger": [
-      {
-        "json": {
-          "headers": {
-            "host": "thepeakbeyond.app.n8n.cloud",
-            "user-agent": "axios/1.12.0",
-            "content-length": "152",
-            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
-            "accept-encoding": "gzip, br",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "4.182.88.118",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "DE",
-            "cf-ray": "9bda2ad804b3906d-FRA",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "idempotency-key": "112-7311035-1437035-2B-force",
-            "x-forwarded-for": "4.182.88.118, 172.70.247.136",
-            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-n8pcb",
-            "x-is-trusted": "yes",
-            "x-real-ip": "4.182.88.118"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "orderId": "112-7311035-1437035",
-            "characterHash": "cc388d1f43eef3cc",
-            "orderDbId": 313,
-            "workflow": "2B",
-            "claimedAt": "2026-03-23T15:00:00.000Z",
-            "force": true
-          },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/bg-removal-repo",
-          "executionMode": "production"
-        }
-      }
-    ]
-  },
   "connections": {
     "Webhook Trigger": {
       "main": [
@@ -676,12 +633,12 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "versionId": "34654d2c-5fa0-4e7c-91cf-14280e9ff33c",
-  "meta": {
-    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
-  },
-  "id": "KIaUCcwWJamYxTS8",
+  "versionId": "e37de772-f5be-42e6-a024-225b71d0066e",
+  "meta": null,
+  "id": "KhMxEgo57Deo1QWu",
   "tags": []
 }

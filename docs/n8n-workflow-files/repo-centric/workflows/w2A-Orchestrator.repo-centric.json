@@ -1,5 +1,5 @@
 {
-  "name": "w2A-Orchestrator",
+  "name": "REPO - w2A-Orchestrator",
   "nodes": [
     {
       "parameters": {
@@ -330,7 +330,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -486,7 +486,7 @@
           "value": "S5apnAgeuitSIO5Z",
           "mode": "list",
           "cachedResultUrl": "/workflow/S5apnAgeuitSIO5Z",
-          "cachedResultName": "SIBLING - w2A-SW0-Base_Character_Generation"
+          "cachedResultName": "REPO - w2A-SW0-Base_Character_Generation"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -753,7 +753,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -837,7 +837,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -878,7 +878,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -963,172 +963,6 @@
       "name": "Prepare 2A Completion Upsert Body"
     }
   ],
-  "pinData": {
-    "Webhook (Router)": [
-      {
-        "json": {
-          "headers": {
-            "host": "thepeakbeyond.app.n8n.cloud",
-            "user-agent": "axios/1.12.0",
-            "content-length": "2885",
-            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
-            "accept-encoding": "gzip, br",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "4.182.88.118",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "DE",
-            "cf-ray": "9a9d51021018dbcd-FRA",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "idempotency-key": "NB3-STANDARD-03-undefined",
-            "x-forwarded-for": "4.182.88.118, 172.71.144.173",
-            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-vdndp",
-            "x-is-trusted": "yes",
-            "x-real-ip": "4.182.88.118"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "id": 255,
-            "amazon_order_id": null,
-            "processing_id": null,
-            "status": "queued_for_processing",
-            "workflow_step": "order_intake",
-            "next_workflow": "2A",
-            "order_status": null,
-            "purchase_date": "2025-12-06T08:32:39.323",
-            "order_total": null,
-            "currency": "USD",
-            "marketplace_id": null,
-            "customer_email": "jeff.lapenna@gmail.com",
-            "customer_name": "Jeff LaPenna",
-            "shipping_address": {
-              "zip": "95945",
-              "city": "Grass Valley",
-              "name": "Jeff LaPenna",
-              "phone": "+1-678-478-3477",
-              "state": "CA",
-              "address": "12207 Sunset Ave."
-            },
-            "character_specs": {
-              "age": 5,
-              "pronouns": "he/him",
-              "skinTone": "skin-brown-dark",
-              "childName": "Luca",
-              "hairColor": "medium-brown",
-              "hairStyle": "small-puffy-ponytail",
-              "animalGuide": "unicorn",
-              "clothingStyle": "tee-shorts",
-              "favoriteColor": "red"
-            },
-            "character_hash": "50504dce",
-            "product_info": {
-              "quantity": 1,
-              "shippingAddress": {
-                "zip": "95945",
-                "city": "Grass Valley",
-                "name": "Jeff LaPenna",
-                "phone": "+1-678-478-3477",
-                "state": "CA",
-                "address": "12207 Sunset Ave."
-              }
-            },
-            "priority": "normal",
-            "estimated_processing_time": null,
-            "created_at": "2025-12-06T07:55:25.285732",
-            "updated_at": "2025-12-06T16:56:24.487495",
-            "queued_at": "2025-12-06T16:56:23.858",
-            "validated_at": null,
-            "validation_errors": [],
-            "quality_score": null,
-            "requires_human_review": false,
-            "human_approved": null,
-            "human_reviewed_at": null,
-            "human_reviewer": null,
-            "final_book_url": null,
-            "cover_image_url": null,
-            "thumbnail_url": null,
-            "lulu_job_id": null,
-            "lulu_status": null,
-            "print_submitted_at": null,
-            "tracking_number": null,
-            "carrier": null,
-            "shipped_at": null,
-            "ai_generation_cost": 0,
-            "print_cost": 0,
-            "total_cost": 0,
-            "qa_notes": null,
-            "regeneration_attempt": 0,
-            "regeneration_instructions": null,
-            "quality_issues": [],
-            "previous_character_images": [],
-            "rejection_history": [],
-            "manifest_2a_url": null,
-            "manifest_2b_url": null,
-            "manifest_3_url": null,
-            "review_stages": {
-              "postPdf": {
-                "status": "pending",
-                "comments": null,
-                "reviewer": null,
-                "reviewedAt": null
-              },
-              "preBria": {
-                "status": "pending",
-                "comments": null,
-                "reviewer": null,
-                "reviewedAt": null
-              },
-              "postBria": {
-                "status": "pending",
-                "comments": null,
-                "reviewer": null,
-                "reviewedAt": null
-              }
-            },
-            "has_flags": false,
-            "flags": {
-              "total": 0,
-              "postPdf": 0,
-              "preBria": 0,
-              "postBria": 0
-            },
-            "customer_approval_status": null,
-            "customer_approval_required": false,
-            "customer_approval_requested_at": null,
-            "customer_approval_approved_at": null,
-            "delivered_at": null,
-            "revision_count": 0,
-            "orderId": "NB3-STANDARD-03",
-            "printFulfillmentStartedAt": null,
-            "printFulfillmentFinishedAt": null,
-            "printFulfillmentStatus": null,
-            "interiorPdfR2Key": null,
-            "coverPdfR2Key": null,
-            "amazonOrderId": null,
-            "execution_status": "processing",
-            "started_at": "2025-12-06T16:56:24.397",
-            "current_workflow": "2A",
-            "one_manifest_url": "book-mvp-simple-adventure/orders/NB3-STANDARD-03/manifests/1-manifest.json",
-            "dedication_text": "Luca! We hope you enjoy this story about finding the brave, trustworthy voice inside of you. Love always, your Dads!",
-            "one_manifest_key": null,
-            "error_message": null,
-            "error_type": null,
-            "retry_count": 0,
-            "max_retries": 3,
-            "last_error_at": null,
-            "next_retry_at": null
-          },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/2a-start-repo",
-          "executionMode": "production"
-        }
-      }
-    ]
-  },
   "connections": {
     "Retry Builder (Prompt Tweaks)": {
       "main": [
@@ -1587,10 +1421,8 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "5bfb1bfa-6673-4977-a4d5-98da51c72837",
-  "meta": {
-    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
-  },
+  "versionId": "757751fc-9623-48c1-92d9-f01a269877ff",
+  "meta": null,
   "id": "HduzTWm0ekmrvwrn",
   "tags": []
 }

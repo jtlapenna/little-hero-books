@@ -167,7 +167,7 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "language": "javaScript",
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst manifestUrl =\n  j.manifest_3_url ||\n  j.manifest3Url ||\n  j.manifestUrl ||\n  (j.manifest3Key ? backendUrl + '/api/manifests/' + j.manifest3Key : null) ||\n  (j.manifestKey ? backendUrl + '/api/manifests/' + j.manifestKey : null);\n\nif (!j.orderId) {\n  throw new Error('Complete Workflow Job (3): missing orderId');\n}\n\nif (!manifestUrl) {\n  throw new Error('Complete Workflow Job (3): missing manifestUrl');\n}\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/webhooks/workflow-3-complete',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    orderId: j.orderId,\n    manifestUrl,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: {\n    ...j,\n    manifest3Url: j.manifest3Url || j.manifest_3_url || manifestUrl,\n    manifest_3_url: j.manifest_3_url || j.manifest3Url || manifestUrl,\n    workflowJobCompletion: response && typeof response === 'object' ? response : null,\n  },\n  binary: b,\n};"
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst manifestUrl =\n  j.manifest_3_url ||\n  j.manifest3Url ||\n  j.manifestUrl ||\n  (j.manifest3Key ? backendUrl + '/api/manifests/' + j.manifest3Key : null) ||\n  (j.manifestKey ? backendUrl + '/api/manifests/' + j.manifestKey : null);\n\nif (!j.orderId) {\n  throw new Error('Complete Workflow Job (3): missing orderId');\n}\n\nif (!manifestUrl) {\n  throw new Error('Complete Workflow Job (3): missing manifestUrl');\n}\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/webhooks/workflow-3-complete',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    orderId: j.orderId,\n    manifestUrl,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: {\n    ...j,\n    manifest3Url: j.manifest3Url || j.manifest_3_url || manifestUrl,\n    manifest_3_url: j.manifest_3_url || j.manifest3Url || manifestUrl,\n    workflowJobCompletion: response && typeof response === 'object' ? response : null,\n  },\n  binary: b,\n};"
       },
       "id": "8c716df8-4fd6-4298-a35d-25d1c88bc55e",
       "name": "Complete Workflow Job (3)",
@@ -301,7 +301,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
         "mode": "runOnceForEachItem",
         "language": "javaScript"
       },
@@ -338,7 +338,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/render-preview-document',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/render-preview-document',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
         "mode": "runOnceForEachItem",
         "language": "javaScript"
       },
@@ -541,7 +541,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-preview-plan',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-preview-plan',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
         "mode": "runOnceForAllItems"
       },
       "id": "73a667fb-82a0-49aa-94b8-3db0c3786a3e",
@@ -594,7 +594,7 @@
       "parameters": {
         "language": "javaScript",
         "mode": "runOnceForAllItems",
-        "jsCode": "const current = $input.first()?.json || {};\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/publish-manifest',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...current,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];"
+        "jsCode": "const current = $input.first()?.json || {};\nconst backendUrl = String(current.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/publish-manifest',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...current,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];"
       },
       "id": "ad31b114-5fe5-4302-bb6c-be3bfdc17211",
       "name": "Prep Manifest Upload (3)",
@@ -608,7 +608,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const current = $json || {};\nlet base = {};\ntry {\n  base = $items('Load Canonical Assets', 0, $runIndex)?.[0]?.json || {};\n} catch {}\n\nconst backendUrl = String(current.backendUrl || base.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-manifest',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...base,\n    ...current,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "jsCode": "const current = $json || {};\nlet base = {};\ntry {\n  base = $items('Load Canonical Assets', 0, $runIndex)?.[0]?.json || {};\n} catch {}\n\nconst backendUrl = String(current.backendUrl || base.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-manifest',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...base,\n    ...current,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "c1d5b7d4-379c-4c18-b9cc-65015fc1a469",
@@ -625,7 +625,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "function safeNodeFirst(name) {\n  try {\n    return $items(name, 0, $runIndex)?.[0]?.json || {};\n  } catch {\n    return {};\n  }\n}\n\nfunction safeNodeItems(name) {\n  try {\n    return ($items(name, 0, $runIndex) || []).map((item) => item?.json || {});\n  } catch {\n    return [];\n  }\n}\n\nconst current = $input.first()?.json || {};\nconst ready = safeNodeFirst('Get Order Ready for Assembly');\nconst build = safeNodeFirst('Build Assembly Input From Manifest');\nconst previewItems = safeNodeItems('Generate Page Preview Images');\nconst cloudflareItems = ($input.all() || []).map((item) => item?.json || {});\nconst backendUrl = String(\n  current.backendUrl ||\n  ready.backendUrl ||\n  build.backendUrl ||\n  'https://admin.littleherolabs.com'\n).replace(/\\/$/, '');\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/collect-preview-images',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    current,\n    ready,\n    build,\n    previewItems,\n    cloudflareItems,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "jsCode": "function safeNodeFirst(name) {\n  try {\n    return $items(name, 0, $runIndex)?.[0]?.json || {};\n  } catch {\n    return {};\n  }\n}\n\nfunction safeNodeItems(name) {\n  try {\n    return ($items(name, 0, $runIndex) || []).map((item) => item?.json || {});\n  } catch {\n    return [];\n  }\n}\n\nconst current = $input.first()?.json || {};\nconst ready = safeNodeFirst('Get Order Ready for Assembly');\nconst build = safeNodeFirst('Build Assembly Input From Manifest');\nconst previewItems = safeNodeItems('Generate Page Preview Images');\nconst cloudflareItems = ($input.all() || []).map((item) => item?.json || {});\nconst backendUrl = String(\n  current.backendUrl ||\n  ready.backendUrl ||\n  build.backendUrl ||\n  'https://admin.littleherolabs.com'\n).replace(/\\/$/, '');\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/collect-preview-images',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    current,\n    ready,\n    build,\n    previewItems,\n    cloudflareItems,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "2c61e7e4-d5bc-4e39-a6e9-58e19794770f",
@@ -639,7 +639,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'page-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/materialize-preview-artifact',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'page-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
         "mode": "runOnceForEachItem",
         "language": "javaScript"
       },
@@ -673,7 +673,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/render-preview-document',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'page-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
+        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/render-preview-document',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'page-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
         "mode": "runOnceForEachItem",
         "language": "javaScript"
       },
@@ -759,7 +759,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "function safeNodeFirst(name) {\n  try {\n    return $items(name, 0, $runIndex)?.[0]?.json || {};\n  } catch {\n    return {};\n  }\n}\n\nconst current = $input.first()?.json || {};\nconst collected = safeNodeFirst('Collect Page Preview Images');\nconst ready = safeNodeFirst('Get Order Ready for Assembly');\nconst prep = safeNodeFirst('Prep Manifest Upload (3)');\nconst backendUrl = String(\n  current.backendUrl ||\n  collected.backendUrl ||\n  ready.backendUrl ||\n  prep.backendUrl ||\n  'https://admin.littleherolabs.com'\n).replace(/\\/$/, '');\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/mark-previews-ready',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    current,\n    collected,\n    ready,\n    prep,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "jsCode": "function safeNodeFirst(name) {\n  try {\n    return $items(name, 0, $runIndex)?.[0]?.json || {};\n  } catch {\n    return {};\n  }\n}\n\nconst current = $input.first()?.json || {};\nconst collected = safeNodeFirst('Collect Page Preview Images');\nconst ready = safeNodeFirst('Get Order Ready for Assembly');\nconst prep = safeNodeFirst('Prep Manifest Upload (3)');\nconst backendUrl = String(\n  current.backendUrl ||\n  collected.backendUrl ||\n  ready.backendUrl ||\n  prep.backendUrl ||\n  'https://admin.littleherolabs.com'\n).replace(/\\/$/, '');\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/mark-previews-ready',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    current,\n    collected,\n    ready,\n    prep,\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "d39808d6-2dff-45cb-b4a1-8ceafed0224e",
@@ -793,7 +793,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/prepare-assembly-run',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
+        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/prepare-assembly-run',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nreturn [{\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "9e1a6789-5953-4fff-af43-fc260d11a4f8",
@@ -838,7 +838,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nconst normalized = response && typeof response === 'object' && !Array.isArray(response)\n  ? response\n  : { response };\n\nif (normalized.workflowSkipped === true) {\n  return [];\n}\n\nreturn [{ json: normalized }];",
+        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nconst normalized = response && typeof response === 'object' && !Array.isArray(response)\n  ? response\n  : { response };\n\nif (normalized.workflowSkipped === true) {\n  return [];\n}\n\nreturn [{ json: normalized }];",
         "mode": "runOnceForAllItems"
       },
       "id": "1e571512-0fb2-4ac8-88a1-7a11df68ad06",
@@ -878,50 +878,6 @@
       "name": "Code in JavaScript"
     }
   ],
-  "pinData": {
-    "Webhook Trigger (Book Assembly)1": [
-      {
-        "json": {
-          "headers": {
-            "host": "thepeakbeyond.app.n8n.cloud",
-            "user-agent": "axios/1.12.0",
-            "content-length": "274",
-            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
-            "accept-encoding": "gzip, br",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "4.182.88.118",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "DE",
-            "cf-ray": "9c757d83f139af69-FRA",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "idempotency-key": "112-0221970-6009070-3",
-            "x-forwarded-for": "4.182.88.118, 172.70.248.206",
-            "x-forwarded-host": "thepeakbeyond.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-3-6db8488cf7-vdndp",
-            "x-is-trusted": "yes",
-            "x-real-ip": "4.182.88.118"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "orderId": "112-0221970-6009070",
-            "oneManifestKey": "book-mvp-simple-adventure/orders/112-0221970-6009070/manifests/1-manifest.json",
-            "characterHash": "bfd11bef35f41c9c",
-            "orderDbId": 445,
-            "workflow": "3",
-            "dedicationText": "To our little Olive",
-            "claimedAt": "2026-02-02T00:14:45.686"
-          },
-          "webhookUrl": "https://thepeakbeyond.app.n8n.cloud/webhook/book-assembly-sibtest",
-          "executionMode": "production"
-        }
-      }
-    ]
-  },
   "connections": {
     "simulate STANDARD manifest": {
       "main": [
@@ -1512,12 +1468,12 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "versionId": "d47a8f82-ef6c-4c0b-b9dc-4e4135567045",
-  "meta": {
-    "instanceId": "010748b7a1466c46dced3f8b2bdbc3bc174722f0672e5a4c9529354f5ff306f8"
-  },
-  "id": "uBwj1PO5bi0sMENq",
+  "versionId": "ab017e51-5676-4dd5-b899-22a035177b94",
+  "meta": null,
+  "id": "D4rQ0zJG8JlKhZqq",
   "tags": []
 }

@@ -10,7 +10,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -569,7 +569,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -607,7 +607,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -645,7 +645,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -683,7 +683,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -713,7 +713,6 @@
       ]
     }
   ],
-  "pinData": {},
   "connections": {
     "Normalize Input": {
       "main": [
@@ -1088,9 +1087,14 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
+  "versionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
+  "meta": null,
+  "id": "4fxha79xAEaYEBYb",
   "tags": []
 }

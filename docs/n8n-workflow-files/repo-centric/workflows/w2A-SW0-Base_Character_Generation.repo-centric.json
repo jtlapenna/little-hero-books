@@ -5,13 +5,13 @@
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "a1c6ddd6-76f4-4e99-a165-0badcdcba928",
+      "id": "4bdbe4fa-fd76-46b9-a6c3-420d6727c3f4",
       "typeVersion": 1.1,
       "name": "When Executed by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -2496,
-        -64
+        -672,
+        112
       ]
     },
     {
@@ -23,7 +23,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -32,6 +32,9 @@
           ]
         },
         "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}",
         "options": {
           "response": {
             "response": {
@@ -39,18 +42,15 @@
             }
           },
           "timeout": 90000
-        },
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+        }
       },
-      "id": "fd7378aa-e8d3-40da-afcc-10af111eb35f",
+      "id": "841d3b8b-0ad7-41db-bdb0-4410abe0cd16",
       "name": "Fetch Repo W2A Base Input",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -2272,
-        -64
+        -448,
+        112
       ]
     },
     {
@@ -61,10 +61,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2048,
-        -64
+        -224,
+        112
       ],
-      "id": "975b8a13-cbd0-4b96-ac3f-f1458a454d0d",
+      "id": "4673aa0f-417c-4f49-a86b-afe11f34bc4b",
       "name": "Schema Check + Defaults"
     },
     {
@@ -75,10 +75,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1824,
-        -176
+        0,
+        0
       ],
-      "id": "37b29c96-180b-4614-9b85-26cfd68f02de",
+      "id": "b51f8a16-92ef-496a-8543-ec51dce601d1",
       "name": "Load Base Character Image1",
       "credentials": {
         "s3": {
@@ -93,13 +93,13 @@
         "fileKey": "={{$json.hairRefS3Key}}",
         "binaryPropertyName": "hair"
       },
-      "id": "8eeaf14b-d558-4715-a6a5-52897471bb25",
+      "id": "b6ea0358-d90a-49fa-b9cf-f8692dc54370",
       "name": "Load Hairstyle Reference (R2/S3)1",
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -1824,
-        48
+        0,
+        224
       ],
       "credentials": {
         "s3": {
@@ -114,13 +114,13 @@
         "combinationMode": "mergeByPosition",
         "options": {}
       },
-      "id": "3636400e-6fb9-457e-8e25-7e5e42b88f9e",
+      "id": "9498b2e1-8176-427b-b7ac-9c5ac352dbc8",
       "name": "Merge Base & Hair Refs1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2,
       "position": [
-        -1600,
-        -64
+        224,
+        112
       ]
     },
     {
@@ -128,13 +128,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "\nconst j = { ...($json || {}) };\nconst b = $binary || {};\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\n\nfunction pickBinaryKey(map, candidates) {\n  for (const key of candidates) {\n    if (map[key]) return key;\n  }\n  return null;\n}\n\nasync function readBinaryAsInlineData(key, fallbackMime) {\n  const buffer = await this.helpers.getBinaryDataBuffer(itemIx, key);\n  return {\n    mimeType: b[key]?.mimeType || fallbackMime,\n    data: buffer.toString('base64'),\n  };\n}\n\nconst baseKey = pickBinaryKey(b, ['data', 'base', 'image', 'file', 'character']);\nif (!baseKey) {\n  throw new Error('Build Repo Gemini Base Request expected a base reference binary from Load Base Character Image1');\n}\n\nconst parts = [];\nparts.push({ text: j.userPromptText || '' });\nparts.push({ text: j.requestParts?.baseLabel || 'IMAGE A — BASE STYLE GUIDE.' });\nparts.push({ inlineData: await readBinaryAsInlineData(baseKey, 'image/png') });\n\nif (b.hair && j.hairRefS3Key) {\n  parts.push({ text: j.requestParts?.hairLabel || 'IMAGE B — HAIRSTYLE REFERENCE.' });\n  parts.push({ inlineData: await readBinaryAsInlineData('hair', 'image/png') });\n}\n\nif (b.skin && j.promptMeta?.hasSkinSwatch) {\n  parts.push({ text: j.requestParts?.skinLabel || 'IMAGE C — OPTIONAL SKIN SWATCH.' });\n  parts.push({ inlineData: await readBinaryAsInlineData('skin', 'image/png') });\n}\n\nconst requestBody = {\n  systemInstruction: {\n    role: 'system',\n    parts: [{ text: j.systemInstructionText || '' }],\n  },\n  contents: [{ role: 'user', parts }],\n  generationConfig: j.generationConfig || {},\n  ...(j.model ? { model: j.model } : {}),\n};\n\nreturn {\n  json: {\n    ...j,\n    requestBody,\n    requestBodyMeta: {\n      source: 'repo-w2a-base-input@v1',\n      hasHairRef: !!(b.hair && j.hairRefS3Key),\n      hasSkinSwatch: !!(b.skin && j.promptMeta?.hasSkinSwatch),\n      baseBinaryKey: baseKey,\n    },\n  },\n  binary: b,\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: itemIx },\n};"
       },
-      "id": "48132953-9358-46b9-ac1c-e09142a635c0",
+      "id": "5314b26f-9280-4c9e-a96b-4520a1f3f108",
       "name": "Build Repo Gemini Base Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1376,
-        -64
+        448,
+        112
       ]
     },
     {
@@ -162,13 +162,13 @@
         },
         "options": {}
       },
-      "id": "549969fb-9508-4402-88b3-a7f97c28ea9c",
+      "id": "4f0c6142-3a09-41f3-b234-586475274c24",
       "name": "IF: Test Mode? (1)1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1152,
-        -64
+        672,
+        112
       ],
       "notes": "Routes to MOCK (true) or REAL API (false)"
     },
@@ -176,13 +176,13 @@
       "parameters": {
         "jsCode": "// 🧪 MOCK: Gemini Image Generation — EACH mode\n// Emits a realistic Gemini response with a tiny 1x1 PNG.\n// Sets flags so downstream extractor accepts tiny images in test mode.\n\nconst j = $json || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\n\n// 1×1 transparent PNG (base64)\nconst TINY_PNG_BASE64 =\n  \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\";\n\n// Choose response shape: 'top' (default) or 'body' to simulate HTTP wrappers\nconst shape = j.__mockShape === 'body' ? 'body' : 'top';\n\nconst payload = {\n  candidates: [{\n    content: {\n      parts: [{\n        inlineData: {\n          mimeType: \"image/png\",\n          data: TINY_PNG_BASE64\n        }\n      }]\n    },\n    finishReason: \"STOP\",\n    safetyRatings: []\n  }],\n  usageMetadata: {\n    promptTokenCount: 100,\n    candidatesTokenCount: 50,\n    totalTokenCount: 150\n  },\n  modelVersion: \"gemini-2.5-flash-image-mock\"\n};\n\n// Wrap under body if requested (lets you test extractor's pickRoot logic)\nconst mockResponse = shape === 'body' ? { body: payload } : payload;\n\n// Mark this as a mock so the extractor relaxes size checks\nmockResponse.modelVersion = mockResponse.modelVersion || \"gemini-2.5-flash-image-mock\";\nmockResponse.__testMode = true;\nmockResponse.__allowTinyImage = true;\n// Optional: force a very low size gate in case flags aren’t seen\nmockResponse.minImageBytes = 1;\n\nconsole.log('🧪 MOCK: Returning fake image for base/pose',\n  j.poseNumber ?? j.currentPoseNumber ?? '?', 'shape=', shape);\n\nreturn {\n  json: { ...($json || {}), ...mockResponse },\n  binary: $binary || {},\n  pairedItem: ($input && $input.item && $input.item.pairedItem) ? $input.item.pairedItem : { item: itemIx }\n};\n"
       },
-      "id": "4d19f0e5-c394-4589-a002-d969bf511bef",
+      "id": "134f79c4-df90-4d4d-b0eb-5f9793df8b4a",
       "name": "🧪 MOCK: Generate Custom Base Character1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -928,
-        -176
+        896,
+        0
       ],
       "notes": "Mock response for testing - no API calls made"
     },
@@ -215,10 +215,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -928,
-        48
+        896,
+        224
       ],
-      "id": "820184f0-61bf-4a16-89e8-e9f158c99441",
+      "id": "c8d7f8b8-437d-45ed-9075-3445399129b0",
       "name": "Generate Custom Base Character1",
       "credentials": {
         "googlePalmApi": {
@@ -236,10 +236,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -704,
-        -64
+        1120,
+        112
       ],
-      "id": "2fa41809-768e-4cbb-bff0-25021555091f",
+      "id": "61e10c38-4fba-4019-ba36-640aef230995",
       "name": "Process Gemini API response and extract generated image1",
       "onError": "continueRegularOutput"
     },
@@ -252,7 +252,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
             },
             {
               "name": "Content-Type",
@@ -261,6 +261,9 @@
           ]
         },
         "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{JSON.stringify($json)}}",
         "options": {
           "response": {
             "response": {
@@ -268,18 +271,15 @@
             }
           },
           "timeout": 90000
-        },
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}"
+        }
       },
-      "id": "1e490378-b985-4f14-b37f-896decb52005",
+      "id": "b8098b90-0a47-4659-960a-4b8cae8d84d2",
       "name": "Finalize Repo W2A Base Result",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -480,
-        -64
+        1344,
+        112
       ]
     },
     {
@@ -287,13 +287,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) return Buffer.from(record.data);\n  if (Array.isArray(record.data)) return Buffer.from(record.data);\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length)\n      : directOutBuffer.length;\n    const text = directOutBuffer.subarray(0, end).toString('utf8');\n    if (text) return text;\n  }\n\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (chunk) => {\n    const buffer = toBufferLike(chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    for (const entry of bufferState) {\n      const record = asObject(entry);\n      pushChunk(entry);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n    }\n  } else {\n    const bufferList = asObject(bufferState);\n    let current = bufferList.head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      const record = asObject(current);\n      pushChunk(record.data);\n      pushChunk(record.chunk);\n      current = record.next || null;\n      guard += 1;\n    }\n  }\n\n  if (!chunks.length) return null;\n  return Buffer.concat(chunks).toString('utf8');\n}\n\nfunction parseJsonPrefix(text) {\n  if (typeof text !== 'string') return null;\n  const start = text.search(/[\\[{]/);\n  if (start === -1) return null;\n\n  const stack = [];\n  let inString = false;\n  let escape = false;\n\n  for (let index = start; index < text.length; index += 1) {\n    const char = text[index];\n\n    if (inString) {\n      if (escape) {\n        escape = false;\n      } else if (char === '\\\\') {\n        escape = true;\n      } else if (char === '\"') {\n        inString = false;\n      }\n      continue;\n    }\n\n    if (char === '\"') {\n      inString = true;\n      continue;\n    }\n\n    if (char === '{' || char === '[') {\n      stack.push(char);\n      continue;\n    }\n\n    if (char === '}' || char === ']') {\n      const expected = char === '}' ? '{' : '[';\n      if (!stack.length || stack[stack.length - 1] !== expected) return null;\n      stack.pop();\n      if (!stack.length) {\n        try {\n          return JSON.parse(text.slice(start, index + 1));\n        } catch {\n          return null;\n        }\n      }\n    }\n  }\n\n  return null;\n}\n\nfunction parseMaybeJson(value) {\n  if (typeof value === 'string') {\n    try { return JSON.parse(value); } catch { return parseJsonPrefix(value) ?? value; }\n  }\n\n  const streamText = extractStreamText(value);\n  if (typeof streamText === 'string') {\n    try { return JSON.parse(streamText); } catch { return parseJsonPrefix(streamText) ?? value; }\n  }\n\n  return value;\n}\n\nfunction unwrapResponse(value) {\n  const parsed = parseMaybeJson(value);\n  const obj = asObject(parsed);\n  if (obj.success === true || obj.baseCharacterKey || obj.characterHash) {\n    return obj;\n  }\n  for (const candidate of [obj.body, obj.data, obj.response, obj.result]) {\n    const nested = asObject(parseMaybeJson(candidate));\n    if (nested.success === true || nested.baseCharacterKey || nested.characterHash) {\n      return nested;\n    }\n  }\n  return obj;\n}\n\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nlet extracted = null;\ntry {\n  const items = $items('Process Gemini API response and extract generated image1', 0, runIx) || [];\n  extracted = items[itemIx] || items[0] || null;\n} catch {}\n\nconst payload = unwrapResponse($json || {});\nif (!payload || typeof payload !== 'object' || Array.isArray(payload)) {\n  throw new Error('Could not parse finalized W2A base result');\n}\nif (payload.error && !payload.baseCharacterKey && !payload.characterHash) {\n  throw new Error(payload.details || payload.error);\n}\n\nreturn {\n  json: payload,\n  binary: extracted?.binary || $binary || {},\n  pairedItem: ($input?.item?.pairedItem) ? $input.item.pairedItem : (extracted?.pairedItem || { item: itemIx }),\n};"
       },
-      "id": "08840188-539a-41ac-945f-3d64b1b6a021",
+      "id": "cf544db1-a0a3-4b8e-9005-9ef9ac1fbc69",
       "name": "Restore Finalized Base Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -256,
-        -64
+        1568,
+        112
       ]
     },
     {
@@ -306,10 +306,10 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        -32,
-        -64
+        1792,
+        112
       ],
-      "id": "aeb5ff27-ff95-4d83-8852-b1ca623c9784",
+      "id": "bcf06207-7777-4002-850f-e6b53eaf3568",
       "name": "Upload a file1",
       "credentials": {
         "s3": {
@@ -323,13 +323,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "\nconst itemIx = (typeof $itemIndex === 'number') ? $itemIndex : 0;\nconst runIx = (typeof $runIndex === 'number') ? $runIndex : 0;\nlet preserved = null;\ntry {\n  const items = $items('Restore Finalized Base Envelope', 0, runIx) || [];\n  preserved = items[itemIx] || items[0] || null;\n} catch {}\nif (!preserved?.json) {\n  throw new Error('Restore Uploaded Base Envelope could not rehydrate finalized base envelope');\n}\nreturn {\n  json: preserved.json,\n  binary: {},\n  pairedItem: preserved.pairedItem || { item: itemIx },\n};"
       },
-      "id": "e64ab4af-a984-4932-81d6-c8b2447d1f4c",
+      "id": "9f8c98fb-6f0a-43c2-927c-4ac59701b53a",
       "name": "Restore Uploaded Base Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
-        -64
+        2016,
+        112
       ]
     },
     {
@@ -445,13 +445,13 @@
           "dotNotation": true
         }
       },
-      "id": "556bfffc-b23b-40c7-bd74-7cebe229d15b",
+      "id": "f460e4f6-04e1-4e64-91e9-5d07e49cb42d",
       "name": "Return Generated Image1",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        416,
-        -64
+        2240,
+        112
       ],
       "notesInFlow": true,
       "notes": "Returns envelope with bin.generated and slimmed payload"
@@ -638,10 +638,12 @@
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "versionId": "57d6c25d-0860-46bc-9edd-81d1021fb006",
+  "meta": null,
+  "id": "S5apnAgeuitSIO5Z",
   "tags": []
 }
