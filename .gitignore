@@ -142,6 +142,11 @@ renderer-mock/out/
 *.tmp
 *.temp
 .claude/worktrees/
+
+# Generated print-vendor proof files.
+# These include high-resolution PDFs/PNGs and source image copies that can exceed
+# a gigabyte. Keep the rebuild scripts and vendor notes in git instead.
+exports/
 # Build artifacts
 .open-next/
 
