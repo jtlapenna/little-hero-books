@@ -1,17 +1,17 @@
 # LHL Priority Queue
 
-**Generated:** 2026-05-10 (R2 daily run) from `pipeline.md` (82 creators)
-**Previous generation:** 2026-05-09 (82 creators)
+**Generated:** 2026-05-13 (R2 daily run) from `pipeline.md` (82 creators)
+**Previous generation:** 2026-05-10 (82 creators)
 
 **Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL.
 
 This is a **derived view** of `pipeline.md`, sorted by fit score + contact readiness + tier. Regenerate when pipeline changes meaningfully (e.g., after each R1 fire, manual scout batch, or status update). The full ranking algorithm is documented in [`.claude/skills/lhl-creator-pipeline/SKILL.md`](../../../.claude/skills/lhl-creator-pipeline/SKILL.md) under "Priority ranking."
 
-**R2 2026-05-10 regen note:** No new R1 batch today. Pipeline holds at 82 creators. This run completed the batch status-correction work flagged in the 2026-05-09 regen: 25 pipeline.md rows now reflect actual send/follow-up-sent statuses from the 2026-05-07 Jeff send batch (att-2026-05-07-013 through att-2026-05-07-034 for new sends; att-2026-05-07-001 through att-2026-05-07-012 for follow-ups). No new outreach drafts produced today -- First Wave remains exhausted. See supply gap section.
+**R2 2026-05-13 regen note:** No new R1 batch since 2026-05-07. No new pipeline entries since Social Cat additions on 2026-05-08. Pipeline holds at 82 creators. No status changes since 2026-05-10. No new outreach drafts produced today -- First Wave remains exhausted. See supply gap section.
 
-**Pipeline discrepancy (partial, still open):** Eight creators appear in the 2026-05-07 drafts directory and sent-log but are NOT in pipeline.md: @homeby.yh (att-025), @erdenweiner (att-029), @stephleighworthy (att-030), @thediversebookworm (att-031), @livingbrighthomeschool (att-032), @solobotoys (att-033), @dharashahauthor, @storybookplanet. These are Jeff-sourced additions outside the R1/scout flow. Jeff should add pipeline.md rows for any that should be tracked for follow-up or 90-day cap purposes. Also @haleyreidtay (att-034) declined via agent Libby O'Neill (Shine Talent Group) and was added to do-not-contact.md on 2026-05-08.
+**Pipeline discrepancy (still open):** Eight creators appear in the 2026-05-07 drafts directory and sent-log but are NOT in pipeline.md: @homeby.yh (att-025), @erdenweiner (att-029), @stephleighworthy (att-030), @thediversebookworm (att-031), @livingbrighthomeschool (att-032), @solobotoys (att-033), @dharashahauthor, @storybookplanet. These are Jeff-sourced additions outside the R1/scout flow. Jeff should add pipeline.md rows for any that should be tracked for follow-up or 90-day cap purposes. Also @haleyreidtay (att-034) declined via agent Libby O'Neill (Shine Talent Group) and was added to do-not-contact.md on 2026-05-08.
 
-**SUPPLY GAP (2026-05-10):** First Wave remains fully exhausted. R2 stops. See supply gap section below.
+**SUPPLY GAP (2026-05-13):** First Wave remains fully exhausted. R2 stops. See supply gap section below.
 
 ---
 
@@ -19,9 +19,9 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 
 17 candidates. All email-confirmed direct, all nano/micro tier (no rate sign-off needed). R2 drafts these by default.
 
-**ALL FIRST WAVE CREATORS ARE PROCESSED OR FLAGGED. No eligible candidates remain for R2 today (2026-05-10). 13 in 90-day cap, 1 active negotiation, 1 in DNC, 2 not drafted pending Jeff call.**
+**ALL FIRST WAVE CREATORS ARE PROCESSED OR FLAGGED. No eligible candidates remain for R2 today (2026-05-13). 13 in 90-day cap, 1 active negotiation, 1 in DNC, 2 not drafted pending Jeff call.**
 
-| # | Handle | Score | Tier | Niche | Contact | Angle | Draft status (as of 2026-05-10) |
+| # | Handle | Score | Tier | Niche | Contact | Angle | Draft status (as of 2026-05-13) |
 |---|---|---|---|---|---|---|---|
 | 1 | @happily.ever.elephants (Lauren) | 19/20 | micro 71K | Librarian / kidlit reviewer | `lauren@happilyeverelephants.com` | librarian-kidlit-curator | declined 2026-05-04; follow-up sent 2026-05-07 (att-2026-05-07-011). In DNC. |
 | 2 | thispicturebooklife (Danielle Davis) | 19/20 | multi-platform | Picture book curator + author | `danielledaviswrites@me.com` | librarian-kidlit-curator | sent 2026-05-04; follow-up sent 2026-05-07 (att-2026-05-07-003). In 90-day cap. |
@@ -41,7 +41,7 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 | 16 | @bridgetteyler (Bridget Teyler) | 16/20 | micro 30K | Childbirth educator + birth doula | `bridget@builttobirth.com` | none (flagged) | **NOT DRAFTED:** No confident angle match. Closest is literacy-educator if Jeff sees developmental/prenatal-wellness framing in Bridget's Built To Birth content. Jeff must designate angle before R2 can draft. |
 | 17 | @childlifetherapist (Kelsey Mora) | 18/20 | nano 5.1K | Child Life Specialist + LCPC + author ("The Dot Method") | `kelsey@childlifetherapist.com` | literacy-educator (nearest) | **NOT DRAFTED:** Pipeline note requires aesthetic-fit verification. Creator's work centers children in medical/grief/clinical contexts. Does LHL's "courage + inner voice" theme frame naturally here? If Jeff confirms fit, R2 drafts on next run using literacy-educator angle. |
 
-**First Wave summary (as of 2026-05-10):** 0 eligible for R2 drafting today. In 90-day cap: 13. Active outreach: 1 (asking-rates: #5 @raisingreaderstobecomeleaders). In DNC: 1 (#1 @happily.ever.elephants). Not drafted, pending Jeff call: 2 (#16 @bridgetteyler, #17 @childlifetherapist).
+**First Wave summary (as of 2026-05-13):** 0 eligible for R2 drafting today. In 90-day cap: 13. Active outreach: 1 (asking-rates: #5 @raisingreaderstobecomeleaders). In DNC: 1 (#1 @happily.ever.elephants). Not drafted, pending Jeff call: 2 (#16 @bridgetteyler, #17 @childlifetherapist).
 
 ---
 
@@ -51,7 +51,7 @@ These need one of: verified email, contact-form channel, or pre-engagement for D
 
 ### 2b. Verify-via-linktree/website (email not yet confirmed)
 
-Five Second Wave 2b candidates were sent on 2026-05-07 by Jeff outside normal R2 flow (Jeff verified emails and approved): @hapafamilyvlog (att-013), @acupofambition (att-014), @alifewellsaved (att-015), @theforevermillennials (att-016), @themadisonrae (att-018). All are now in the 90-day cap and their pipeline.md statuses have been corrected in this run.
+Five Second Wave 2b candidates were sent on 2026-05-07 by Jeff outside normal R2 flow (Jeff verified emails and approved): @hapafamilyvlog (att-013), @acupofambition (att-014), @alifewellsaved (att-015), @theforevermillennials (att-016), @themadisonrae (att-018). All are now in the 90-day cap.
 
 **Remaining 2b candidates (email not yet confirmed):**
 
@@ -98,7 +98,7 @@ Five Second Wave 2b candidates were sent on 2026-05-07 by Jeff outside normal R2
 
 Score-qualified but mid-tier (150K-500K) or otherwise requiring Jeff approval before any offer. R2 must NOT auto-draft these.
 
-Creators sent on 2026-05-07 are marked **SENT** and are in the 90-day cap. Their pipeline.md statuses have been corrected in this run.
+Creators sent on 2026-05-07 are marked **SENT** and are in the 90-day cap.
 
 | # | Handle | Score | Followers | Contact | Angle | Status / Caveat |
 |---|---|---|---|---|---|---|
@@ -161,7 +161,7 @@ Creators sourced via Social Cat platform (invited-campaign model) track separate
 
 ## Supply gap -- action required from Jeff
 
-**First Wave is fully exhausted as of 2026-05-10.** R2 cannot produce new outreach drafts today.
+**First Wave is fully exhausted as of 2026-05-13.** R2 cannot produce new outreach drafts today. No pipeline changes since 2026-05-10.
 
 ### Option A: Unblock the 2 remaining First Wave "not drafted" entries
 
@@ -232,7 +232,7 @@ No new candidates have been added to the pipeline since 2026-05-07 (aside from t
 - R1 daily discovery educational/child-development batch: 10 creators (2026-05-07)
 - Social Cat invited-campaign additions: 2 creators (2026-05-08)
 
-## Channel readiness across pipeline (as of 2026-05-10)
+## Channel readiness across pipeline (as of 2026-05-13)
 
 | Channel | Count | Notes |
 |---|---|---|
@@ -246,7 +246,7 @@ No new candidates have been added to the pipeline since 2026-05-07 (aside from t
 
 **Total:** 82 creators (unchanged)
 
-**First-wave drafting capacity (as of 2026-05-10):** 17 total (no change). 0 eligible for R2 auto-drafting. 13 in 90-day cap. 1 active negotiation (#5 asking-rates). 1 in DNC (#1 declined). 2 not drafted, pending Jeff judgment (#16, #17).
+**First-wave drafting capacity (as of 2026-05-13):** 17 total (no change). 0 eligible for R2 auto-drafting. 13 in 90-day cap. 1 active negotiation (#5 asking-rates). 1 in DNC (#1 declined). 2 not drafted, pending Jeff judgment (#16, #17).
 
 **Next R2 unlock conditions (any of these restores drafting capacity):**
 1. Jeff designates angle for @bridgetteyler or confirms aesthetic fit for @childlifetherapist
