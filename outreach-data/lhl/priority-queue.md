@@ -1,17 +1,17 @@
 # LHL Priority Queue
 
-**Generated:** 2026-05-13 (R2 daily run) from `pipeline.md` (82 creators)
-**Previous generation:** 2026-05-10 (82 creators)
+**Generated:** 2026-05-14 (R2 daily run) from `pipeline.md` (82 creators)
+**Previous generation:** 2026-05-13 (82 creators)
 
 **Sample preview URL is live:** https://www.littleherolabs.com/preview (noindex). All R2-drafted pitches should reference this URL.
 
 This is a **derived view** of `pipeline.md`, sorted by fit score + contact readiness + tier. Regenerate when pipeline changes meaningfully (e.g., after each R1 fire, manual scout batch, or status update). The full ranking algorithm is documented in [`.claude/skills/lhl-creator-pipeline/SKILL.md`](../../../.claude/skills/lhl-creator-pipeline/SKILL.md) under "Priority ranking."
 
-**R2 2026-05-13 regen note:** No new R1 batch since 2026-05-07. No new pipeline entries since Social Cat additions on 2026-05-08. Pipeline holds at 82 creators. No status changes since 2026-05-10. No new outreach drafts produced today -- First Wave remains exhausted. See supply gap section.
+**R2 2026-05-14 regen note:** No new R1 batch since 2026-05-07. No new pipeline entries since Social Cat additions on 2026-05-08. Pipeline holds at 82 creators. No status changes since 2026-05-13. No new outreach drafts produced today -- First Wave remains exhausted. See supply gap section.
 
 **Pipeline discrepancy (still open):** Eight creators appear in the 2026-05-07 drafts directory and sent-log but are NOT in pipeline.md: @homeby.yh (att-025), @erdenweiner (att-029), @stephleighworthy (att-030), @thediversebookworm (att-031), @livingbrighthomeschool (att-032), @solobotoys (att-033), @dharashahauthor, @storybookplanet. These are Jeff-sourced additions outside the R1/scout flow. Jeff should add pipeline.md rows for any that should be tracked for follow-up or 90-day cap purposes. Also @haleyreidtay (att-034) declined via agent Libby O'Neill (Shine Talent Group) and was added to do-not-contact.md on 2026-05-08.
 
-**SUPPLY GAP (2026-05-13):** First Wave remains fully exhausted. R2 stops. See supply gap section below.
+**SUPPLY GAP (2026-05-14):** First Wave remains fully exhausted. R2 stops. See supply gap section below.
 
 ---
 
@@ -41,7 +41,7 @@ This is a **derived view** of `pipeline.md`, sorted by fit score + contact readi
 | 16 | @bridgetteyler (Bridget Teyler) | 16/20 | micro 30K | Childbirth educator + birth doula | `bridget@builttobirth.com` | none (flagged) | **NOT DRAFTED:** No confident angle match. Closest is literacy-educator if Jeff sees developmental/prenatal-wellness framing in Bridget's Built To Birth content. Jeff must designate angle before R2 can draft. |
 | 17 | @childlifetherapist (Kelsey Mora) | 18/20 | nano 5.1K | Child Life Specialist + LCPC + author ("The Dot Method") | `kelsey@childlifetherapist.com` | literacy-educator (nearest) | **NOT DRAFTED:** Pipeline note requires aesthetic-fit verification. Creator's work centers children in medical/grief/clinical contexts. Does LHL's "courage + inner voice" theme frame naturally here? If Jeff confirms fit, R2 drafts on next run using literacy-educator angle. |
 
-**First Wave summary (as of 2026-05-13):** 0 eligible for R2 drafting today. In 90-day cap: 13. Active outreach: 1 (asking-rates: #5 @raisingreaderstobecomeleaders). In DNC: 1 (#1 @happily.ever.elephants). Not drafted, pending Jeff call: 2 (#16 @bridgetteyler, #17 @childlifetherapist).
+**First Wave summary (as of 2026-05-14):** 0 eligible for R2 drafting today. In 90-day cap: 13. Active outreach: 1 (asking-rates: #5 @raisingreaderstobecomeleaders). In DNC: 1 (#1 @happily.ever.elephants). Not drafted, pending Jeff call: 2 (#16 @bridgetteyler, #17 @childlifetherapist).
 
 ---
 
@@ -246,7 +246,7 @@ No new candidates have been added to the pipeline since 2026-05-07 (aside from t
 
 **Total:** 82 creators (unchanged)
 
-**First-wave drafting capacity (as of 2026-05-13):** 17 total (no change). 0 eligible for R2 auto-drafting. 13 in 90-day cap. 1 active negotiation (#5 asking-rates). 1 in DNC (#1 declined). 2 not drafted, pending Jeff judgment (#16, #17).
+**First-wave drafting capacity (as of 2026-05-14):** 17 total (no change). 0 eligible for R2 auto-drafting. 13 in 90-day cap. 1 active negotiation (#5 asking-rates). 1 in DNC (#1 declined). 2 not drafted, pending Jeff judgment (#16, #17).
 
 **Next R2 unlock conditions (any of these restores drafting capacity):**
 1. Jeff designates angle for @bridgetteyler or confirms aesthetic fit for @childlifetherapist
