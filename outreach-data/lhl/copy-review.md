@@ -138,6 +138,12 @@ If R2 produces a draft that fails the checklist:
 
 ---
 
+| 2026-05-18 | lhl-literacy-educator-v1 | R2 | passed | Batch: @little.farm.montessori. All checklist items pass. Opener: "I'm Jeff, founder of Little Hero Labs." (variant 1). ~165 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism, or animal-throughout claims. Angle body references "Little Farm" and "inner direction" -- both verifiable from pipeline (Director of Little Farm Nature School). No verbatim repetition within draft. Preview URL present. Minor cosmetic note: 3-item theme list ("quiet self-discovery, courage, and finding confidence from the inside out") -- informational, not performative; not a downgrade. Additional note: email from contact page search snippet; Jeff should verify address directly before sending. |
+| 2026-05-18 | lhl-literacy-educator-v1 | R2 | passed | Batch: @outsidethetoybox. All checklist items pass. Opener: "Jeff here from Little Hero Labs." (variant 2 -- varied from @little.farm.montessori). ~165 words. No em dashes, curly quotes, AI vocab, dollar amounts, mechanism, or animal-throughout claims. Angle body references "fifteen years in Montessori and Reggio Emilia classrooms" -- verifiable from pipeline notes (15 yrs Montessori + Reggio Emilia). No verbatim repetition within draft. Preview URL present. |
+| 2026-05-18 | — | R2 (humanizer) | passed | Batch summary (2026-05-18): No em dashes, no AI vocabulary, no curly quotes detected across both drafts. 2 distinct opener forms used ("I'm Jeff, founder of..." / "Jeff here from..."). Product description varied at word level ("becomes the hero" / "is the hero"). Offer paragraph near-identical by design (intentional template). Cross-batch middle-paragraph repetition: none. One cosmetic flag carried forward on @little.farm.montessori (3-item list, already in copy_review_notes). One additional cosmetic note from humanizer on @little.farm.montessori: "respecting each child's own inner direction" slightly abstract -- Jeff may tighten on edit; not a downgrade. Both drafts remain copy-reviewed. |
+
+---
+
 ## Iteration log
 
 | Date | Change |
