@@ -67,6 +67,17 @@ Goal: find a print path that supports a Wonderbly-like personalized children's b
 | 2026-05-12 01:19 PDT | RPI Print | 20-page 8 x 8 softcover photobook API test, economy shipping / Mail Innovations BPM | $5.95 | $6.99 | $0.44 | $13.38 | $12.94 | Paid | Replacement economy order validated and paid under order id `333830b1-9451-4ca7-8ba9-a3499ad2c66f`. Estimated ship date: 2026-05-19 UTC; estimated delivery: 2026-05-26 UTC. |
 | 2026-05-12 | Gelato | 30-inner-page 8 x 8 / 200 x 200 mm softcover photo book, 170gsm coated silk interior, 250gsm matte-laminated cover, USPS Ground Advantage | $9.98 | $6.99 | $1.04 | $15.02 with one-time discount | $16.97 before tax, excluding one-time discount | Ordered | One-time first-order discount of `$2.99` was applied to this sample. Do not use the discount in final unit economics. Normalized landed COGS before tax is `$9.98 + $6.99 = $16.97`; actual paid total including tax was `$15.02`. |
 
+## Sample Shipping / Fulfillment Timeline
+
+Use this table to evaluate production speed and carrier speed alongside print quality, API fit, and landed COGS. "Shipped" means the vendor sent a shipment notification, not necessarily that the carrier has scanned the package. Gmail timestamps are treated as America/Los_Angeles unless the vendor dashboard shows otherwise.
+
+| Vendor | Order ID / Tracking | Ordered | Ship Notification | Time To Ship Notification | Carrier / Method | Estimated Delivery | Actual Delivery | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gelato | Order `G-260512102952`; tracking `9400136208071294525574` | 2026-05-12, time TBD | 2026-05-14 14:53 | About 2 calendar days from known order date | USPS Ground Advantage | 2026-05-18 to 2026-05-19 | Pending | Fastest ship notification so far. Shipment email lists 30-page softcover photo book, 8 x 8 / 20 x 20 cm. |
+| Prodigi | Order `#14026168`; tracking `803333813899558863` | 2026-05-12 | 2026-05-18 12:21 | About 6 calendar days / 4 business days | UPS Mail Innovations tracking URL: `https://tracking.ups-mi.net/packageID/803333813899558863` | Pending | Pending | Completion email followed at 2026-05-18 12:24. Product: `BOOK-FE-8_3-SQ-SOFT-G`, 20-page square softcover, 150gsm gloss, matte cover. |
+| Lulu | Order `USD-C3948050`; tracking `9241990371975803280201` | 2026-05-11 22:29 PDT per purchase log | 2026-05-18 14:10 | About 6.7 calendar days / 5 business days | OSM, Mail shipping | Pending; tracking may take up to 48 hours to appear | Pending | This is the 32-page perfect-bound Lulu test. If dashboard later shows a May 12 order date, update the ordered timestamp and elapsed time. |
+| RPI Print | Order `333830b1-9451-4ca7-8ba9-a3499ad2c66f` | 2026-05-12 01:19 PDT | Not shipped as of 2026-05-18 | At least 6 calendar days without ship notification | Economy / Mail Innovations BPM per estimate | Estimated delivery 2026-05-26 UTC from original API estimate | Pending | Original API estimate showed estimated ship date 2026-05-19 UTC. Update when RPI sends a shipment notification. |
+
 ## Print Asset Quality Audit
 
 Audit date: 2026-05-12.
