@@ -144,6 +144,11 @@ If R2 produces a draft that fails the checklist:
 
 ---
 
+| 2026-05-19 | lhl-librarian-kidlit-curator-v1 | R2 | passed | Batch: moonbow (Taylor Sterling / MOONBOW). All checklist items pass. Opener: "I'm Jeff, founder of Little Hero Labs." (variant 1). ~139 words (within 100-180 ceiling). No em dashes, curly quotes, AI vocabulary, dollar amounts, mechanism, or animal-throughout claims. Angle body ("MOONBOW covers picture books that hold up as art. This one has watercolor-style illustration and a quiet emotional arc for ages 0-7.") verifiable from pipeline (art-forward picture-book curator; Substack Featured Publication 2023). No verbatim repetition within draft. Offer paragraph follows template. Preview URL present (full https://www.littleherolabs.com/preview). Contact: moonbow.books@substack.com (MOONBOW-specific address per her own taylor-sterling.com /moonbow page). |
+| 2026-05-19 | lhl-librarian-kidlit-curator-v1 | R2 (humanizer) | passed | Batch summary (2026-05-19): No em dashes, no AI vocabulary, no curly quotes detected. 1 draft in batch. 4 distinct sentence openers ("I'm Jeff...", "MOONBOW covers...", "We're running...", "You can see..."). Sentence length varies throughout all paragraphs. Cosmetic note: "a natural fit for your readers" is a slightly generic phrase but not on the AI-vocabulary list; surrounding paragraph specificity earns it. No downgrade. Draft remains copy-reviewed. |
+
+---
+
 ## Iteration log
 
 | Date | Change |
