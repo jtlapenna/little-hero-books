@@ -149,6 +149,11 @@ If R2 produces a draft that fails the checklist:
 
 ---
 
+| 2026-05-20 | lhl-gift-curator-v1 | R2 | passed_with_notes | Batch: @jesskeys_. All checklist items pass. Opener: "Jeff here from Little Hero Labs." (varied from recent batches). ~157 words (within 100-180 ceiling). No em dashes, curly quotes, AI vocabulary, dollar amounts, mechanism, or animal-throughout claims. Angle body ("Your Baby and Kids gift guide feels like a natural fit. A personalized hero book is the kind of gift a new parent genuinely doesn't see coming, and it ships via Amazon Custom.") verifiable from pipeline (recurring Baby and Kids gift guide on jesskeys.com; new mom). No verbatim repetition within draft. Offer paragraph follows template. Preview URL present. NOTE: "for your daughter" references pipeline note (R1 sourced from public content: new mom). Jeff should verify this detail is from her own public posts before sending. |
+| 2026-05-20 | lhl-gift-curator-v1 | R2 (humanizer) | passed | Batch summary (2026-05-20): No em dashes, no AI vocabulary, no curly quotes detected. 1 draft in batch. 11 distinct sentence openers (none repeated). Sentence length varies throughout (6, 20, 21, 13, 11, 22, 7, 9, 15, 13, 11 words). No negative parallelism, no rule-of-three, no copula avoidance, no sycophantic language. No AI-tell patterns detected. Draft remains copy-reviewed. |
+
+---
+
 ## Iteration log
 
 | Date | Change |
