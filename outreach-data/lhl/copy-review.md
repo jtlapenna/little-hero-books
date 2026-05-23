@@ -161,6 +161,11 @@ If R2 produces a draft that fails the checklist:
 
 ---
 
+| 2026-05-23 | lhl-diverse-representation-v1 | R2 | passed | Batch: @vivalamami. All checklist items pass. Opener: "Jeff here from Little Hero Labs." (default founder-direct). ~150 words (within 100-180 ceiling). No em dashes, curly quotes, AI vocabulary, dollar amounts, mechanism, or animal-throughout claims. Diverse-representation angle body: default comparison framing ("Most personalized books let parents pick from pre-made characters. We let them create their own.") -- not B1 Wonderbly-named variant. "bicultural families who haven't always seen their kids reflected in personalized books" verifiable from public brand identity (Viva la Mami mission). Preview URL present. |
+| 2026-05-23 | lhl-diverse-representation-v1 | R2 (humanizer) | passed | Batch summary (2026-05-23): No em dashes, no AI vocabulary, no curly quotes detected. 13 distinct sentence openers (Jeff, We, Our, Most, We, Hair, Every, That, We're, Would, I'd, If, You). Three "We"-starting sentences across separate paragraphs -- intentional template structure, not AI tell. Sentence length range: 6-22 words, good variation. No negative parallelism, no rule-of-three, no corporate rhythm. "personalized" appears 3x -- intentional brand language, not flagged. No within-draft animal-reveal repetition (animal not mentioned). Draft remains copy-reviewed. |
+
+---
+
 ## Iteration log
 
 | Date | Change |
