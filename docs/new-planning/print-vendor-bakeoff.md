@@ -31,7 +31,7 @@ Goal: find a print path that supports a Wonderbly-like personalized children's b
 | Peecho | Attractive 20-page minimum, but current available sample format is A4 portrait and landed cost is high. User quote: $10.82 product + $8.48 shipping = $19.31 total including VAT. | 20 | $19.31 paid total | API exists, but economics/format are poor for standard SKU | Deprioritized; premium curiosity only |
 | RPI Print | More relevant than Blurb retail if B2B/API pricing is available. User-observed base pricing: $5.95 for first 20 pages, then $0.07/additional page. First production API test validated, then was recreated with cheaper Economy shipping. | 20+ for softcover photobook | 20p economy paid total: $5.95 print + $6.99 shipping + $0.44 tax = $13.38 | Strong book-native API | Economy sample paid |
 | Blurb | Useful benchmark; public price works as floor/quality sample, but shipping makes standard SKU hard. | 20 photo book / 24 trade book | About $8.99 + $8.99 from user data | Use RPI route if possible | Benchmark |
-| Gelato | Best next optional test after Lulu/Prodigi/RPI because it tests 170gsm coated silk paper and global/local production, a materially different quality hypothesis. Manual sample ordered for selected 8 x 8 in / 200 x 200 mm 30-inner-page softcover photo book. First sample shipped fastest but print quality was visibly lower than Lulu, so a second lossless upload PDF was generated to remove JPEG compression as a variable. | 30+ | $16.97 before tax normalized / $15.02 paid with one-time discount | Strong quote/order API | Sample ordered; lossless retest file ready |
+| Gelato | Best next optional test after Lulu/Prodigi/RPI because it tests 170gsm coated silk paper and global/local production, a materially different quality hypothesis. Manual sample ordered for selected 8 x 8 in / 200 x 200 mm 30-inner-page softcover photo book. First sample shipped fastest but print quality was visibly lower than Lulu, so a second lossless upload PDF was generated to remove JPEG compression as a variable. | 30+ | $16.97 before tax with economy / $18.74 before tax with USPS Priority | Strong quote/order API | Lossless priority retest ordered |
 | StationeryHQ | HP Indigo signal, but public pricing appears too high for standard SKU. | Up to 40-page pricing buckets | Unknown/high | Need confirm | Benchmark only |
 | PrintHQ/Corefact | Possible lower-cost path related to StationeryHQ/Corefact ecosystem. | Need confirm | Need quote | Need confirm | Dark horse contact |
 | Pureprint | Closest strategic Wonderbly-like production partner, but custom/onboarding-heavy. Email response from Karl Lawrence on 2026-05-12: suitable POD children's book products are 210 x 210 hardback/softback plus A4 portrait/landscape hardback/softback; stated expectation is 1,000 books/year, but follow-up said they do not fixate on volume and are keen to work with new businesses. | Custom / 210 x 210 or A4 | Unknown | Bespoke API / discovery call | Strategic quote / relationship lead |
@@ -66,6 +66,7 @@ Goal: find a print path that supports a Wonderbly-like personalized children's b
 | 2026-05-12 01:11 PDT | RPI Print | 20-page 8 x 8 softcover photobook API test, standard shipping / FedEx Home Delivery | $5.95 | $12.99 | $0.44 | $0.00 paid / $19.38 quoted | $18.94 before tax | Cancelled | Production API order validated as `VALID_AWAITING_PAYMENT` under order id `24f57a3b-339a-4c72-b316-3825adbb1d24`, then cancelled before payment/printing because shipping was too high. |
 | 2026-05-12 01:19 PDT | RPI Print | 20-page 8 x 8 softcover photobook API test, economy shipping / Mail Innovations BPM | $5.95 | $6.99 | $0.44 | $13.38 | $12.94 | Paid | Replacement economy order validated and paid under order id `333830b1-9451-4ca7-8ba9-a3499ad2c66f`. Estimated ship date: 2026-05-19 UTC; estimated delivery: 2026-05-26 UTC. |
 | 2026-05-12 10:37 PDT | Gelato | 30-inner-page 8 x 8 / 200 x 200 mm softcover photo book, 170gsm coated silk interior, 250gsm matte-laminated cover, USPS Ground Advantage | $9.98 | $6.99 | $1.04 | $15.02 with one-time discount | $16.97 before tax, excluding one-time discount | Ordered | One-time first-order discount of `$2.99` was applied to this sample. Do not use the discount in final unit economics. Normalized landed COGS before tax is `$9.98 + $6.99 = $16.97`; actual paid total including tax was `$15.02`. |
+| 2026-05-27 00:05 PDT draft / paid after review | Gelato lossless retest | 30-inner-page 8 x 8 / 200 x 200 mm softcover photo book, 170gsm coated silk interior, 250gsm matte-laminated cover, lossless 160 MB PDF, USPS Priority Mail Standard | $9.98 | $8.76 | $1.41 | $20.15 | $18.74 before tax | Ordered | API-created draft/order reference `LHL-GELATO-LOSSLESS-PRIORITY-20260527070551`. This is the Gelato quality-control retest using the lossless `/FlateDecode` PDF. Use `$18.74` as steady-state print + priority shipping COGS if sales tax is recoverable/exempt; use `$20.15` if Gelato tax remains a real unrecovered cost. |
 
 ## Sample Shipping / Fulfillment Timeline
 
@@ -74,6 +75,7 @@ Use this table to evaluate production speed and carrier speed alongside print qu
 | Vendor | Order ID / Tracking | Ordered | Ship Notification | Time To Ship Notification | Carrier / Method | Estimated Delivery | Actual Delivery | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Gelato | Order `G-260512102952`; tracking `9400136208071294525574` | 2026-05-12 10:37 PDT | 2026-05-14 14:53 | About 2.2 calendar days | USPS Ground Advantage | 2026-05-18 to 2026-05-19 | 2026-05-16 04:52 | Fastest ship notification so far and arrived before the estimated window. Delivered to parcel locker in Grass Valley, CA. Order-to-delivery was about 3.8 calendar days; ship-notification-to-delivery was about 1.6 calendar days. Shipment email lists 30-page softcover photo book, 8 x 8 / 20 x 20 cm. |
+| Gelato lossless retest | Order reference `LHL-GELATO-LOSSLESS-PRIORITY-20260527070551` | 2026-05-27 after 00:05 PDT | Pending | Pending | USPS Priority Mail Standard | 2026-06-01 to 2026-06-03 from API draft quote | Pending | Lossless 160 MB PDF retest. Product cost `$9.98`; Priority shipping `$8.76`; tax `$1.41`; paid total `$20.15`. Track whether lossless upload materially improves Gelato print quality versus first Gelato proof. |
 | Prodigi | Order `#14026168`; tracking `803333813899558863` | 2026-05-12 00:07 PDT | 2026-05-18 12:21 | About 6.5 calendar days / 4 business days from effective processing date | UPS Mail Innovations; shipped from United States; tracking URL: `https://tracking.ups-mi.net/packageID/803333813899558863` | Likely 2026-05-27 per tracking/user estimate | Pending | Ordered before business hours, so effective processing likely began 2026-05-12. Completion email followed at 2026-05-18 12:24. First detailed UPS processing location was Kansas City, MO on 2026-05-21; latest update departed San Leandro, CA on 2026-05-26 13:44. Product: `BOOK-FE-8_3-SQ-SOFT-G`, 20-page square softcover, 150gsm gloss, matte cover. |
 | Lulu | Order `USD-C3948050`; tracking `9241990371975803280201` | 2026-05-11 22:28 PDT | Label created 2026-05-18 15:50; first OSM facility 2026-05-19 20:45 | About 6.7 calendar days to label / 7.9 days to first OSM facility | OSM Mail; first facility Glendale Heights, IL | 2026-05-27 to 2026-06-02 | 2026-05-26 12:08 | Ordered after business hours, so effective processing likely began 2026-05-12. Delivered in Grass Valley, CA before the estimated window. Order-to-delivery was about 14.6 calendar days. This is the 32-page perfect-bound Lulu test. |
 | RPI Print | Order `333830b1-9451-4ca7-8ba9-a3499ad2c66f` | 2026-05-12 01:31 PDT received / 01:33 paid | 2026-05-16 18:47 | About 4.7 calendar days from received order to shipped | Economy / Mail Innovations BPM per estimate; origin unavailable | Estimated 2026-05-26, not delivered yet | Pending | Detailed status log: received 2026-05-12 01:31, payment completed 01:33, exited holding bin 04:34, printer accepted 04:47, shipped 2026-05-16 18:47. |
@@ -637,6 +639,32 @@ If Gelato wins:
 - Treat 30/32 pages as the minimum product architecture.
 - Use it as a premium-price candidate unless economics improve.
 - Use authenticated product/template or cover-dimensions API to calculate the exact cover spread and spine for every page count.
+
+Gelato lossless retest unit economics for Amazon:
+
+Assumptions:
+
+- Gelato priority-shipping COGS before tax: `$18.74` (`$9.98` product + `$8.76` USPS Priority Mail Standard).
+- Gelato paid COGS if tax is not recoverable/exempt: `$20.15`.
+- Amazon public fee schedule shows Media/Books at `15%` referral fee and states media items also incur a `$1.80` closing fee per item. Amazon also states total price includes list price plus shipping and gift wrap. Use this as the conservative Amazon-fee model unless Seller Central shows the ASIN is classified outside Media/Books.
+- Formula: `pre-ad margin = 0.85 * customer-facing total before tax - 1.80 - Gelato COGS`.
+- Professional seller monthly fee is fixed overhead and not included per unit. Amazon Ads spend is handled as ACoS against customer-facing total.
+
+| Customer-facing total before tax | Amazon fees at 15% + $1.80 | Margin using $18.74 COGS | Break-even ACoS | Margin using $20.15 COGS | Break-even ACoS |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| $29.99 | $6.30 | $4.95 | 16.5% | $3.54 | 11.8% |
+| $34.99 | $7.05 | $9.20 | 26.3% | $7.79 | 22.3% |
+| $39.99 | $7.80 | $13.45 | 33.6% | $12.04 | 30.1% |
+| $44.99 | $8.55 | $17.70 | 39.3% | $16.29 | 36.2% |
+
+Pricing read:
+
+- `$29.99` is too thin for Gelato Priority if Amazon ads are expected to drive demand; it leaves only about `$3.54-$4.95` before ad spend and support/replacement reserve.
+- `$34.99` is the minimum serious Gelato price if the physical sample looks premium. It can support a cautious ads test, but ACoS needs to stay roughly below `22-26%` before replacement reserve.
+- `$39.99` is healthier if shipping is bundled as "free" or fast included. It gives enough room for a meaningful Amazon ads pilot and still sits inside the lower Wonderbly-like softcover range observed during research.
+- `$44.99` is viable only if the sample clearly feels premium and the listing/brand can support a more giftable positioning.
+
+Recommendation if Gelato wins on quality: test the upgraded bound softcover at `$34.99` as the competitive entry price and `$39.99` as the healthier "shipping included / faster delivery" price. Do not use `$29.99` for paid Amazon scale with Gelato Priority shipping unless ads are nearly break-even organically or shipping is charged separately.
 
 ### Blurb / RPI Relationship Notes
 
