@@ -574,7 +574,7 @@ File model:
   - Pages 3-32: 30 single-page interior designs, not spreads.
   - Page 33: blank/non-printable back endpaper.
 - The catalog's 30-page count means 30 internal printable pages; the uploaded file still needs the cover spread and two blank endpaper pages.
-- For API orders, Gelato's `pageCount` parameter counts all pages in the product, including front/back cover. For this prepared PDF, use 33 unless Gelato's product-specific API/template says otherwise.
+- For this photobook SKU, Gelato's API `pageCount` parameter must be `30`, not `33`. API quote validation on 2026-05-27 rejected `pageCount: 33` and returned valid values beginning at `28, 30, 32...`; the same uploaded 33-page lossless PDF was accepted for quote when `pageCount: 30` was used.
 - Gelato's API supports PDF, PNG, TIFF, SVG, and JPEG files; for PDF, use a compatible PDF/X standard where possible.
 - Exact cover/spine dimensions can be requested from Gelato's authenticated cover dimensions/product-template flow. This manual test uses the public/template structure plus an inferred 30-page spine; if the dashboard rejects the cover, download the exact template and regenerate.
 
@@ -582,10 +582,27 @@ Generated Gelato sample files:
 
 | File | Purpose | Verified Size / Structure |
 | --- | --- | --- |
-| `exports/gelato-book-print/output/gelato-8x8-softcover-30-inner-pages-upload.pdf` | Upload candidate for Gelato manual order | 33 pages; page 1 cover spread, pages 2 and 33 blank endpapers, pages 3-32 interiors |
+| `exports/gelato-book-print/output/gelato-8x8-softcover-30-inner-pages-upload.pdf` | Original Gelato manual-order upload | 33 pages; page 1 cover spread, pages 2 and 33 blank endpapers, pages 3-32 interiors; JPEG-compressed PDF export |
+| `exports/gelato-book-print/output/gelato-8x8-softcover-30-inner-pages-lossless-upload.pdf` | Preferred second Gelato proof upload | 33 pages; 160 MB; 33 `/FlateDecode` streams; 0 `/DCTDecode` JPEG streams |
 | `exports/gelato-book-print/output/gelato-8x8-softcover-30-inner-pages-contact-sheet.jpg` | Visual QA contact sheet | Shows page order and repeated source pages |
 | `exports/gelato-book-print/output/gelato-8x8-softcover-30-inner-pages-page-order.tsv` | Page-order reference | Maps PDF pages to source page IDs |
-| `scripts/create-gelato-sample-pdf.sh` | Rebuild script | Uses the Lulu/Prodigi source PNGs, adds `#4F5956` spine, normalizes density metadata |
+| `scripts/create-gelato-sample-pdf.sh` | Rebuild script | Uses the Lulu/Prodigi source PNGs, adds `#4F5956` spine, and emits the preferred lossless PDF |
+| `scripts/pngs-to-lossless-pdf.py` | Lossless PDF packer | Embeds prepared PNG data directly with PDF `/FlateDecode` and PNG predictors |
+| `scripts/gelato-lossless-sample-api.js` | API quote helper | Reads `GELATO_API_KEY` and `GELATO_SAMPLE_*` shipping env vars, quotes the lossless sample, and writes `reports/gelato-lossless-sample-quote.json` locally |
+
+Gelato API helper env vars:
+
+- `GELATO_API_KEY`
+- `GELATO_SAMPLE_FIRST_NAME`
+- `GELATO_SAMPLE_LAST_NAME`
+- `GELATO_SAMPLE_ADDRESS_LINE_1`
+- `GELATO_SAMPLE_ADDRESS_LINE_2` (optional)
+- `GELATO_SAMPLE_CITY`
+- `GELATO_SAMPLE_STATE`
+- `GELATO_SAMPLE_POST_CODE`
+- `GELATO_SAMPLE_COUNTRY` (defaults to `US`)
+- `GELATO_SAMPLE_EMAIL`
+- `GELATO_SAMPLE_PHONE` (optional)
 
 Preflight checks run:
 
