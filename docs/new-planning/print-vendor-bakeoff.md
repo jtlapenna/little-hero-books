@@ -26,10 +26,33 @@ Captured 2026-05-27. Treat this as directional because competitors run promos an
 
 | Competitor | Product / Format Signal | Observed Public Price | Strategic Read |
 | --- | --- | ---: | --- |
-| Wonderbly | Several current personalized children's books list softcover at `$34.99`; some premium hardcover layflat formats list around `$69.99-$74.99`. | `$34.99` softcover baseline | LHL should not default to pricing above Wonderbly for a comparable softcover. A higher LHL price would need a clear reason: faster shipping bundled in, superior personalization, or a materially better physical artifact. |
+| Wonderbly | Several current personalized children's books list softcover at `$34.99`; some premium hardcover layflat formats list around `$69.99-$74.99`. Checkout screenshot also showed a hardcover upsell at `+$30`. | `$34.99` softcover baseline | LHL should not default to pricing above Wonderbly for a comparable softcover. A higher LHL price would need a clear reason: faster shipping bundled in, superior personalization, or a materially better physical artifact. Future hardcover upsell should be considered if the vendor supports it cleanly. |
 | WhataRead | Personalized books observed at 32-36 pages with Wonderbly-like layout/positioning. Softcover examples appear around `$34.99-$39.99`. | `$34.99-$39.99` softcover range | This supports a market band around `$34.99-$39.99`, but not a blank check to exceed Wonderbly. |
 | LHL current launch edition | Lulu 8.5 x 8.5 saddle-stitched launch edition, 15/17-page configured interior depending on channel. | `$22.99` current Amazon pilot | Keep below premium competitors because the artifact is intentionally de-premiumed. |
 | LHL upgraded bound softcover | 30-32-page glue/perfect-bound candidate, depending on winning vendor. | Target `$34.99`; only test `$39.99` when faster shipping is bundled or COGS requires it | `$34.99` is the cleaner Wonderbly-competitive price. `$39.99` is an economics-driven price, not the default brand-positioning price. |
+
+### Wonderbly Checkout / Shipping Benchmark
+
+User checkout screenshot captured 2026-05-27 for a Wonderbly softcover order:
+
+| Checkout Item | Price / Date | Notes |
+| --- | ---: | --- |
+| Softcover subtotal | `$34.99` | Product price before shipping/tax. |
+| Standard shipping | `$9.99` | Estimated delivery: 2026-06-03. Described as reliable delivery by postal carrier. |
+| Express shipping | `$24.99` | Estimated delivery: 2026-06-01. Fully trackable UPS Ground; no PO boxes. |
+| Tax shown on standard checkout | `$2.62` | Screenshot standard-shipping order total was `$47.60`. |
+| Standard all-in before tax | `$44.98` | `$34.99` product + `$9.99` standard shipping. |
+| Express all-in before tax | `$59.98` | `$34.99` product + `$24.99` express shipping. |
+
+Pricing implication: Wonderbly's public softcover anchor is `$34.99`, but the checkout total with standard shipping is about `$45` before tax and `$47.60` in the screenshot after tax. That means an LHL upgraded bound softcover can stay competitive at `$34.99-$39.99` if the price is positioned as shipping-included / free shipping, especially if our default shipping is faster than economy. Prefer testing `free shipping` language rather than a headline price that appears higher than Wonderbly without context.
+
+Possible LHL shipping-price model for upgraded bound book:
+
+| Option | Customer-Facing Model | Strategic Use |
+| --- | --- | --- |
+| Included / Free Standard | `$34.99` all-in if COGS allows, otherwise `$39.99` all-in | Best customer psychology; benchmark against Wonderbly's `$44.98` standard all-in before tax. |
+| Faster Upgrade | Add a paid express upgrade only if vendor API can reliably quote and select the method per order | Mirrors Wonderbly's two-speed checkout and gives urgent gift buyers a choice. |
+| Future Hardcover Upsell | Softcover base + roughly `$25-$30`, if sample quality and COGS support it | Mirrors Wonderbly's format upsell pattern, but should wait for vendor and hardcover sample validation. |
 
 ## Vendor Tracker
 
