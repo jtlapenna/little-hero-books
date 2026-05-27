@@ -103,13 +103,17 @@ for page in "${pages[@]}"; do
   idx=$((idx + 1))
 done
 
-# Normalize density metadata across every assembled page before converting to PDF.
-# Some ImageMagick operations drop units/resolution metadata, which can produce
-# correct-looking images but wrong PDF media boxes during upload preflight.
-magick mogrify -units PixelsPerInch -density 300 "$tmp"/[0-9][0-9][0-9]-*.png
+# Keep the original JPEG-compressed upload artifact unless we explicitly ask to
+# rebuild it. The lossless PDF below is the preferred Gelato retest file.
+if [[ "${CREATE_REFERENCE_JPEG_PDF:-0}" == "1" ]]; then
+  magick "$tmp"/[0-9][0-9][0-9]-*.png -compress JPEG -quality 95 \
+    "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-upload.pdf"
+fi
 
-magick "$tmp"/[0-9][0-9][0-9]-*.png -compress JPEG -quality 95 \
-  "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-upload.pdf"
+python3 scripts/pngs-to-lossless-pdf.py \
+  --dpi 300 \
+  --output "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-lossless-upload.pdf" \
+  "$tmp"/[0-9][0-9][0-9]-*.png
 
 {
   echo -e "pdf_page\trole\tsource"
@@ -129,5 +133,6 @@ magick montage "$tmp"/[0-9][0-9][0-9]-*.png \
 
 echo "Created:"
 echo "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-upload.pdf"
+echo "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-lossless-upload.pdf"
 echo "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-contact-sheet.jpg"
 echo "$OUT_DIR/gelato-8x8-softcover-30-inner-pages-page-order.tsv"
