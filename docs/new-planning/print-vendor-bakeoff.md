@@ -128,6 +128,17 @@ Packaging / packing-slip notes captured 2026-05-27:
 - Gelato first sample packing-slip status is unknown; check again when the Gelato lossless retest arrives.
 - Vendor qualification should explicitly ask whether packing slips, receipts, gift notes, branded inserts, sender name, invoice suppression, and white-label packaging are configurable. For gift books, the ideal package identifies Little Hero Labs without exposing wholesale cost or confusing vendor names.
 
+## Packing Slip / Insert Capability Matrix
+
+Captured 2026-05-27 from our physical samples plus public vendor docs. This should be rechecked with vendor support before choosing the final production partner because insert availability can depend on product, print facility, order method, subscription tier, and API path.
+
+| Vendor | Sample Observation | Public Capability Signal | Do We Need To Explicitly Configure / Ask? | LHL Action |
+| --- | --- | --- | --- | --- |
+| Lulu | Included a receipt/packing slip. | Lulu Print API supports a customizable packing-slip profile in the Developer Portal. The packing slip includes order number, book title/quantity, recipient name/address, and no price information. Logo can be uploaded, but it prints in black and white. If no profile is customized, Lulu uses the billing address as the return address on the label and slip. | Yes, configure once in Lulu Developer Portal. Per-order request should not be needed after profile setup. | If Lulu wins, set Little Hero Labs return address/logo in the packing-slip profile before scaling. Verify that the slip does not use personal billing info. |
+| Prodigi / Peecho | No receipt or packing slip observed in the likely Prodigi/Peecho package. Package had `peecho` reference. | Prodigi supports black-and-white packing slips for free where supported, plus paid full-color slips, postcards, flyers, and stickers. Prodigi says cost prices are never included on delivery notes. Branded inserts are supported across manual orders, integrations, CSV importer, and Print API, but API users need to configure branding sets in the dashboard or send insert details in the API request; if no insert is configured, none is included. | Yes. Do not assume slips are automatic. Need assign a branding set to API orders or pass the branding/insert object, then verify the selected book/facility supports it. | If Prodigi wins, create an LHL branding set with at least a free B&W packing slip. Also ask why this sample had `peecho` on the package and whether that can be suppressed or made less confusing. |
+| RPI Print | No receipt or packing slip observed in the likely RPI package. Package came from `OPENAPI` in Washington. | RPI public self-service API docs do not clearly expose a packing-slip field. RPI's public marketing pages say the custom API can provide custom labeling/packaging, and custom print solutions can attach a gift, marketing piece, or product sample and operate white-label. This may require the Custom API rather than self-service. | Yes, critical. Ask RPI directly whether the self-service API supports packing slips, branded inserts, sender/return address control, and vendor-name suppression. | Treat as unknown for self-service. Do not pick RPI as final until support confirms whether `OPENAPI` packaging/labels can be replaced or hidden for customer shipments. |
+| Gelato | First sample slip status unknown; check again when the lossless retest arrives. | Gelato supports branded inserts and labels through a branded-packaging feature. Public docs describe it as beta/API order-item based and support says packaging inserts/labels are available to Gelato+ customers, including API users. This appears to be an insert/label system, not necessarily a default packing slip. | Yes. Need Gelato+ / feature access and explicit insert/label setup. Also verify availability for the 8 x 8 photo book and US fulfillment route. | If Gelato wins, use a branded insert/gift-note-style card rather than relying on a default packing slip. Confirm whether a regular packing slip appears in the package when the retest arrives. |
+
 ## Shipping Options For Amazon Promise Planning
 
 Captured for Grass Valley, CA `95945` where address-specific data is available. These are quote/configuration signals, not actual shipment outcomes. Use the fulfillment timeline above for what actually happened.
@@ -988,12 +999,15 @@ Suggested weekly scorecard:
 - Lulu Direct Shopify app reviews: https://apps.shopify.com/lulu-direct/reviews
 - Lulu Print API overview: https://www.lulu.com/sell/sell-on-your-site/print-api
 - Lulu Print API file requirements: https://help.api.lulu.com/en/support/solutions/articles/64000254607-what-files-are-required-for-lulu-print-api-production-
+- Lulu Print API packing slips: https://help.api.lulu.com/en/support/solutions/articles/64000279595-what-will-be-printed-on-my-customers-packing-slips-
 - Lulu shipping basics: https://help.lulu.com/en/support/solutions/articles/64000255307-shipping-the-basics
 - Reedsy Lulu review: https://reedsy.com/blog/lulu-publishing/
 - Prodigi docs/API: https://www.prodigi.com/print-api/
 - Prodigi product pages: https://www.prodigi.com/products/photo-books/
 - Prodigi Trustpilot reviews: https://www.trustpilot.com/review/prodigi.com
 - Prodigi API reference: https://www.prodigi.com/print-api/docs/reference/
+- Prodigi packaging FAQ: https://www.prodigi.com/faq/packaging/
+- Prodigi branded packaging inserts: https://www.prodigi.com/branded-packaging-inserts/
 - Prodigi dispatch times: https://support.prodigi.com/hc/en-us/articles/13168885835292-What-are-your-dispatch-times
 - Prodigi shipping FAQ: https://www.prodigi.com/faq/shipping/
 - Prodigi delayed order / processing FAQ: https://support.prodigi.com/hc/en-us/articles/13158253782044-Why-hasn-t-my-order-been-processed-yet
@@ -1005,6 +1019,7 @@ Suggested weekly scorecard:
 - RPI Print API support: https://docs.api.rpiprint.com/support-main
 - RPI Print API terms: https://docs.api.rpiprint.com/terms_and_conditions
 - RPI Print API overview: https://www.rpiprint.com/products-services/print-apis/
+- RPI custom print solutions: https://www.rpiprint.com/products-services/services-custom-print-solutions/
 - Blurb / RPI API page: https://www.blurb.com/print-api-software
 - RPI Print BBB profile: https://www.bbb.org/us/wa/tukwila/profile/stationers/rpi-print-inc-1296-11025813
 - RPI Trustpilot search result: https://fr.trustpilot.com/review/rpiprint.com
@@ -1017,6 +1032,8 @@ Suggested weekly scorecard:
 - Gelato API quote order: https://dashboard.gelato.com/docs/orders/v2/quote/
 - Gelato API create order: https://dashboard.gelato.com/docs/orders/v4/create/
 - Gelato API webhooks: https://dashboard.gelato.com/docs/webhooks/
+- Gelato branded packaging API guide: https://dashboard.gelato.com/docs/guides/branded-packaging-guide/
+- Gelato packaging inserts and labels availability: https://support.gelato.com/en/articles/8996245-are-packaging-inserts-and-branded-labels-available-for-all-dedicated-gelato-integrations-for-the-e-commerce-platforms-shopify-etsy-woocommerce-etc
 - Gelato local production network: https://www.gelato.com/the-power-of-local
 - Gelato production location caveat: https://support.gelato.com/en/articles/8996112-where-is-my-order-produced
 - StationeryHQ pricing/product pages: https://www.stationeryhq.com/pages/pricing-page
