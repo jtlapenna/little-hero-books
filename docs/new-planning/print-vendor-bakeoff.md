@@ -84,6 +84,41 @@ Detailed shipment milestones captured 2026-05-26:
 - Prodigi: shipped 2026-05-18 12:21 from United States; order information received 2026-05-18 15:21; processed in Kansas City, MO on 2026-05-21 22:56; departed Kansas City, MO on 2026-05-22 04:07; arrived San Leandro, CA on 2026-05-26 10:03; departed San Leandro, CA on 2026-05-26 13:44.
 - RPI Print: order successfully received 2026-05-12 01:31:28; assets processed 01:32:04; priced 01:32:05; payment completed 01:33:55; exited holding bin 04:34:24; submitted to printer 04:34:26; printer accepted 04:47:14; shipped 2026-05-16 18:47:24; estimated for 2026-05-26 but not delivered as of the latest update.
 
+## Shipping Options For Amazon Promise Planning
+
+Captured for Grass Valley, CA `95945` where address-specific data is available. These are quote/configuration signals, not actual shipment outcomes. Use the fulfillment timeline above for what actually happened.
+
+| Vendor | Option | Price | Vendor Transit / Delivery Estimate | Handling / Production Assumption | Notes |
+| --- | --- | ---: | --- | --- | --- |
+| Lulu | Mail | $5.69 | 11-15 business days | Included in Lulu quote/estimate | Trackable. Current 32-page sample used this option. |
+| Lulu | Ground Home | $13.74 | 9-13 business days | Included in Lulu quote/estimate | Trackable. |
+| Lulu | Priority Mail | $14.74 | 9-13 business days | Included in Lulu quote/estimate | Trackable. |
+| Lulu | Expedited Shipping | $20.74 | 6-10 business days | Included in Lulu quote/estimate | Trackable. |
+| Lulu | Express Shipping | $35.74 | 5-9 business days | Included in Lulu quote/estimate | Trackable. |
+| RPI Print | Economy | $6.99 confirmed from sample quote | Mail Innovations BPM, 5-7 days after production | RPI dashboard says printing/binding take up to 4-5 business days | Paid sample used this option. RPI estimated delivery `2026-05-26` for the 2026-05-12 order. |
+| RPI Print | Standard | $12.99 confirmed from cancelled quote | FedEx Home Delivery, 5 days after production | RPI dashboard says printing/binding take up to 4-5 business days | Cancelled quote used this option before we recreated the order with Economy. |
+| RPI Print | Express | Unknown for `95945` until quoted in dashboard/API | FedEx 2-day, 2 days after production | RPI dashboard says printing/binding take up to 4-5 business days | Need a non-production price quote or support confirmation before promising this on Amazon. |
+| RPI Print | Priority | Unknown for `95945` until quoted in dashboard/API | FedEx Standard Overnight, 1 day after production | RPI dashboard says printing/binding take up to 4-5 business days | Need a non-production price quote or support confirmation before promising this on Amazon. |
+| Prodigi | Budget | $7.60 user-observed quote | Slower than Standard; no exact public day range found | Product/lab dependent; public docs say most POD dispatch is 1-4 working days | Prodigi says Budget is usually untracked, but US orders are tracked. |
+| Prodigi | Standard | $7.60 user-observed quote | US-to-US standard estimate is 4-6 working days after dispatch; UK/EU-to-US is 10-15 working days | Product/lab dependent; public docs say most POD dispatch is 1-4 working days | Our sample shipped from the United States, so US-to-US standard guidance is the best current estimate. |
+| Prodigi | Express | $20.50 user-observed quote | Courier orders usually arrive within 1-6 working days after dispatch | Product/lab dependent; public docs say most POD dispatch is 1-4 working days | Prodigi describes Express as tracked, fast, premium courier service. |
+| Gelato | USPS Ground Advantage / Economy | $6.99 | 2026-06-01 to 2026-06-02 in dashboard quote | Dashboard estimate appears to include current production queue/timing | Selected for sample order; actual sample shipped much faster than quote. |
+| Gelato | USPS Priority Mail Standard | $8.76 | 2026-05-29 to 2026-06-02 | Dashboard estimate appears to include current production queue/timing | Track as possible mid-tier customer option. |
+| Gelato | UPS Surepost | $13.41 | 2026-06-01 to 2026-06-02 | Dashboard estimate appears to include current production queue/timing | More expensive than USPS Ground with same displayed window in this quote. |
+| Gelato | UPS Ground Residential / Express | $17.28 | 2026-05-29 to 2026-06-01 | Dashboard estimate appears to include current production queue/timing | Potential faster option. |
+| Gelato | UPS 3 Day Select | $23.22 | 2026-06-02 | Dashboard estimate appears to include current production queue/timing | Oddly slower than some cheaper options in this quote; verify before customer-facing promise. |
+| Gelato | UPS 2 Day / Express | $27.29 | 2026-06-01 | Dashboard estimate appears to include current production queue/timing | Verify before customer-facing promise. |
+| Gelato | USPS Priority Mail Express / Express | $27.87 | 2026-05-29 to 2026-06-01 | Dashboard estimate appears to include current production queue/timing | Similar window to UPS Ground Residential in this quote. |
+| Gelato | UPS Next Day Saver / Express | $35.40 | 2026-05-29 | Dashboard estimate appears to include current production queue/timing | Fastest reasonable quote before Next Day Residential. |
+| Gelato | UPS Next Day Residential / Express | $45.72 | 2026-05-29 | Dashboard estimate appears to include current production queue/timing | Fastest and most expensive Gelato option observed. |
+
+Shipping option source notes:
+
+- Lulu options, prices, and delivery windows came from the Lulu quote data provided by John on 2026-05-26.
+- RPI delivery speeds came from the public RPI Print API dashboard delivery timeline and RPI support docs; address-specific Economy and Standard prices came from our actual RPI sample/cancelled quote. RPI support says exact rates are determined by the full shipping address.
+- Prodigi prices came from John's dashboard quote. Prodigi public docs define Budget/Standard/Express/Overnight behavior and give general Standard delivery windows, but do not publish exact Budget/Express day ranges by SKU/address.
+- Gelato options, prices, and delivery windows came from John's Gelato dashboard quote for the 30-page softcover photo book.
+
 ## Print Asset Quality Audit
 
 Audit date: 2026-05-12.
