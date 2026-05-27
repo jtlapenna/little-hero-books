@@ -20,6 +20,17 @@ Goal: find a print path that supports a Wonderbly-like personalized children's b
 - Print: HP Indigo or equivalent high-quality digital color.
 - Fulfillment: one unique book per order, white-label shipping, tracking webhooks or equivalent polling.
 
+## Competitor Pricing Snapshot
+
+Captured 2026-05-27. Treat this as directional because competitors run promos and format-specific pricing changes.
+
+| Competitor | Product / Format Signal | Observed Public Price | Strategic Read |
+| --- | --- | ---: | --- |
+| Wonderbly | Several current personalized children's books list softcover at `$34.99`; some premium hardcover layflat formats list around `$69.99-$74.99`. | `$34.99` softcover baseline | LHL should not default to pricing above Wonderbly for a comparable softcover. A higher LHL price would need a clear reason: faster shipping bundled in, superior personalization, or a materially better physical artifact. |
+| WhataRead | Personalized books observed at 32-36 pages with Wonderbly-like layout/positioning. Softcover examples appear around `$34.99-$39.99`. | `$34.99-$39.99` softcover range | This supports a market band around `$34.99-$39.99`, but not a blank check to exceed Wonderbly. |
+| LHL current launch edition | Lulu 8.5 x 8.5 saddle-stitched launch edition, 15/17-page configured interior depending on channel. | `$22.99` current Amazon pilot | Keep below premium competitors because the artifact is intentionally de-premiumed. |
+| LHL upgraded bound softcover | 30-32-page glue/perfect-bound candidate, depending on winning vendor. | Target `$34.99`; only test `$39.99` when faster shipping is bundled or COGS requires it | `$34.99` is the cleaner Wonderbly-competitive price. `$39.99` is an economics-driven price, not the default brand-positioning price. |
+
 ## Vendor Tracker
 
 | Vendor | Current Signal | Page Count | Est. Landed COGS | API Fit | Status |
@@ -979,3 +990,5 @@ Suggested weekly scorecard:
 - StationeryHQ pricing/product pages: https://www.stationeryhq.com/pages/pricing-page
 - Pureprint Wonderbly case study: https://www.pureprint.com/case-studies/wonderbly/
 - WhataRead: https://whataread.com/
+- Wonderbly current product examples: https://www.wonderbly.com/personalized-products/dared-to-dream-book and https://www.wonderbly.com/personalized-products/my-big-sibling-book/formats
+- WhataRead current product examples: https://whataread.com/products/the-a-to-z-adventure and https://whataread.com/products/the-sleepy-prince-book
