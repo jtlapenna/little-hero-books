@@ -14,6 +14,12 @@ If something in this file conflicts with what you read in code, the *code* wins 
 - **Support:** hello@littleherolabs.com
 - **Founder:** Jeff, Grass Valley, CA. LHL is a small intentional studio, not a corporation.
 
+## Account boundary
+
+This repo is a personal Little Hero Labs project. Use GitHub account `amoeboar` and email `john.s.capogna@gmail.com` for repo work. Do not use the business account `johncapogna` or business email `john@thepeakbeyond.com` here.
+
+This rule is scoped only to Little Hero Labs / `little-hero-books`; do not apply it to unrelated projects.
+
 ---
 
 ## The product — *Finding Our Inner Voice*
