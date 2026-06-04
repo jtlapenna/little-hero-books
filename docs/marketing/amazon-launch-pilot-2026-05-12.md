@@ -7,7 +7,7 @@ Purpose: run a controlled Amazon demand test for the current `Finding Our Inner 
 - Product: `Finding Our Inner Voice`
 - Amazon URL: `https://www.amazon.com/Personalized-Childrens-Self-Discovery-Adventure-Customizable/dp/B0G4QPLWKH`
 - Website: `https://littleherolabs.com/`
-- Current Amazon price: `$22.99`
+- Current Amazon price: `$28.99` with free standard shipping after the 2026-05-29 offer cleanup.
 - Current physical product: launch-edition Lulu softcover, 8.5 x 8.5, 16 pages, saddle-stitch.
 - Ad budget: `$10/day`
 - Initial test window: 7 days or `$75-$100` spend, whichever comes first.
@@ -24,10 +24,35 @@ Purpose: run a controlled Amazon demand test for the current `Finding Our Inner 
 
 - Campaign type: Sponsored Products manual campaign.
 - Budget: `$10/day`.
-- Match types: exact and phrase only.
-- Do not run broad/auto campaigns during the first pilot.
+- Original match types: exact and phrase only.
+- Original plan: do not run broad/auto campaigns during the first pilot. This was superseded by the 2026-05-29 diagnostic update below because exact/phrase targeting received zero impressions after the offer cleanup.
 - Do not change price, listing language, images, or targeting all at once.
 - Use conservative bids and review search terms daily.
+
+### 2026-05-29 Offer / Ads Diagnostic Update
+
+Offer cleanup completed after initial Sponsored Products campaigns received zero impressions:
+
+- Current Amazon price/list price: `$28.99`
+- Shipping: free standard through `LHL Launch Edition - Free Standard`
+- Handling time: 6 business days
+- Seller Central support confirmed ASIN `B0G4QPLWKH` was showing the Amazon Custom `Customize Now` button and winning the Featured Offer.
+
+Current diagnostic campaign:
+
+- `LHL-FOIV-Manual-ExactPhrase-Diagnostic-2026-05-27`
+- Status: campaign, ad group, product ad, and keyword targets all show `Delivering`
+- Current observed issue: zero impressions, zero clicks, zero spend
+
+Because offer/Featured Offer eligibility appears cleaned up, the next diagnostic is ad-target coverage and bid competitiveness, not more offer churn.
+
+Revised test:
+
+- Keep the current exact/phrase campaign active.
+- Raise exact bids toward about `$2.00` and phrase bids toward about `$1.50`, or apply Amazon's suggested bids.
+- Add a broad-match discovery ad group/campaign using the highest-signal Keywords Everywhere terms from `docs/marketing/keywords-everywhere-competitor-research-2026-05-29.md`.
+- Add a separate low-budget product-targeting test against relevant competitor ASINs if the keyword test still does not spend.
+- If exact/phrase/broad/product targeting all remain at zero impressions after 24-48 hours at suggested bids, escalate to Amazon Ads for hidden ASIN-level Sponsored Products serving eligibility review for Amazon Custom / `ABIS_BOOK`.
 
 Primary learning question:
 
@@ -96,6 +121,7 @@ Keywords Everywhere:
 
 - Use for keyword discovery, competitor language, and SEO seed terms.
 - Do not use it as the final source of conversion truth.
+- Latest research artifact: `docs/marketing/keywords-everywhere-competitor-research-2026-05-29.md`.
 
 ## Daily 10-Minute Check
 

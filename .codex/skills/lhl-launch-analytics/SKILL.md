@@ -18,7 +18,7 @@ Current pilot facts:
 
 - Amazon URL: `https://www.amazon.com/Personalized-Childrens-Self-Discovery-Adventure-Customizable/dp/B0G4QPLWKH`
 - Website: `https://littleherolabs.com/`
-- Current price: `$22.99`
+- Current price: `$28.99` with free standard shipping after the 2026-05-29 offer cleanup
 - Current ad budget: `$10/day`
 - Current product: launch-edition Lulu 8.5 x 8.5 softcover, 16 pages.
 - GA4 property: `properties/513268817`

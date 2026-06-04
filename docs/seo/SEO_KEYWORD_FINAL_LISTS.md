@@ -1,6 +1,6 @@
 # Final SEO Keyword Lists - Based on Ahrefs & Semrush Data
 
-**Last Updated**: November 14, 2025  
+**Last Updated**: May 29, 2026  
 **Status**: ✅ Final Lists - Ready for Implementation
 
 ---
@@ -244,6 +244,26 @@ Capture niche searches:
 - Seasonal keywords (Christmas, birthday) should be optimized 2-3 months before peak season
 - Photo/AI keywords represent LHB's unique differentiator - prioritize content creation for these
 
+### 2026-05-29 Keywords Everywhere Refresh
+
+New Keywords Everywhere exports were reviewed in `docs/marketing/keywords-everywhere-competitor-research-2026-05-29.md`.
+
+Important directional updates:
+
+- Keywords Everywhere shows materially higher global volume for core commercial terms than the older Ahrefs/Semrush record:
+  - `custom childrens book`: 18,100 global volume, $0.99 CPC
+  - `personalized childrens book`: 9,900 global volume, $1.06 CPC
+  - `personalized gifts for kids`: 12,000 global volume, $0.87 CPC
+  - `personalized kids book`: 4,600 global volume, $1.13 CPC
+  - `personalized storybook`: 2,400 global volume, $0.66 CPC
+- Competitor page scans repeatedly use `personalized story book`, `personalized books`, `for kids`, `a story about your child`, `baby shower`, `new baby`, and gift language.
+- Theme/benefit terms deserve more attention because they fit `Finding Our Inner Voice` and show meaningful demand:
+  - `childrens book about courage`: 1,300 global volume
+  - `self esteem book for kids`: 590 global volume
+  - `confidence book for kids`: 210 global volume
+
+Action: keep the older Ahrefs/Semrush final list as the SEO baseline, but prioritize this refreshed Keywords Everywhere set for near-term Amazon ad diagnostics and for the next website copy/content refresh.
+
 ---
 
 **Next Steps**:
@@ -252,4 +272,3 @@ Capture niche searches:
 3. ⏳ Create content calendar based on keyword priorities
 4. ⏳ Optimize existing pages for Tier 1 keywords
 5. ⏳ Create new pages for high-opportunity keywords
-
