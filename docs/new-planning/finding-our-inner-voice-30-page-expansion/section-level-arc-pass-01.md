@@ -296,9 +296,10 @@ Recommended ending shape:
 - the outside voices start again
 - the child feels the old tummy flip
 - this time, the child pauses and listens
-- the inner voice says "watch first"
-- after watching, the child listens again
-- the voice offers a gentle next step: "one step," "hold the rail," "you can stop if you need to"
+- the inner voice helps the child notice readiness
+- the child makes space instead of freezing or rushing
+- selected return-scene line: **"You go first. I'm almost ready."**
+- the voice offers a gentle next step: "one breath," "one step," "hold the rail," "you can stop if you need to"
 - the child chooses when ready
 
 The payoff is confidence from listening and choosing, not from performing bravery.

@@ -133,10 +133,10 @@ Recommended ending shape:
 2. Outside voices start again: "Come on!" "It's easy!" "Your turn!"
 3. The child feels the old tummy flip.
 4. This time, the child pauses and listens.
-5. The inner voice does not shout "GO!" or "NO!" It says, "Watch first."
-6. The child watches another kid go down and pop up laughing.
-7. The child listens again.
-8. The next message is specific and gentle: "One step. Hold the rail. You can stop if you need to."
+5. The inner voice does not shout "GO!" or "NO!" It helps the child notice readiness.
+6. The child makes space instead of freezing or rushing.
+7. Selected return-scene line: **"You go first. I'm almost ready."**
+8. The next message is specific and gentle: "one breath," "one step," "hold the rail," "you can stop if you need to."
 9. The child climbs at their own pace, possibly asks someone to wait at the bottom, and chooses when ready.
 10. The payoff is confidence from listening and choosing, not from performing bravery.
 
@@ -145,3 +145,4 @@ Possible kid-facing takeaway lines:
 - "My brave doesn't have to be fast."
 - "I can listen, then choose."
 - "First I watched. Then I knew."
+- "You go first. I'm almost ready."
