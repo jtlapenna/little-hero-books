@@ -47,9 +47,17 @@ The longer version can explore:
 - developing a strong bond or relationship with the trusted inner voice
 - the ongoing effects of having that strong relationship with the inner voice
 
-### Control generation cost
+### Story first, asset reuse second
 
-The expansion should minimize new unique child poses. Prefer reusing current poses, child-off-page scenes, animal-guide-only scenes, and interactive/end-matter pages unless a new child pose is truly worth the cost.
+The expansion should still be mindful of new unique child poses and background generation cost, but the next story pass should not be organized around saving assets.
+
+Current decision:
+
+- first create the correct 30-page story and lesson sequence
+- then compare the ideal story visuals against existing poses/backgrounds
+- reuse, crop, modify, or generate new assets only after the story logic is strong
+
+Asset savings are useful only when they do not weaken the book.
 
 ## Open Brainstorm Areas
 
@@ -79,15 +87,26 @@ This lets the story include multiple brainstorm ideas while keeping one throughl
 
 The focus is not "here are six lessons." The focus is: the child is learning what their inner voice sounds like.
 
-Possible emotional progression:
+Current dream-arc lesson spine:
 
-1. Discover: "Wait, what is that little voice?"
-2. Follow: "Maybe it knows something."
-3. Confuse: "But now there are too many voices."
-4. Untangle: "This mean/scared voice is trying to tell me something."
-5. Trust: "I can choose the quiet true feeling."
-6. Bond: "This voice is mine, and it has been helping me all along."
-7. Return: "I know how to find it again."
+1. Remember / Notice: the child is home, safe, and quiet enough to remember the slide feeling and hear a small voice underneath the noise from the day.
+2. Pause / Breathe / Listen: when the child pauses and breathes, the small voice gets clearer and the world begins to respond.
+3. Follow: once the voice is clearer, the child can follow it; the unseen animal voice may speak directly before the animal is revealed.
+4. Distinguish: the child learns it can be hard to hear the inner voice when many other voices are talking.
+5. Untangle: the child learns that fear or self-criticism may be the inner voice with worry wrapped around it.
+6. Trust / Practice: the child faces a dream version of the slide feeling and chooses one small next step from the quiet true voice.
+7. Joy / Confidence: after listening and choosing, the child feels lighter and more confident.
+8. Bond / Reveal: the animal appears, and the child understands it has been helping them hear what was already inside.
+
+The important refinement is that Trust / Practice comes before Joy / Confidence. Confidence is the result of listening and choosing, not a sudden lesson the child receives.
+
+Possible animal/voice lines:
+
+- "Oh, you can hear me now."
+- "I am easier to hear when things get quiet."
+- "Sometimes it is hard to hear me when everybody talks at once."
+- "Sometimes I sound confusing when fear gets wrapped around me."
+- "I was not telling you what to do. I was helping you hear you."
 
 ## Selected Real-World Setup
 

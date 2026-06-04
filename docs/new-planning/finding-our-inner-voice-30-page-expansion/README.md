@@ -23,10 +23,14 @@ This folder is for brainstorming and planning the expanded version of *Finding O
 - Original page fit audit: `original-page-fit-audit-2026-06-03.md`
 - Section-level arc pass 01: `section-level-arc-pass-01.md`
 - Bookends pass 01: `bookends-pass-01.md`
+- Dream arc lesson spine pass 01: `dream-arc-lesson-spine-pass-01.md`
+- Dream arc beat map pass 01: `dream-arc-beat-map-pass-01.md`
+- Full book beat map, 30-page pass 01: `full-book-beat-map-30-page-pass-01.md`
 - Asset / page map pass 01: `asset-page-map-pass-01.md`
 - Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
 - Visual wireframe pass 01: `visual-wireframe-pass-01.html`
 - Visual wireframe pass 02: `visual-wireframe-pass-02.html`
+- Wireframe notes review: `wireframe-notes-review-2026-06-04.md`
 - Jeff's feedback: `drafts/jeff-feedback-on-partner-drafts-2026-06-03.md`
 - Working notes and creative principles: `working-notes.md`
 

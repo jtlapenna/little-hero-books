@@ -25,12 +25,12 @@ The child faces a scary-but-possibly-fun playground moment, hears too many outsi
 | Section | Approx. Page Budget | Story Function | Inner-Voice Function | Current Asset Fit |
 | --- | ---: | --- | --- | --- |
 | 1. Real-world setup | 3-4 | Child faces the playground challenge and gets overwhelmed | Establishes the need for an inner voice | likely new real-world pages |
-| 2. Bedtime/tangled feelings | 2 | Child carries the feeling home and into bed | Names the mixed-up feeling without overexplaining | current page 1 can be rewritten |
-| 3. Dream threshold | 3 | Quiet voice appears, night path and door invite a first choice | Discover and follow | current pages 2-4 |
-| 4. First animal clues | 3 | Tracks, almost-sounds, funny hints suggest someone is nearby | Builds trust through curiosity | current page 5 plus new clue beats |
+| 2. Safe quiet remembering | 1-2 | Child carries the slide feeling home and can finally feel it in a quiet place | Remember / Notice: clarity starts when the child is safe and calm enough to hear | likely new or revised bedroom page |
+| 3. Pause / breath / listen threshold | 2-3 | The small voice gets clearer; the room, glow, door, or path responds | Pause / Breathe / Listen: quiet makes the voice easier to hear | current pages 2-4 can be rewritten |
+| 4. Follow the unseen voice | 2-3 | The child follows the now-clearer voice; animal clues and almost-moments begin | Follow: trust builds through movement and curiosity | current page 5 plus new clue beats |
 | 5. Too-many-voices confusion | 3-4 | Stars/signs/wind/echoes give competing advice | Distinguish the quiet true voice from loud voices | current star/forest/vista assets can be repurposed |
 | 6. Fear and warbled voice | 4 | Cave or dark passage distorts the voice into "I can't" | Untangle fear/self-criticism from the message underneath | current cave asset is strong |
-| 7. Trust-your-gut choice | 2-3 | Child chooses one small step, quiet path, or "not yet" | Trust becomes active | may need new fork/choice visual or reuse door/path |
+| 7. Trust / practice | 2-3 | Child faces a dream version of the slide feeling and chooses one small next step | Trust becomes active before confidence arrives | likely needs a strong story-first visual decision |
 | 8. Joy and confidence | 2-3 | The body lightens; running/wonder returns | Listening creates confidence, not forced bravery | current run/flowers/vista assets |
 | 9. Animal reveal and bond | 3-4 | Animal appears and earlier clues click into place | Inner voice becomes relationship | current reveal/flying assets |
 | 10. Return-home payoff | 2-3 | Child returns to playground moment and chooses well | Shows ongoing effect in real life | likely new real-world page |
@@ -66,41 +66,41 @@ Selected playground object:
 
 The working object is a tall slide because it is visual, universal for ages 3-7, easy to return to at the end, and simple enough for the story to focus on the child's inner decision rather than the mechanics of the challenge.
 
-### 2. Bedtime / tangled feelings
+### 2. Safe quiet remembering
 
 Story job:
 
-The child is home, but the playground feeling is still there. The day is over, but the inside feeling is not.
+The child is home, but the playground feeling is still there. The day is over, the room is quiet, and the child is safe enough to feel what happened.
 
 Inner-voice job:
 
-Introduce the idea that feelings can stay tangled after an event, and that listening starts before the child understands what the feeling means.
+Introduce the idea that clarity often comes after the loud moment has passed. The child can finally hear a small voice underneath the noise from the day.
 
 Possible image/page fit:
 
-Current bedtime/dream-walk material can be rewritten here. This section should not start with "let's take a dream-walk" too quickly. It should show the child carrying the playground moment inside.
+Current bedtime/dream-walk material can be rewritten here. This section should not start with "let's take a dream-walk" too quickly. It should show the child carrying the playground moment inside and noticing the first tiny voice.
 
 Kid-language possibilities:
 
 - "The slide was not in the room. But it still felt big."
 - "The loud voices were gone. But they were still bumping around in the child's head."
-- "Under the blankets, the child heard one tiny sound: not outside, not loud, but there."
+- "Under all of that, the child heard one tiny sound: not outside, not loud, but there."
 
-### 3. Dream threshold
+### 3. Pause / breath / listen threshold
 
 Story job:
 
-The quiet voice invites the child onto a night path. The child does not yet know whose voice it is.
+The child pauses, breathes, and listens. The small voice becomes clearer. The room, glow, door, or path responds because the child has made enough quiet to hear.
 
 Inner-voice job:
 
-Discover: "There is a small voice worth noticing."
+Pause / Breathe / Listen: "The voice gets easier to hear when I slow down."
 
 Current page fit:
 
-- current page 2 night forest can become the first listening moment
-- current page 3 glowing door can become the first choice
-- current page 4 stars can become the first rule of the dream world
+- current page 2 night forest may move later if the bedroom needs a stronger threshold
+- current page 3 glowing door can become the first clear response to listening
+- current page 4 stars can become the breath-response page
 
 Kid-language shift:
 
@@ -109,12 +109,13 @@ Avoid "new worlds whisper back" unless paired with concrete action. The child sh
 - a star blinks when the child breathes
 - the path appears only when the child stops running
 - the quiet door opens when the child listens
+- the tiny voice says, "Oh, you can hear me now."
 
-### 4. First animal clues
+### 4. Follow the unseen voice
 
 Story job:
 
-Something or someone is clearly helping, but the child cannot see who.
+Once the voice is clearer, the child can follow it. Something or someone is clearly helping, but the child cannot see who.
 
 Inner-voice job:
 
@@ -124,12 +125,20 @@ Current page fit:
 
 Current animal-tracks page is very important, but should become part of a sequence rather than the only clue.
 
+The animal voice can speak before the animal is revealed. This gives the dream a relationship before the reveal and lets the voice explain child-sized ideas in simple lines.
+
 Possible beats:
 
 - a pawprint/feather/fur/claw mark appears beside the path
 - a bush sneezes, wiggles, or says "oops"
 - a tail or shadow disappears just before the child looks
 - a helpful clue appears exactly when the child pauses
+
+Possible animal/voice lines:
+
+- "Oh, you can hear me now."
+- "This way, but slowly."
+- "I am easier to hear when things get quiet."
 
 Kid-language/humor possibilities:
 
@@ -161,6 +170,10 @@ Important nuance:
 
 Some advice may be good in the wrong moment. The point is not that outside voices are bad. The point is that the child needs a way to hear themselves inside the noise.
 
+Possible animal/voice line:
+
+- "Sometimes it is hard to hear me when everybody talks at once."
+
 Asset strategy:
 
 This section can support no-child or low-pose-cost pages:
@@ -187,6 +200,10 @@ Possible child-facing version:
 - The child pauses and listens again.
 - Underneath, the message is smaller: "I'm scared. Please go slow."
 
+Possible animal/voice line:
+
+- "Sometimes I sound confusing when fear gets wrapped around me."
+
 This is the emotional core of the book.
 
 Current page fit:
@@ -200,11 +217,11 @@ Kid-language possibilities:
 - "The child did not yell at the scared voice. The child listened underneath it."
 - "'Oh,' said the child. 'You are not mean. You are worried.'"
 
-### 7. Trust-your-gut choice
+### 7. Trust / practice
 
 Story job:
 
-The child faces an active choice. This should not be another lesson page. The child must choose based on the quieter true feeling.
+The child faces a dream version of the slide feeling: a high bridge, glowing step, moon-slide, rail path, or other height/choice moment. This should not be another lesson page. The child must choose based on the quieter true feeling.
 
 Inner-voice job:
 
@@ -222,6 +239,10 @@ Important message:
 
 The brave answer does not always have to be "go." It may be "one step," "go slow," "hold a hand," or "not yet."
 
+Important distinction:
+
+This is the scene where confidence starts. It is not the full confidence payoff yet.
+
 ### 8. Joy and confidence
 
 Story job:
@@ -237,6 +258,7 @@ Current page fit:
 - running page can show joy after a choice
 - vista page can show relief/perspective
 - giant flowers can become a funny/wonder payoff instead of an abstract growth lesson
+- the lunch/sandwich scene can return if it shows body-listening or inner-signal confidence rather than becoming a random detour
 
 Kid-language possibilities:
 
@@ -325,8 +347,10 @@ Keep these after the story, not as a substitute for story movement.
 2. Does the child return to the same playground physically, or wake up with a clear plan for next time?
 3. How much direct dialogue should other kids have?
 4. How playful should the animal-guide clues be before reveal?
-5. What is the central trust choice in the dream: quiet path, shiny shortcut, bridge, cave, or another form?
-6. How many pages should be true end matter versus narrative?
+5. How early should the animal voice speak directly before the visual reveal?
+6. What is the best visual form of the Trust / Practice scene: bridge, moon-slide, glowing step, rail path, or another dream mirror of the slide?
+7. Where, if anywhere, does the lunch/sandwich body-listening scene fit without becoming a detour?
+8. How many pages should be true end matter versus narrative?
 
 ## Current Best Recommendation
 
