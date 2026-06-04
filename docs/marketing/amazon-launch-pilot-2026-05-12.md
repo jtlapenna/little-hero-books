@@ -36,7 +36,7 @@ Offer cleanup completed after initial Sponsored Products campaigns received zero
 - Current Amazon price/list price: `$28.99`
 - Shipping: free standard through `LHL Launch Edition - Free Standard`
 - Handling time: 6 business days
-- Seller Central support confirmed ASIN `B0G4QPLWKH` was showing the Amazon Custom `Customize Now` button and winning the Featured Offer.
+- Seller Central support initially confirmed ASIN `B0G4QPLWKH` was showing the Amazon Custom `Customize Now` button and winning the Featured Offer. Later support messages contradicted this by saying the canonical ASIN page may not consistently present the Offer Display / Featured Offer. Treat Featured Offer / buyability as the unresolved gate until Sponsored Products impressions actually appear.
 
 Current diagnostic campaign:
 
@@ -44,7 +44,7 @@ Current diagnostic campaign:
 - Status: campaign, ad group, product ad, and keyword targets all show `Delivering`
 - Current observed issue: zero impressions, zero clicks, zero spend
 
-Because offer/Featured Offer eligibility appears cleaned up, the next diagnostic is ad-target coverage and bid competitiveness, not more offer churn.
+Because offer cleanup has already been attempted, the next diagnostic is whether the ASIN can actually serve ads after the Amazon backend refresh and campaign-structure changes. Do not churn the offer repeatedly while this is being tested.
 
 Revised test:
 
@@ -53,6 +53,41 @@ Revised test:
 - Add a broad-match discovery ad group/campaign using the highest-signal Keywords Everywhere terms from `docs/marketing/keywords-everywhere-competitor-research-2026-05-29.md`.
 - Add a separate low-budget product-targeting test against relevant competitor ASINs if the keyword test still does not spend.
 - If exact/phrase/broad/product targeting all remain at zero impressions after 24-48 hours at suggested bids, escalate to Amazon Ads for hidden ASIN-level Sponsored Products serving eligibility review for Amazon Custom / `ABIS_BOOK`.
+
+### 2026-06-04 Post-Hurdle PPC Growth Strategy
+
+Do not apply advanced PPC optimization until the no-impression hurdle is cleared. The current gate is still basic ad serving:
+
+- ASIN `B0G4QPLWKH` must receive Sponsored Products impressions.
+- The canonical product page must reliably present the Amazon Custom purchase path, ideally `Customize Now` from the main detail page.
+- Amazon Ads and Seller Central must no longer contradict each other about Featured Offer / Offer Display eligibility.
+
+After impressions begin, adopt a lightweight version of the Sophie Society-style PPC playbook researched on 2026-06-04. Treat this as a framework, not a paid-service decision.
+
+Source pages reviewed:
+
+- `https://ppctraining.sophiesociety.com/dtv3/`
+- `https://www.sophiesociety.com/`
+- `https://training.sophiesociety.com/optin1692363239189`
+- `https://ppcchecklist.sophiesociety.com/`
+- `https://advertising.amazon.com/library/guides/new-advertiser-success-guide/`
+
+Useful concepts to adapt:
+
+- Lifecycle-based PPC: run different tactics for launch validation, search-term discovery, ranking, and profit optimization. LHL is currently in launch validation, not scale/profit mode.
+- PPC data loop: daily checks for spend/impressions/clicks/search terms; weekly review for keyword graduation, negatives, bid changes, and creative/listing issues; monthly review for bigger structure changes.
+- Hidden audience segments: use product targeting and category/competitor placements, not only keyword targeting. For LHL, this means a separate low-budget Wonderbly / Dinkleboo / I See Me / Hooray Heroes product-targeting test after basic serving works.
+- Lean ad methods: keep a small set of high-intent targets that can produce relevant traffic even if volume is lower. Do not chase scale before the product and offer prove stable.
+- Competitor traffic strategy: let broad/product-targeting discover where personalized-book shoppers are already browsing, then graduate only useful search terms into exact/phrase.
+- Creative feedback loop: if impressions arrive but CTR is weak, fix main image/title/offer presentation before adding more keywords.
+
+Operational guardrails:
+
+- Keep one active ad group structure per target set to avoid Amazon de-duplication confusion.
+- Keep broad discovery, exact/phrase performance, and product targeting separated so reports remain readable.
+- Do not use competitor names in Amazon listing copy. Competitor names can be used cautiously in ads and DTC comparison content only.
+- Do not raise budget materially until the upgraded print path, handling time, and review-risk rules are stable.
+- If impressions begin but clicks remain weak, prioritize listing image/title/price/handling-time changes over bid escalation.
 
 Primary learning question:
 

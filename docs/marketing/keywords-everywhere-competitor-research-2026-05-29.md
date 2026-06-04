@@ -86,12 +86,12 @@ Amazon competitor page additions:
 
 Current issue: Amazon Ads and Seller Central show the Sponsored Products campaign, ad group, product, and keyword targets as `Delivering`, but there are still zero impressions.
 
-Do not change the offer again yet. The offer cleanup is already in place:
+Do not change the offer again yet while the Amazon Ads backend refresh / 72-hour waiting window is active. The offer cleanup attempt is already in place:
 
 - Price/list price: `$28.99`
 - Shipping: free standard through `LHL Launch Edition - Free Standard`
 - Handling time: 6 business days
-- Listing path: Amazon Custom `Customize Now` button has been confirmed by Seller Central support
+- Listing path: Amazon Custom `Customize Now` has been confirmed on some URLs, but Amazon support has given conflicting guidance about whether the canonical ASIN page consistently wins Offer Display / Featured Offer
 
 Next controlled ad change:
 
@@ -155,6 +155,67 @@ Decision rule:
 - If exact/phrase/broad/product targeting still get zero impressions after 24-48 hours at suggested bids, escalate to Amazon Ads again with Seller Central case context and ask for hidden ASIN-level Sponsored Products serving eligibility review for Amazon Custom / `ABIS_BOOK` ASIN `B0G4QPLWKH`.
 - If broad/auto gets impressions but exact/phrase does not, the issue is keyword coverage/search volume, not ASIN eligibility.
 - If impressions arrive but CTR is weak, the next test should be main image/title/offer presentation, not more keyword expansion.
+
+## Sophie Society PPC Research Overlay - 2026-06-04
+
+Purpose: capture useful takeaways from the Sophie Society PPC landing pages and free training without turning them into an immediate buying decision.
+
+Sources reviewed:
+
+- `https://ppctraining.sophiesociety.com/dtv3/`
+- `https://www.sophiesociety.com/`
+- `https://training.sophiesociety.com/optin1692363239189`
+- `https://ppcchecklist.sophiesociety.com/`
+
+Important caveat:
+
+- Sophie Society appears primarily oriented toward active Amazon physical-product sellers and PPC management clients. Their checklist page explicitly says "No Authors or Book Sellers." LHL is a physical Amazon Custom book product, so the strategic ideas may be useful, but the playbook should be adapted cautiously and only after Amazon starts serving impressions.
+
+Useful concepts to adapt after impressions start:
+
+1. Lifecycle-based PPC
+   - Launch validation: prove the ASIN can serve and shoppers click.
+   - Discovery: use broad/product targeting to learn search terms and adjacent shopping paths.
+   - Performance: graduate converting or highly relevant search terms into exact/phrase.
+   - Profit optimization: only after there is enough click/order data to evaluate ACoS, TACoS, and unit economics.
+
+2. Amazon PPC data loop
+   - Daily: check spend, impressions, clicks, CPC, CTR, and search terms that spent.
+   - Weekly: add obvious negative keywords, adjust bids, graduate promising search terms, and review placement performance.
+   - Monthly: make bigger structure decisions, such as separating winners into performance campaigns or changing creative/listing assets.
+
+3. Hidden audience / product targeting
+   - Do not rely only on keyword targeting.
+   - Run a separate low-budget product-targeting test against relevant personalized-book ASINs and stores.
+   - Keep product targeting separate from keyword campaigns so a product-page click does not get mistaken for keyword demand.
+
+4. Lean ad methods
+   - A low-volume target can still be worth keeping if traffic is relevant and economics are sane.
+   - For LHL, this favors terms like `self esteem book for kids`, `confidence book for kids`, and `childrens book about courage` even if they are smaller than the core personalized-book terms.
+
+5. Competitor traffic strategy
+   - Use competitor pages to learn where personalized-book shoppers already browse.
+   - Cautiously test competitor ASIN product targeting before competitor brand keywords.
+   - Do not use competitor names in Amazon listing copy. If we later create DTC comparison pages, keep them factual, fair, and reviewable.
+
+6. Creative/listing feedback
+   - If impressions arrive but CTR is weak, treat image/title/price/review/handling-time presentation as the bottleneck.
+   - Do not keep expanding keywords if the ad creative is not earning clicks.
+
+Post-hurdle campaign structure:
+
+| Phase | Campaign / Ad Group | Purpose | Budget Guidance |
+| --- | --- | --- | --- |
+| 1 | Exact/Phrase Core | Test the highest-intent known terms cleanly | Keep within pilot cap |
+| 2 | Broad Discovery Core | Discover close variants and real shopper language | Small budget until relevance proven |
+| 3 | Product Targeting | Test competitor/adjacent product-page traffic | `$3-$5/day` separate from keywords |
+| 4 | Performance Exact | Graduate proven search terms from broad/product reports | Scale only after clicks/orders justify it |
+
+Search terms that show relevance in ads should feed three places:
+
+- Amazon exact/phrase performance targets.
+- Website SEO clusters in `docs/seo/SEO_KEYWORD_STRATEGY.md`.
+- Outreach language for gift guides, kidlit reviewers, educators, and parent creators.
 
 ## Website / SEO Implications
 

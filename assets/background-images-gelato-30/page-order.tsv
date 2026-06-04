@@ -1,0 +1,31 @@
+page	final_file	source_type	source_file	notes
+1	gelato-p01-dedication.jpeg	existing	assets/background-images-new-texture/page00-dedication.jpeg	dedication page; original is 2048x2048
+2	gelato-p02-twilight-walk.jpg	existing	assets/background-images-new-texture/page01-twilight-walk.jpg	existing child pose page
+3	gelato-p03-star-windowsill.jpg	new	assets/background-images-new-texture/New Images/finals/p03-star-windowsill.jpg	background only
+4	gelato-p04-night-forest.jpeg	existing	assets/background-images-new-texture/page02-night-forest.jpeg	existing child pose page
+5	gelato-p05-listening-stones.jpg	new	assets/background-images-new-texture/New Images/finals/p05-listening-stones.jpg	background only
+6	gelato-p06-magic-doorway.jpeg	existing	assets/background-images-new-texture/page03-magic-doorway.jpeg	existing child pose page
+7	gelato-p07-brave-threshold.jpg	new	assets/background-images-new-texture/New Images/finals/p07-brave-threshold.jpg	background only
+8	gelato-p08-courage-leap.jpeg	existing	assets/background-images-new-texture/page04-courage-leap.jpeg	existing child pose page
+9	gelato-p09-constellation-steps.jpg	new	assets/background-images-new-texture/New Images/finals/p09-constellation-steps.jpg	background only
+10	gelato-p10-morning-meadow.jpeg	existing	assets/background-images-new-texture/page05-morning-meadow.jpeg	existing child pose page; animal trail overlay behavior
+11	gelato-p11-dew-trail-trees.jpg	new	assets/background-images-new-texture/New Images/finals/p11-dew-trail-trees.jpg	background only
+12	gelato-p12-tall-forest.jpg	existing	assets/background-images-new-texture/page06-tall-forest.jpg	existing child pose page
+13	gelato-p13-mountain-vista.jpg	existing	assets/background-images-new-texture/page07-mountain-vista.jpg	existing child pose page
+14	gelato-p14-quiet-lookout.jpg	new	assets/background-images-new-texture/New Images/finals/p14-quiet-lookout.jpg	background only
+15	gelato-p15-picnic-surprise.jpg	existing	assets/background-images-new-texture/page08-picnic-surprise.jpg	existing child pose page
+16	gelato-p16-beach-discovery.jpg	existing	assets/background-images-new-texture/page09-beach-discovery.jpg	existing child pose page
+17	gelato-p17-shell-hum-sand.jpg	new	assets/background-images-new-texture/New Images/finals/p17-shell-hum-sand.jpg	background only
+18	gelato-p18-crystal-cave.jpg	existing	assets/background-images-new-texture/page10-crystal-cave.jpg	existing child pose page
+19	gelato-p19-silver-cave-echo.jpg	new	assets/background-images-new-texture/New Images/finals/p19-silver-cave-echo.jpg	background only
+20	gelato-p20-giant-flowers.jpg	existing	assets/background-images-new-texture/page11-giant-flowers.jpg	existing child pose page
+21	gelato-p21-flower-trail-clear.jpg	new	assets/background-images-new-texture/New Images/finals/p21-flower-trail-clear.jpg	background only
+22	gelato-p22-almost-there.jpg	existing	assets/background-images-new-texture/page12-almost-there.jpg	existing child pose page
+23	gelato-p23-circle-warm-light.jpg	new	assets/background-images-new-texture/New Images/finals/p23-circle-warm-light.jpg	background only
+24	gelato-p24-animal-reveal.jpg	existing	assets/background-images-new-texture/page13-animal-reveal.jpg	selected animal overlay page
+25	gelato-p25-realization-light.jpg	new	assets/background-images-new-texture/New Images/finals/p25-realization-light.jpg	background only; optional selected animal overlay
+26	gelato-p26-flying-home.jpg	existing	assets/background-images-new-texture/page14-flying-home.jpg	existing child + selected animal overlay page
+27	gelato-p27-homecoming-glow.jpg	new	assets/background-images-new-texture/New Images/finals/p27-homecoming-glow.jpg	background only
+28	gelato-p28-spiral-activity-left.jpg	new	assets/background-images-new-texture/New Images/finals/p28-p29-spiral-activity-spread-master.jpg	left half split from cropped square spread master
+29	gelato-p29-spiral-activity-right.jpg	new	assets/background-images-new-texture/New Images/finals/p28-p29-spiral-activity-spread-master.jpg	right half split from cropped square spread master
+30	gelato-p30-credits.jpg	new	assets/background-images-new-texture/New Images/finals/p30-credits.jpg	credits / made-for page

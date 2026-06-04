@@ -157,6 +157,35 @@ These are the highest-priority keywords to track in Ahrefs Rank Tracker. **Actua
 
 ---
 
+## 2026-06-04 Amazon PPC to SEO Feedback Loop
+
+Once ASIN `B0G4QPLWKH` clears the current zero-impression / Featured Offer serving hurdle, Amazon Ads search-term data should become an input into SEO and DTC content planning.
+
+Do not treat Amazon PPC data as SEO proof by itself, but do use it as high-intent language evidence:
+
+- Search terms with impressions but weak CTR may indicate listing-title/image/offer mismatch.
+- Search terms with clicks and no orders may indicate weak product fit, pricing, or detail-page persuasion.
+- Search terms with clicks/orders should be promoted into exact/phrase ad targets and considered for site copy.
+- Search terms that are relevant but too low-volume for ads may still be good long-tail SEO or outreach language.
+
+Paid-learning clusters to watch after ads serve:
+
+| Cluster | Example Terms | SEO Use |
+| --- | --- | --- |
+| Core personalized book | `personalized children's book`, `custom childrens book`, `personalized kids book`, `personalized storybook` | Homepage and book product page copy |
+| Gift intent | `personalized gifts for kids`, `personalized birthday book`, `birthday gift for 3 year old` | Gift sections, seasonal landing pages, creator outreach |
+| Confidence / self-esteem | `self esteem book for kids`, `confidence book for kids`, `childrens book about courage` | Theme page or article for `Finding Our Inner Voice` |
+| Differentiator | `book where child is the hero`, `story about your child`, `book with childs name` | Product differentiation and FAQ language |
+| Competitor / alternatives | `Wonderbly alternative`, `I See Me alternative`, similar competitor-adjacent language | DTC comparison content only; do not use competitor names in Amazon listing copy |
+
+Sophie Society research note:
+
+- 2026-06-04 review of Sophie Society PPC pages emphasized lifecycle-based PPC, daily/weekly/monthly PPC optimization loops, product targeting beyond keywords, lean high-intent targets, and creative/listing feedback when CTR is weak.
+- Adapt these ideas after Amazon starts serving impressions. Until then, the blocker is ad serving / Featured Offer / Amazon Custom buyability, not SEO or keyword depth.
+- Keep PPC, SEO, and outreach connected: Amazon search terms inform DTC copy; DTC/GSC terms inform future Amazon broad tests; outreach language should mirror the highest-intent phrases that actual shoppers use.
+
+---
+
 ## 🏆 10 Competitor Sites for Comparison
 
 These competitors should be tracked in Ahrefs for keyword gap analysis and competitive intelligence.
@@ -358,4 +387,3 @@ This document should be updated:
 
 **Last Review Date**: [To be updated]  
 **Next Review Date**: [To be updated]
-
