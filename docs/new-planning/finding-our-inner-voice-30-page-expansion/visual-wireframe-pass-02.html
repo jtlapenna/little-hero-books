@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finding Our Inner Voice - Visual Wireframe Pass 02</title>
+    <style>
+      :root {
+        --ink: #1f2328;
+        --muted: #68707a;
+        --line: #d7dce2;
+        --paper: #f5f1e8;
+        --card: #fffdf8;
+        --existing: #dff1e3;
+        --existing-ink: #1d6b37;
+        --new: #e4ecff;
+        --new-ink: #315fbd;
+        --conditional: #fff0cf;
+        --conditional-ink: #8a5b00;
+        --none: #efefef;
+        --animal: #f1e3ff;
+        --animal-ink: #6e3da5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.35;
+      }
+
+      header,
+      main,
+      .counts,
+      .legend,
+      .note-actions {
+        max-width: 1640px;
+        margin: 0 auto;
+        padding-left: 28px;
+        padding-right: 28px;
+      }
+
+      header {
+        padding-top: 32px;
+        padding-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 34px;
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 980px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .counts {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        padding-top: 8px;
+        padding-bottom: 18px;
+      }
+
+      .count {
+        min-height: 86px;
+        padding: 14px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+
+      .count strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 26px;
+        line-height: 1;
+      }
+
+      .count span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 24px;
+      }
+
+      .note-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 24px;
+      }
+
+      .note-actions button,
+      .note-actions label {
+        min-height: 34px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .note-actions button:hover,
+      .note-actions label:hover {
+        background: #f8fafc;
+      }
+
+      .note-actions input[type="file"] {
+        display: none;
+      }
+
+      .note-status {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .bg-existing,
+      .pose-existing {
+        background: var(--existing);
+        color: var(--existing-ink);
+      }
+
+      .bg-new,
+      .pose-new {
+        background: var(--new);
+        color: var(--new-ink);
+      }
+
+      .bg-conditional,
+      .pose-conditional {
+        background: var(--conditional);
+        color: var(--conditional-ink);
+      }
+
+      .pose-none {
+        background: var(--none);
+        color: #53575d;
+      }
+
+      .animal {
+        background: var(--animal);
+        color: var(--animal-ink);
+      }
+
+      main {
+        padding-bottom: 44px;
+      }
+
+      .spread-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+      }
+
+      .spread {
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
+      .spread-title {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .page-card {
+        min-height: 372px;
+        overflow: hidden;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .page-card.bg-existing-border {
+        border-top: 7px solid #58aa6d;
+      }
+
+      .page-card.bg-new-border {
+        border-top: 7px solid #668ce3;
+      }
+
+      .page-card.bg-conditional-border {
+        border-top: 7px solid #dbad37;
+      }
+
+      .visual {
+        position: relative;
+        height: 190px;
+        overflow: hidden;
+        background: #eef2f6;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .visual.has-image {
+        background-position: center;
+        background-size: cover;
+      }
+
+      .visual.has-image::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.18));
+      }
+
+      .visual::after {
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border: 1px dashed rgba(255, 255, 255, 0.55);
+        border-radius: 8px;
+        pointer-events: none;
+      }
+
+      .page-body {
+        padding: 11px;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+      }
+
+      .page-num {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      h3 {
+        margin: 4px 0 6px;
+        font-size: 15px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .page-body p {
+        margin: 0 0 10px;
+        color: #3f444b;
+        font-size: 12px;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: auto;
+      }
+
+      .note-field {
+        margin-top: 10px;
+      }
+
+      .note-field label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .page-note {
+        display: block;
+        width: 100%;
+        min-height: 64px;
+        resize: vertical;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .page-note:focus {
+        outline: 2px solid rgba(102, 140, 227, 0.35);
+        outline-offset: 1px;
+      }
+
+      .scene-park {
+        background:
+          radial-gradient(circle at 18% 18%, #fff9b7 0 10%, transparent 11%),
+          linear-gradient(#a9dcff 0 52%, #9cd27f 53% 100%);
+      }
+
+      .scene-slide-pov {
+        background:
+          linear-gradient(155deg, transparent 0 34%, #f0a94c 35% 44%, transparent 45%),
+          linear-gradient(#a8ddff 0 46%, #88ca72 47% 100%);
+      }
+
+      .scene-bedroom {
+        background:
+          radial-gradient(circle at 72% 20%, #fff7ae 0 5%, transparent 6%),
+          linear-gradient(#203356, #6e5a89);
+      }
+
+      .scene-voices {
+        background:
+          linear-gradient(135deg, rgba(33, 50, 91, 0.9), rgba(244, 195, 80, 0.72)),
+          radial-gradient(circle at 30% 70%, #fff8c6 0 10%, transparent 11%);
+      }
+
+      .scene-bridge {
+        background:
+          radial-gradient(circle at 75% 20%, #fff8bc 0 8%, transparent 9%),
+          linear-gradient(#152445 0 54%, #354f7a 55% 100%);
+      }
+
+      .scene-exercise {
+        background:
+          radial-gradient(circle, transparent 0 11%, #c6a7ff 12% 13%, transparent 14% 22%, #c6a7ff 23% 24%, transparent 25% 35%, #c6a7ff 36% 37%, transparent 38%),
+          linear-gradient(#fffaff, #f0e8ff);
+      }
+
+      .scene-about {
+        background:
+          radial-gradient(circle at 84% 20%, #ffd889 0 9%, transparent 10%),
+          linear-gradient(#fff8e6, #eaf4ff);
+      }
+
+      .sun {
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        width: 28px;
+        height: 28px;
+        background: #ffe27a;
+        border-radius: 50%;
+        box-shadow: 0 0 0 8px rgba(255, 226, 122, 0.25);
+      }
+
+      .slide {
+        position: absolute;
+        right: 22px;
+        bottom: 28px;
+        width: 74px;
+        height: 98px;
+        border-left: 12px solid #da7747;
+        border-bottom: 12px solid #da7747;
+        transform: skewX(-15deg);
+      }
+
+      .slide::before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 2px;
+        width: 50px;
+        height: 12px;
+        background: #42556e;
+        border-radius: 4px;
+      }
+
+      .slide::after {
+        content: "";
+        position: absolute;
+        left: 34px;
+        top: 8px;
+        width: 16px;
+        height: 94px;
+        background: linear-gradient(#ffd069, #f49a46);
+        border-radius: 999px;
+        transform: rotate(34deg);
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24);
+      }
+
+      .slide.big {
+        right: 16px;
+        bottom: 8px;
+        width: 118px;
+        height: 145px;
+        transform: skewX(-8deg);
+      }
+
+      .ladder {
+        position: absolute;
+        right: 104px;
+        bottom: 25px;
+        width: 38px;
+        height: 92px;
+        border-left: 5px solid #6d6f7a;
+        border-right: 5px solid #6d6f7a;
+      }
+
+      .ladder span {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: #6d6f7a;
+      }
+
+      .child {
+        position: absolute;
+        left: 28px;
+        bottom: 28px;
+        width: 34px;
+        height: 52px;
+        filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.18));
+      }
+
+      .child::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 8px;
+        width: 20px;
+        height: 20px;
+        background: #ffd2a7;
+        border-radius: 50%;
+        box-shadow: 0 -4px 0 4px #5a3729;
+      }
+
+      .child::after {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 22px;
+        width: 28px;
+        height: 30px;
+        background: #f47b3f;
+        border-radius: 10px 10px 7px 7px;
+      }
+
+      .child.small {
+        left: auto;
+        right: 92px;
+        bottom: 64px;
+        transform: scale(0.62);
+      }
+
+      .child.bed {
+        left: 42px;
+        bottom: 52px;
+        transform: rotate(-8deg);
+      }
+
+      .bench {
+        position: absolute;
+        left: 80px;
+        bottom: 28px;
+        width: 70px;
+        height: 18px;
+        background: #9b6b43;
+        border-radius: 6px;
+        box-shadow:
+          0 18px 0 -5px #6f563e,
+          0 30px 0 -8px rgba(0, 0, 0, 0.16);
+      }
+
+      .swing {
+        position: absolute;
+        left: 92px;
+        bottom: 46px;
+        width: 56px;
+        height: 86px;
+        border-left: 5px solid #61798a;
+        border-right: 5px solid #61798a;
+        border-top: 5px solid #61798a;
+      }
+
+      .swing::after {
+        content: "";
+        position: absolute;
+        left: 14px;
+        bottom: 9px;
+        width: 22px;
+        height: 8px;
+        background: #e58d57;
+        border-radius: 4px;
+        box-shadow:
+          -7px -34px 0 -6px #61798a,
+          16px -34px 0 -6px #61798a;
+      }
+
+      .sandpit {
+        position: absolute;
+        right: 92px;
+        bottom: 20px;
+        width: 62px;
+        height: 22px;
+        background: #e6c06d;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 4px rgba(170, 112, 55, 0.16);
+      }
+
+      .voice {
+        position: absolute;
+        z-index: 3;
+        padding: 4px 7px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(31, 35, 40, 0.12);
+        border-radius: 999px;
+        color: #30343a;
+        font-size: 10px;
+        font-weight: 900;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+      }
+
+      .v1 {
+        left: 13px;
+        top: 22px;
+        transform: rotate(-7deg);
+      }
+
+      .v2 {
+        right: 12px;
+        top: 37px;
+        transform: rotate(8deg);
+      }
+
+      .v3 {
+        left: 56px;
+        bottom: 30px;
+        transform: rotate(4deg);
+      }
+
+      .v4 {
+        right: 60px;
+        bottom: 56px;
+        transform: rotate(-8deg);
+      }
+
+      .window {
+        position: absolute;
+        right: 26px;
+        top: 24px;
+        width: 58px;
+        height: 46px;
+        background: linear-gradient(#172a55, #385383);
+        border: 5px solid #f0c58d;
+        border-radius: 6px;
+        box-shadow: 0 0 22px rgba(255, 238, 169, 0.45);
+      }
+
+      .bed {
+        position: absolute;
+        left: 28px;
+        bottom: 28px;
+        width: 104px;
+        height: 42px;
+        background: #f0b76e;
+        border-radius: 18px 18px 8px 8px;
+        box-shadow: inset 0 10px 0 rgba(255, 255, 255, 0.24);
+      }
+
+      .door {
+        position: absolute;
+        left: 50%;
+        bottom: 28px;
+        width: 54px;
+        height: 92px;
+        background: #b97546;
+        border: 5px solid #ffe59c;
+        border-radius: 26px 26px 4px 4px;
+        transform: translateX(-50%);
+        box-shadow: 0 0 36px #ffe59c;
+      }
+
+      .path {
+        position: absolute;
+        left: 50%;
+        bottom: -8px;
+        width: 96px;
+        height: 112px;
+        background: rgba(238, 212, 137, 0.52);
+        border-radius: 50% 50% 0 0;
+        transform: translateX(-50%) perspective(80px) rotateX(36deg);
+      }
+
+      .star {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: #ffdf66;
+        clip-path: polygon(50% 0, 61% 38%, 100% 50%, 61% 62%, 50% 100%, 39% 62%, 0 50%, 39% 38%);
+        filter: drop-shadow(0 0 5px #ffdf66);
+      }
+
+      .track {
+        position: absolute;
+        width: 11px;
+        height: 15px;
+        background: rgba(72, 54, 38, 0.38);
+        border-radius: 50%;
+      }
+
+      .t1 {
+        left: 38px;
+        bottom: 30px;
+      }
+
+      .t2 {
+        left: 62px;
+        bottom: 50px;
+      }
+
+      .t3 {
+        left: 88px;
+        bottom: 72px;
+      }
+
+      .tail {
+        position: absolute;
+        right: 34px;
+        bottom: 52px;
+        width: 46px;
+        height: 28px;
+        border: 10px solid #9a6b43;
+        border-left: 0;
+        border-bottom: 0;
+        border-radius: 0 26px 0 0;
+        transform: rotate(-8deg);
+      }
+
+      .bush {
+        position: absolute;
+        right: 24px;
+        bottom: 24px;
+        width: 96px;
+        height: 48px;
+        background: #5f9a57;
+        border-radius: 48px 48px 14px 14px;
+      }
+
+      .sign {
+        position: absolute;
+        width: 64px;
+        height: 20px;
+        padding-top: 3px;
+        background: #fff7d7;
+        border: 2px solid rgba(31, 35, 40, 0.22);
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 1000;
+        text-align: center;
+        box-shadow: 0 12px 0 -9px #6c5741;
+      }
+
+      .s1 {
+        left: 16px;
+        top: 38px;
+        transform: rotate(-11deg);
+      }
+
+      .s2 {
+        right: 18px;
+        top: 64px;
+        transform: rotate(12deg);
+      }
+
+      .s3 {
+        left: 62px;
+        bottom: 36px;
+        transform: rotate(2deg);
+      }
+
+      .cave-mouth {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 130px;
+        height: 126px;
+        background: radial-gradient(circle at 50% 72%, #141016 0 38%, #3a2630 39% 68%, transparent 69%);
+        transform: translateX(-50%);
+      }
+
+      .bridge {
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        width: 148px;
+        height: 38px;
+        border-top: 10px solid #ffd06a;
+        border-radius: 50%;
+        transform: translateX(-50%) rotate(-3deg);
+        box-shadow: 0 0 22px rgba(255, 208, 106, 0.56);
+      }
+
+      .animal-shape {
+        position: absolute;
+        left: 50%;
+        bottom: 34px;
+        width: 58px;
+        height: 44px;
+        background: #9a6a45;
+        border-radius: 45% 45% 35% 35%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 30px #ffe8a8;
+      }
+
+      .animal-shape::before {
+        content: "";
+        position: absolute;
+        left: 15px;
+        top: -22px;
+        width: 30px;
+        height: 28px;
+        background: #9a6a45;
+        border-radius: 50%;
+      }
+
+      .spiral-label {
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        color: #5d4d82;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .about-lines {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        top: 36px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .about-lines span {
+        height: 9px;
+        background: rgba(68, 81, 97, 0.18);
+        border-radius: 999px;
+      }
+
+      @media (max-width: 1240px) {
+        .spread-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 820px) {
+        header,
+        main,
+        .counts,
+        .legend,
+        .note-actions {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .counts {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .spread-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Finding Our Inner Voice - Visual Wireframe Pass 02</h1>
+      <p class="subtitle">
+        More detailed visual storyboard using actual reusable background art for
+        existing dream pages and richer placeholders for new park, slide, dream
+        mechanics, and end-matter pages.
+      </p>
+    </header>
+
+    <section class="counts">
+      <div class="count"><strong>14</strong><span>page slots likely use existing/reusable base images</span></div>
+      <div class="count"><strong>13</strong><span>page slots likely need new purpose-built visuals</span></div>
+      <div class="count"><strong>3</strong><span>conditional existing-or-new visual slots</span></div>
+      <div class="count"><strong>4-6</strong><span>new personalized child poses likely worth considering</span></div>
+    </section>
+
+    <section class="legend">
+      <span class="chip bg-existing">BG existing</span>
+      <span class="chip bg-new">BG new</span>
+      <span class="chip bg-conditional">BG conditional</span>
+      <span class="chip pose-existing">Pose existing</span>
+      <span class="chip pose-new">Pose new</span>
+      <span class="chip pose-conditional">Pose conditional</span>
+      <span class="chip pose-none">Pose none</span>
+      <span class="chip animal">Animal clue</span>
+    </section>
+
+    <section class="note-actions" aria-label="Notes actions">
+      <button type="button" id="download-notes">Download notes JSON</button>
+      <button type="button" id="copy-notes">Copy notes JSON</button>
+      <label for="import-notes">Import notes JSON</label>
+      <input id="import-notes" type="file" accept="application/json,.json" />
+      <button type="button" id="clear-notes">Clear local notes</button>
+      <span id="note-status" class="note-status">Notes autosave in this browser.</span>
+    </section>
+
+    <main>
+      <section id="spreads" class="spread-grid"></section>
+    </main>
+
+    <script>
+      const assetRoot = "../../../assets/background-images-new-texture/";
+      const notesKey = "lhl-inner-voice-wireframe-pass-02-notes";
+
+      const pages = [
+        {
+          n: 1,
+          title: "Title Page",
+          body: "Quiet title design with star, heart, or voice motif.",
+          bg: "existing",
+          pose: "none",
+          scene: "about",
+          chips: ["BG existing/refreshed", "Pose none"],
+        },
+        {
+          n: 2,
+          title: "Dedication",
+          body: "Personalized dedication page.",
+          bg: "existing",
+          pose: "none",
+          image: assetRoot + "page00-dedication.jpeg",
+          chips: ["BG existing", "Pose none"],
+        },
+        {
+          n: 3,
+          title: "Hero Arrives",
+          body: "Custom child visible and excited. The tall slide waits in the distance.",
+          bg: "new",
+          pose: "new",
+          scene: "park-hero",
+          chips: ["BG new", "Pose new likely"],
+        },
+        {
+          n: 4,
+          title: "So Many Choices",
+          body: "Swings, sandbox, climbing, running. The park feels bright and full.",
+          bg: "new",
+          pose: "conditional",
+          scene: "park-choices",
+          chips: ["BG new", "Pose new/existing"],
+        },
+        {
+          n: 5,
+          title: "Slide Catches Attention",
+          body: "Kids slide down laughing. Excitement starts mixing with uncertainty.",
+          bg: "new",
+          pose: "new",
+          scene: "park-slide",
+          chips: ["BG new", "Pose new likely"],
+        },
+        {
+          n: 6,
+          title: "Top Of Slide POV",
+          body: "The slide looks long. Voices crowd the page.",
+          bg: "new",
+          pose: "none",
+          scene: "slide-pov",
+          chips: ["BG new", "Pose none"],
+        },
+        {
+          n: 7,
+          title: "Home With The Feeling",
+          body: "The slide is gone, but the feeling remains. A tiny glow begins.",
+          bg: "new",
+          pose: "conditional",
+          scene: "bedroom",
+          animal: true,
+          chips: ["BG new/reworked", "Pose existing/new", "First trace"],
+        },
+        {
+          n: 8,
+          title: "Night Path Begins",
+          body: "The quiet voice leads into the dream path.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page02-night-forest.jpeg",
+          chips: ["BG existing", "Pose existing"],
+        },
+        {
+          n: 9,
+          title: "Quiet Door",
+          body: "The door opens when the child pauses and listens.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page03-magic-doorway.jpeg",
+          animal: true,
+          chips: ["BG existing", "Pose existing", "Small clue"],
+        },
+        {
+          n: 10,
+          title: "Breath Responds",
+          body: "Star steps or lights appear with each breath.",
+          bg: "existing",
+          pose: "conditional",
+          image: assetRoot + "page04-courage-leap.jpeg",
+          chips: ["BG existing", "Pose existing/none"],
+        },
+        {
+          n: 11,
+          title: "First Tracks",
+          body: "Animal-specific tracks, feathers, fur, or claw marks appear.",
+          bg: "existing",
+          pose: "conditional",
+          image: assetRoot + "page05-morning-meadow.jpeg",
+          animal: true,
+          chips: ["BG existing", "Pose existing/none", "Tracks"],
+        },
+        {
+          n: 12,
+          title: "Almost-Animal Humor",
+          body: "A bush wiggles, sneezes, or a tail vanishes.",
+          bg: "conditional",
+          pose: "none",
+          scene: "almost-animal",
+          animal: true,
+          chips: ["BG conditional", "Pose none", "Animal clue"],
+        },
+        {
+          n: 13,
+          title: "Too Many Voices",
+          body: "Stars, signs, or wind say different things.",
+          bg: "new",
+          pose: "none",
+          scene: "voices",
+          animal: true,
+          chips: ["BG new/modified", "Pose none", "Possible clue"],
+        },
+        {
+          n: 14,
+          title: "Confusing Path",
+          body: "Arrows split. The child cannot tell which voice to follow.",
+          bg: "conditional",
+          pose: "conditional",
+          image: assetRoot + "page07-mountain-vista.jpg",
+          scene: "signs",
+          chips: ["BG conditional", "Pose existing/none"],
+        },
+        {
+          n: 15,
+          title: "Shiny Shortcut",
+          body: "A flashy path calls out, but something feels off.",
+          bg: "new",
+          pose: "none",
+          scene: "shortcut",
+          animal: true,
+          chips: ["BG new/modified", "Pose none", "Quiet clue"],
+        },
+        {
+          n: 16,
+          title: "Cave Entrance",
+          body: "A dark tunnel mirrors the slide fear.",
+          bg: "conditional",
+          pose: "none",
+          scene: "cave-entrance",
+          chips: ["BG conditional", "Pose none"],
+        },
+        {
+          n: 17,
+          title: "Warbly Fear Voice",
+          body: "The cave distorts the voice into 'I can't.'",
+          bg: "existing",
+          pose: "none",
+          image: assetRoot + "page10-crystal-cave.jpg",
+          scene: "warbly",
+          chips: ["BG existing modified", "Pose none"],
+        },
+        {
+          n: 18,
+          title: "Listen Underneath",
+          body: "The scratchy voice is scared, not mean.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page10-crystal-cave.jpg",
+          chips: ["BG existing", "Pose existing"],
+        },
+        {
+          n: 19,
+          title: "Cave Echo Changes",
+          body: "The true message is gentler: scared, go slow, one step.",
+          bg: "existing",
+          pose: "none",
+          image: assetRoot + "page10-crystal-cave.jpg",
+          scene: "echo",
+          animal: true,
+          chips: ["BG existing crop", "Pose none", "Possible help"],
+        },
+        {
+          n: 20,
+          title: "Dream Slide Bridge",
+          body: "A height mirror where the answer is one step.",
+          bg: "new",
+          pose: "conditional",
+          scene: "bridge",
+          animal: true,
+          chips: ["BG new", "Pose none/existing", "Support"],
+        },
+        {
+          n: 21,
+          title: "Practice Readiness",
+          body: "One breath, one step, hold the rail or path edge.",
+          bg: "new",
+          pose: "new",
+          scene: "bridge-child",
+          animal: true,
+          chips: ["BG new/modified", "Pose new possible", "Hidden support"],
+        },
+        {
+          n: 22,
+          title: "Joy After Listening",
+          body: "The body lightens. The child runs.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page06-tall-forest.jpg",
+          chips: ["BG existing", "Pose existing"],
+        },
+        {
+          n: 23,
+          title: "Wonder Payoff",
+          body: "Giant flowers, playful scale, relief after fear.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page11-giant-flowers.jpg",
+          chips: ["BG existing", "Pose existing"],
+        },
+        {
+          n: 24,
+          title: "Trail Grows Quiet",
+          body: "The voice feels close. The child listens without being told.",
+          bg: "existing",
+          pose: "conditional",
+          image: assetRoot + "page12-almost-there.jpg",
+          animal: true,
+          chips: ["BG existing", "Pose existing/none", "Near reveal"],
+        },
+        {
+          n: 25,
+          title: "Animal Reveal",
+          body: "The animal steps from the light. Earlier clues click.",
+          bg: "existing",
+          pose: "none",
+          image: assetRoot + "page13-animal-reveal.jpg",
+          scene: "animal",
+          animal: true,
+          chips: ["BG existing", "Pose none", "Animal appears"],
+        },
+        {
+          n: 26,
+          title: "Bond And Fly Home",
+          body: "The animal helped the child hear what was already inside.",
+          bg: "existing",
+          pose: "existing",
+          image: assetRoot + "page14-flying-home.jpg",
+          animal: true,
+          chips: ["BG existing", "Pose existing", "Flying sprite"],
+        },
+        {
+          n: 27,
+          title: "Return To Slide",
+          body: "\"You go first. I'm almost ready.\"",
+          bg: "new",
+          pose: "new",
+          scene: "return-slide",
+          chips: ["BG new", "Pose new likely"],
+        },
+        {
+          n: 28,
+          title: "Slide Payoff",
+          body: "One breath. One scoot. One whoosh.",
+          bg: "new",
+          pose: "conditional",
+          scene: "slide-payoff",
+          chips: ["BG new", "Pose none/optional"],
+        },
+        {
+          n: 29,
+          title: "Spiral Breathing",
+          body: "Finger-trace spiral: pause, breathe, listen.",
+          bg: "new",
+          pose: "none",
+          scene: "exercise",
+          chips: ["BG designed", "Pose none"],
+        },
+        {
+          n: 30,
+          title: "About / Parent Prompt",
+          body: "Little Hero Labs note plus quiet voice prompt.",
+          bg: "new",
+          pose: "none",
+          scene: "about",
+          chips: ["BG designed", "Pose none"],
+        },
+      ];
+
+      function chipClass(label) {
+        const lower = label.toLowerCase();
+        if (lower.includes("animal") || lower.includes("clue") || lower.includes("trace") || lower.includes("tracks") || lower.includes("sprite") || lower.includes("support") || lower.includes("reveal") || lower.includes("help")) return "animal";
+        if (lower.includes("pose none")) return "pose-none";
+        if (lower.includes("pose new")) return "pose-new";
+        if (lower.includes("pose existing")) return "pose-existing";
+        if (lower.includes("pose")) return "pose-conditional";
+        if (lower.includes("conditional")) return "bg-conditional";
+        if (lower.includes("existing")) return "bg-existing";
+        if (lower.includes("new") || lower.includes("designed")) return "bg-new";
+        return "pose-none";
+      }
+
+      function drawScene(page) {
+        const parts = [];
+        if (page.scene === "about") {
+          parts.push('<div class="about-lines"><span></span><span></span><span></span><span></span></div>');
+        }
+        if (page.scene === "park-hero") {
+          parts.push('<div class="sun"></div><div class="slide"></div><div class="child"></div>');
+        }
+        if (page.scene === "park-choices") {
+          parts.push('<div class="sun"></div><div class="swing"></div><div class="sandpit"></div><div class="child"></div>');
+        }
+        if (page.scene === "park-slide") {
+          parts.push('<div class="sun"></div><div class="ladder"><span style="top:18px"></span><span style="top:40px"></span><span style="top:62px"></span></div><div class="slide"></div><div class="child"></div><div class="child small"></div>');
+        }
+        if (page.scene === "slide-pov") {
+          parts.push('<div class="slide big"></div><span class="voice v1">YOUR TURN</span><span class="voice v2">GO</span><span class="voice v3">IT&#39;S FUN</span><span class="voice v4">HURRY</span>');
+        }
+        if (page.scene === "bedroom") {
+          parts.push('<div class="window"></div><div class="bed"></div><div class="child bed"></div><span class="star" style="right:44px;top:36px"></span>');
+        }
+        if (page.scene === "almost-animal") {
+          parts.push('<div class="bush"></div><div class="tail"></div><span class="voice v1">ACHOO!</span>');
+        }
+        if (page.scene === "voices") {
+          parts.push('<span class="voice v1">GO FAST</span><span class="voice v2">HIDE</span><span class="voice v3">BE BRAVE</span><span class="voice v4">NO!</span>');
+        }
+        if (page.scene === "signs" || page.scene === "shortcut") {
+          parts.push('<div class="sign s1">FAST</div><div class="sign s2">THIS WAY</div><div class="sign s3">WAIT</div><div class="track t2"></div>');
+        }
+        if (page.scene === "cave-entrance") {
+          parts.push('<div class="cave-mouth"></div>');
+        }
+        if (page.scene === "warbly") {
+          parts.push('<span class="voice v1">I CAN&#39;T</span><span class="voice v2">I CAN&#39;T</span><span class="voice v3">I CAN&#39;T</span>');
+        }
+        if (page.scene === "echo") {
+          parts.push('<span class="voice v3">GO SLOW</span><span class="voice v2">ONE STEP</span>');
+        }
+        if (page.scene === "bridge") {
+          parts.push('<div class="bridge"></div><div class="track t2"></div><span class="star" style="left:44px;top:34px"></span><span class="star" style="right:52px;top:24px"></span>');
+        }
+        if (page.scene === "bridge-child") {
+          parts.push('<div class="bridge"></div><div class="child"></div><span class="voice v2">ONE STEP</span>');
+        }
+        if (page.scene === "animal") {
+          parts.push('<div class="animal-shape"></div>');
+        }
+        if (page.scene === "return-slide") {
+          parts.push('<div class="slide"></div><div class="child"></div><span class="voice v2">ALMOST READY</span>');
+        }
+        if (page.scene === "slide-payoff") {
+          parts.push('<div class="slide big"></div><span class="voice v3">WHOOSH</span>');
+        }
+        if (page.scene === "exercise") {
+          parts.push('<span class="spiral-label">Pause. Breathe. Listen.</span>');
+        }
+        if (page.animal && !page.image && !parts.some((part) => part.includes("track"))) {
+          parts.push('<div class="track t1"></div><div class="track t2"></div>');
+        }
+        if (page.image && page.scene === "signs") {
+          parts.push('<div class="sign s1">GO</div><div class="sign s2">WAIT</div>');
+        }
+        if (page.image && page.scene === "warbly") {
+          parts.push('<span class="voice v1">I CAN&#39;T</span><span class="voice v2">I CAN&#39;T</span>');
+        }
+        if (page.image && page.scene === "echo") {
+          parts.push('<span class="voice v3">GO SLOW</span>');
+        }
+        if (page.image && page.scene === "animal") {
+          parts.push('<div class="animal-shape"></div>');
+        }
+        return parts.join("");
+      }
+
+      function sceneClass(page) {
+        if (page.image) return "has-image";
+        if (page.scene === "bedroom") return "scene-bedroom";
+        if (page.scene === "slide-pov" || page.scene === "slide-payoff") return "scene-slide-pov";
+        if (["park-hero", "park-choices", "park-slide", "return-slide"].includes(page.scene)) return "scene-park";
+        if (["voices", "signs", "shortcut"].includes(page.scene)) return "scene-voices";
+        if (["cave-entrance", "warbly", "echo"].includes(page.scene)) return "scene-voices";
+        if (["bridge", "bridge-child"].includes(page.scene)) return "scene-bridge";
+        if (page.scene === "exercise") return "scene-exercise";
+        if (page.scene === "about") return "scene-about";
+        return "scene-park";
+      }
+
+      function pageCard(page) {
+        const border = `bg-${page.bg}-border`;
+        const visualStyle = page.image ? ` style="background-image:url('${page.image}')"` : "";
+        return `
+          <article class="page-card ${border}">
+            <div class="visual ${sceneClass(page)}"${visualStyle}>${drawScene(page)}</div>
+            <div class="page-body">
+              <span class="page-num">Page ${page.n}</span>
+              <h3>${page.title}</h3>
+              <p>${page.body}</p>
+              <div class="chips">
+                ${page.chips.map((chip) => `<span class="chip ${chipClass(chip)}">${chip}</span>`).join("")}
+              </div>
+              <div class="note-field">
+                <label for="note-page-${page.n}">Page notes</label>
+                <textarea class="page-note" id="note-page-${page.n}" data-page="${page.n}" placeholder="Add notes for page ${page.n}..."></textarea>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      let notes = loadNotes();
+
+      function setStatus(message) {
+        const status = document.getElementById("note-status");
+        if (status) status.textContent = message;
+      }
+
+      function loadNotes() {
+        try {
+          const raw = localStorage.getItem(notesKey);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return normalizeNotes(parsed);
+        } catch {
+          return {};
+        }
+      }
+
+      function normalizeNotes(input) {
+        const output = {};
+        if (!input || typeof input !== "object") return output;
+
+        if (Array.isArray(input.pages)) {
+          input.pages.forEach((entry) => {
+            if (!entry || typeof entry !== "object") return;
+            const pageNumber = Number(entry.page);
+            if (!Number.isFinite(pageNumber)) return;
+            output[pageNumber] = String(entry.note || "");
+          });
+          return output;
+        }
+
+        if (input.notes && typeof input.notes === "object") {
+          Object.entries(input.notes).forEach(([pageNumber, note]) => {
+            output[Number(pageNumber)] = String(note || "");
+          });
+          return output;
+        }
+
+        Object.entries(input).forEach(([pageNumber, note]) => {
+          if (Number.isFinite(Number(pageNumber))) output[Number(pageNumber)] = String(note || "");
+        });
+        return output;
+      }
+
+      function buildNotesPayload() {
+        return {
+          version: "visual-wireframe-pass-02",
+          updatedAt: new Date().toISOString(),
+          sourceFile: "visual-wireframe-pass-02.html",
+          pages: pages.map((page) => ({
+            page: page.n,
+            title: page.title,
+            note: notes[page.n] || "",
+          })),
+        };
+      }
+
+      function saveNotes() {
+        localStorage.setItem(notesKey, JSON.stringify(buildNotesPayload()));
+      }
+
+      function renderNotesIntoFields() {
+        document.querySelectorAll(".page-note").forEach((field) => {
+          const pageNumber = Number(field.dataset.page);
+          field.value = notes[pageNumber] || "";
+        });
+      }
+
+      function wireNoteFields() {
+        document.querySelectorAll(".page-note").forEach((field) => {
+          field.addEventListener("input", () => {
+            const pageNumber = Number(field.dataset.page);
+            notes[pageNumber] = field.value;
+            saveNotes();
+            setStatus(`Saved locally at ${new Date().toLocaleTimeString()}.`);
+          });
+        });
+      }
+
+      function downloadNotes() {
+        const json = JSON.stringify(buildNotesPayload(), null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        const date = new Date().toISOString().slice(0, 10);
+        anchor.href = url;
+        anchor.download = `finding-our-inner-voice-wireframe-notes-${date}.json`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setStatus("Downloaded notes JSON.");
+      }
+
+      async function copyNotes() {
+        const json = JSON.stringify(buildNotesPayload(), null, 2);
+        try {
+          await navigator.clipboard.writeText(json);
+          setStatus("Copied notes JSON to clipboard.");
+        } catch {
+          setStatus("Clipboard copy failed. Use Download notes JSON instead.");
+        }
+      }
+
+      function importNotesFile(file) {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          try {
+            notes = normalizeNotes(JSON.parse(String(reader.result || "{}")));
+            saveNotes();
+            renderNotesIntoFields();
+            setStatus(`Imported notes from ${file.name}.`);
+          } catch {
+            setStatus("Could not import notes JSON.");
+          }
+        });
+        reader.readAsText(file);
+      }
+
+      const spreadRoot = document.getElementById("spreads");
+      for (let index = 0; index < pages.length; index += 2) {
+        const spreadNumber = index / 2 + 1;
+        const left = pages[index];
+        const right = pages[index + 1];
+        spreadRoot.insertAdjacentHTML(
+          "beforeend",
+          `
+          <section class="spread">
+            <h2 class="spread-title">Spread ${spreadNumber}</h2>
+            <div class="pair">
+              ${pageCard(left)}
+              ${pageCard(right)}
+            </div>
+          </section>
+        `,
+        );
+      }
+
+      renderNotesIntoFields();
+      wireNoteFields();
+      document.getElementById("download-notes").addEventListener("click", downloadNotes);
+      document.getElementById("copy-notes").addEventListener("click", copyNotes);
+      document.getElementById("import-notes").addEventListener("change", (event) => {
+        const [file] = event.target.files || [];
+        if (file) importNotesFile(file);
+        event.target.value = "";
+      });
+      document.getElementById("clear-notes").addEventListener("click", () => {
+        if (!confirm("Clear all locally saved notes for this wireframe?")) return;
+        notes = {};
+        saveNotes();
+        renderNotesIntoFields();
+        setStatus("Cleared local notes.");
+      });
+    </script>
+  </body>
+</html>

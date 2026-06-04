@@ -97,6 +97,12 @@ The selected playground challenge is currently a **tall slide**.
 
 The child is facing a playground challenge that looks fun to other kids but feels too big right now.
 
+Opening decision: the child climbs all the way to the top of the tall slide before the feeling becomes too big. This creates a stronger mirror for the ending, where the child can return to the same top-of-slide moment with a different inner process.
+
+Opening exit decision: do not overexplain the logistics of getting down. After the top-of-slide feeling becomes too big, cut gently home. The slide is no longer physically present, but the feeling follows the child into bedtime.
+
+Grown-up role: keep grown-ups out of the core park scene for now. A grown-up could make the scene feel safer, but may accidentally become the regulating force. The story is stronger if the child's developing inner voice becomes that force.
+
 Why this works for ages 3-7:
 
 - it is concrete and immediately understandable
@@ -138,7 +144,8 @@ Recommended ending shape:
 7. Selected return-scene line: **"You go first. I'm almost ready."**
 8. The next message is specific and gentle: "one breath," "one step," "hold the rail," "you can stop if you need to."
 9. The child climbs at their own pace, possibly asks someone to wait at the bottom, and chooses when ready.
-10. The payoff is confidence from listening and choosing, not from performing bravery.
+10. The self-trust moment is the climax; the slide can still become a short joyful payoff afterward.
+11. The payoff is confidence from listening and choosing, not from performing bravery.
 
 Possible kid-facing takeaway lines:
 

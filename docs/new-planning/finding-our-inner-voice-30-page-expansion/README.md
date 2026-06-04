@@ -22,6 +22,11 @@ This folder is for brainstorming and planning the expanded version of *Finding O
 - Partner draft review: `draft-review-2026-06-03.md`
 - Original page fit audit: `original-page-fit-audit-2026-06-03.md`
 - Section-level arc pass 01: `section-level-arc-pass-01.md`
+- Bookends pass 01: `bookends-pass-01.md`
+- Asset / page map pass 01: `asset-page-map-pass-01.md`
+- Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
+- Visual wireframe pass 01: `visual-wireframe-pass-01.html`
+- Visual wireframe pass 02: `visual-wireframe-pass-02.html`
 - Jeff's feedback: `drafts/jeff-feedback-on-partner-drafts-2026-06-03.md`
 - Working notes and creative principles: `working-notes.md`
 
