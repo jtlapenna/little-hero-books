@@ -105,12 +105,16 @@ The main cut is the optional standalone everyday-body-listening page, such as lu
 
 ## Current Creative Pressure Points
 
-1. **Page 7:** how intense should the top-of-slide overwhelm be?
-2. **Page 11:** should the first voice line be playful, tender, mysterious, or funny?
-3. **Page 16:** should the shiny shortcut feel silly, tempting, or a little spooky?
-4. **Page 21:** what is the strongest dream mirror of the slide?
-5. **Page 23:** is joy best shown through running, flowers, flying/floating, or a body-listening/picnic moment?
-6. **Page 25:** how direct should the animal be about "I was helping you hear you"?
+These were workshopped after pass 01. The locked directions are captured in `pressure-points-decisions-2026-06-04.md`.
+
+1. **Page 7:** top-of-slide overwhelm should be big but contained. The child wants to try, but the height, waiting, and other kids' voices get too big.
+2. **Bedroom-to-dream transition:** the first voice moment should begin with recognition: "That was scary." The child responds, and the voice says, "Oh! You can hear me now." The bedroom transition should use a safe star/light path rather than a spooky door.
+3. **Loud/noisy distinguish scene:** playful, chaotic, confusing, not scary. The child actively finds the tiny voice inside the noise. Core line: "Listen close. I'm still here."
+4. **Page 16 shiny shortcut:** tempting with a slight wrong-feeling edge. It promises a fast way with no scary feelings, but the child feels a tiny no.
+5. **Warbly/self-critic scene:** the child faces something genuinely unsafe or not-right-for-now. "You can't do it" softens into "I'm scared. Not this way."
+6. **Glowing stones trust practice:** use tiny no / not yet / little yes as the decision language. Avoid "listen for one step."
+7. **Joy/confidence:** running through wonder with almost-animal joy. Trusting the inner voice should feel like freedom, confidence, and joy.
+8. **Animal reveal:** use dialogue-based reveal. The animal helped the child listen, but the voice was the child's.
 
 ## Current Recommendation
 

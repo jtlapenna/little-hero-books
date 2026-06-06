@@ -1,6 +1,8 @@
-# Finding Our Inner Voice: 30-Page Expansion
+# Finding Our Inner Voice: Expanded Page-Count Planning
 
 This folder is for brainstorming and planning the expanded version of *Finding Our Inner Voice* after the printer change that requires a longer interior page count.
+
+Current working structure: 31 pages. If production requires an even page count, the likely adjustment is a 32nd blank/copyright page rather than compressing the story.
 
 ## Current Working Understanding
 
@@ -26,6 +28,10 @@ This folder is for brainstorming and planning the expanded version of *Finding O
 - Dream arc lesson spine pass 01: `dream-arc-lesson-spine-pass-01.md`
 - Dream arc beat map pass 01: `dream-arc-beat-map-pass-01.md`
 - Full book beat map, 30-page pass 01: `full-book-beat-map-30-page-pass-01.md`
+- Full book beat map, 30-page pass 02: `full-book-beat-map-30-page-pass-02.md`
+- Full book beat map, 31-page pass 01: `full-book-beat-map-31-page-pass-01.md` **(current working map)**
+- Pressure point decisions: `pressure-points-decisions-2026-06-04.md`
+- Rough page copy pass 01: `rough-page-copy-pass-01.md` **(current working rough copy)**
 - Asset / page map pass 01: `asset-page-map-pass-01.md`
 - Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
 - Visual wireframe pass 01: `visual-wireframe-pass-01.html`
