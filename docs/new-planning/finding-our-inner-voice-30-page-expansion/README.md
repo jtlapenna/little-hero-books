@@ -33,6 +33,8 @@ Current working structure: 31 pages. If production requires an even page count, 
 - Pressure point decisions: `pressure-points-decisions-2026-06-04.md`
 - Rough page copy pass 01: `rough-page-copy-pass-01.md` **(current working rough copy)**
 - Asset / page map pass 01: `asset-page-map-pass-01.md`
+- Imagery concepts pass 01: `imagery-concepts-pass-01.md` **(current imagery planning doc)**
+- Story + image spread review pass 01: `story-image-spread-review-pass-01.pdf` and `story-image-spread-review-pass-01.md` **(colleague-facing review artifact)**
 - Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
 - Visual wireframe pass 01: `visual-wireframe-pass-01.html`
 - Visual wireframe pass 02: `visual-wireframe-pass-02.html`
