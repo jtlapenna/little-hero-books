@@ -36,6 +36,7 @@ Current working structure: 31 pages. If production requires an even page count, 
 - Imagery concepts pass 01: `imagery-concepts-pass-01.md` **(current imagery planning doc)**
 - Story + image spread review pass 01: `story-image-spread-review-pass-01.pdf` and `story-image-spread-review-pass-01.md` **(colleague-facing review artifact)**
 - Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
+- Storyboard pass 02: `storyboard-pass-02.html` **(spread-level layout with on-page text direction)**
 - Visual wireframe pass 01: `visual-wireframe-pass-01.html`
 - Visual wireframe pass 02: `visual-wireframe-pass-02.html`
 - Wireframe notes review: `wireframe-notes-review-2026-06-04.md`

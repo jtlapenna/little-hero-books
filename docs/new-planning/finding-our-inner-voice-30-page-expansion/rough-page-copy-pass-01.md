@@ -178,12 +178,12 @@ Open questions:
 
 Copy:
 
-> That night, [Child Name] lay in bed.
+> That night, [Child Name] sat quietly on the bed.
 >
 > The slide was far away now.
 > But the big feeling was still there.
 >
-> In bed, [Child Name] remembered the top.
+> On the bed, [Child Name] remembered the top.
 > The long way down.
 > The loud voices.
 > The not-knowing-what-to-do feeling.
@@ -194,13 +194,16 @@ Cut gently home and let the child remember the slide from a quiet, safe place. T
 
 Visual intent:
 
-Bedroom or quiet room. The child is visible and personalized, ideally not hidden fully under blankets. The slide is absent physically but present through memory, shadow, or small visual echoes.
+Medium-close bedroom portrait. The child is sitting up on the bed, visible and personalized, likely still in the standard hero outfit. Frame close enough to read expression and body language. A loose blanket or pillow can support the bedtime feeling, but the body should not be hidden under sheets. The slide is absent physically but present through memory, shadow, or small visual echoes.
 
 Notes:
 
 - This is not a logistics page about how the child got down from the slide.
 - It should feel quiet and safe, not sad-heavy.
 - The child is not yet solving the feeling; they are remembering it.
+- Avoid a sleeping/tucked-in pose. The sitting-up pose is more expressive, keeps personalization visible, and avoids a fragile sheet-compositing step.
+- Page 8 should feel different from page 9 by being closer and more emotionally focused on the child. Page 9 can widen back out to the room as the tiny voice/glow appears.
+- Do not spend story space on a clothing change. Treat the standard outfit as the consistent hero design.
 - Direction locked for now 2026-06-04.
 
 ### Page 9
@@ -271,13 +274,14 @@ Turn the first voice moment into a safe, whimsical invitation. The dream begins 
 
 Visual intent:
 
-Bedroom with small star-like lights beginning near the bed and forming a path. The child can remain in the safe room. The image should feel cozy and magical, not eerie.
+Left half of one unified bedroom-to-dream spread. Bedroom with small star-like lights beginning near the bed and forming a path toward the gutter. The child can remain in the safe room while beginning to follow the lights. The image should feel cozy and magical, not eerie.
 
 Notes:
 
 - The child asks "Who said that?" here rather than on page 9.
 - "Let's look together" is a working invitation line; it may need softening or more kid rhythm.
 - The child should feel invited, not lured.
+- This should not feel like a standalone page image. The light trail should visibly continue into page 11.
 - Direction locked for now 2026-06-04.
 
 ### Page 11
@@ -300,13 +304,14 @@ Move from bedroom into dream without a hard scary threshold. The child begins fo
 
 Visual intent:
 
-Bedroom transforming gently into night path/forest. The child follows small lights. This is the first dream-world movement page.
+Right half of the same unified bedroom-to-dream spread. The light trail continues from page 10 across the gutter. The bedroom is still visible at the left edge of the page, then gently morphs into night path/forest. This is the first dream-world movement page.
 
 Notes:
 
 - This should feel magical and safe.
 - "Whenever you're ready" reinforces the anti-pressure theme early.
 - The voice remains unseen.
+- The child should read as one continuous walking/following figure within the spread, not as a second duplicated child beat.
 - Direction locked for now 2026-06-04.
 
 Open questions:

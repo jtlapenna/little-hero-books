@@ -127,7 +127,7 @@ POV/no-child view from top of slide looking down a long slide. Park/kids far bel
 
 **Story Text**
 
-That night, [Child Name] lay in bed.
+That night, [Child Name] sat quietly on the bed.
 
 The slide was far away now.
 But the big feeling was still there.
@@ -139,7 +139,7 @@ The not-knowing-what-to-do feeling.
 
 **Image Direction**
 
-Cozy bedroom at night. Child safely in bed, visible under sheets. Experiment with new bedtime pose plus composited sheets. Faint memory echoes; subtle dim animal picture on wall.
+Medium-close cozy bedroom portrait at night. Child sitting quietly on the bed, visible and personalized, likely still in the standard hero outfit. Frame close enough to read expression and body language. Use simplified bed, pillow, wall glow, and optionally a loose lap blanket to signal bedtime without hiding the child. Faint memory echoes; subtle dim animal picture on wall.
 
 ### Page 9: Tiny Voice
 
@@ -187,7 +187,7 @@ The lights made a little path across the floor.
 
 **Image Direction**
 
-Left side of unified pages 10-11 spread. Bedroom continuity; tiny lights form path from bed across floor. Child now walking/following lights. New walking/following pose shared with page 11.
+Left half of one unified pages 10-11 spread image. Bedroom continuity; tiny lights form a path from the bed across the floor toward the gutter. Child now walking/following lights near the spread transition. New walking/following pose shared with page 11.
 
 ### Page 11: Bedroom Transforms
 
@@ -205,7 +205,7 @@ The ceiling filled with stars.
 
 **Image Direction**
 
-Right side of unified pages 10-11 spread. Bedroom gently transforms into forest: walls to trees, rug to moss, ceiling to stars. Safe magical transition, not a hard doorway.
+Right half of the same unified pages 10-11 spread image. The light trail continues from page 10 across the gutter. The bedroom is still visible at the left edge, then gently transforms into forest: walls to trees, rug to moss, ceiling to stars. Safe magical transition, not a hard doorway. Avoid making this feel like a second separate scene or duplicated child moment.
 
 ## Spread: Pages 12-13
 

@@ -1,0 +1,5427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finding Our Inner Voice - Storyboard Pass 02</title>
+    <style>
+      :root {
+        --paper: #f3efe6;
+        --ink: #252525;
+        --muted: #68707a;
+        --line: #d9d2c7;
+        --panel: #fffdf8;
+        --blue: #8ec6dc;
+        --green: #83a66c;
+        --leaf: #5f8a52;
+        --sun: #f6cf72;
+        --path: #e3bd7b;
+        --slide: #d86e5d;
+        --purple: #826aa8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.35;
+      }
+
+      header,
+      main {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      header {
+        padding-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 34px;
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 920px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .direction {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin: 18px 0 24px;
+      }
+
+      .direction-card {
+        padding: 16px;
+        background: rgba(255, 253, 248, 0.82);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-bottom: 10px;
+        font-size: 18px;
+      }
+
+      h3 {
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 4px 0;
+        color: #3d4248;
+        font-size: 14px;
+      }
+
+      .spread-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 14px;
+      }
+
+      .spread-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .spread-status {
+        padding: 6px 10px;
+        border: 1px solid #c6d8c8;
+        border-radius: 999px;
+        background: #e6f3e7;
+        color: #286033;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .spread {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .page-wrap {
+        min-width: 0;
+      }
+
+      .page-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .book-page {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        background: #eecf89;
+        border: 1px solid #c8bca9;
+        border-radius: 3px;
+        box-shadow: 0 12px 28px rgba(56, 47, 35, 0.12);
+      }
+
+      .page-4 {
+        background:
+          radial-gradient(circle at 24% 18%, rgba(255, 240, 174, 0.95) 0 10%, transparent 27%),
+          linear-gradient(#bfe0eb 0 43%, #c6da9c 43% 100%);
+      }
+
+      .page-5 {
+        background:
+          radial-gradient(circle at 78% 18%, rgba(255, 241, 174, 0.98) 0 9%, transparent 24%),
+          linear-gradient(#c5e4ef 0 38%, #cadc9d 38% 100%);
+      }
+
+      .page-6 {
+        background:
+          radial-gradient(circle at 78% 14%, rgba(255, 241, 174, 0.98) 0 8%, transparent 23%),
+          linear-gradient(#c8e7f1 0 42%, #cadd9d 42% 100%);
+      }
+
+      .page-7 {
+        background:
+          radial-gradient(circle at 78% 12%, rgba(255, 241, 174, 0.76) 0 8%, transparent 26%),
+          linear-gradient(#c7e7f2 0 40%, #a9c783 40% 100%);
+      }
+
+      .page-8,
+      .page-9 {
+        background:
+          radial-gradient(circle at 20% 14%, rgba(255, 239, 173, 0.28) 0 11%, transparent 30%),
+          linear-gradient(#9fc5d4 0 63%, #8d9177 63% 100%);
+      }
+
+      .page-9 {
+        background:
+          radial-gradient(circle at 24% 18%, rgba(255, 245, 198, 0.42) 0 12%, transparent 34%),
+          linear-gradient(#a9cbd6 0 63%, #898f76 63% 100%);
+      }
+
+      .page-10 {
+        background:
+          radial-gradient(circle at 16% 14%, rgba(255, 244, 196, 0.38) 0 10%, transparent 30%),
+          linear-gradient(#a7cad5 0 58%, #898f76 58% 100%);
+      }
+
+      .page-11 {
+        background:
+          radial-gradient(circle at 12% 13%, rgba(255, 244, 196, 0.24) 0 8%, transparent 28%),
+          linear-gradient(90deg, rgba(167, 202, 213, 0.92) 0 20%, rgba(67, 101, 95, 0.84) 48%, rgba(44, 76, 68, 0.96) 100%),
+          linear-gradient(#385b72 0 42%, #486f5b 42% 100%);
+      }
+
+      .page-12,
+      .page-13 {
+        background:
+          radial-gradient(circle at 22% 12%, rgba(255, 241, 185, 0.28) 0 9%, transparent 28%),
+          linear-gradient(#486477 0 42%, #577b5f 42% 100%);
+      }
+
+      .page-13 {
+        background:
+          radial-gradient(circle at 20% 12%, rgba(255, 241, 185, 0.22) 0 8%, transparent 28%),
+          linear-gradient(#435f73 0 40%, #5e805f 40% 100%);
+      }
+
+      .page-14 {
+        background:
+          radial-gradient(circle at 72% 18%, rgba(255, 241, 185, 0.18) 0 8%, transparent 29%),
+          linear-gradient(#455f78 0 40%, #66865f 40% 100%);
+      }
+
+      .page-15 {
+        background:
+          radial-gradient(circle at 60% 16%, rgba(255, 241, 185, 0.26) 0 9%, transparent 30%),
+          linear-gradient(#4d667a 0 42%, #658762 42% 100%);
+      }
+
+      .page-16 {
+        background:
+          radial-gradient(circle at 62% 16%, rgba(255, 241, 185, 0.28) 0 9%, transparent 31%),
+          linear-gradient(#526c78 0 42%, #6f8b65 42% 100%);
+      }
+
+      .page-17 {
+        background:
+          radial-gradient(circle at 70% 12%, rgba(255, 241, 185, 0.18) 0 8%, transparent 29%),
+          linear-gradient(#465a6f 0 38%, #5a735f 38% 100%);
+      }
+
+      .page-18,
+      .page-19 {
+        background:
+          radial-gradient(circle at 78% 12%, rgba(158, 212, 230, 0.13) 0 9%, transparent 30%),
+          linear-gradient(#314152 0 100%);
+      }
+
+      .page-19 {
+        background:
+          radial-gradient(circle at 66% 18%, rgba(255, 240, 161, 0.16) 0 9%, transparent 32%),
+          linear-gradient(#354858 0 100%);
+      }
+
+      .page-20,
+      .page-21 {
+        background:
+          radial-gradient(circle at 66% 18%, rgba(255, 240, 161, 0.24) 0 10%, transparent 34%),
+          linear-gradient(#3b4d59 0 100%);
+      }
+
+      .page-21 {
+        background:
+          radial-gradient(circle at 62% 20%, rgba(255, 240, 161, 0.3) 0 11%, transparent 36%),
+          linear-gradient(#40545d 0 100%);
+      }
+
+      .page-22 {
+        background:
+          radial-gradient(circle at 76% 36%, rgba(255, 242, 172, 0.84) 0 13%, transparent 38%),
+          linear-gradient(#3d4f5a 0 100%);
+      }
+
+      .page-23 {
+        background:
+          radial-gradient(circle at 72% 16%, rgba(255, 232, 133, 0.76) 0 10%, transparent 32%),
+          linear-gradient(#9fd4dc 0 45%, #86a96b 45% 100%);
+      }
+
+      .page-24,
+      .page-25 {
+        background:
+          radial-gradient(circle at 75% 17%, rgba(255, 230, 132, 0.66) 0 10%, transparent 34%),
+          linear-gradient(#9ecfd4 0 39%, #8ba766 39% 100%);
+      }
+
+      .page-25 {
+        background:
+          radial-gradient(circle at 68% 21%, rgba(255, 236, 158, 0.8) 0 12%, transparent 38%),
+          linear-gradient(#9ecfd4 0 40%, #88a563 40% 100%);
+      }
+
+      .page-26 {
+        background:
+          radial-gradient(circle at 72% 18%, rgba(255, 240, 161, 0.35) 0 8%, transparent 28%),
+          linear-gradient(#263b63 0 100%);
+      }
+
+      .page-27 {
+        background:
+          radial-gradient(circle at 78% 12%, rgba(255, 241, 174, 0.72) 0 8%, transparent 28%),
+          linear-gradient(#c7e7f2 0 40%, #a9c783 40% 100%);
+      }
+
+      .page-28 {
+        background:
+          radial-gradient(circle at 77% 13%, rgba(255, 241, 174, 0.82) 0 8%, transparent 27%),
+          linear-gradient(#c7e7f2 0 40%, #a9c783 40% 100%);
+      }
+
+      .page-29 {
+        background:
+          radial-gradient(circle at 52% 48%, rgba(255, 240, 161, 0.2) 0 7%, transparent 28%),
+          linear-gradient(#fffdf8 0 100%);
+      }
+
+      .page-30 {
+        background:
+          radial-gradient(circle at 73% 37%, rgba(255, 240, 161, 0.28) 0 15%, transparent 42%),
+          linear-gradient(#fffaf0 0 100%);
+      }
+
+      .page-31 {
+        background:
+          radial-gradient(circle at 78% 15%, rgba(255, 240, 161, 0.16) 0 9%, transparent 30%),
+          linear-gradient(#fffdf8 0 100%);
+      }
+
+      .page-note {
+        margin-top: 10px;
+        padding: 12px;
+        background: rgba(255, 253, 248, 0.82);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+
+      .page-note p {
+        margin: 0 0 7px;
+        color: #3f454b;
+        font-size: 13px;
+      }
+
+      .page-note p:last-child {
+        margin-bottom: 0;
+      }
+
+      .art-label {
+        position: absolute;
+        z-index: 12;
+        padding: 5px 8px;
+        border: 1px solid rgba(37, 37, 37, 0.16);
+        border-radius: 999px;
+        background: rgba(255, 253, 248, 0.76);
+        color: rgba(37, 37, 37, 0.72);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .story-text {
+        position: absolute;
+        z-index: 20;
+        max-width: 37%;
+        color: #252525;
+        font-family:
+          "Avenir Next", Avenir, Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: clamp(13px, 1.25vw, 18px);
+        font-weight: 650;
+        line-height: 1.22;
+        letter-spacing: 0;
+        text-wrap: balance;
+        text-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.48),
+          0 0 10px rgba(255, 251, 239, 0.48);
+      }
+
+      .story-text p {
+        margin: 0 0 0.72em;
+      }
+
+      .story-text p:last-child {
+        margin-bottom: 0;
+      }
+
+      .text-zone {
+        position: absolute;
+        z-index: 10;
+        border: 2px dashed rgba(37, 37, 37, 0.28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+      }
+
+      .text-zone::before {
+        content: "negative space for live text";
+        position: absolute;
+        left: 8px;
+        bottom: -24px;
+        color: rgba(37, 37, 37, 0.54);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .hill {
+        position: absolute;
+        left: -8%;
+        right: -8%;
+        bottom: -7%;
+        height: 42%;
+        background: #8eb775;
+        border-radius: 50% 50% 0 0;
+      }
+
+      .hill.back {
+        bottom: 20%;
+        height: 22%;
+        background: #a7c883;
+      }
+
+      .path {
+        position: absolute;
+        bottom: -10%;
+        width: 34%;
+        height: 58%;
+        background: var(--path);
+        border-radius: 52% 48% 0 0;
+        transform: rotate(10deg);
+      }
+
+      .path.p4 {
+        left: 19%;
+      }
+
+      .path.p5 {
+        left: 32%;
+        width: 26%;
+        height: 42%;
+      }
+
+      .tree {
+        position: absolute;
+        z-index: 6;
+        bottom: 33%;
+        width: 8%;
+        height: 29%;
+        background: #7d5a3f;
+        border-radius: 999px 999px 0 0;
+      }
+
+      .tree::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -31%;
+        width: 270%;
+        aspect-ratio: 1;
+        background: var(--leaf);
+        border-radius: 48% 52% 45% 55%;
+        transform: translateX(-50%);
+      }
+
+      .tree.t1 {
+        left: 7%;
+      }
+
+      .tree.t2 {
+        right: 5%;
+        bottom: 30%;
+        transform: scale(0.88);
+      }
+
+      .tree.t3 {
+        left: 64%;
+        bottom: 32%;
+        transform: scale(0.62);
+      }
+
+      .slide {
+        position: absolute;
+        z-index: 8;
+        right: 10%;
+        bottom: 31%;
+        width: 16%;
+        height: 31%;
+      }
+
+      .slide .ladder {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 28%;
+        height: 100%;
+        border-left: 5px solid #9f6a55;
+        border-right: 5px solid #9f6a55;
+      }
+
+      .slide .ladder::before,
+      .slide .ladder::after {
+        content: "";
+        position: absolute;
+        left: -2px;
+        width: calc(100% + 4px);
+        height: 4px;
+        background: #9f6a55;
+      }
+
+      .slide .ladder::before {
+        top: 32%;
+      }
+
+      .slide .ladder::after {
+        top: 62%;
+      }
+
+      .slide .chute {
+        position: absolute;
+        right: 0;
+        bottom: 1%;
+        width: 78%;
+        height: 19%;
+        background: var(--slide);
+        border-radius: 999px;
+        transform: rotate(-30deg);
+        transform-origin: left center;
+      }
+
+      .slide.partial {
+        right: -2%;
+        bottom: 31%;
+        width: 24%;
+        height: 42%;
+      }
+
+      .slide.p4-slide {
+        right: 8%;
+        bottom: 35%;
+        width: 12%;
+        height: 24%;
+        opacity: 0.78;
+      }
+
+      .tall-slide {
+        position: absolute;
+        z-index: 9;
+        right: 12%;
+        bottom: 16%;
+        width: 35%;
+        height: 67%;
+      }
+
+      .tall-slide .tower {
+        position: absolute;
+        right: 13%;
+        bottom: 6%;
+        width: 18%;
+        height: 88%;
+        border-left: 7px solid #9f6a55;
+        border-right: 7px solid #9f6a55;
+      }
+
+      .tall-slide .tower::before,
+      .tall-slide .tower::after {
+        content: "";
+        position: absolute;
+        left: -4px;
+        width: calc(100% + 8px);
+        height: 6px;
+        background: #9f6a55;
+      }
+
+      .tall-slide .tower::before {
+        top: 31%;
+      }
+
+      .tall-slide .tower::after {
+        top: 62%;
+      }
+
+      .tall-slide .deck {
+        position: absolute;
+        right: 4%;
+        top: 7%;
+        width: 35%;
+        height: 8%;
+        background: #9f6a55;
+        border-radius: 8px;
+      }
+
+      .tall-slide .big-chute {
+        position: absolute;
+        right: 20%;
+        bottom: 9%;
+        width: 96%;
+        height: 13%;
+        background: var(--slide);
+        border-radius: 999px;
+        transform: rotate(-38deg);
+        transform-origin: right center;
+      }
+
+      .tall-slide .kid-dot {
+        position: absolute;
+        z-index: 10;
+        width: 8%;
+        aspect-ratio: 1;
+        background: #7c5c4b;
+        border-radius: 50%;
+      }
+
+      .kid-dot.k1 {
+        right: 10%;
+        top: 1%;
+      }
+
+      .kid-dot.k2 {
+        right: 69%;
+        top: 43%;
+      }
+
+      .kid-dot.k3 {
+        left: -3%;
+        bottom: 7%;
+      }
+
+      .slide-pov {
+        position: absolute;
+        z-index: 8;
+        left: 27%;
+        bottom: -12%;
+        width: 49%;
+        height: 104%;
+        background: linear-gradient(180deg, #e77968 0%, #d26455 100%);
+        clip-path: polygon(45% 0, 56% 0, 83% 100%, 12% 100%);
+        border-radius: 999px 999px 0 0;
+        opacity: 0.96;
+      }
+
+      .slide-pov::before {
+        content: "";
+        position: absolute;
+        left: 28%;
+        top: 6%;
+        width: 42%;
+        height: 88%;
+        border-left: 3px solid rgba(255, 255, 255, 0.36);
+        border-right: 3px solid rgba(255, 255, 255, 0.24);
+        border-radius: 50%;
+      }
+
+      .platform {
+        position: absolute;
+        z-index: 12;
+        left: 21%;
+        right: 19%;
+        bottom: 0;
+        height: 22%;
+        background: #b58a69;
+        border-radius: 22px 22px 0 0;
+      }
+
+      .tiny-park {
+        position: absolute;
+        z-index: 7;
+        right: 6%;
+        top: 44%;
+        width: 16%;
+        height: 14%;
+        background: rgba(95, 138, 82, 0.5);
+        border-radius: 50%;
+      }
+
+      .voice-chip {
+        position: absolute;
+        z-index: 18;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: rgba(255, 253, 248, 0.82);
+        border: 1px solid rgba(37, 37, 37, 0.16);
+        color: #252525;
+        font-size: 12px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .activity {
+        position: absolute;
+        z-index: 8;
+      }
+
+      .swing {
+        left: 7%;
+        bottom: 34%;
+        width: 16%;
+        height: 25%;
+        border-top: 5px solid #8a644e;
+      }
+
+      .swing::before,
+      .swing::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        width: 3px;
+        height: 75%;
+        background: #8a644e;
+      }
+
+      .swing::before {
+        left: 28%;
+      }
+
+      .swing::after {
+        right: 28%;
+      }
+
+      .swing-seat {
+        position: absolute;
+        left: 31%;
+        bottom: 16%;
+        width: 38%;
+        height: 5%;
+        background: #d86e5d;
+        border-radius: 999px;
+      }
+
+      .tunnel {
+        right: 28%;
+        bottom: 25%;
+        width: 14%;
+        height: 12%;
+        background: #7ab7c7;
+        border-radius: 999px 999px 0 0;
+      }
+
+      .sand {
+        left: 12%;
+        bottom: 15%;
+        width: 20%;
+        height: 10%;
+        background: #e7cf91;
+        border-radius: 50%;
+      }
+
+      .climb {
+        left: 57%;
+        bottom: 22%;
+        width: 17%;
+        height: 20%;
+        background: #ad9277;
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      }
+
+      .climb::before,
+      .climb::after {
+        content: "";
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: #f1d46d;
+        border-radius: 50%;
+      }
+
+      .climb::before {
+        left: 38%;
+        top: 42%;
+      }
+
+      .climb::after {
+        left: 55%;
+        top: 66%;
+      }
+
+      .child {
+        position: absolute;
+        z-index: 15;
+        width: 11%;
+        aspect-ratio: 0.48;
+      }
+
+      .child.p4 {
+        left: 42%;
+        bottom: 8%;
+        width: 18%;
+        transform: rotate(-5deg);
+      }
+
+      .child.p5 {
+        left: 43%;
+        bottom: 24%;
+        width: 7%;
+      }
+
+      .child.p6 {
+        left: 20%;
+        bottom: 14%;
+        width: 13%;
+        transform: rotate(3deg);
+      }
+
+      .child.p28 {
+        right: 27%;
+        top: 29%;
+        width: 10%;
+        transform: rotate(-1deg);
+      }
+
+      .child .head {
+        position: absolute;
+        left: 22%;
+        top: 0;
+        width: 56%;
+        aspect-ratio: 1;
+        background: #7c5c4b;
+        border-radius: 50%;
+      }
+
+      .child .body {
+        position: absolute;
+        left: 27%;
+        top: 25%;
+        width: 46%;
+        height: 42%;
+        background: #6fa9d7;
+        border-radius: 999px 999px 40% 40%;
+      }
+
+      .child .arm,
+      .child .leg {
+        position: absolute;
+        background: #7c5c4b;
+        border-radius: 999px;
+      }
+
+      .child .arm.a1 {
+        left: 10%;
+        top: 31%;
+        width: 18%;
+        height: 34%;
+        transform: rotate(42deg);
+      }
+
+      .child .arm.a2 {
+        right: 8%;
+        top: 30%;
+        width: 18%;
+        height: 34%;
+        transform: rotate(-45deg);
+      }
+
+      .child .leg.l1 {
+        left: 26%;
+        top: 62%;
+        width: 18%;
+        height: 36%;
+        transform: rotate(23deg);
+      }
+
+      .child .leg.l2 {
+        right: 23%;
+        top: 62%;
+        width: 18%;
+        height: 36%;
+        transform: rotate(-25deg);
+      }
+
+      .motion {
+        position: absolute;
+        z-index: 7;
+        border: 3px solid rgba(255, 253, 248, 0.75);
+        border-left: 0;
+        border-bottom: 0;
+        border-radius: 50%;
+        transform: rotate(-8deg);
+      }
+
+      .whoosh {
+        right: 17%;
+        top: 22%;
+        width: 18%;
+        height: 10%;
+      }
+
+      .bed {
+        position: absolute;
+        z-index: 12;
+        right: 8%;
+        bottom: 14%;
+        width: 46%;
+        height: 28%;
+        background: #b98a68;
+        border-radius: 16px 16px 8px 8px;
+      }
+
+      .bed::before {
+        content: "";
+        position: absolute;
+        left: 6%;
+        top: -20%;
+        width: 35%;
+        height: 31%;
+        background: #fff7dd;
+        border-radius: 16px;
+      }
+
+      .bed.p10-left {
+        left: 7%;
+        right: auto;
+        bottom: 10%;
+        width: 38%;
+        height: 24%;
+      }
+
+      .lap-blanket {
+        position: absolute;
+        z-index: 18;
+        right: 20%;
+        bottom: 20%;
+        width: 22%;
+        height: 12%;
+        background: linear-gradient(135deg, #7ba8c5, #6995b7);
+        border-radius: 18px 18px 10px 10px;
+      }
+
+      .lap-blanket::before {
+        content: "";
+        position: absolute;
+        left: 12%;
+        top: 28%;
+        width: 68%;
+        height: 2px;
+        background: rgba(255, 253, 248, 0.38);
+      }
+
+      .sitting-child {
+        left: 62%;
+        bottom: 29%;
+        width: 13%;
+      }
+
+      .sitting-child.close {
+        left: 55%;
+        bottom: 23%;
+        width: 23%;
+      }
+
+      .sitting-child .arm.a1 {
+        left: 7%;
+        top: 33%;
+        height: 27%;
+        transform: rotate(22deg);
+      }
+
+      .sitting-child .arm.a2 {
+        right: 5%;
+        top: 33%;
+        height: 27%;
+        transform: rotate(-22deg);
+      }
+
+      .sitting-child .leg.l1 {
+        left: 19%;
+        top: 63%;
+        height: 28%;
+        transform: rotate(72deg);
+      }
+
+      .sitting-child .leg.l2 {
+        right: 18%;
+        top: 63%;
+        height: 28%;
+        transform: rotate(-72deg);
+      }
+
+      .window {
+        position: absolute;
+        z-index: 8;
+        right: 13%;
+        top: 12%;
+        width: 24%;
+        height: 23%;
+        background: linear-gradient(#34516f, #61799a);
+        border: 7px solid #fff4d5;
+        border-radius: 14px;
+        box-shadow: 0 0 28px rgba(255, 244, 213, 0.34);
+      }
+
+      .window.p10-left {
+        left: 9%;
+        right: auto;
+        top: 13%;
+        width: 20%;
+        height: 19%;
+      }
+
+      .window::before,
+      .window::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 244, 213, 0.82);
+      }
+
+      .window::before {
+        left: 48%;
+        top: 0;
+        width: 5px;
+        height: 100%;
+      }
+
+      .window::after {
+        left: 0;
+        top: 48%;
+        width: 100%;
+        height: 5px;
+      }
+
+      .moon {
+        position: absolute;
+        right: 8%;
+        top: 8%;
+        width: 21%;
+        aspect-ratio: 1;
+        background: #f6df87;
+        border-radius: 50%;
+        opacity: 0.85;
+      }
+
+      .picture-frame {
+        position: absolute;
+        z-index: 9;
+        right: 42%;
+        top: 14%;
+        width: 16%;
+        height: 17%;
+        background: rgba(255, 246, 216, 0.62);
+        border: 5px solid #9d7d60;
+        border-radius: 8px;
+        opacity: 0.78;
+      }
+
+      .picture-frame.close {
+        right: 22%;
+        top: 13%;
+        width: 18%;
+        height: 18%;
+      }
+
+      .animal-mark {
+        position: absolute;
+        left: 28%;
+        top: 25%;
+        width: 44%;
+        height: 39%;
+        background: #80634f;
+        border-radius: 49% 51% 43% 57%;
+        opacity: 0.55;
+      }
+
+      .animal-mark::before,
+      .animal-mark::after {
+        content: "";
+        position: absolute;
+        top: -24%;
+        width: 28%;
+        aspect-ratio: 1;
+        background: inherit;
+        border-radius: 45% 55% 42% 58%;
+      }
+
+      .animal-mark::before {
+        left: 5%;
+      }
+
+      .animal-mark::after {
+        right: 5%;
+      }
+
+      .memory-slide {
+        position: absolute;
+        z-index: 9;
+        right: 18%;
+        top: 41%;
+        width: 24%;
+        height: 18%;
+        opacity: 0.36;
+      }
+
+      .memory-slide.close {
+        right: 8%;
+        top: 39%;
+        width: 21%;
+        height: 16%;
+        opacity: 0.26;
+      }
+
+      .memory-slide::before {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 20%;
+        height: 100%;
+        border-left: 4px solid #fff4d5;
+        border-right: 4px solid #fff4d5;
+      }
+
+      .memory-slide::after {
+        content: "";
+        position: absolute;
+        right: 9%;
+        bottom: 12%;
+        width: 82%;
+        height: 25%;
+        background: #fff4d5;
+        border-radius: 999px;
+        transform: rotate(-29deg);
+        transform-origin: right center;
+      }
+
+      .memory-bubble {
+        position: absolute;
+        z-index: 11;
+        border: 2px solid rgba(255, 253, 248, 0.5);
+        border-radius: 999px;
+        background: rgba(255, 253, 248, 0.18);
+      }
+
+      .memory-bubble.b1 {
+        right: 37%;
+        top: 39%;
+        width: 11%;
+        height: 5%;
+      }
+
+      .memory-bubble.b2 {
+        right: 26%;
+        top: 33%;
+        width: 9%;
+        height: 4%;
+      }
+
+      .memory-bubble.b3 {
+        right: 14%;
+        top: 38%;
+        width: 12%;
+        height: 5%;
+      }
+
+      .breath-ring {
+        position: absolute;
+        z-index: 17;
+        left: 58%;
+        top: 38%;
+        width: 13%;
+        aspect-ratio: 1;
+        border: 3px solid rgba(255, 253, 248, 0.58);
+        border-radius: 50%;
+        opacity: 0.7;
+      }
+
+      .breath-ring.r2 {
+        left: 55%;
+        top: 35%;
+        width: 19%;
+        opacity: 0.4;
+      }
+
+      .tiny-glow {
+        position: absolute;
+        z-index: 19;
+        right: 42%;
+        bottom: 34%;
+        width: 6%;
+        aspect-ratio: 1;
+        background: #fff1a4;
+        border-radius: 50%;
+        box-shadow:
+          0 0 12px rgba(255, 241, 164, 0.95),
+          0 0 34px rgba(255, 241, 164, 0.7);
+      }
+
+      .tiny-glow::before,
+      .tiny-glow::after {
+        content: "";
+        position: absolute;
+        width: 55%;
+        aspect-ratio: 1;
+        background: inherit;
+        border-radius: 50%;
+        opacity: 0.75;
+      }
+
+      .tiny-glow::before {
+        left: -92%;
+        top: 12%;
+      }
+
+      .tiny-glow::after {
+        right: -86%;
+        top: -26%;
+      }
+
+      .room-floor {
+        position: absolute;
+        z-index: 6;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 42%;
+        background: linear-gradient(180deg, #8f9275, #7d866d);
+      }
+
+      .soft-wall {
+        position: absolute;
+        z-index: 7;
+        right: 0;
+        top: 0;
+        width: 36%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(63, 102, 88, 0.52));
+      }
+
+      .room-remnant {
+        position: absolute;
+        z-index: 7;
+        left: 0;
+        top: 0;
+        width: 36%;
+        height: 100%;
+        background:
+          linear-gradient(180deg, rgba(167, 202, 213, 0.72) 0 58%, rgba(137, 143, 118, 0.7) 58% 100%);
+      }
+
+      .room-remnant::before {
+        content: "";
+        position: absolute;
+        right: -18%;
+        top: 9%;
+        width: 42%;
+        height: 82%;
+        background: rgba(255, 253, 248, 0.16);
+        border-radius: 999px;
+        transform: rotate(-7deg);
+      }
+
+      .soft-wall::before,
+      .soft-wall::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 253, 248, 0.22);
+        border-radius: 999px;
+      }
+
+      .soft-wall::before {
+        left: 18%;
+        top: 12%;
+        width: 20%;
+        height: 70%;
+        transform: rotate(6deg);
+      }
+
+      .soft-wall::after {
+        left: 44%;
+        top: 20%;
+        width: 13%;
+        height: 62%;
+        transform: rotate(-8deg);
+      }
+
+      .star-light {
+        position: absolute;
+        z-index: 20;
+        width: 4.6%;
+        aspect-ratio: 1;
+        background: #fff0a1;
+        border-radius: 50%;
+        box-shadow:
+          0 0 9px rgba(255, 240, 161, 0.95),
+          0 0 24px rgba(255, 240, 161, 0.62);
+      }
+
+      .star-light::before {
+        content: "";
+        position: absolute;
+        left: 43%;
+        top: -42%;
+        width: 14%;
+        height: 184%;
+        background: rgba(255, 253, 248, 0.55);
+        border-radius: 999px;
+      }
+
+      .star-light::after {
+        content: "";
+        position: absolute;
+        left: -42%;
+        top: 43%;
+        width: 184%;
+        height: 14%;
+        background: rgba(255, 253, 248, 0.55);
+        border-radius: 999px;
+      }
+
+      .star-light.s1 {
+        left: 22%;
+        bottom: 34%;
+      }
+
+      .star-light.s2 {
+        left: 38%;
+        bottom: 30%;
+        transform: scale(0.85);
+      }
+
+      .star-light.s3 {
+        left: 55%;
+        bottom: 26%;
+        transform: scale(0.7);
+      }
+
+      .star-light.s4 {
+        right: 1%;
+        bottom: 22%;
+        transform: scale(0.58);
+      }
+
+      .star-light.s5 {
+        left: 1%;
+        bottom: 22%;
+        transform: scale(0.62);
+      }
+
+      .star-light.s6 {
+        left: 18%;
+        bottom: 28%;
+        transform: scale(0.76);
+      }
+
+      .star-light.s7 {
+        left: 36%;
+        bottom: 36%;
+        transform: scale(0.58);
+      }
+
+      .walking-child {
+        left: 73%;
+        bottom: 18%;
+        width: 13%;
+        transform: rotate(-2deg);
+      }
+
+      .walking-child.p11 {
+        left: -10%;
+        bottom: 18%;
+        width: 12%;
+      }
+
+      .walking-child.p12 {
+        left: 22%;
+        bottom: 20%;
+        width: 12%;
+        transform: rotate(5deg);
+      }
+
+      .walking-child.p11 {
+        left: -10%;
+        bottom: 18%;
+        width: 12%;
+      }
+
+      .walking-child .arm.a1 {
+        left: 8%;
+        top: 31%;
+        height: 31%;
+        transform: rotate(38deg);
+      }
+
+      .walking-child .arm.a2 {
+        right: 5%;
+        top: 32%;
+        height: 31%;
+        transform: rotate(-28deg);
+      }
+
+      .walking-child .leg.l1 {
+        left: 24%;
+        top: 62%;
+        height: 34%;
+        transform: rotate(12deg);
+      }
+
+      .walking-child .leg.l2 {
+        right: 18%;
+        top: 62%;
+        height: 34%;
+        transform: rotate(-44deg);
+      }
+
+      .moss-path {
+        position: absolute;
+        z-index: 7;
+        right: -6%;
+        bottom: -8%;
+        width: 54%;
+        height: 52%;
+        background: #668f61;
+        border-radius: 60% 20% 0 0;
+        transform: rotate(-10deg);
+      }
+
+      .dream-tree {
+        position: absolute;
+        z-index: 8;
+        bottom: 31%;
+        width: 9%;
+        height: 36%;
+        background: #294a40;
+        border-radius: 999px 999px 0 0;
+      }
+
+      .dream-tree::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -34%;
+        width: 260%;
+        aspect-ratio: 1;
+        background: #416f59;
+        border-radius: 46% 54% 44% 56%;
+        transform: translateX(-50%);
+      }
+
+      .dream-tree.dt1 {
+        right: 5%;
+      }
+
+      .dream-tree.dt2 {
+        right: 31%;
+        bottom: 34%;
+        transform: scale(0.74);
+      }
+
+      .dream-tree.dt3 {
+        left: 49%;
+        bottom: 37%;
+        transform: scale(0.52);
+      }
+
+      .ceiling-stars {
+        position: absolute;
+        z-index: 9;
+        left: 49%;
+        right: 5%;
+        top: 6%;
+        height: 34%;
+        background:
+          radial-gradient(circle at 12% 30%, #fff0a1 0 1.5%, transparent 2.2%),
+          radial-gradient(circle at 34% 16%, #fff0a1 0 1.2%, transparent 2%),
+          radial-gradient(circle at 62% 40%, #fff0a1 0 1.4%, transparent 2.1%),
+          radial-gradient(circle at 84% 22%, #fff0a1 0 1.1%, transparent 1.9%),
+          radial-gradient(circle at 73% 68%, #fff0a1 0 1.3%, transparent 2%);
+      }
+
+      .quiet-path {
+        position: absolute;
+        z-index: 7;
+        left: 35%;
+        bottom: -10%;
+        width: 36%;
+        height: 62%;
+        background: #8da46d;
+        border-radius: 52% 48% 0 0;
+        transform: rotate(7deg);
+      }
+
+      .quiet-path.p13 {
+        left: 44%;
+        width: 31%;
+        height: 54%;
+        transform: rotate(-5deg);
+      }
+
+      .forest-glow {
+        position: absolute;
+        z-index: 6;
+        right: 8%;
+        top: 8%;
+        width: 28%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.18);
+        border-radius: 50%;
+      }
+
+      .clue-cluster {
+        position: absolute;
+        z-index: 18;
+        left: 50%;
+        bottom: 34%;
+        width: 20%;
+        height: 16%;
+      }
+
+      .clue-print {
+        position: absolute;
+        width: 20%;
+        aspect-ratio: 1;
+        background: rgba(70, 58, 48, 0.54);
+        border-radius: 55% 45% 52% 48%;
+      }
+
+      .clue-print::before,
+      .clue-print::after {
+        content: "";
+        position: absolute;
+        top: -46%;
+        width: 42%;
+        aspect-ratio: 1;
+        background: inherit;
+        border-radius: 50%;
+      }
+
+      .clue-print::before {
+        left: -12%;
+      }
+
+      .clue-print::after {
+        right: -12%;
+      }
+
+      .clue-print.c1 {
+        left: 6%;
+        top: 14%;
+        transform: rotate(-22deg);
+      }
+
+      .clue-print.c2 {
+        left: 38%;
+        top: 42%;
+        transform: rotate(10deg) scale(0.9);
+      }
+
+      .clue-print.c3 {
+        right: 7%;
+        top: 10%;
+        transform: rotate(24deg) scale(0.74);
+      }
+
+      .clue-feather {
+        position: absolute;
+        z-index: 19;
+        right: 4%;
+        bottom: 5%;
+        width: 38%;
+        height: 16%;
+        background: #e5d5a4;
+        border-radius: 100% 8% 100% 8%;
+        transform: rotate(-25deg);
+        opacity: 0.9;
+      }
+
+      .clue-feather::before {
+        content: "";
+        position: absolute;
+        left: 11%;
+        top: 47%;
+        width: 77%;
+        height: 2px;
+        background: rgba(70, 58, 48, 0.38);
+      }
+
+      .bush {
+        position: absolute;
+        z-index: 15;
+        right: 12%;
+        bottom: 23%;
+        width: 34%;
+        height: 30%;
+        background: #4f7a48;
+        border-radius: 52% 48% 42% 58%;
+      }
+
+      .bush::before,
+      .bush::after {
+        content: "";
+        position: absolute;
+        background: #5f8f56;
+        border-radius: 50%;
+      }
+
+      .bush::before {
+        left: -16%;
+        bottom: 2%;
+        width: 56%;
+        height: 80%;
+      }
+
+      .bush::after {
+        right: -10%;
+        bottom: 4%;
+        width: 54%;
+        height: 74%;
+      }
+
+      .hidden-tail {
+        position: absolute;
+        z-index: 14;
+        right: 42%;
+        bottom: 45%;
+        width: 18%;
+        height: 6%;
+        background: #8a6650;
+        border-radius: 999px;
+        transform: rotate(-24deg);
+      }
+
+      .sneeze-cloud {
+        position: absolute;
+        z-index: 19;
+        right: 34%;
+        top: 30%;
+        width: 16%;
+        height: 9%;
+        background: rgba(255, 253, 248, 0.74);
+        border-radius: 999px;
+        box-shadow:
+          18px -8px 0 rgba(255, 253, 248, 0.58),
+          32px 4px 0 rgba(255, 253, 248, 0.48);
+      }
+
+      .wiggle-line {
+        position: absolute;
+        z-index: 19;
+        width: 9%;
+        height: 5%;
+        border-top: 3px solid rgba(255, 253, 248, 0.62);
+        border-radius: 50%;
+      }
+
+      .wiggle-line.w1 {
+        right: 42%;
+        bottom: 51%;
+        transform: rotate(20deg);
+      }
+
+      .wiggle-line.w2 {
+        right: 13%;
+        bottom: 53%;
+        transform: rotate(-18deg);
+      }
+
+      .chaos-arrow {
+        position: absolute;
+        z-index: 18;
+        width: 15%;
+        height: 4%;
+        background: #f0d67f;
+        border-radius: 999px;
+        transform-origin: center;
+      }
+
+      .chaos-arrow::after {
+        content: "";
+        position: absolute;
+        right: -13%;
+        top: 50%;
+        width: 0;
+        height: 0;
+        border-top: 9px solid transparent;
+        border-bottom: 9px solid transparent;
+        border-left: 14px solid #f0d67f;
+        transform: translateY(-50%);
+      }
+
+      .chaos-arrow.a1 {
+        right: 23%;
+        top: 22%;
+        transform: rotate(-18deg);
+      }
+
+      .chaos-arrow.a2 {
+        right: 8%;
+        top: 43%;
+        transform: rotate(42deg);
+      }
+
+      .chaos-arrow.a3 {
+        left: 42%;
+        bottom: 28%;
+        transform: rotate(148deg);
+      }
+
+      .chaos-arrow.a4 {
+        right: 34%;
+        bottom: 16%;
+        transform: rotate(-65deg);
+      }
+
+      .chaos-arrow.soft {
+        opacity: 0.42;
+        transform: scale(0.82);
+      }
+
+      .speaking-star {
+        position: absolute;
+        z-index: 19;
+        width: 7%;
+        aspect-ratio: 1;
+        background: #fff0a1;
+        clip-path: polygon(50% 0, 62% 34%, 98% 35%, 69% 56%, 79% 91%, 50% 69%, 21% 91%, 31% 56%, 2% 35%, 38% 34%);
+        filter: drop-shadow(0 0 9px rgba(255, 240, 161, 0.5));
+      }
+
+      .speaking-star.st1 {
+        right: 31%;
+        top: 10%;
+        transform: rotate(14deg);
+      }
+
+      .speaking-star.st2 {
+        right: 12%;
+        top: 28%;
+        transform: scale(0.76) rotate(-16deg);
+      }
+
+      .speaking-star.st3 {
+        left: 50%;
+        top: 16%;
+        transform: scale(0.62) rotate(20deg);
+      }
+
+      .wind-puff {
+        position: absolute;
+        z-index: 17;
+        right: 42%;
+        top: 36%;
+        width: 18%;
+        height: 8%;
+        border-top: 5px solid rgba(255, 253, 248, 0.72);
+        border-radius: 50%;
+        transform: rotate(-7deg);
+      }
+
+      .wind-puff::after {
+        content: "";
+        position: absolute;
+        right: -36%;
+        top: 52%;
+        width: 74%;
+        height: 70%;
+        border-top: 4px solid rgba(255, 253, 248, 0.56);
+        border-radius: 50%;
+      }
+
+      .talking-mushroom {
+        position: absolute;
+        z-index: 18;
+        right: 12%;
+        bottom: 16%;
+        width: 13%;
+        height: 16%;
+      }
+
+      .talking-mushroom::before {
+        content: "";
+        position: absolute;
+        left: 12%;
+        top: 0;
+        width: 76%;
+        height: 45%;
+        background: #d86e5d;
+        border-radius: 999px 999px 30% 30%;
+      }
+
+      .talking-mushroom::after {
+        content: "";
+        position: absolute;
+        left: 34%;
+        bottom: 0;
+        width: 32%;
+        height: 64%;
+        background: #f5dfb5;
+        border-radius: 999px;
+      }
+
+      .talking-stone {
+        position: absolute;
+        z-index: 18;
+        left: 48%;
+        bottom: 14%;
+        width: 13%;
+        height: 8%;
+        background: #8d887c;
+        border-radius: 58% 42% 48% 52%;
+      }
+
+      .spinning-sign {
+        position: absolute;
+        z-index: 20;
+        right: 26%;
+        bottom: 34%;
+        width: 17%;
+        height: 8%;
+        background: #e9ca76;
+        border: 3px solid #8a6650;
+        border-radius: 8px;
+        transform: rotate(21deg);
+      }
+
+      .spinning-sign::before {
+        content: "";
+        position: absolute;
+        left: 47%;
+        top: 100%;
+        width: 7%;
+        height: 130%;
+        background: #8a6650;
+      }
+
+      .spin-ring {
+        position: absolute;
+        z-index: 19;
+        right: 24%;
+        bottom: 42%;
+        width: 21%;
+        height: 14%;
+        border: 3px dashed rgba(255, 253, 248, 0.6);
+        border-radius: 50%;
+        transform: rotate(-14deg);
+      }
+
+      .quiet-opening {
+        position: absolute;
+        z-index: 16;
+        right: 15%;
+        bottom: -7%;
+        width: 30%;
+        height: 53%;
+        background: linear-gradient(180deg, #94ad72, #d8c078);
+        border-radius: 58% 42% 0 0;
+        box-shadow: 0 0 34px rgba(255, 240, 161, 0.24);
+      }
+
+      .quiet-opening::before {
+        content: "";
+        position: absolute;
+        left: 38%;
+        top: 22%;
+        width: 9%;
+        aspect-ratio: 1;
+        background: #fff0a1;
+        border-radius: 50%;
+        box-shadow: 0 0 16px rgba(255, 240, 161, 0.9);
+      }
+
+      .listening-dot {
+        position: absolute;
+        z-index: 19;
+        left: 49%;
+        bottom: 32%;
+        width: 6%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.95);
+        border-radius: 50%;
+        box-shadow:
+          0 0 10px rgba(255, 240, 161, 0.9),
+          0 0 28px rgba(255, 240, 161, 0.55);
+      }
+
+      .fork-base {
+        position: absolute;
+        z-index: 8;
+        left: 45%;
+        bottom: -8%;
+        width: 18%;
+        height: 38%;
+        background: #8da46d;
+        border-radius: 50% 50% 0 0;
+      }
+
+      .shiny-path {
+        position: absolute;
+        z-index: 10;
+        right: 5%;
+        bottom: -9%;
+        width: 35%;
+        height: 62%;
+        background: linear-gradient(180deg, #f5df86, #e0c05a);
+        border-radius: 60% 40% 0 0;
+        transform: rotate(-18deg);
+        box-shadow: 0 0 26px rgba(255, 226, 122, 0.52);
+      }
+
+      .shiny-path::before,
+      .shiny-path::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 253, 248, 0.55);
+        border-radius: 999px;
+      }
+
+      .shiny-path::before {
+        left: 30%;
+        top: 22%;
+        width: 18%;
+        height: 4%;
+        transform: rotate(20deg);
+      }
+
+      .shiny-path::after {
+        left: 57%;
+        top: 42%;
+        width: 24%;
+        height: 4%;
+        transform: rotate(-18deg);
+      }
+
+      .steep-path {
+        position: absolute;
+        z-index: 9;
+        right: 28%;
+        bottom: -7%;
+        width: 29%;
+        height: 68%;
+        background: #85996a;
+        border-radius: 54% 46% 0 0;
+        transform: rotate(19deg);
+      }
+
+      .steep-path::before {
+        content: "";
+        position: absolute;
+        left: 35%;
+        top: 24%;
+        width: 8%;
+        aspect-ratio: 1;
+        background: #fff0a1;
+        border-radius: 50%;
+        box-shadow: 0 0 16px rgba(255, 240, 161, 0.86);
+      }
+
+      .path-label-dot {
+        position: absolute;
+        z-index: 18;
+        right: 33%;
+        bottom: 33%;
+        width: 5%;
+        aspect-ratio: 1;
+        background: #fff0a1;
+        border-radius: 50%;
+        box-shadow: 0 0 18px rgba(255, 240, 161, 0.82);
+      }
+
+      .climb-path {
+        position: absolute;
+        z-index: 8;
+        left: 43%;
+        bottom: -9%;
+        width: 34%;
+        height: 78%;
+        background: #879766;
+        border-radius: 58% 42% 0 0;
+        transform: rotate(-14deg);
+      }
+
+      .climb-path::before,
+      .climb-path::after {
+        content: "";
+        position: absolute;
+        left: 44%;
+        width: 18%;
+        height: 3%;
+        background: rgba(255, 253, 248, 0.28);
+        border-radius: 999px;
+      }
+
+      .climb-path::before {
+        top: 38%;
+        transform: rotate(10deg);
+      }
+
+      .climb-path::after {
+        top: 58%;
+        transform: rotate(-8deg);
+      }
+
+      .cave-mouth {
+        position: absolute;
+        z-index: 14;
+        right: 9%;
+        top: 23%;
+        width: 35%;
+        height: 42%;
+        background: radial-gradient(circle at 52% 58%, #273442 0 38%, #56606b 39% 68%, #77818b 69% 100%);
+        border-radius: 52% 48% 45% 55%;
+        box-shadow: 0 0 32px rgba(255, 240, 161, 0.18);
+      }
+
+      .cave-mouth::before {
+        content: "";
+        position: absolute;
+        left: 18%;
+        top: 14%;
+        width: 66%;
+        height: 70%;
+        background:
+          radial-gradient(circle at 23% 30%, rgba(255, 240, 161, 0.9) 0 3%, transparent 4%),
+          radial-gradient(circle at 67% 20%, rgba(158, 212, 230, 0.76) 0 3%, transparent 4%),
+          radial-gradient(circle at 75% 61%, rgba(255, 240, 161, 0.72) 0 2.5%, transparent 3.5%),
+          radial-gradient(circle at 41% 73%, rgba(158, 212, 230, 0.6) 0 2.5%, transparent 3.5%);
+      }
+
+      .rock-slope {
+        position: absolute;
+        z-index: 9;
+        right: 5%;
+        bottom: 23%;
+        width: 45%;
+        height: 19%;
+        background: #667268;
+        clip-path: polygon(0 100%, 78% 0, 100% 100%);
+        opacity: 0.92;
+      }
+
+      .walking-child.p16 {
+        left: 42%;
+        bottom: 21%;
+        width: 10%;
+        transform: rotate(4deg);
+      }
+
+      .walking-child.p17 {
+        left: 58%;
+        bottom: 28%;
+        width: 8%;
+        transform: rotate(-9deg);
+      }
+
+      .cave-floor {
+        position: absolute;
+        z-index: 6;
+        left: -5%;
+        right: -5%;
+        bottom: -12%;
+        height: 42%;
+        background: #45515b;
+        border-radius: 50% 50% 0 0;
+      }
+
+      .word-wall {
+        position: absolute;
+        z-index: 10;
+        right: 6%;
+        top: 12%;
+        width: 49%;
+        height: 66%;
+        background:
+          radial-gradient(circle at 23% 22%, rgba(158, 212, 230, 0.38) 0 2.2%, transparent 3%),
+          radial-gradient(circle at 75% 28%, rgba(255, 240, 161, 0.35) 0 2.2%, transparent 3%),
+          radial-gradient(circle at 61% 76%, rgba(158, 212, 230, 0.3) 0 2%, transparent 3%),
+          linear-gradient(135deg, #6f7783, #444d58);
+        border-radius: 48% 52% 45% 55%;
+        box-shadow:
+          inset 0 0 28px rgba(32, 39, 49, 0.72),
+          0 0 22px rgba(158, 212, 230, 0.14);
+      }
+
+      .word-wall::before,
+      .word-wall::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 253, 248, 0.15);
+        border-radius: 999px;
+      }
+
+      .word-wall::before {
+        left: 12%;
+        top: 19%;
+        width: 74%;
+        height: 9%;
+        transform: rotate(-5deg);
+      }
+
+      .word-wall::after {
+        left: 18%;
+        top: 43%;
+        width: 67%;
+        height: 9%;
+        transform: rotate(5deg);
+      }
+
+      .word-wall.soft {
+        background:
+          radial-gradient(circle at 23% 22%, rgba(158, 212, 230, 0.44) 0 2.2%, transparent 3%),
+          radial-gradient(circle at 75% 28%, rgba(255, 240, 161, 0.42) 0 2.2%, transparent 3%),
+          radial-gradient(circle at 61% 76%, rgba(158, 212, 230, 0.36) 0 2%, transparent 3%),
+          linear-gradient(135deg, #77828b, #4f5d67);
+      }
+
+      .word-wall.open {
+        background:
+          radial-gradient(circle at 24% 22%, rgba(255, 240, 161, 0.5) 0 2.3%, transparent 3.2%),
+          radial-gradient(circle at 75% 28%, rgba(158, 212, 230, 0.5) 0 2.3%, transparent 3.2%),
+          radial-gradient(circle at 58% 76%, rgba(255, 240, 161, 0.42) 0 2%, transparent 3%),
+          linear-gradient(135deg, #7b8790, #56656d);
+        box-shadow:
+          inset 0 0 26px rgba(32, 39, 49, 0.46),
+          0 0 34px rgba(255, 240, 161, 0.2);
+      }
+
+      .word-wall.open::before,
+      .word-wall.open::after {
+        height: 18%;
+        background: rgba(255, 253, 248, 0.18);
+        box-shadow: 0 0 16px rgba(255, 240, 161, 0.18);
+      }
+
+      .word-wall.open::before {
+        left: 4%;
+        top: 21%;
+        width: 42%;
+        transform: rotate(-18deg);
+      }
+
+      .word-wall.open::after {
+        left: 53%;
+        top: 42%;
+        width: 37%;
+        transform: rotate(18deg);
+      }
+
+      .word-wall.calm {
+        background:
+          radial-gradient(circle at 25% 20%, rgba(255, 240, 161, 0.44) 0 2%, transparent 3%),
+          radial-gradient(circle at 72% 42%, rgba(158, 212, 230, 0.42) 0 2%, transparent 3%),
+          linear-gradient(135deg, #7c8790, #5b6870);
+        opacity: 0.9;
+      }
+
+      .wall-word {
+        position: absolute;
+        z-index: 22;
+        right: 12%;
+        width: 37%;
+        color: #282b33;
+        font-size: clamp(18px, 2.1vw, 30px);
+        font-weight: 950;
+        line-height: 0.96;
+        letter-spacing: 0.03em;
+        text-align: center;
+        text-transform: uppercase;
+        transform: rotate(-5deg);
+        text-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.22),
+          0 0 12px rgba(255, 240, 161, 0.14);
+      }
+
+      .wall-word.w1 {
+        top: 27%;
+      }
+
+      .wall-word.w2 {
+        top: 42%;
+        transform: rotate(5deg);
+      }
+
+      .wall-word.echo {
+        right: 16%;
+        top: 63%;
+        width: 30%;
+        color: rgba(40, 43, 51, 0.62);
+        font-size: clamp(12px, 1.35vw, 20px);
+        transform: rotate(0deg);
+      }
+
+      .wall-word.softening {
+        color: rgba(65, 75, 82, 0.58);
+        filter: blur(0.3px);
+        transform: rotate(-2deg) skew(-4deg);
+      }
+
+      .wall-word.softening.w2 {
+        transform: rotate(2deg) skew(5deg);
+      }
+
+      .wall-word.inside {
+        right: 14%;
+        width: 33%;
+        color: #f7edc6;
+        font-size: clamp(13px, 1.45vw, 21px);
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: 0.02em;
+        text-shadow:
+          0 0 14px rgba(255, 240, 161, 0.58),
+          0 1px 0 rgba(0, 0, 0, 0.25);
+        transform: rotate(0deg);
+      }
+
+      .wall-word.inside.i1 {
+        top: 30%;
+      }
+
+      .wall-word.inside.i2 {
+        top: 47%;
+      }
+
+      .soft-word-wisp {
+        position: absolute;
+        z-index: 19;
+        right: 15%;
+        top: 24%;
+        width: 35%;
+        height: 32%;
+        border-top: 4px solid rgba(255, 240, 161, 0.34);
+        border-bottom: 4px solid rgba(158, 212, 230, 0.24);
+        border-radius: 50%;
+        transform: rotate(-8deg);
+      }
+
+      .warm-voice-glow {
+        position: absolute;
+        z-index: 18;
+        right: 25%;
+        bottom: 30%;
+        width: 16%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.42);
+        border-radius: 50%;
+        box-shadow:
+          0 0 22px rgba(255, 240, 161, 0.72),
+          0 0 52px rgba(255, 240, 161, 0.34);
+      }
+
+      .bright-opening {
+        position: absolute;
+        z-index: 14;
+        right: 2%;
+        top: 8%;
+        width: 56%;
+        height: 78%;
+        background:
+          radial-gradient(circle at 54% 50%, rgba(255, 247, 194, 0.96) 0 23%, rgba(255, 226, 132, 0.82) 24% 41%, rgba(158, 212, 230, 0.34) 42% 60%, transparent 61%),
+          linear-gradient(135deg, #78818a, #4e5a64);
+        border-radius: 52% 48% 45% 55%;
+        box-shadow: 0 0 46px rgba(255, 240, 161, 0.42);
+      }
+
+      .bright-opening::before,
+      .bright-opening::after {
+        content: "";
+        position: absolute;
+        background: rgba(83, 91, 102, 0.7);
+        border-radius: 999px;
+      }
+
+      .bright-opening::before {
+        left: -5%;
+        top: 14%;
+        width: 18%;
+        height: 70%;
+        transform: rotate(-9deg);
+      }
+
+      .bright-opening::after {
+        right: -2%;
+        top: 18%;
+        width: 15%;
+        height: 64%;
+        transform: rotate(7deg);
+      }
+
+      .light-path {
+        position: absolute;
+        z-index: 13;
+        right: 13%;
+        bottom: -9%;
+        width: 31%;
+        height: 54%;
+        background: linear-gradient(180deg, rgba(255, 242, 172, 0.84), rgba(221, 184, 98, 0.7));
+        border-radius: 55% 45% 0 0;
+        transform: rotate(-8deg);
+      }
+
+      .sun-hill {
+        position: absolute;
+        z-index: 7;
+        left: -8%;
+        right: -8%;
+        bottom: -8%;
+        height: 40%;
+        background: #7fa168;
+        border-radius: 50% 50% 0 0;
+      }
+
+      .sun-hill.back {
+        bottom: 25%;
+        height: 22%;
+        background: #a6bf73;
+      }
+
+      .sun-path {
+        position: absolute;
+        z-index: 8;
+        right: 18%;
+        bottom: -9%;
+        width: 31%;
+        height: 55%;
+        background: #dcc16f;
+        border-radius: 55% 45% 0 0;
+        transform: rotate(-9deg);
+      }
+
+      .sun-ray {
+        position: absolute;
+        z-index: 8;
+        right: 7%;
+        top: 11%;
+        width: 42%;
+        height: 42%;
+        background:
+          linear-gradient(36deg, transparent 0 43%, rgba(255, 246, 178, 0.34) 44% 56%, transparent 57%),
+          linear-gradient(102deg, transparent 0 45%, rgba(255, 246, 178, 0.3) 46% 55%, transparent 56%);
+        border-radius: 50%;
+      }
+
+      .soft-flower {
+        position: absolute;
+        z-index: 12;
+        width: 5%;
+        aspect-ratio: 1;
+        background: #f3d574;
+        border-radius: 50%;
+        box-shadow:
+          10px 0 0 #f2b3a6,
+          -10px 0 0 #f2b3a6,
+          0 10px 0 #f2b3a6,
+          0 -10px 0 #f2b3a6;
+      }
+
+      .soft-flower.f1 {
+        right: 10%;
+        bottom: 22%;
+        transform: scale(0.7);
+      }
+
+      .soft-flower.f2 {
+        right: 55%;
+        bottom: 18%;
+        transform: scale(0.52);
+      }
+
+      .inner-glow {
+        position: absolute;
+        z-index: 18;
+        right: 35%;
+        bottom: 28%;
+        width: 15%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: rgba(255, 240, 161, 0.28);
+        box-shadow:
+          0 0 24px rgba(255, 240, 161, 0.62),
+          0 0 56px rgba(255, 240, 161, 0.28);
+      }
+
+      .golden-forest {
+        position: absolute;
+        z-index: 7;
+        left: -6%;
+        right: -6%;
+        bottom: -8%;
+        height: 44%;
+        background: #7e9f64;
+        border-radius: 50% 50% 0 0;
+      }
+
+      .golden-forest.back {
+        bottom: 23%;
+        height: 27%;
+        background: #a6bd72;
+      }
+
+      .golden-tree {
+        position: absolute;
+        z-index: 9;
+        bottom: 34%;
+        width: 8%;
+        height: 32%;
+        background: #7d6042;
+        border-radius: 999px 999px 0 0;
+      }
+
+      .golden-tree::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -35%;
+        width: 285%;
+        aspect-ratio: 1;
+        background: #d0a84f;
+        border-radius: 50% 48% 52% 45%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 18px rgba(255, 230, 132, 0.28);
+      }
+
+      .golden-tree.g1 {
+        right: 7%;
+      }
+
+      .golden-tree.g2 {
+        right: 37%;
+        bottom: 38%;
+        transform: scale(0.72);
+      }
+
+      .golden-tree.g3 {
+        left: 51%;
+        bottom: 36%;
+        transform: scale(0.55);
+      }
+
+      .golden-path {
+        position: absolute;
+        z-index: 10;
+        right: 18%;
+        bottom: -8%;
+        width: 32%;
+        height: 58%;
+        background: linear-gradient(180deg, #e2c16d, #cba85b);
+        border-radius: 55% 45% 0 0;
+        transform: rotate(-9deg);
+      }
+
+      .golden-path.to-clearing {
+        right: 8%;
+        width: 40%;
+        height: 60%;
+        transform: rotate(-14deg);
+      }
+
+      .glowing-clue {
+        position: absolute;
+        z-index: 19;
+        width: 5%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.9);
+        border-radius: 50%;
+        box-shadow:
+          0 0 12px rgba(255, 240, 161, 0.9),
+          0 0 28px rgba(255, 240, 161, 0.52);
+      }
+
+      .glowing-clue::before,
+      .glowing-clue::after {
+        content: "";
+        position: absolute;
+        background: rgba(112, 82, 55, 0.4);
+        border-radius: 50%;
+      }
+
+      .glowing-clue::before {
+        left: -35%;
+        top: -18%;
+        width: 45%;
+        aspect-ratio: 1;
+      }
+
+      .glowing-clue::after {
+        right: -35%;
+        top: -18%;
+        width: 45%;
+        aspect-ratio: 1;
+      }
+
+      .glowing-clue.gc1 {
+        right: 39%;
+        bottom: 35%;
+      }
+
+      .glowing-clue.gc2 {
+        right: 30%;
+        bottom: 44%;
+        transform: scale(0.85);
+      }
+
+      .glowing-clue.gc3 {
+        right: 21%;
+        bottom: 52%;
+        transform: scale(0.7);
+      }
+
+      .glowing-clue.gc4 {
+        right: 13%;
+        bottom: 61%;
+        transform: scale(0.6);
+      }
+
+      .clearing-glow {
+        position: absolute;
+        z-index: 14;
+        right: 10%;
+        top: 14%;
+        width: 48%;
+        aspect-ratio: 1;
+        background: rgba(255, 238, 158, 0.42);
+        border-radius: 50%;
+        box-shadow:
+          0 0 34px rgba(255, 238, 158, 0.58),
+          0 0 80px rgba(255, 238, 158, 0.28);
+      }
+
+      .magic-swirl {
+        position: absolute;
+        z-index: 17;
+        right: 17%;
+        top: 21%;
+        width: 35%;
+        height: 31%;
+        border: 5px solid rgba(255, 253, 248, 0.58);
+        border-left-color: transparent;
+        border-bottom-color: rgba(255, 240, 161, 0.34);
+        border-radius: 50%;
+        transform: rotate(-18deg);
+      }
+
+      .magic-swirl::before {
+        content: "";
+        position: absolute;
+        left: 17%;
+        top: 22%;
+        width: 58%;
+        height: 47%;
+        border: 4px solid rgba(255, 240, 161, 0.42);
+        border-right-color: transparent;
+        border-radius: 50%;
+      }
+
+      .reveal-cloud {
+        position: absolute;
+        z-index: 16;
+        right: 18%;
+        bottom: 30%;
+        width: 33%;
+        height: 15%;
+        background: rgba(255, 253, 248, 0.7);
+        border-radius: 999px;
+        box-shadow:
+          -22px 2px 0 rgba(255, 253, 248, 0.48),
+          21px -5px 0 rgba(255, 253, 248, 0.56),
+          0 0 30px rgba(255, 240, 161, 0.38);
+      }
+
+      .animal-silhouette {
+        position: absolute;
+        z-index: 20;
+        right: 27%;
+        bottom: 40%;
+        width: 14%;
+        height: 19%;
+        background: #8a6650;
+        border-radius: 52% 48% 42% 58%;
+        box-shadow: 0 0 20px rgba(255, 240, 161, 0.38);
+      }
+
+      .animal-silhouette::before,
+      .animal-silhouette::after {
+        content: "";
+        position: absolute;
+        top: -23%;
+        width: 28%;
+        aspect-ratio: 1;
+        background: inherit;
+        border-radius: 50% 50% 30% 30%;
+      }
+
+      .animal-silhouette::before {
+        left: 10%;
+      }
+
+      .animal-silhouette::after {
+        right: 10%;
+      }
+
+      .animal-tail {
+        position: absolute;
+        z-index: 19;
+        right: 21%;
+        bottom: 43%;
+        width: 14%;
+        height: 5%;
+        background: #8a6650;
+        border-radius: 999px;
+        transform: rotate(-30deg);
+      }
+
+      .star-field {
+        position: absolute;
+        z-index: 7;
+        inset: 0;
+        background:
+          radial-gradient(circle at 57% 15%, #fff0a1 0 0.8%, transparent 1.4%),
+          radial-gradient(circle at 76% 31%, #fff0a1 0 0.7%, transparent 1.3%),
+          radial-gradient(circle at 46% 43%, #fff0a1 0 0.6%, transparent 1.2%),
+          radial-gradient(circle at 83% 62%, #fff0a1 0 0.7%, transparent 1.3%),
+          radial-gradient(circle at 61% 76%, #fff0a1 0 0.6%, transparent 1.2%);
+      }
+
+      .dream-trail {
+        position: absolute;
+        z-index: 8;
+        right: 7%;
+        top: 20%;
+        width: 48%;
+        height: 30%;
+        border-top: 5px solid rgba(255, 240, 161, 0.52);
+        border-radius: 50%;
+        transform: rotate(-14deg);
+      }
+
+      .flying-child {
+        position: absolute;
+        z-index: 18;
+        right: 35%;
+        top: 35%;
+        width: 14%;
+        aspect-ratio: 1.6;
+        background: #6fa9d7;
+        border-radius: 999px;
+        transform: rotate(-16deg);
+        box-shadow: 0 0 22px rgba(255, 240, 161, 0.24);
+      }
+
+      .flying-child::before {
+        content: "";
+        position: absolute;
+        left: -16%;
+        top: -20%;
+        width: 35%;
+        aspect-ratio: 1;
+        background: #7c5c4b;
+        border-radius: 50%;
+      }
+
+      .flying-child::after {
+        content: "";
+        position: absolute;
+        right: -19%;
+        top: 45%;
+        width: 35%;
+        height: 28%;
+        background: #7c5c4b;
+        border-radius: 999px;
+        transform: rotate(18deg);
+      }
+
+      .flying-animal {
+        position: absolute;
+        z-index: 17;
+        right: 19%;
+        top: 31%;
+        width: 12%;
+        height: 12%;
+        background: #8a6650;
+        border-radius: 52% 48% 42% 58%;
+        transform: rotate(10deg);
+        box-shadow: 0 0 18px rgba(255, 240, 161, 0.32);
+      }
+
+      .flying-animal::before,
+      .flying-animal::after {
+        content: "";
+        position: absolute;
+        top: -20%;
+        width: 27%;
+        aspect-ratio: 1;
+        background: inherit;
+        border-radius: 50%;
+      }
+
+      .flying-animal::before {
+        left: 10%;
+      }
+
+      .flying-animal::after {
+        right: 10%;
+      }
+
+      .mini-forest {
+        position: absolute;
+        z-index: 9;
+        left: 47%;
+        bottom: 8%;
+        width: 28%;
+        height: 15%;
+        background: rgba(75, 113, 78, 0.72);
+        border-radius: 50%;
+      }
+
+      .destination-park {
+        position: absolute;
+        z-index: 10;
+        right: 6%;
+        bottom: 17%;
+        width: 18%;
+        height: 11%;
+        background: rgba(139, 167, 101, 0.8);
+        border-radius: 50%;
+        box-shadow: 0 0 18px rgba(255, 240, 161, 0.22);
+      }
+
+      .destination-slide {
+        position: absolute;
+        z-index: 11;
+        right: 9%;
+        bottom: 24%;
+        width: 12%;
+        height: 18%;
+        opacity: 0.75;
+      }
+
+      .destination-slide::before {
+        content: "";
+        position: absolute;
+        right: 8%;
+        bottom: 0;
+        width: 22%;
+        height: 100%;
+        border-left: 3px solid #f0c27b;
+        border-right: 3px solid #f0c27b;
+      }
+
+      .destination-slide::after {
+        content: "";
+        position: absolute;
+        right: 16%;
+        bottom: 18%;
+        width: 84%;
+        height: 18%;
+        background: #d86e5d;
+        border-radius: 999px;
+        transform: rotate(-30deg);
+        transform-origin: right center;
+      }
+
+      .slide-pov.calm {
+        background: linear-gradient(180deg, #e98675 0%, #d86e5d 100%);
+        opacity: 0.9;
+        box-shadow: 0 0 34px rgba(255, 240, 161, 0.18);
+      }
+
+      .platform.calm {
+        background: #b99172;
+      }
+
+      .quiet-orb {
+        position: absolute;
+        z-index: 19;
+        left: 53%;
+        top: 26%;
+        width: 7%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.78);
+        border-radius: 50%;
+        box-shadow:
+          0 0 16px rgba(255, 240, 161, 0.82),
+          0 0 42px rgba(255, 240, 161, 0.34);
+      }
+
+      .slide-platform-side {
+        position: absolute;
+        z-index: 9;
+        right: 4%;
+        top: 12%;
+        width: 43%;
+        height: 47%;
+        background: #b99172;
+        border-radius: 10px 10px 24px 24px;
+        box-shadow: 0 14px 24px rgba(78, 60, 43, 0.16);
+      }
+
+      .slide-platform-side::before {
+        content: "";
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        top: 12%;
+        height: 5px;
+        background: rgba(255, 253, 248, 0.34);
+        border-radius: 999px;
+      }
+
+      .slide-side-rail {
+        position: absolute;
+        z-index: 12;
+        right: 9%;
+        top: 8%;
+        width: 36%;
+        height: 53%;
+        border: 5px solid #8d684f;
+        border-bottom: 0;
+        border-radius: 12px 12px 0 0;
+      }
+
+      .slide-side-rail::before,
+      .slide-side-rail::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: #8d684f;
+      }
+
+      .slide-side-rail::before {
+        top: 35%;
+      }
+
+      .slide-side-rail::after {
+        top: 66%;
+      }
+
+      .slide-side-chute {
+        position: absolute;
+        z-index: 8;
+        right: -8%;
+        bottom: 4%;
+        width: 39%;
+        height: 21%;
+        background: linear-gradient(90deg, #d86e5d, #e98675);
+        border-radius: 999px;
+        transform: rotate(-25deg);
+        box-shadow: 0 10px 18px rgba(145, 76, 64, 0.16);
+      }
+
+      .waiting-child {
+        position: absolute;
+        z-index: 15;
+        right: 10%;
+        top: 24%;
+        width: 7%;
+        aspect-ratio: 0.5;
+        opacity: 0.76;
+      }
+
+      .waiting-child::before {
+        content: "";
+        position: absolute;
+        left: 22%;
+        top: 0;
+        width: 56%;
+        aspect-ratio: 1;
+        background: #8b6552;
+        border-radius: 50%;
+      }
+
+      .waiting-child::after {
+        content: "";
+        position: absolute;
+        left: 24%;
+        top: 25%;
+        width: 52%;
+        height: 44%;
+        background: #e0b866;
+        border-radius: 999px 999px 42% 42%;
+      }
+
+      .warm-listen-glow {
+        position: absolute;
+        z-index: 17;
+        right: 28%;
+        top: 32%;
+        width: 10%;
+        aspect-ratio: 1;
+        background: rgba(255, 240, 161, 0.48);
+        border-radius: 50%;
+        box-shadow:
+          0 0 20px rgba(255, 240, 161, 0.58),
+          0 0 54px rgba(255, 240, 161, 0.25);
+      }
+
+      .quiet-page-mark {
+        position: absolute;
+        z-index: 10;
+        left: 45%;
+        top: 42%;
+        width: 10%;
+        aspect-ratio: 1;
+        border: 3px solid rgba(255, 223, 131, 0.46);
+        border-radius: 50%;
+        box-shadow: 0 0 34px rgba(255, 223, 131, 0.2);
+      }
+
+      .trace-spiral {
+        position: absolute;
+        z-index: 11;
+        right: 10%;
+        top: 17%;
+        width: 42%;
+        height: 42%;
+        filter: drop-shadow(0 10px 22px rgba(118, 87, 54, 0.12));
+      }
+
+      .trace-spiral path {
+        fill: none;
+        stroke: #d49a61;
+        stroke-width: 10;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .trace-spiral circle {
+        fill: #f5c66e;
+        stroke: #fffaf0;
+        stroke-width: 5;
+      }
+
+      .exercise-breath-ring {
+        position: absolute;
+        z-index: 10;
+        right: 6%;
+        top: 12%;
+        width: 50%;
+        aspect-ratio: 1;
+        border: 3px solid rgba(212, 154, 97, 0.18);
+        border-radius: 50%;
+        box-shadow: 0 0 50px rgba(255, 223, 131, 0.17);
+      }
+
+      .exercise-breath-ring::before {
+        content: "";
+        position: absolute;
+        left: 10%;
+        top: 10%;
+        width: 80%;
+        aspect-ratio: 1;
+        border: 2px dashed rgba(212, 154, 97, 0.18);
+        border-radius: 50%;
+      }
+
+      .exercise-question-strip {
+        position: absolute;
+        z-index: 10;
+        right: 8%;
+        bottom: 13%;
+        width: 44%;
+        min-height: 17%;
+        border-top: 2px solid rgba(212, 154, 97, 0.24);
+        border-bottom: 2px solid rgba(212, 154, 97, 0.16);
+      }
+
+      .about-mark {
+        position: absolute;
+        z-index: 10;
+        left: 10%;
+        top: 11%;
+        width: 14%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 50% 50%, #fffdf8 0 20%, transparent 22%),
+          radial-gradient(circle at 50% 12%, #f5c66e 0 12%, transparent 13%),
+          radial-gradient(circle at 86% 72%, #8ec6dc 0 12%, transparent 13%),
+          radial-gradient(circle at 14% 72%, #83a66c 0 12%, transparent 13%),
+          #fff3d3;
+        box-shadow: 0 14px 30px rgba(56, 47, 35, 0.1);
+      }
+
+      .about-copy {
+        position: absolute;
+        z-index: 20;
+        left: 10%;
+        top: 31%;
+        width: 58%;
+        color: #252525;
+        font-family:
+          "Avenir Next", Avenir, Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      .about-copy h3 {
+        margin: 0 0 12px;
+        color: #252525;
+        font-size: clamp(16px, 1.7vw, 24px);
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .about-copy p {
+        margin: 0 0 12px;
+        color: #4e565c;
+        font-size: clamp(12px, 1.05vw, 16px);
+        font-weight: 650;
+        line-height: 1.35;
+      }
+
+      .about-copy .parent-prompt {
+        margin-top: 24px;
+        color: #252525;
+        font-size: clamp(13px, 1.18vw, 18px);
+      }
+
+      .copyright-lines {
+        position: absolute;
+        z-index: 10;
+        left: 10%;
+        right: 10%;
+        bottom: 10%;
+        display: grid;
+        gap: 7px;
+      }
+
+      .copyright-lines span {
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(104, 112, 122, 0.22);
+      }
+
+      .copyright-lines span:nth-child(1) {
+        width: 42%;
+      }
+
+      .copyright-lines span:nth-child(2) {
+        width: 64%;
+      }
+
+      .copyright-lines span:nth-child(3) {
+        width: 54%;
+      }
+
+      .prickle-piece {
+        position: absolute;
+        z-index: 17;
+        width: 8%;
+        height: 4%;
+        background: rgba(68, 77, 88, 0.66);
+        clip-path: polygon(0 50%, 18% 0, 42% 42%, 62% 0, 82% 50%, 62% 100%, 42% 58%, 18% 100%);
+      }
+
+      .prickle-piece.p1 {
+        right: 48%;
+        top: 24%;
+        transform: rotate(-24deg);
+      }
+
+      .prickle-piece.p2 {
+        right: 9%;
+        top: 58%;
+        transform: rotate(18deg) scale(0.82);
+      }
+
+      .prickle-piece.p3 {
+        right: 39%;
+        bottom: 20%;
+        transform: rotate(35deg) scale(0.7);
+      }
+
+      .breath-glow {
+        position: absolute;
+        z-index: 18;
+        left: 43%;
+        bottom: 32%;
+        width: 18%;
+        aspect-ratio: 1;
+        border: 4px solid rgba(255, 240, 161, 0.52);
+        border-radius: 50%;
+        box-shadow: 0 0 30px rgba(255, 240, 161, 0.26);
+      }
+
+      .breath-glow::before {
+        content: "";
+        position: absolute;
+        left: -31%;
+        top: -31%;
+        width: 162%;
+        aspect-ratio: 1;
+        border: 3px solid rgba(255, 240, 161, 0.25);
+        border-radius: 50%;
+      }
+
+      .wiggle-soft {
+        position: absolute;
+        z-index: 21;
+        right: 15%;
+        top: 30%;
+        width: 31%;
+        height: 26%;
+        border-top: 4px dashed rgba(255, 253, 248, 0.3);
+        border-bottom: 4px dashed rgba(255, 253, 248, 0.23);
+        border-radius: 45%;
+        transform: rotate(-4deg);
+      }
+
+      .crystal {
+        position: absolute;
+        z-index: 11;
+        background: rgba(158, 212, 230, 0.52);
+        clip-path: polygon(50% 0, 100% 62%, 62% 100%, 38% 100%, 0 62%);
+      }
+
+      .crystal.cave1 {
+        right: 8%;
+        bottom: 20%;
+        width: 6%;
+        height: 16%;
+      }
+
+      .crystal.cave2 {
+        right: 50%;
+        bottom: 16%;
+        width: 5%;
+        height: 12%;
+        opacity: 0.72;
+      }
+
+      .walking-child.p18,
+      .walking-child.p19 {
+        left: 43%;
+        bottom: 20%;
+        width: 9%;
+        transform: rotate(3deg);
+      }
+
+      .walking-child.p22 {
+        left: 53%;
+        bottom: 22%;
+        width: 8%;
+        transform: rotate(-5deg);
+      }
+
+      .walking-child.p23 {
+        left: 57%;
+        bottom: 24%;
+        width: 10%;
+        transform: rotate(2deg);
+      }
+
+      .walking-child.p24 {
+        left: 51%;
+        bottom: 22%;
+        width: 9%;
+        transform: rotate(-4deg);
+      }
+
+      .walking-child.p25 {
+        left: 56%;
+        bottom: 25%;
+        width: 8%;
+        transform: rotate(7deg);
+      }
+
+      .p4-text-zone {
+        left: 6%;
+        top: 8%;
+        width: 36%;
+        height: 28%;
+      }
+
+      .p4-text {
+        left: 7%;
+        top: 9%;
+      }
+
+      .p5-text-zone {
+        left: 7%;
+        top: 9%;
+        width: 38%;
+        height: 43%;
+      }
+
+      .p5-text {
+        left: 8%;
+        top: 10%;
+        max-width: 35%;
+      }
+
+      .p6-text-zone {
+        left: 6%;
+        top: 8%;
+        width: 37%;
+        height: 47%;
+      }
+
+      .p6-text {
+        left: 7%;
+        top: 9%;
+        max-width: 34%;
+      }
+
+      .p7-text-zone {
+        left: 6%;
+        top: 8%;
+        width: 36%;
+        height: 61%;
+      }
+
+      .p7-text {
+        left: 7%;
+        top: 9%;
+        max-width: 33%;
+      }
+
+      .p8-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 67%;
+      }
+
+      .p8-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p9-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 42%;
+        height: 76%;
+      }
+
+      .p9-text {
+        left: 7%;
+        top: 8%;
+        max-width: 39%;
+      }
+
+      .p10-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 56%;
+      }
+
+      .p10-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p11-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 41%;
+        height: 72%;
+      }
+
+      .p11-text {
+        left: 7%;
+        top: 8%;
+        max-width: 38%;
+      }
+
+      .p12-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 64%;
+      }
+
+      .p12-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p13-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 71%;
+      }
+
+      .p13-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p14-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 37%;
+        height: 77%;
+      }
+
+      .p14-text {
+        left: 7%;
+        top: 8%;
+        max-width: 34%;
+      }
+
+      .p15-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 78%;
+      }
+
+      .p15-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p16-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 78%;
+      }
+
+      .p16-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p17-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 59%;
+      }
+
+      .p17-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p18-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 37%;
+        height: 77%;
+      }
+
+      .p18-text {
+        left: 7%;
+        top: 8%;
+        max-width: 34%;
+      }
+
+      .p19-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 72%;
+      }
+
+      .p19-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p20-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 38%;
+        height: 75%;
+      }
+
+      .p20-text {
+        left: 7%;
+        top: 8%;
+        max-width: 35%;
+      }
+
+      .p21-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 42%;
+        height: 55%;
+      }
+
+      .p21-text {
+        left: 7%;
+        top: 8%;
+        max-width: 39%;
+      }
+
+      .p22-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 58%;
+      }
+
+      .p22-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p23-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 40%;
+        height: 74%;
+      }
+
+      .p23-text {
+        left: 7%;
+        top: 8%;
+        max-width: 37%;
+      }
+
+      .p24-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 41%;
+        height: 81%;
+      }
+
+      .p24-text {
+        left: 7%;
+        top: 8%;
+        max-width: 38%;
+      }
+
+      .p25-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 40%;
+        height: 84%;
+      }
+
+      .p25-text {
+        left: 7%;
+        top: 8%;
+        max-width: 37%;
+      }
+
+      .p26-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 40%;
+        height: 72%;
+      }
+
+      .p26-text {
+        left: 7%;
+        top: 8%;
+        max-width: 37%;
+      }
+
+      .p27-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 39%;
+        height: 80%;
+      }
+
+      .p27-text {
+        left: 7%;
+        top: 8%;
+        max-width: 36%;
+      }
+
+      .p28-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 40%;
+        height: 73%;
+      }
+
+      .p28-text {
+        left: 7%;
+        top: 8%;
+        max-width: 37%;
+      }
+
+      .p30-text-zone {
+        left: 6%;
+        top: 7%;
+        width: 38%;
+        height: 79%;
+      }
+
+      .p30-text {
+        left: 7%;
+        top: 8%;
+        max-width: 35%;
+      }
+
+      @media (max-width: 900px) {
+        header,
+        main {
+          padding: 18px;
+        }
+
+        .direction,
+        .spread {
+          grid-template-columns: 1fr;
+        }
+
+        .story-text {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Finding Our Inner Voice - Storyboard Pass 02</h1>
+      <p class="subtitle">
+        Spread-level storyboard for the expanded book. This pass places text
+        directly on the page art and marks the intended negative space so image
+        prompts can reserve room for type.
+      </p>
+    </header>
+
+    <main>
+      <section class="direction" aria-label="Text style direction">
+        <div class="direction-card">
+          <h2>Text Style Direction</h2>
+          <ul>
+            <li>Set story text directly on the illustration, not in a text box.</li>
+            <li>Reserve quiet negative space inside each composition for live text.</li>
+            <li>Let text position vary by page so it feels naturally placed.</li>
+            <li>Use readable dark ink over light, low-detail areas with a subtle soft shadow only if needed.</li>
+            <li>Avoid covering the child, animal clues, key action, or emotional focal point.</li>
+          </ul>
+        </div>
+        <div class="direction-card">
+          <h2>Prompt Implications</h2>
+          <ul>
+            <li>Every background prompt should specify an open, low-detail text area.</li>
+            <li>Text-safe areas should be part of the composition, not an empty pasted-on rectangle.</li>
+            <li>Pages with more copy need larger calm areas and simpler nearby texture.</li>
+            <li>Final image prompts should say not to include readable text inside the generated art.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>First Narrative Spread: Pages 4-5</h2>
+          <p>
+            Goal: introduce the personalized child as the hero, then widen into
+            the park choices and partially reveal the tall slide.
+          </p>
+        </div>
+        <div class="spread-status">Ready For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 4 and 5 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 4 - Favorite Park Arrival</span>
+            <span>New pose + new background</span>
+          </div>
+          <div class="book-page page-4">
+            <div class="hill back"></div>
+            <div class="hill"></div>
+            <div class="path p4"></div>
+            <div class="tree t1"></div>
+            <div class="tree t2"></div>
+            <div class="tree t3"></div>
+            <div class="slide p4-slide" aria-hidden="true">
+              <div class="ladder"></div>
+              <div class="chute"></div>
+            </div>
+            <div class="child p4" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 8%; bottom: 29%">distant park context</div>
+            <div class="art-label" style="left: 41%; bottom: 5%">medium-wide hero pose</div>
+            <div class="text-zone p4-text-zone"></div>
+            <div class="story-text p4-text">
+              <p>This was [Child Name]'s favorite park in all of [Hometown].</p>
+              <p>
+                Swings squeaked.<br />
+                Sneakers thumped.<br />
+                Kids laughed and called, "Again, again!"
+              </p>
+              <p>[Child Name] ran in, ready to play.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> medium-wide hero-introduction image.
+              The child is the main subject, framed tightly enough to recognize
+              customization while the park remains visible behind them.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/quiet tree area. No box; keep
+              this zone simple in generated art.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> medium-wide hero shot. [Child Name]
+              is the clear main subject, large enough to recognize
+              customization. The park remains visible behind them with lively
+              play energy, and the tall slide is only a small/distant background
+              element. Reserve calm negative space in the upper-left for live
+              story text.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 5 - Park Choices + Slide Hint</span>
+            <span>No new pose unless reuse fits</span>
+          </div>
+          <div class="book-page page-5">
+            <div class="hill back"></div>
+            <div class="hill"></div>
+            <div class="path p5"></div>
+            <div class="activity swing">
+              <div class="swing-seat"></div>
+            </div>
+            <div class="activity sand"></div>
+            <div class="activity tunnel"></div>
+            <div class="activity climb"></div>
+            <div class="slide partial" aria-hidden="true">
+              <div class="ladder"></div>
+              <div class="chute"></div>
+            </div>
+            <div class="motion whoosh"></div>
+            <div class="child p5" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 5%; top: 15%">partial slide + whoosh</div>
+            <div class="art-label" style="left: 9%; bottom: 27%">swings / sand</div>
+            <div class="art-label" style="right: 26%; bottom: 23%">tunnel / climbing wall</div>
+            <div class="text-zone p5-text-zone"></div>
+            <div class="story-text p5-text">
+              <p>
+                There were swings,<br />
+                tunnels,<br />
+                sand,<br />
+                and a climbing wall that looked almost like a mountain.
+              </p>
+              <p>
+                [Child Name] looked left.<br />
+                [Child Name] looked right.
+              </p>
+              <p>"What should I try first?"</p>
+              <p>Then came a whoosh from way up high.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> wider scanning page with several
+              options, but not a busy checklist. The slide is only partially
+              revealed.
+            </p>
+            <p>
+              <strong>Text:</strong> left-side sky/open grass zone. Keep the
+              activity cluster away from this area.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Slide Reveal Spread: Pages 6-7</h2>
+          <p>
+            Goal: reveal the slide as fun and very tall, then shift into the
+            top-of-slide POV where the height and voices become too much.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 6 and 7 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 6 - Tall Slide Looks Fun And Tall</span>
+            <span>New pose + new background</span>
+          </div>
+          <div class="book-page page-6">
+            <div class="hill back"></div>
+            <div class="hill"></div>
+            <div class="path p5"></div>
+            <div class="tall-slide" aria-hidden="true">
+              <div class="big-chute"></div>
+              <div class="tower"></div>
+              <div class="deck"></div>
+              <div class="kid-dot k1"></div>
+              <div class="kid-dot k2"></div>
+              <div class="kid-dot k3"></div>
+            </div>
+            <div class="child p6" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 14%; top: 12%">kids having fun</div>
+            <div class="art-label" style="right: 11%; bottom: 11%">tall slide dominates</div>
+            <div class="art-label" style="left: 17%; bottom: 8%">new looking-up pose</div>
+            <div class="text-zone p6-text-zone"></div>
+            <div class="story-text p6-text">
+              <p>It was the tall slide.</p>
+              <p>
+                Kids climbed up.<br />
+                Kids sat down.<br />
+                Kids whooshed all the way to the bottom.
+              </p>
+              <p>"Again, again!" they shouted.</p>
+              <p>[Child Name] looked up.</p>
+              <p>
+                The slide looked fun.<br />
+                It also looked very, very tall.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> ground-level view where the slide
+              dominates vertically. Other kids are clearly enjoying it, while the
+              child looks up with mixed excitement and uncertainty.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/quiet park area. Keep slide
+              action on the right and child low enough that the text does not
+              compete with the pose.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> tall slide from ground level, fun
+              first and uncertain second. Include happy generic kids climbing,
+              sitting, and whooshing, but do not make them pressure the child.
+              Reserve calm negative space in the upper-left for live story text.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 7 - Top-Of-Slide Overwhelm</span>
+            <span>POV + no child pose</span>
+          </div>
+          <div class="book-page page-7">
+            <div class="hill back"></div>
+            <div class="tiny-park"></div>
+            <div class="slide-pov"></div>
+            <div class="platform"></div>
+            <div class="voice-chip" style="right: 16%; top: 17%">"Your turn!"</div>
+            <div class="voice-chip" style="right: 8%; top: 27%">"Go!"</div>
+            <div class="voice-chip" style="right: 14%; top: 38%">"It's fun!"</div>
+            <div class="art-label" style="right: 8%; top: 52%">park far below</div>
+            <div class="art-label" style="left: 35%; bottom: 9%">top platform POV</div>
+            <div class="text-zone p7-text-zone"></div>
+            <div class="story-text p7-text">
+              <p>[Child Name] climbed to the top.</p>
+              <p>From up there, the slide looked longer than it did from the ground.</p>
+              <p>
+                "Your turn!"<br />
+                "Go!"<br />
+                "It's fun!"
+              </p>
+              <p>
+                [Child Name]'s tummy flipped.<br />
+                The top felt small.<br />
+                The slide felt big.
+              </p>
+              <p>[Child Name] did not know what to do.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> top-of-slide POV looking down the
+              long slide. The reader should feel the height directly, without
+              needing to see the child.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/platform negative space.
+              Keep the slide path strong but leave the text area calm.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> POV from the top of a tall playground
+              slide looking down. Make the slide feel long and the park feel far
+              below, but not terrifying. Friendly encouragement appears as
+              planned live text, so do not include readable words in the art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Bedroom Remembering Spread: Pages 8-9</h2>
+          <p>
+            Goal: cut gently from playground pressure to a safe quiet room,
+            then introduce the first tiny voice as recognition, not advice.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 8 and 9 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 8 - Bedtime Remembering</span>
+            <span>New bedroom base + possible new pose</span>
+          </div>
+          <div class="book-page page-8">
+            <div class="window"><div class="moon"></div></div>
+            <div class="picture-frame close">
+              <div class="animal-mark"></div>
+            </div>
+            <div class="memory-slide close"></div>
+            <div class="bed"></div>
+            <div class="child sitting-child close" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="lap-blanket"></div>
+            <div class="art-label" style="right: 23%; top: 9%">subtle animal picture</div>
+            <div class="art-label" style="right: 7%; top: 48%">soft slide memory</div>
+            <div class="art-label" style="right: 14%; bottom: 9%">medium-close child portrait</div>
+            <div class="text-zone p8-text-zone"></div>
+            <div class="story-text p8-text">
+              <p>That night, [Child Name] sat quietly on the bed.</p>
+              <p>
+                The slide was far away now.<br />
+                But the big feeling was still there.
+              </p>
+              <p>On the bed, [Child Name] remembered the top.</p>
+              <p>
+                The long way down.<br />
+                The loud voices.<br />
+                The not-knowing-what-to-do feeling.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> medium-close bedtime portrait. The
+              child is sitting up on the bed, close enough that expression and
+              body language carry the remembered feeling. Bedroom details stay
+              simplified behind them.
+            </p>
+            <p>
+              <strong>Text:</strong> large upper-left wall/glow area. Keep the
+              child portrait and small bedroom clues to the right so the text
+              has a calm, low-detail field.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> medium-close bedtime portrait. [Child
+              Name] sits quietly on the bed, fully visible and personalized,
+              likely still wearing the standard hero outfit. Frame close enough
+              to read the child's expression and body language. Use soft
+              nighttime bedroom details behind them: pillow, wall glow, maybe a
+              dim picture of the selected animal. Add only faint, non-readable
+              echoes of the tall slide feeling. Reserve calm negative space in
+              the upper-left for live story text. Do not include readable text
+              in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 9 - First Tiny Voice</span>
+            <span>Reuse bedroom base + no new pose</span>
+          </div>
+          <div class="book-page page-9">
+            <div class="window"><div class="moon"></div></div>
+            <div class="memory-bubble b1"></div>
+            <div class="memory-bubble b2"></div>
+            <div class="memory-bubble b3"></div>
+            <div class="bed"></div>
+            <div class="child sitting-child" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="lap-blanket"></div>
+            <div class="breath-ring"></div>
+            <div class="breath-ring r2"></div>
+            <div class="tiny-glow"></div>
+            <div class="art-label" style="right: 31%; top: 31%">voices fading</div>
+            <div class="art-label" style="right: 38%; bottom: 31%">tiny warm glow</div>
+            <div class="art-label" style="right: 12%; bottom: 9%">same safe room</div>
+            <div class="text-zone p9-text-zone"></div>
+            <div class="story-text p9-text">
+              <p>
+                "Your turn!"<br />
+                "Go!"<br />
+                "It's fun!"
+              </p>
+              <p>The voices bounced around in [Child Name]'s mind.</p>
+              <p>
+                [Child Name] took a deep breath.<br />
+                The room got quiet.
+              </p>
+              <p>Then [Child Name] heard something tiny.</p>
+              <p>"That was scary," said the tiny voice.</p>
+              <p>
+                [Child Name] nodded.<br />
+                "Yes."
+              </p>
+              <p>
+                "Oh!" said the tiny voice.<br />
+                "You can hear me now."
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> same bedroom base, slightly quieter
+              and closer. The remembered voices soften into abstract bubbles,
+              the child remains sitting up on the bed, the breath calms the
+              room, and the tiny voice appears as a warm safe glow near the
+              child.
+            </p>
+            <p>
+              <strong>Text:</strong> large upper-left wall/glow area. This page
+              has a lot of copy, so keep the art especially low-detail behind
+              the text.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> quiet bedroom at night using the
+              same base and sitting-up pose as page 8. The child remains safe
+              on the bed, visible and personalized; remembered playground
+              voices fade as abstract, non-readable shapes. A deep breath makes
+              the room feel still, and a tiny warm glow appears near the bed as
+              the first inner-voice moment. The voice should feel internal and
+              comforting, not like a stranger in the room. Reserve large calm
+              negative space in the upper-left for live story text. Do not
+              include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Bedroom-To-Dream Threshold: Pages 10-11</h2>
+          <p>
+            Goal: turn the first tiny voice into a safe invitation, then let the
+            bedroom gently transform into the dream forest without a scary
+            doorway or forced portal.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 10 and 11 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 10 - Tiny Lights Make A Path</span>
+            <span>Left half of unified spread art</span>
+          </div>
+          <div class="book-page page-10">
+            <div class="room-floor"></div>
+            <div class="window p10-left"><div class="moon"></div></div>
+            <div class="bed p10-left"></div>
+            <div class="soft-wall"></div>
+            <div class="star-light s1"></div>
+            <div class="star-light s2"></div>
+            <div class="star-light s3"></div>
+            <div class="star-light s4"></div>
+            <div class="child walking-child" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="left: 20%; bottom: 39%">first light beside bed</div>
+            <div class="art-label" style="right: 2%; bottom: 14%">trail crosses gutter</div>
+            <div class="art-label" style="right: 27%; top: 44%">soft dream edge</div>
+            <div class="text-zone p10-text-zone"></div>
+            <div class="story-text p10-text">
+              <p>"Who said that?" asked [Child Name].</p>
+              <p>
+                A tiny light blinked beside the bed.<br />
+                Then another.<br />
+                Then another.
+              </p>
+              <p>The lights made a little path across the floor.</p>
+              <p>"Let's look together," said the tiny voice.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> left half of one unified spread
+              image. The room is still recognizably the bedroom. Small
+              star-like lights begin near the bed and travel across the floor
+              toward the gutter, where page 11 continues the same trail.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left wall/glow area. Keep the light
+              path, bed, and walking child low/right so the text stays readable.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> cozy nighttime bedroom beginning to
+              feel magical, as the left half of a two-page spread. Small warm
+              star-like lights appear beside the bed and form a continuous path
+              across the floor toward the right page. [Child Name] is walking
+              or just beginning to follow the lights near the spread gutter,
+              visible and personalized, with curious safe body language. The
+              transition should feel invited and gentle, not spooky or like the
+              child is being pulled. Reserve calm negative space in the
+              upper-left for live story text. Do not include readable text in
+              the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 11 - Bedroom Becomes Dream Forest</span>
+            <span>Right half of unified spread art</span>
+          </div>
+          <div class="book-page page-11">
+            <div class="room-remnant"></div>
+            <div class="ceiling-stars"></div>
+            <div class="moss-path"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="dream-tree dt3"></div>
+            <div class="star-light s5"></div>
+            <div class="star-light s6"></div>
+            <div class="star-light s7"></div>
+            <div class="child walking-child p11" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 9%; top: 10%">ceiling fills with stars</div>
+            <div class="art-label" style="right: 27%; bottom: 34%">walls become trees</div>
+            <div class="art-label" style="right: 14%; bottom: 13%">rug becomes moss</div>
+            <div class="text-zone p11-text-zone"></div>
+            <div class="story-text p11-text">
+              <p>[Child Name] followed the little lights.</p>
+              <p>
+                The bedroom grew soft at the edges.<br />
+                The walls became trees.<br />
+                The rug became moss.<br />
+                The ceiling filled with stars.
+              </p>
+              <p>
+                "This way," said the tiny voice.<br />
+                "Whenever you're ready."
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> right half of the same unified
+              spread image. The light trail enters from the page 10 gutter and
+              leads deeper into the transformation, where the bedroom walls
+              become trees, floor becomes moss, and ceiling opens into stars.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/soft transition area. Keep
+              trees, moss path, and child movement to the right/lower half.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> gentle bedroom-to-dream forest
+              transformation, as the right half of a two-page spread. Continue
+              the exact same warm light trail from the left page through the
+              gutter into this page. [Child Name] follows the lights as the room
+              softly changes: bedroom walls become trees, rug becomes moss,
+              ceiling fills with stars. Keep the same walking/following pose
+              direction from page 10, ideally reading as one continuous figure
+              near the gutter rather than a second separate character. The
+              moment should feel safe, whimsical, and optional, with no hard
+              doorway, portal, or scary pull. Reserve calm negative space in the
+              upper-left for live story text. Do not include readable text in
+              the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>First Animal Clue Spread: Pages 12-13</h2>
+          <p>
+            Goal: begin the animal mystery with one readable clue, then make the
+            unseen guide feel playful and present through a rustling, sneezing
+            bush.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 12 and 13 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 12 - First Animal Clue</span>
+            <span>Reuse walking/following pose if possible</span>
+          </div>
+          <div class="book-page page-12">
+            <div class="forest-glow"></div>
+            <div class="quiet-path"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="dream-tree dt3"></div>
+            <div class="star-light s5"></div>
+            <div class="star-light s6"></div>
+            <div class="child walking-child p12" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="clue-cluster" aria-hidden="true">
+              <div class="clue-print c1"></div>
+              <div class="clue-print c2"></div>
+              <div class="clue-print c3"></div>
+              <div class="clue-feather"></div>
+            </div>
+            <div class="art-label" style="right: 22%; bottom: 45%">readable dynamic clue</div>
+            <div class="art-label" style="right: 8%; bottom: 18%">quiet dream path</div>
+            <div class="art-label" style="left: 20%; bottom: 14%">reuse walking pose</div>
+            <div class="text-zone p12-text-zone"></div>
+            <div class="story-text p12-text">
+              <p>The lights led [Child Name] onto a quiet path.</p>
+              <p>
+                In the middle was a little clue:<br />
+                [animal clue].
+              </p>
+              <p>
+                [Child Name] looked left.<br />
+                [Child Name] looked right.
+              </p>
+              <p>"Where are you?" called [Child Name].</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> quiet dream forest path. The child
+              can reuse the walking/following pose and should be looking toward
+              the clue, while the clue itself stays clean and readable.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/quiet forest area. Keep the
+              clue cluster and child low/right so the text has a calm field.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> calm dream forest path with small
+              warm lights leading forward. [Child Name] notices a clear
+              animal-specific clue on the path: pawprints, dino prints,
+              feathers, or tufts of fur depending on the selected animal guide.
+              The clue should be readable and intriguing without revealing the
+              animal. Reuse the walking/following child pose if it composites
+              well. Reserve calm negative space in the upper-left for live story
+              text. Do not include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 13 - Sneezing Bush</span>
+            <span>No new child pose required</span>
+          </div>
+          <div class="book-page page-13">
+            <div class="forest-glow"></div>
+            <div class="quiet-path p13"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="hidden-tail"></div>
+            <div class="bush"></div>
+            <div class="wiggle-line w1"></div>
+            <div class="wiggle-line w2"></div>
+            <div class="sneeze-cloud"></div>
+            <div class="star-light s6"></div>
+            <div class="star-light s7"></div>
+            <div class="art-label" style="right: 13%; bottom: 21%">rustling bush</div>
+            <div class="art-label" style="right: 37%; bottom: 47%">tiny almost-reveal clue</div>
+            <div class="art-label" style="right: 32%; top: 26%">sneeze puff</div>
+            <div class="text-zone p13-text-zone"></div>
+            <div class="story-text p13-text">
+              <p>Something rustled in a bush.</p>
+              <p>"Are you hiding?" asked [Child Name].</p>
+              <p>The bush rustled again.</p>
+              <p>Then it sneezed.</p>
+              <p>"Achoo!"</p>
+              <p>Bushes do not usually sneeze.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> funny almost-reveal. The bush is the
+              main actor, with a wiggle, sneeze puff, and a tiny animal-specific
+              hint such as a tail tip, feather, sparkle, or footprint.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/quiet forest area. Keep the
+              bush and sneeze action to the right so the copy has room.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> playful dream forest path with a
+              large rustling bush as the focus. The bush wiggles and sneezes in
+              a funny, charming way. Include one tiny animal-specific
+              almost-reveal clue, such as a tail tip, feather, sparkle, or
+              footprint, but do not show the full animal guide yet. No new child
+              pose is required; the humor can be carried by the bush. Keep the
+              scene warm and playful, not suspenseful. Reserve calm negative
+              space in the upper-left for live story text. Do not include
+              readable text in the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Playful Noise Spread: Pages 14-15</h2>
+          <p>
+            Goal: interrupt the almost-reveal with funny, conflicting dream
+            voices, then show the child finding the tiny voice and quiet path
+            inside the noise.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 14 and 15 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 14 - Playful Noisy Voices</span>
+            <span>No new pose required</span>
+          </div>
+          <div class="book-page page-14">
+            <div class="forest-glow"></div>
+            <div class="quiet-path p13"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="speaking-star st1"></div>
+            <div class="speaking-star st2"></div>
+            <div class="speaking-star st3"></div>
+            <div class="wind-puff"></div>
+            <div class="chaos-arrow a1"></div>
+            <div class="chaos-arrow a2"></div>
+            <div class="chaos-arrow a3"></div>
+            <div class="chaos-arrow a4"></div>
+            <div class="talking-mushroom"></div>
+            <div class="talking-stone"></div>
+            <div class="spin-ring"></div>
+            <div class="spinning-sign"></div>
+            <div class="art-label" style="right: 29%; top: 10%">blinking stars</div>
+            <div class="art-label" style="right: 42%; top: 34%">puffing wind</div>
+            <div class="art-label" style="right: 23%; bottom: 44%">spinning sign</div>
+            <div class="art-label" style="right: 8%; bottom: 12%">mushroom / stone</div>
+            <div class="text-zone p14-text-zone"></div>
+            <div class="story-text p14-text">
+              <p>
+                Before [Child Name] could peek behind the bush,<br />
+                the stars started blinking in every direction.
+              </p>
+              <p>
+                "This way!" blinked one.<br />
+                "No, this way!" puffed the wind.<br />
+                "Hop!" said a mushroom.<br />
+                "Skip!" said a stone.
+              </p>
+              <p>Then a sign spun around and around.</p>
+              <p>"HURRY!" it pointed.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> object/sign-driven chaos. Stars,
+              wind, mushroom, stone, arrows, and spinning sign all compete in a
+              silly way. The page should feel busy and funny, not scary.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep the busiest
+              arrows and talking objects to the right/lower area.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> playful dream forest chaos with
+              funny conflicting direction-givers: blinking stars, puffing wind,
+              a mushroom, a stone, arrows, and a spinning sign. The voices
+              should feel sure and busy but not mean or threatening. No new
+              personalized child pose is required; objects/signs can carry the
+              action. Reserve calm negative space in the upper-left for live
+              story text. Do not include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 15 - Finding The Quiet Path</span>
+            <span>Optional reused listening pose</span>
+          </div>
+          <div class="book-page page-15">
+            <div class="forest-glow"></div>
+            <div class="quiet-opening"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="chaos-arrow a1 soft"></div>
+            <div class="chaos-arrow a2 soft"></div>
+            <div class="chaos-arrow a3 soft"></div>
+            <div class="speaking-star st1"></div>
+            <div class="speaking-star st2"></div>
+            <div class="wind-puff"></div>
+            <div class="talking-mushroom"></div>
+            <div class="talking-stone"></div>
+            <div class="listening-dot"></div>
+            <div class="art-label" style="right: 8%; bottom: 12%">quiet path appears</div>
+            <div class="art-label" style="right: 34%; top: 24%">noise fades to edges</div>
+            <div class="art-label" style="left: 47%; bottom: 29%">tiny voice still here</div>
+            <div class="text-zone p15-text-zone"></div>
+            <div class="story-text p15-text">
+              <p>
+                Every voice sounded sure.<br />
+                Every voice sounded busy.
+              </p>
+              <p>
+                [Child Name] turned this way.<br />
+                Then that way.
+              </p>
+              <p>The tiny voice was hard to find.</p>
+              <p>
+                "Listen close," said the tiny voice.<br />
+                "I'm still here."
+              </p>
+              <p>[Child Name] listened extra close.</p>
+              <p>
+                There it was:<br />
+                a quiet path.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> same noisy world, but the chaos
+              drifts to the edges and softens. A calm opening/quiet path appears
+              as the visual answer the child has to notice.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep the quiet
+              path and tiny light on the right/lower side.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> same dream forest world as page 14,
+              but visually resolving. The busy arrows and talking objects fade
+              toward the edges while one calm quiet path opens through the
+              scene, marked by a small warm light. The tiny voice should feel
+              discoverable, not obvious or handed to the child. Use an existing
+              listening/standing child pose only if it helps; no new pose is
+              required. Reserve calm negative space in the upper-left for live
+              story text. Do not include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Shiny Path And Cave Setup: Pages 16-17</h2>
+          <p>
+            Goal: quiet the dream after the noisy voices, show the first
+            true-feeling choice, then move up the plain path toward the
+            glittering cave.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 16 and 17 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 16 - Shiny Path Tiny No</span>
+            <span>No new pose required</span>
+          </div>
+          <div class="book-page page-16">
+            <div class="forest-glow"></div>
+            <div class="fork-base"></div>
+            <div class="shiny-path"></div>
+            <div class="steep-path"></div>
+            <div class="path-label-dot"></div>
+            <div class="dream-tree dt1"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="child walking-child p16" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 8%; bottom: 19%">smooth shiny path</div>
+            <div class="art-label" style="right: 35%; bottom: 37%">plain steep path</div>
+            <div class="art-label" style="right: 31%; bottom: 30%">tiny warm no</div>
+            <div class="text-zone p16-text-zone"></div>
+            <div class="story-text p16-text">
+              <p>The quiet path split in two.</p>
+              <p>
+                One way was smooth and shiny.<br />
+                It looked easy.
+              </p>
+              <p>The other way was plain and steep.</p>
+              <p>
+                [Child Name] looked at the shiny path.<br />
+                It was pretty.
+              </p>
+              <p>But something inside felt tight.</p>
+              <p>[Child Name] took a deep breath and listened.</p>
+              <p>"Not that way," whispered the tiny voice.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> calm two-path choice. The shiny path
+              should look appealing and easy, while the plain steep path feels
+              quieter and steadier. The contrast should be visual, not scary.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep both path
+              options readable on the right/lower half.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> quiet dream forest fork after the
+              noisy scene. One path is smooth, shiny, pretty, and easy-looking,
+              but not evil or scary. The other path is plain, steep, calm, and
+              stable, with a subtle warm tiny-voice glow nearby. [Child Name]
+              may appear small using an existing standing or walking pose; no
+              new personalized pose is required. Reserve calm negative space in
+              the upper-left for live story text. Do not include readable text
+              in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 17 - Steep Path To Cave</span>
+            <span>Reuse walking/following pose if shown</span>
+          </div>
+          <div class="book-page page-17">
+            <div class="forest-glow"></div>
+            <div class="climb-path"></div>
+            <div class="rock-slope"></div>
+            <div class="cave-mouth"></div>
+            <div class="dream-tree dt2"></div>
+            <div class="star-light s6"></div>
+            <div class="child walking-child p17" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 11%; top: 25%">glittering cave</div>
+            <div class="art-label" style="right: 34%; bottom: 42%">climbs up</div>
+            <div class="art-label" style="right: 33%; bottom: 27%">small reused pose</div>
+            <div class="text-zone p17-text-zone"></div>
+            <div class="story-text p17-text">
+              <p>[Child Name] chose the steep path.</p>
+              <p>
+                The path climbed up,<br />
+                and up,<br />
+                and up.
+              </p>
+              <p>At the top was a cave.</p>
+              <p>
+                The cave glittered inside.<br />
+                [Child Name] stepped closer.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> upward climb toward a cave entrance.
+              The cave should be beautiful and a little uncertain, glittering
+              inside without becoming horror-scary.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/quiet forest area. Keep the
+              cave and climb on the right so the text has space.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> steep dream path climbing toward a
+              glittering cave entrance. The path should feel effortful but safe.
+              The cave is mysterious, dark enough to feel different from the
+              playful forest, but beautiful and inviting enough for the child to
+              step closer. [Child Name] may appear small on the path using the
+              existing walking/following pose; no new pose is required. Reserve
+              calm negative space in the upper-left for live story text. Do not
+              include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Cave Word Wall Spread: Pages 18-19</h2>
+          <p>
+            Goal: introduce the self-critical voice as sharp words on the cave
+            wall, then show the child pausing, breathing, and beginning to
+            soften the words without revealing the hidden feeling yet.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 18 and 19 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 18 - Mean-Sounding Cave Words</span>
+            <span>Live wall words + no new pose</span>
+          </div>
+          <div class="book-page page-18">
+            <div class="cave-floor"></div>
+            <div class="word-wall"></div>
+            <div class="crystal cave1"></div>
+            <div class="crystal cave2"></div>
+            <div class="child walking-child p18" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="wall-word w1">YOU CAN'T!</div>
+            <div class="wall-word w2">YOU'RE TOO LITTLE!</div>
+            <div class="wall-word echo">YOU CAN'T! YOU CAN'T!</div>
+            <div class="art-label" style="right: 17%; top: 16%">blank cave wall for live words</div>
+            <div class="art-label" style="right: 11%; bottom: 16%">glittering cave, not horror</div>
+            <div class="art-label" style="left: 41%; bottom: 15%">small reused pose</div>
+            <div class="text-zone p18-text-zone"></div>
+            <div class="story-text p18-text">
+              <p>A wall blocked the path.</p>
+              <p>On it were big, prickly words:</p>
+              <p>The friendly voice sounded different now.</p>
+              <p>It echoed through the cave.</p>
+              <p>"Why do you sound mean?" asked [Child Name].</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> glittering cave interior with a rough
+              wall as the focus. The harsh words are live overlay text placed on
+              the wall, not text generated inside the illustration.
+            </p>
+            <p>
+              <strong>Text:</strong> ordinary story text stays upper-left; the
+              large wall words sit on the cave wall as separate live text.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> glittering cave interior with a
+              rough blank wall blocking the path. The wall should have jagged,
+              prickly, word-like blank bands where live text will be placed, but
+              the generated art should not contain readable words. The mood is
+              sharp and confusing, not terrifying. [Child Name] may appear small
+              facing the wall using an existing concerned/looking pose; no new
+              personalized pose is required. Reserve upper-left negative space
+              for ordinary story text and leave the wall clear enough for large
+              live wall words.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 19 - Breath Softens The Words</span>
+            <span>Same cave base + no new pose</span>
+          </div>
+          <div class="book-page page-19">
+            <div class="cave-floor"></div>
+            <div class="word-wall soft"></div>
+            <div class="crystal cave1"></div>
+            <div class="crystal cave2"></div>
+            <div class="breath-glow"></div>
+            <div class="wiggle-soft"></div>
+            <div class="child walking-child p19" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="wall-word w1 softening">YOU CAN'T...</div>
+            <div class="wall-word w2 softening">TOO LITTLE...</div>
+            <div class="art-label" style="right: 15%; top: 16%">words start to soften</div>
+            <div class="art-label" style="left: 42%; bottom: 38%">breath glow</div>
+            <div class="art-label" style="right: 11%; bottom: 16%">same cave, calmer</div>
+            <div class="text-zone p19-text-zone"></div>
+            <div class="story-text p19-text">
+              <p>The voice did not answer right away.</p>
+              <p>[Child Name] remembered what helped before.</p>
+              <p>
+                One deep breath,<br />
+                then another.
+              </p>
+              <p>The cave grew quieter.</p>
+              <p>
+                The prickly words began to wiggle.<br />
+                Then soften.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> same cave wall, calmer. The breath
+              glow and softened wall-word overlays show that the child is
+              listening instead of fighting the words.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left story text, with transforming
+              live wall words on the cave wall. Do not reveal the smaller fear
+              words until page 20.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> same glittering cave wall as page
+              18, now quieter and warmer. Show a soft breath/listening glow and
+              rough blank word-bands beginning to wiggle, loosen, or soften.
+              The transformation should feel like understanding, not defeating
+              an enemy. Do not reveal the hidden message yet, and do not include
+              readable generated text in the art. Leave room for live overlay
+              text on the wall and reserve upper-left negative space for story
+              text.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Hidden Feeling Reveal Spread: Pages 20-21</h2>
+          <p>
+            Goal: reveal the softer feeling inside the sharp words, then name
+            the lesson quietly after the child has already seen it happen.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 20 and 21 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 20 - Fear Inside The Words</span>
+            <span>Live hidden words + no new pose</span>
+          </div>
+          <div class="book-page page-20">
+            <div class="cave-floor"></div>
+            <div class="word-wall open"></div>
+            <div class="prickle-piece p1"></div>
+            <div class="prickle-piece p2"></div>
+            <div class="prickle-piece p3"></div>
+            <div class="warm-voice-glow"></div>
+            <div class="crystal cave1"></div>
+            <div class="crystal cave2"></div>
+            <div class="child walking-child p19" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="wall-word inside i1">I'M A LITTLE SCARED.</div>
+            <div class="wall-word inside i2">THIS FEELS TOO BIG.</div>
+            <div class="art-label" style="right: 14%; top: 18%">opened wall / live soft words</div>
+            <div class="art-label" style="right: 36%; bottom: 20%">prickles fall away</div>
+            <div class="art-label" style="right: 24%; bottom: 27%">warm voice returns</div>
+            <div class="text-zone p20-text-zone"></div>
+            <div class="story-text p20-text">
+              <p>The words opened.</p>
+              <p>Inside were smaller words:</p>
+              <p>
+                "Oh," said [Child Name].<br />
+                "You were not trying to be mean."
+              </p>
+              <p>The tiny voice felt warm again.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> payoff of the cave metaphor. The
+              harsh wall opens like flaps, knots, or shells, revealing smaller
+              softer live words inside.
+            </p>
+            <p>
+              <strong>Text:</strong> ordinary story text stays upper-left. The
+              hidden feeling messages sit as live text on the opened cave wall.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> same glittering cave wall as pages
+              18-19, now opening gently like flaps, knots, shells, or paper
+              cutouts. Show sharp/prickly pieces falling away and warm light
+              returning. The generated art should leave clear blank interior
+              spaces where live softer words will be placed; do not include
+              readable generated text. The transformation should feel like
+              understanding what was underneath, not defeating an enemy. No new
+              personalized child pose is required.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 21 - Cave Lesson</span>
+            <span>Calm cave + no new pose</span>
+          </div>
+          <div class="book-page page-21">
+            <div class="cave-floor"></div>
+            <div class="word-wall calm"></div>
+            <div class="soft-word-wisp"></div>
+            <div class="warm-voice-glow"></div>
+            <div class="crystal cave1"></div>
+            <div class="crystal cave2"></div>
+            <div class="art-label" style="right: 17%; top: 18%">softened word shapes</div>
+            <div class="art-label" style="right: 24%; bottom: 29%">warm quiet voice</div>
+            <div class="art-label" style="right: 10%; bottom: 16%">calm cave wall</div>
+            <div class="text-zone p21-text-zone"></div>
+            <div class="story-text p21-text">
+              <p>
+                "Sometimes big feelings come out sharp,"<br />
+                said the voice.
+              </p>
+              <p>
+                "But if you listen close,<br />
+                you can hear what they are really trying to say."
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> calm cave after understanding. The
+              wall is no longer blocked or prickly; softened word-shapes and a
+              warm glow support the short lesson.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep the cave
+              wall quiet and low-detail so the explanation does not feel busy.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> calm glittering cave after the word
+              transformation. The cave wall is softened and warm, with gentle
+              non-readable word-like wisps or shapes drifting near it. The tiny
+              voice is represented by warm light. Keep the page visually quiet
+              so the short lesson has room. Do not include readable generated
+              text, and reserve upper-left negative space for live story text.
+              No new personalized child pose is required.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Cave Release And Sunlight Understanding: Pages 22-23</h2>
+          <p>
+            Goal: let understanding open the cave, then give the child a calm,
+            bright moment of confidence before the final animal reveal sequence.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 22 and 23 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 22 - Cave Opens</span>
+            <span>Reuse walking pose if shown</span>
+          </div>
+          <div class="book-page page-22">
+            <div class="cave-floor"></div>
+            <div class="bright-opening"></div>
+            <div class="light-path"></div>
+            <div class="prickle-piece p1"></div>
+            <div class="prickle-piece p2"></div>
+            <div class="prickle-piece p3"></div>
+            <div class="crystal cave1"></div>
+            <div class="crystal cave2"></div>
+            <div class="child walking-child p22" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 8%; top: 21%">world bright beyond cave</div>
+            <div class="art-label" style="right: 30%; bottom: 20%">understanding opens path</div>
+            <div class="art-label" style="right: 43%; top: 20%">prickles fall away</div>
+            <div class="text-zone p22-text-zone"></div>
+            <div class="story-text p22-text">
+              <p>
+                The prickles fell away.<br />
+                The wall shimmered.<br />
+                The cave opened wide.
+              </p>
+              <p>Beyond it, the world was bright.</p>
+              <p>[Child Name] stepped through.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> cave wall/path opening into warm
+              bright light. The wall softens and opens rather than being smashed
+              or defeated.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left cave shadow/negative space. Keep
+              the bright opening and child movement on the right.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> glittering cave opening into a warm
+              bright world. Sharp/prickly pieces fall away as the wall shimmers
+              and opens wide, showing that understanding softened the obstacle
+              rather than breaking it. [Child Name] may appear small stepping
+              through using an existing walking/following pose; no new pose is
+              required. The feeling should be release and relief, not escape
+              from danger. Reserve calm negative space in the upper-left for
+              live story text. Do not include readable text in the generated
+              art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 23 - Sunlight Understanding</span>
+            <span>Calm reused pose, no animal reveal</span>
+          </div>
+          <div class="book-page page-23">
+            <div class="sun-ray"></div>
+            <div class="sun-hill back"></div>
+            <div class="sun-hill"></div>
+            <div class="sun-path"></div>
+            <div class="soft-flower f1"></div>
+            <div class="soft-flower f2"></div>
+            <div class="inner-glow"></div>
+            <div class="child walking-child p23" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 9%; top: 16%">warm sunlight</div>
+            <div class="art-label" style="right: 34%; bottom: 29%">lighter inner glow</div>
+            <div class="art-label" style="right: 8%; bottom: 14%">open dream world</div>
+            <div class="text-zone p23-text-zone"></div>
+            <div class="story-text p23-text">
+              <p>[Child Name] stepped into the sunlight.</p>
+              <p>The tight feeling was not so tight now.</p>
+              <p>[Child Name] knew what the tiny voice was for.</p>
+              <p>
+                It helped [object pronoun] know<br />
+                what felt scary,<br />
+                what felt wrong,<br />
+                and what felt right.
+              </p>
+              <p>
+                When [Child Name] listened close,<br />
+                the big feeling did not feel so big.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> bright open sunlight after the cave.
+              The child feels lighter and calmer. This is reflective joy and
+              understanding, not running, celebration, or animal reveal.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left sky/soft sunlight area. Keep the
+              child, path, flowers, and glow to the right/lower half.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> bright open dream world after the
+              cave, filled with warm sunlight, soft hills or forest edges, and a
+              gentle path. [Child Name] stands or steps calmly in the sunlight,
+              feeling lighter and more confident, with a subtle warm inner-voice
+              glow nearby. Do not show the animal guide yet. No new pose is
+              required; use an existing calm standing or walking pose if the
+              child appears. Reserve calm negative space in the upper-left for
+              live story text. Do not include readable text in the generated
+              art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Final Animal Clues And Reveal: Pages 24-25</h2>
+          <p>
+            Goal: pay off the animal mystery and clarify that the animal guide
+            is the child's quiet inner voice in a visible dream shape.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 24 and 25 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 24 - Last Animal Clues</span>
+            <span>Reuse warm forest/path if possible</span>
+          </div>
+          <div class="book-page page-24">
+            <div class="sun-ray"></div>
+            <div class="golden-forest back"></div>
+            <div class="golden-forest"></div>
+            <div class="golden-path to-clearing"></div>
+            <div class="golden-tree g1"></div>
+            <div class="golden-tree g2"></div>
+            <div class="golden-tree g3"></div>
+            <div class="glowing-clue gc1"></div>
+            <div class="glowing-clue gc2"></div>
+            <div class="glowing-clue gc3"></div>
+            <div class="glowing-clue gc4"></div>
+            <div class="child walking-child p24" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 9%; top: 19%">warm clearing ahead</div>
+            <div class="art-label" style="right: 18%; bottom: 54%">glowing animal clues</div>
+            <div class="art-label" style="right: 34%; bottom: 21%">soft search, not suspense</div>
+            <div class="text-zone p24-text-zone"></div>
+            <div class="story-text p24-text">
+              <p>"I want to see you," said [Child Name].</p>
+              <p>A trail of [animal clues] glowed ahead.</p>
+              <p>
+                [Child Name] followed them deeper<br />
+                into the magical forest.
+              </p>
+              <p>
+                The forest grew warmer.<br />
+                The path grew quieter.
+              </p>
+              <p>"Where did you go?" whispered [Child Name].</p>
+              <p>
+                "Listen close," said the tiny voice.<br />
+                "That quiet is your heart."
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> warm golden forest path leading
+              toward a clearing/light. Animal-specific clues glow along the path,
+              but the animal is still hidden.
+            </p>
+            <p>
+              <strong>Text:</strong> large upper-left negative space. Keep the
+              clue trail and child path to the right/lower half.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> warm magical forest path after the
+              cave, soft and anticipatory rather than suspenseful. Glowing
+              animal-specific clues lead forward toward a clearing or warm light:
+              pawprints, dino prints, feathers, or tufts of fur depending on the
+              selected animal guide. The animal should remain hidden. Reuse or
+              adapt the existing warm forest/path asset if possible, with clue
+              overlays. [Child Name] may appear small using an existing
+              walking/following pose; no new personalized pose is required.
+              Reserve calm negative space in the upper-left for live story text.
+              Do not include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 25 - Animal Guide Reveal</span>
+            <span>Reuse animal reveal art if possible</span>
+          </div>
+          <div class="book-page page-25">
+            <div class="golden-forest back"></div>
+            <div class="golden-forest"></div>
+            <div class="golden-path"></div>
+            <div class="golden-tree g1"></div>
+            <div class="golden-tree g2"></div>
+            <div class="clearing-glow"></div>
+            <div class="magic-swirl"></div>
+            <div class="reveal-cloud"></div>
+            <div class="animal-tail"></div>
+            <div class="animal-silhouette"></div>
+            <div class="child walking-child p25" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 17%; top: 16%">magic swirls / cloud</div>
+            <div class="art-label" style="right: 23%; bottom: 47%">selected animal appears</div>
+            <div class="art-label" style="right: 37%; bottom: 25%">child reaction optional</div>
+            <div class="text-zone p25-text-zone"></div>
+            <div class="story-text p25-text">
+              <p>[Child Name] came to a clearing.</p>
+              <p>Warm magic swirled through the air.</p>
+              <p>[animal guide] appeared.</p>
+              <p>[Child Name] gasped.</p>
+              <p>"It was you?"</p>
+              <p>[animal guide] smiled.</p>
+              <p>
+                "I am the quiet voice inside you,"<br />
+                said [animal guide],<br />
+                "in a shape you can see."
+              </p>
+              <p>The warm quiet was inside [Child Name], too.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> simple reveal moment. The animal
+              guide appears from warm magic swirls/cloud-like light in a clearing.
+              The animal should feel like the child's quiet voice made visible.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep the reveal
+              and animal focal point to the right/center.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> warm magical forest clearing with
+              cloud-like light and gentle magic swirls. The selected animal guide
+              appears from the swirls/cloud light; use the existing animal reveal
+              image and animal overlay behavior if possible. The reveal should
+              feel warm, intimate, and connected to the child, not like a
+              separate outside authority. [Child Name] may appear small reacting
+              if an existing pose works, but no new pose is required. Reserve
+              calm negative space in the upper-left for live story text. Do not
+              include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Flying Return And Slide Return: Pages 26-27</h2>
+          <p>
+            Goal: carry the child softly back from the dream reveal to the same
+            real-world slide pressure point, now with the quiet voice close.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 26 and 27 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 26 - Flying Return</span>
+            <span>Reuse flying-home asset/pose</span>
+          </div>
+          <div class="book-page page-26">
+            <div class="star-field"></div>
+            <div class="dream-trail"></div>
+            <div class="mini-forest"></div>
+            <div class="destination-park"></div>
+            <div class="destination-slide"></div>
+            <div class="flying-child"></div>
+            <div class="flying-animal"></div>
+            <div class="art-label" style="right: 30%; top: 30%">reuse flying pose</div>
+            <div class="art-label" style="right: 15%; top: 27%">animal stays close</div>
+            <div class="art-label" style="right: 5%; bottom: 14%">park / slide cue ahead</div>
+            <div class="text-zone p26-text-zone"></div>
+            <div class="story-text p26-text">
+              <p>The dream lifted.</p>
+              <p>[Child Name] and [animal guide] flew through the stars.</p>
+              <p>Below them, the magical forest grew small.</p>
+              <p>
+                Ahead was the park,<br />
+                the ladder,<br />
+                and the very, very tall slide.
+              </p>
+              <p>[animal guide] stayed close.</p>
+              <p>So did the quiet voice.</p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> flying transition back toward the
+              park. Child and animal travel together through stars, with the
+              magical forest below and a subtle park/slide cue ahead.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left starry negative space. Keep the
+              flying figures and destination cue to the right/lower half.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> reuse or adapt the existing
+              flying-home scene with [Child Name] and [animal guide] flying
+              through the stars. The magical forest grows small below, and a
+              subtle park/tall-slide destination cue appears ahead. The animal
+              stays close, but the emotional point is that the quiet voice stays
+              with the child. No new personalized pose is required. Reserve calm
+              negative space in the upper-left for live story text. Do not
+              include readable text in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 27 - Back At The Top</span>
+            <span>Reuse calmer page 7 POV</span>
+          </div>
+          <div class="book-page page-27">
+            <div class="hill back"></div>
+            <div class="tiny-park"></div>
+            <div class="slide-pov calm"></div>
+            <div class="platform calm"></div>
+            <div class="quiet-orb"></div>
+            <div class="voice-chip" style="right: 16%; top: 17%; opacity: 0.72">"Your turn!"</div>
+            <div class="voice-chip" style="right: 8%; top: 27%; opacity: 0.72">"Go!"</div>
+            <div class="voice-chip" style="right: 14%; top: 38%; opacity: 0.72">"It's fun!"</div>
+            <div class="art-label" style="right: 8%; top: 52%">same slide, calmer</div>
+            <div class="art-label" style="left: 49%; top: 22%">quiet voice nearby</div>
+            <div class="art-label" style="left: 35%; bottom: 9%">top platform POV</div>
+            <div class="text-zone p27-text-zone"></div>
+            <div class="story-text p27-text">
+              <p>[Child Name] was back at the top.</p>
+              <p>
+                The slide still looked long.<br />
+                The slide still looked fun.<br />
+                The slide still looked very, very tall.
+              </p>
+              <p>
+                "Your turn!"<br />
+                "Go!"<br />
+                "It's fun!"
+              </p>
+              <p>[Child Name]'s tummy flipped.</p>
+              <p>This time, [Child Name] knew what to do.</p>
+              <p>
+                Pause.<br />
+                Breathe.<br />
+                Listen close.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> mirror page 7's top-of-slide POV,
+              but with calmer spacing, softer pressure, and a subtle warm
+              inner-voice motif.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space, similar to page
+              7. Keep the slide path and voice chips readable but less
+              overwhelming.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> reuse or modify the page 7
+              top-of-slide POV looking down the long slide. It should clearly
+              feel like the same situation, but calmer and more centered: more
+              breathing space, softer friendly encouragement, and a subtle warm
+              inner-voice glow near the platform. No child pose is needed; this
+              can remain a POV page. Friendly encouragement appears as planned
+              live text, so do not include readable words in the generated art.
+              Reserve calm negative space in the upper-left for live story text.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Confident Choice And Blank Pause: Pages 28-29</h2>
+          <p>
+            Goal: end the narrative with a calm, self-aware choice, then give
+            that ending room before the exercise page.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 28 and 29 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 28 - Confident Choice</span>
+            <span>New calm-speaking pose</span>
+          </div>
+          <div class="book-page page-28">
+            <div class="hill front"></div>
+            <div class="slide-platform-side"></div>
+            <div class="slide-side-rail"></div>
+            <div class="slide-side-chute"></div>
+            <div class="warm-listen-glow"></div>
+            <div class="waiting-child" aria-hidden="true"></div>
+            <div class="child p28" aria-hidden="true">
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="arm a1"></div>
+              <div class="arm a2"></div>
+              <div class="leg l1"></div>
+              <div class="leg l2"></div>
+            </div>
+            <div class="art-label" style="right: 30%; top: 22%">steady, calm child</div>
+            <div class="art-label" style="right: 7%; top: 19%">waiting child secondary</div>
+            <div class="art-label" style="right: 12%; bottom: 24%">top slide platform</div>
+            <div class="art-label" style="right: 31%; top: 45%">quiet voice warm</div>
+            <div class="text-zone p28-text-zone"></div>
+            <div class="story-text p28-text">
+              <p>The quiet voice was there.</p>
+              <p>Small and warm.</p>
+              <p>
+                "Not yet," it said.<br />
+                "Almost."
+              </p>
+              <p>[Child Name] looked at the child waiting behind [object pronoun].</p>
+              <p>
+                "You go first," said [Child Name].<br />
+                "I'm almost ready."
+              </p>
+              <p>
+                And this time,<br />
+                [Child Name] smiled.
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> side/top view of the slide platform.
+              The personalized child is steady and calm, turned enough toward a
+              waiting child to make the spoken choice readable.
+            </p>
+            <p>
+              <strong>Text:</strong> upper-left negative space. Keep the slide
+              platform, child, waiting child, and warm voice motif on the right.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> new slide-platform illustration at
+              the top of the very tall slide. [Child Name] stands calmly and
+              confidently, turned toward another child who is waiting nearby but
+              not dominant. The moment should feel self-aware and steady, not
+              avoidant, ashamed, or defeated. Use a new calm-speaking /
+              steady-at-top personalized child pose if needed. Include a subtle
+              warm inner-voice glow near the child. Reserve clean upper-left
+              negative space for live story text. Do not include readable text
+              in the generated art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 29 - Blank Pause</span>
+            <span>No pose / no art required</span>
+          </div>
+          <div class="book-page page-29">
+            <div class="quiet-page-mark"></div>
+            <div class="art-label" style="left: 38%; top: 56%">blank or nearly blank pause</div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> blank or nearly blank page. This is
+              a pacing page, not a new narrative image.
+            </p>
+            <p>
+              <strong>Text:</strong> no story text. Keep the page quiet so the
+              ending on page 28 has room before the exercise begins.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> no generated illustration required.
+              If using a visual touch, keep it extremely minimal, such as a
+              tiny warm quiet-voice motif or soft paper texture. No child pose,
+              no scene, and no readable generated text.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="spread-header" aria-label="Spread summary">
+        <div class="spread-title">
+          <h2>Exercise And About: Pages 30-31</h2>
+          <p>
+            Goal: give the child one simple way to practice listening, then
+            close with quiet brand and copyright information.
+          </p>
+        </div>
+        <div class="spread-status">Draft For Review</div>
+      </section>
+
+      <section class="spread" aria-label="Pages 30 and 31 storyboard">
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 30 - Spiral Exercise</span>
+            <span>No pose / typeset activity page</span>
+          </div>
+          <div class="book-page page-30">
+            <div class="exercise-breath-ring"></div>
+            <svg class="trace-spiral" viewBox="0 0 260 260" aria-hidden="true">
+              <path
+                d="M132 132 C151 123 161 141 149 157 C131 181 88 166 86 128 C83 80 140 55 179 86 C228 125 203 209 131 219 C47 231 -13 144 29 66 C77 -22 202 -17 244 76"
+              />
+              <circle cx="132" cy="132" r="11" />
+            </svg>
+            <div class="exercise-question-strip"></div>
+            <div class="art-label" style="right: 19%; top: 10%">traceable spiral</div>
+            <div class="art-label" style="right: 17%; bottom: 28%">quiet listening questions</div>
+            <div class="text-zone p30-text-zone"></div>
+            <div class="story-text p30-text">
+              <p>
+                Pause.<br />
+                Breathe.<br />
+                Listen close.
+              </p>
+              <p>Trace the spiral with your finger.</p>
+              <p>
+                Breathe in as you go around.<br />
+                Breathe out as you come back.
+              </p>
+              <p>Then ask inside:</p>
+              <p>
+                Is there a tiny no?<br />
+                A not yet?<br />
+                A little yes?
+              </p>
+            </div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> child-facing activity page. The
+              exercise text sits on the left; the traceable spiral is large,
+              simple, and touchable on the right.
+            </p>
+            <p>
+              <strong>Text:</strong> this is primarily a typeset page, not an
+              illustration prompt. Keep the language direct and easy to follow
+              for ages 3-7.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> no character pose needed. Use a
+              clean, warm, printable spiral activity layout with a subtle
+              quiet-voice glow or paper texture only. The spiral should be
+              clear enough for a child to trace with a finger. Any readable
+              instructions should be added as live text, not generated inside
+              art.
+            </p>
+          </div>
+        </article>
+
+        <article class="page-wrap">
+          <div class="page-label">
+            <span>Page 31 - About / Copyright</span>
+            <span>No pose / production page</span>
+          </div>
+          <div class="book-page page-31">
+            <div class="about-mark"></div>
+            <div class="about-copy">
+              <h3>About Little Hero Labs</h3>
+              <p>Quiet brand note, production information, and copyright.</p>
+              <p class="parent-prompt">
+                Possible parent prompt:<br />
+                Can you remember a tiny no,<br />
+                a not yet,<br />
+                or a little yes?
+              </p>
+            </div>
+            <div class="copyright-lines" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="art-label" style="right: 10%; top: 14%">restrained brand mark</div>
+            <div class="art-label" style="right: 11%; bottom: 18%">copyright / production lines</div>
+          </div>
+          <div class="page-note">
+            <p>
+              <strong>Composition:</strong> quiet brand/copyright page with a
+              small Little Hero Labs presence and optional parent-child bridge.
+            </p>
+            <p>
+              <strong>Text:</strong> final production copy is still a
+              placeholder. Keep it brief so this page does not become another
+              lesson page.
+            </p>
+            <p>
+              <strong>Prompt note:</strong> no generated illustration required.
+              This should be handled as a restrained typeset end page with a
+              small brand mark, copyright/production text, and optional parent
+              prompt. No character pose, no story scene, and no readable
+              generated art text.
+            </p>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

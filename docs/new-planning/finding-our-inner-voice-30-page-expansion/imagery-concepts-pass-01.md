@@ -124,20 +124,24 @@ These pages should feel safe, quiet, and close. The slide is no longer physicall
 
 ### Current Recommendation
 
-- Page 8: show the child safely in bed remembering the slide feeling.
-- Page 9: keep the same bedroom world, but let the room quiet and the tiny voice/light become visible.
-- Use one new bedtime/remembering pose if needed, then reuse/crop it across pages 8-9.
-- Experiment with compositing sheets over the child pose so the child can be tucked in without requiring a fully illustrated bed-specific character.
+- Page 8: use a medium-close emotional portrait of the child sitting quietly on the bed remembering the slide feeling.
+- Page 9: widen back out into the same bedroom world, letting the room quiet and the tiny voice/light become visible.
+- Use one new sitting-up bedtime/remembering pose if needed, then reuse/crop it across pages 8-9.
+- Avoid a sleeping/tucked-in pose and avoid relying on a full sheet composite. A loose blanket, pillow, or bed edge can establish bedtime without hiding the personalized child.
+- It is acceptable for the child to remain in the standard hero outfit; do not add a clothing-change story beat.
 - Add a subtle animal clue on page 8 as a dim wall picture of the selected animal or animal motif.
 
 | Page | Story Beat | One Main Visual Action | Child Visible? | Animal / Voice | Background Concept | Existing Asset Candidate | Pose Recommendation | Visual Risk / Question |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
-| 8 | Bedtime remembering | The child lies in bed while the slide feeling is remembered in the quiet room. | Yes, important | Subtle animal clue only | Cozy bedroom at night; memory echoes of slide/voices are faint, not literal or scary; dim animal picture on wall as an almost-noticeable clue. | New bedroom art needed. | Experiment with a new bedtime/remembering pose; composite sheets over the child pose. | Direction locked 2026-06-09. Must feel safe, not sad or spooky; the animal clue should be subtle. |
-| 9 | First tiny voice | The room gets quiet after a breath, and a tiny warm light/voice appears. | Yes, preferred | Tiny voice as light/glow | Same bedroom or closer crop; remembered voices soften/fade; a small glow appears near bed/window/floor. | New bedroom art can share base with page 8. | Reuse page 8 bedtime pose or close crop; no second new pose. | Direction locked 2026-06-09. The voice must feel internal/safe, not like a stranger in the room. |
+| 8 | Bedtime remembering | Medium-close portrait of the child sitting quietly on the bed while the slide feeling is remembered. | Yes, important | Subtle animal clue only | Cozy bedroom at night, simplified behind the child; memory echoes of slide/voices are faint, not literal or scary; dim animal picture on wall as an almost-noticeable clue. | New bedroom art needed. | New sitting-up bedtime/remembering pose, close enough to read expression and body language; loose blanket/pillow only if it does not hide personalization. | Direction updated 2026-06-10. Must feel safe, not sad or spooky; avoid sleeping/tucked-in pose and fragile sheet compositing. Standard hero outfit is acceptable. Page 8 should feel visually distinct from page 9 by being closer and more child-focused. |
+| 9 | First tiny voice | The room gets quiet after a breath, and a tiny warm light/voice appears. | Yes, preferred | Tiny voice as light/glow | Same bedroom or closer crop; remembered voices soften/fade; a small glow appears near bed/window/floor. | New bedroom art can share base with page 8. | Reuse page 8 sitting-up pose or close crop; no second new pose. | Direction updated 2026-06-10. The voice must feel internal/safe, not like a stranger in the room. |
 
 ### Section 2 Locked Decisions
 
-- 2026-06-09: Page 8 can use a new bedtime/remembering pose, with sheets composited over the child if needed.
+- 2026-06-10: Page 8 should use a sitting-up bedtime/remembering pose rather than a sleeping/tucked-in pose.
+- 2026-06-10: Page 8 should be a medium-close emotional portrait so page 9 can feel different as a wider bedroom/tiny-voice moment.
+- 2026-06-10: Do not rely on a full sheet composite for pages 8-9. Use bed, pillow, lighting, and possibly a loose lap blanket to communicate nighttime while keeping the child visible.
+- 2026-06-10: The child can remain in the standard hero outfit; no clothing-change beat is needed.
 - 2026-06-09: Page 8 should include a subtle animal clue via a dimly lit animal picture on the wall.
 - 2026-06-09: Page 9 should reuse the page 8 pose/base bedroom setup rather than generating a second new pose.
 
@@ -149,15 +153,16 @@ Pages 10-11 should work as a single spread-level image. This avoids repeating th
 
 - Treat pages 10-11 as one unified scene across the spread.
 - The left side begins in the bedroom, with tiny lights forming a path from the bed.
-- The right side becomes the dream forest, with the bedroom edges transforming into trees, moss, and stars.
-- The child is walking while looking toward/following the lights.
+- The trail of light should visibly lead from the left page across the gutter into the right page.
+- The right side is still part of the same bedroom image, but the room is morphing into the dream forest: bedroom edges become trees, floor/rug becomes moss, and ceiling becomes stars.
+- The child is walking while looking toward/following the lights. The child should read as one continuous figure within the spread, not duplicated as two separate page moments.
 - Use one new walking/following pose for the spread.
 - Keep the transition safe and optional; no spooky doorway or forced portal pull.
 
 | Page | Story Beat | One Main Visual Action | Child Visible? | Animal / Voice | Background Concept | Existing Asset Candidate | Pose Recommendation | Visual Risk / Question |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
-| 10 | Tiny lights make a path | Tiny lights begin beside the bed and trail across the bedroom floor toward the dream edge. | Yes, as part of spread | Tiny voice as lights/glow | Left side of unified spread: cozy bedroom continuity, lights beginning near bed, room still safe and familiar. | New spread art needed, connected to page 11. | One new walking/following pose shared across pages 10-11. | Direction locked 2026-06-09. Must not reuse the bedtime pose again; the child should be moving now. |
-| 11 | Bedroom transforms into dream forest | The child follows the lights as the bedroom softens into trees, moss, and stars. | Yes, as part of spread | Tiny voice as lights/glow | Right side of unified spread: bedroom-to-forest transformation, magical but gentle. | New spread art needed; may borrow visual language from existing night forest assets. | Same new walking/following pose from page 10. | Direction locked 2026-06-09. Portal/threshold should feel safe, not like the child is being pulled away. |
+| 10 | Tiny lights make a path | Tiny lights begin beside the bed and trail across the bedroom floor toward the gutter. | Yes, as part of spread | Tiny voice as lights/glow | Left side of one unified spread: cozy bedroom continuity, lights beginning near bed, room still safe and familiar. | New spread art needed, connected to page 11. | One new walking/following pose shared across pages 10-11. | Direction updated 2026-06-10. Must read as the left half of one image. Light trail should continue into page 11 across the gutter. |
+| 11 | Bedroom transforms into dream forest | The same light trail continues from page 10 as the bedroom softens into trees, moss, and stars. | Yes, as part of spread | Tiny voice as lights/glow | Right side of the same unified spread: bedroom is still present at the gutter and gradually morphs into forest. | New spread art needed; may borrow visual language from existing night forest assets. | Same new walking/following pose from page 10; avoid a second separate child moment. | Direction updated 2026-06-10. Portal/threshold should feel safe, not like the child is being pulled away. |
 
 ### Section 3 Locked Decisions
 
