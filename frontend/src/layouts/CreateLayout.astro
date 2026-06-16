@@ -16,10 +16,13 @@ interface Props {
 const { step, title, description = 'Create your personalized book — Little Hero Labs', image } = Astro.props;
 
 // Env-driven site URL for correct canonical/OG in all environments
-const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
+const siteUrl = (import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com').replace(/\/$/, '');
 const currentPath = Astro.url.pathname;
-const canonicalUrl = `${siteUrl}${currentPath}`;
-const ogImage = image || `${siteUrl}/og-image.jpg`;
+const normalizedPath = currentPath === '/' ? '/' : currentPath.replace(/\/$/, '');
+const canonicalUrl = new URL(normalizedPath, `${siteUrl}/`).toString();
+const ogImage = image
+  ? (image.startsWith('http') ? image : `${siteUrl}${image}`)
+  : `${siteUrl}/og-image.jpg`;
 
 const backHrefByStep: Record<typeof step, string> = {
   character: '/our-books',
@@ -54,6 +57,7 @@ const showStartOver = step !== 'character';
     <link rel="icon" href="/favicon.ico">
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonicalUrl} />
+    <meta name="robots" content="noindex, follow" />
     <title>{title}</title>
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalUrl} />

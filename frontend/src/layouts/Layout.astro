@@ -15,12 +15,71 @@ const { title, description = "Little Hero Labs - Become the hero of your own sto
 
 // Get current URL for canonical and og:url (env-driven for correct domain in all environments).
 // No-op deployment marker for Cloudflare Pages verification.
-const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com';
+const siteUrl = (import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com').replace(/\/$/, '');
 const currentPath = Astro.url.pathname;
-const canonicalUrl = `${siteUrl}${currentPath}`;
+const normalizedPath = currentPath === '/' ? '/' : currentPath.replace(/\/$/, '');
+const canonicalUrl = new URL(normalizedPath, `${siteUrl}/`).toString();
 const ogImage = image
   ? (image.startsWith('http') ? image : `${siteUrl}${image}`)
   : `${siteUrl}/og-image.jpg`; // Default OG image
+
+const breadcrumbSegments = normalizedPath.split('/').filter(Boolean);
+const titleize = (segment: string) =>
+  segment
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+const publicSchemas = noindex
+  ? []
+  : [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'Little Hero Labs',
+        url: siteUrl,
+        logo: `${siteUrl}/assets/logo.png`,
+        sameAs: ['https://www.instagram.com/littleherolabs'],
+        contactPoint: [
+          {
+            '@type': 'ContactPoint',
+            contactType: 'customer support',
+            email: 'hello@littleherolabs.com',
+          },
+        ],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'Little Hero Labs',
+        url: siteUrl,
+      },
+      ...(breadcrumbSegments.length > 0
+        ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Home',
+                  item: `${siteUrl}/`,
+                },
+                ...breadcrumbSegments.map((segment, index) => {
+                  const path = `/${breadcrumbSegments.slice(0, index + 1).join('/')}`;
+                  return {
+                    '@type': 'ListItem',
+                    position: index + 2,
+                    name: titleize(segment),
+                    item: new URL(path, `${siteUrl}/`).toString(),
+                  };
+                }),
+              ],
+            },
+          ]
+        : []),
+    ];
 ---
 
 <!doctype html>
@@ -63,7 +122,7 @@ const ogImage = image
     <!-- Canonical URL - Fixes duplicate pages issue -->
     <link rel="canonical" href={canonicalUrl} />
 
-    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {noindex && <meta name="robots" content="noindex, follow" />}
     
     <!-- SEO Meta Tags -->
     <title>{title}</title>
@@ -91,6 +150,10 @@ const ogImage = image
     {import.meta.env.PUBLIC_AHREFS_VERIFICATION && (
       <meta name="ahrefs-site-verification" content={import.meta.env.PUBLIC_AHREFS_VERIFICATION} />
     )}
+
+    {publicSchemas.map((schema) => (
+      <script type="application/ld+json" set:html={JSON.stringify(schema)}></script>
+    ))}
 
     <slot name="head" />
     <ClientRouter fallback="swap" />

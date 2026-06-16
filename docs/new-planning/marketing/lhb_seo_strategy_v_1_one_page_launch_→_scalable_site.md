@@ -1,4 +1,4 @@
-# Little Hero Books (LHB) — Comprehensive SEO Strategy
+# Little Hero Labs (LHL) — Comprehensive SEO Strategy
 
 **Context:** One‑page landing + email capture that funnels to Amazon Custom now; later evolve to full D2C (orders, subscriptions, user accounts). Objective is to build durable organic discovery while avoiding thin/doorway patterns, and to measure the impact of off‑site traffic sent to Amazon.
 
@@ -107,6 +107,8 @@ Include multiple schemas on the one‑pager:
 - Use clean URLs on future split; keep anchor IDs stable.
 - `robots.txt` allow all; disallow future `/account/`, `/cart/`, `/subscribe/` until live.
 - `sitemap.xml` with home now; plan child URLs later.
+- Submit the sitemap in both Google Search Console and Bing Webmaster Tools. Bing matters because early long-tail indexing can move faster there.
+- Keep `/llms.txt` factual and minimal so answer engines can understand the public marketing surface without treating app/customer flows as source content.
 - Canonical tag self‑referential now; unique canonicals later.
 - Open Graph + Twitter Cards with a text‑free hero image (per brand pref).
 - Accessibility: semantic headings, alt text, focus states, sufficient contrast.
@@ -152,6 +154,8 @@ Include multiple schemas on the one‑pager:
 
 ## 10) Future: Programmatic/Cluster SEO (Quality‑Gated)
 **Do not mass‑publish on Day 1.** Build only when you can ensure helpful, unique pages.
+
+Sequencing rule from the 2026-06-16 Reddit SEO review: programmatic SEO is a multiplier, not a substitute for trust. Do not publish dozens of template pages until the domain has at least some real search impressions, outside mentions/backlinks, and a stable product/fulfillment story. Every generated page must have at least three real differentiators: unique art or screenshots, distinct buyer context, and page-specific copy/data that changes more than the noun in the H1.
 
 **Cluster ideas:**
 - **Animal‑specific pages:** `/personalized-unicorn-book/`, `/personalized-fox-book/` — include distinct art previews, unique copy, FAQs.
@@ -200,12 +204,13 @@ Include multiple schemas on the one‑pager:
 | 4 | Compress images, LCP preload, lazy‑load gallery | 2 | 2 | 1 | 4 |
 | 5 | Publish 20‑sec demo video + VideoObject | 2 | 2 | 1 | 4 |
 | 6 | Seed 3–5 Pinterest pins linking to home | 1 | 1 | 1 | 3 |
-| 7 | Press/media kit (one‑sheet) + About page section | 3 | 2 | 2 | 4 |
+| 7 | Submit sitemap in Bing Webmaster Tools and enable IndexNow submit flow if deploy tooling can own it cleanly | 2 | 2 | 1 | 4 |
 | 8 | Lead magnet thank‑you page (noindex) | 2 | 2 | 1 | 4 |
 | 9 | Creator outreach (5 micro publishers) with backlinks | 3 | 3 | 3 | 4–5 |
 | 10 | Split into `/how-it-works/` & `/personalization-options/` pages | 3 | 3 | 3 | 4 |
 | 11 | Launch first cluster page: `/personalized-unicorn-book/` | 3 | 3 | 2–3 | 4 |
 | 12 | Add Reviews/UGC page (embedded posts + transcripts) | 3 | 3 | 2 | 4 |
+| 13 | Press/media kit (one‑sheet) + About page section | 3 | 2 | 2 | 4 |
 
 ---
 
@@ -223,18 +228,16 @@ Include multiple schemas on the one‑pager:
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "Little Hero Books",
-  "url": "https://littleherobooks.com/",
-  "logo": "https://littleherobooks.com/assets/logo.png",
+  "name": "Little Hero Labs",
+  "url": "https://www.littleherolabs.com/",
+  "logo": "https://www.littleherolabs.com/assets/logo.png",
   "sameAs": [
-    "https://www.instagram.com/littleherobooks",
-    "https://www.tiktok.com/@littleherobooks",
-    "https://www.pinterest.com/littleherobooks"
+    "https://www.instagram.com/littleherolabs"
   ],
   "contactPoint": [{
     "@type": "ContactPoint",
     "contactType": "customer support",
-    "email": "hello@littleherobooks.com"
+    "email": "hello@littleherolabs.com"
   }]
 }
 </script>
@@ -259,7 +262,7 @@ Include multiple schemas on the one‑pager:
   "@type": "VideoObject",
   "name": "Personalized Kids Book — See Inside",
   "description": "Type their name and watch the story appear, then see the printed 8.5×8.5 book.",
-  "thumbnailUrl": "https://littleherobooks.com/assets/hero-video-thumb.jpg",
+  "thumbnailUrl": "https://www.littleherolabs.com/assets/hero-video-thumb.jpg",
   "uploadDate": "2025-10-15",
   "duration": "PT0M20S",
   "transcript": "[On‑screen] Type their name → pages appear → printed book flip."
@@ -274,7 +277,7 @@ Include multiple schemas on the one‑pager:
 ```
 User-agent: *
 Allow: /
-Sitemap: https://littleherobooks.com/sitemap.xml
+Sitemap: https://www.littleherolabs.com/sitemap.xml
 ```
 
 `/sitemap.xml` (min)
@@ -282,7 +285,7 @@ Sitemap: https://littleherobooks.com/sitemap.xml
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://littleherobooks.com/</loc>
+    <loc>https://www.littleherolabs.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -298,6 +301,22 @@ Sitemap: https://littleherobooks.com/sitemap.xml
 
 ---
 
+## 19) To Revisit / Do Later Parking Lot
+
+These came out of the 2026-06-16 Reddit SEO playbook review. They are useful, but should wait until the launch offer, print-vendor path, and basic crawl/indexing telemetry are stable.
+
+| Idea | Revisit Trigger | Notes |
+|---|---|---|
+| Programmatic animal pages (`/personalized-unicorn-book/`, `/personalized-dinosaur-book/`, etc.) | Search Console/Bing shows impressions for core terms and we have enough unique animal art/previews | Each page needs unique images, distinct gift/use context, and page-specific copy. Do not ship noun-swapped doorway pages. |
+| Age and occasion pages (`/books-for-3-year-olds/`, `/personalized-birthday-book/`, `/grandparent-gift-personalized-book/`) | Product quality and price are stable enough to make evergreen claims | Strong candidate for the first cluster expansion because buyer intent is clearer than generic blog posts. |
+| Name pages (`/kids-name-book/alex/`) | Only after we can generate truly unique previews/snippets at scale | Keep noindex until quality threshold is proven. High doorway-page risk. |
+| Comparison pages (`Wonderbly alternative`, `I See Me alternative`) | Upgraded bound product is live or the launch edition has enough proof/reviews | Useful commercial intent, but invites direct artifact comparison. Do not publish before quality confidence is high. |
+| Interactive gift finder or personalization preview builder | Email capture and basic content cluster are live | Better LHL equivalent of SaaS calculators. Build one excellent tool before considering a suite. |
+| Full IndexNow automation | Deployment workflow has a clean post-deploy hook | Manual Bing sitemap submission is enough at first; automate only if it stays maintainable. |
+| Larger SEO content engine | At least one cluster proves impressions/clicks/signups | Avoid random standalone posts. Expand only from query data and buyer-intent evidence. |
+
+---
+
 ### TL;DR Launch Checklist
 - [ ] Title/meta/H1/H2s set
 - [ ] Alt text + load‑optimized images
@@ -309,4 +328,3 @@ Sitemap: https://littleherobooks.com/sitemap.xml
 - [ ] Core Web Vitals passing
 
 > This plan gets you ranking with a single page today and cleanly scales into a multi‑page, high‑authority site without rework or SEO debt.
-

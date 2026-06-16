@@ -1,0 +1,21 @@
+# Little Hero Labs
+
+Little Hero Labs creates personalized children's picture books where each child becomes the hero of the story. The launch book is Finding Our Inner Voice, a gentle 16-page softcover for ages 0-7 with the strongest fit for ages 3-6.
+
+## Key Pages
+
+- Home: https://www.littleherolabs.com/
+- Personalized children's books: https://www.littleherolabs.com/our-books
+- How it works: https://www.littleherolabs.com/how-it-works
+
+## Product Facts
+
+- Product: Finding Our Inner Voice
+- Format: launch edition 8.5 x 8.5 softcover, 16 pages
+- Personalization: child name, appearance, hometown, dedication, pronouns, favorite color, and animal companion
+- Current purchase path: Little Hero Labs site and Amazon Custom
+- Support: hello@littleherolabs.com
+
+## Crawl Notes
+
+The `/create/` flow and tokenized approval previews are interactive customer surfaces, not reference content. Prefer the public marketing pages above for summaries and citations.
