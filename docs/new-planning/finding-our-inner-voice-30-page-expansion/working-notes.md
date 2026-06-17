@@ -98,6 +98,8 @@ Current dream-arc lesson spine:
 7. Joy / Confidence: after listening and choosing, the child feels lighter and more confident.
 8. Bond / Reveal: the animal appears, and the child understands it has been helping them hear what was already inside.
 
+Page 15 revision note: the current working draft makes the distinguish lesson clearer and more child-facing by having the tiny voice say, "Too many voices can make it hard to know what feels right." Keep watching whether this feels like natural story dialogue or too much like an adult aside.
+
 The important refinement is that Trust / Practice comes before Joy / Confidence. Confidence is the result of listening and choosing, not a sudden lesson the child receives.
 
 Possible animal/voice lines:

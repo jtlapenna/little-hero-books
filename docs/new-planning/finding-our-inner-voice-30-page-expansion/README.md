@@ -34,6 +34,7 @@ Current working structure: 31 pages. If production requires an even page count, 
 - Rough page copy pass 01: `rough-page-copy-pass-01.md` **(current working rough copy)**
 - Asset / page map pass 01: `asset-page-map-pass-01.md`
 - Imagery concepts pass 01: `imagery-concepts-pass-01.md` **(current imagery planning doc)**
+- Image prompt packet pass 01: `image-prompt-packet-pass-01.md` **(global style requirements and page-by-page image prompts)**
 - Story + image spread review pass 01: `story-image-spread-review-pass-01.pdf` and `story-image-spread-review-pass-01.md` **(colleague-facing review artifact)**
 - Storyboard wireframe pass 01: `storyboard-wireframe-pass-01.md`
 - Storyboard pass 02: `storyboard-pass-02.html` **(spread-level layout with on-page text direction)**
@@ -42,6 +43,14 @@ Current working structure: 31 pages. If production requires an even page count, 
 - Wireframe notes review: `wireframe-notes-review-2026-06-04.md`
 - Jeff's feedback: `drafts/jeff-feedback-on-partner-drafts-2026-06-03.md`
 - Working notes and creative principles: `working-notes.md`
+- Developer image-generation handoff: `developer-image-generation-handoff.md` **(start here for image workflow / Developer B)**
+
+## Image Generation Status
+
+- The expanded story is represented by the 31-page beat map, rough page copy, story + image spread review, and storyboard docs above.
+- `image-prompt-packet-pass-01.md` exists, but it is not yet a complete page-by-page final prompt packet. It currently holds the global style system and initial prompt work.
+- First-draft generated images can be used as story/content references, but the main unresolved production issue is producing images that match both the required scene/composition and the original book illustration style.
+- See `developer-image-generation-handoff.md` before generating or revising new images.
 
 ## Draft Intake
 

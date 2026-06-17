@@ -81,18 +81,18 @@ Working beat:
 > "Skip!" said a stone.
 > "Hurry!" pointed a sign with very important arrows.
 >
-> Every voice sounded sure.
-> Every voice sounded busy.
+> "Too many voices can make it hard
+> to know what feels right," the voice said.
 >
-> The child stopped.
-> The child listened extra close.
+> So the child stopped and took one slow breath.
 >
-> Under the windy voice,
-> under the blinking voice,
-> under the very important arrows,
-> the tiny voice was still there.
+> The child listened
+> for the small, true voice inside.
 >
 > "Listen close," said the tiny voice. "I'm still here."
+>
+> And there it was:
+> a quiet path.
 
 Transition:
 

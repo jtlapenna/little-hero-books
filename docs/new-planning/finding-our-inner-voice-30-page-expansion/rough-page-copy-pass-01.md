@@ -425,20 +425,18 @@ Notes:
 
 Copy:
 
-> Every voice sounded sure.
-> Every voice sounded busy.
+> "Too many voices can make it hard
+> to know what feels right," the voice said.
 >
-> [Child Name] turned this way.
-> Then that way.
+> So [Child Name] stopped and took one slow breath.
 >
-> The tiny voice was hard to find.
+> [Child Name] listened
+> for the small, true voice inside.
 >
 > "Listen close," said the tiny voice.
 > "I'm still here."
 >
-> [Child Name] listened extra close.
->
-> There it was:
+> And there it was:
 > a quiet path.
 
 Story job:
@@ -454,13 +452,15 @@ Notes:
 - This is the key distinguish lesson.
 - The child should be doing the work: stopping, listening, finding.
 - The line "Listen close. I'm still here." is locked directionally.
+- Revision note 2026-06-10: current draft makes the distinguish lesson more direct and child-facing while cutting the original sequence down. Validate that the direct lesson still feels like story dialogue rather than an adult aside.
 - Direction locked for now 2026-06-04.
 
 Open questions:
 
 1. Is "HURRY!" too close to the playground pressure or useful as a mirror?
 2. Does page 14 need fewer talking objects?
-3. Is "There it was: a quiet path" satisfying enough as the page-turn into the shiny shortcut?
+3. Is "And there it was: a quiet path" satisfying enough as the page-turn into the shiny shortcut?
+4. Does the more direct lesson language feel natural coming from the tiny voice?
 
 ## Spread 8: Pages 16-17
 

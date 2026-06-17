@@ -273,20 +273,18 @@ Object/sign-driven playful chaos: stars, wind, mushroom, stone, spinning sign, a
 
 **Story Text**
 
-Every voice sounded sure.
-Every voice sounded busy.
+"Too many voices can make it hard
+to know what feels right," the voice said.
 
-[Child Name] turned this way.
-Then that way.
+So [Child Name] stopped and took one slow breath.
 
-The tiny voice was hard to find.
+[Child Name] listened
+for the small, true voice inside.
 
 "Listen close," said the tiny voice.
 "I'm still here."
 
-[Child Name] listened extra close.
-
-There it was:
+And there it was:
 a quiet path.
 
 **Image Direction**

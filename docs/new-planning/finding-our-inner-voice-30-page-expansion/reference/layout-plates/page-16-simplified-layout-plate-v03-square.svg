@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="4096" viewBox="0 0 4096 4096">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <!-- Flat composition plate only. Use as geometry, not finished art. -->
+  <rect width="4096" height="4096" fill="#c6d8d6"/>
+
+  <!-- Text-safe negative-space field: upper-left, low detail. -->
+  <path d="M0,0 H1570 C1490,330 1485,650 1575,930 C1300,1055 1045,1210 880,1445 C580,1340 300,1355 0,1495 Z" fill="#d6eef1"/>
+  <path d="M120,145 C380,62 760,80 1040,210 C1260,310 1410,480 1465,700 C1110,610 770,650 490,790 C260,905 110,1070 0,1265 V0 Z" fill="#e8f5f2" opacity="0.65"/>
+
+  <!-- Distant soft tree line below text area. -->
+  <path d="M0,1450 C190,1345 365,1385 525,1500 C725,1325 955,1365 1135,1545 C1275,1445 1468,1460 1640,1585 V1870 H0 Z" fill="#8cab9e" opacity="0.58"/>
+  <path d="M1240,1295 C1480,1130 1770,1160 1965,1365 C2145,1215 2415,1255 2570,1475 V1900 H1240 Z" fill="#78978b" opacity="0.53"/>
+
+  <!-- Main forest mass: right side and upper-right, behind the paths. -->
+  <path d="M2250,430 C2410,215 2700,250 2825,495 C3015,315 3315,380 3425,650 C3680,585 3940,745 4096,990 V2520 C3835,2480 3600,2518 3390,2665 C3125,2440 2825,2460 2595,2710 C2370,2535 2130,2510 1890,2605 V1330 C2050,1160 2255,1135 2440,1245 C2305,945 2310,650 2250,430 Z" fill="#5f866e"/>
+  <path d="M2650,665 C2795,480 3045,520 3165,735 C3355,620 3625,695 3740,925 C3900,1000 4025,1150 4096,1350 V2380 C3840,2365 3600,2430 3390,2605 C3165,2425 2910,2435 2685,2635 C2495,2505 2280,2485 2080,2550 V1440 C2285,1320 2518,1350 2710,1485 C2588,1180 2600,855 2650,665 Z" fill="#739a7f" opacity="0.9"/>
+  <path d="M3140,1750 C3370,1600 3720,1640 3890,1840 C4000,1965 4070,2100 4096,2250 C3785,2225 3545,2295 3350,2485 C3160,2320 2945,2260 2735,2315 C2795,2075 2920,1885 3140,1750 Z" fill="#86a98a" opacity="0.75"/>
+
+  <!-- Foreground framing plant masses, away from future child and text. -->
+  <path d="M0,3940 C260,3740 600,3765 835,3970 V4096 H0 Z" fill="#7ea07c"/>
+  <path d="M3380,3520 C3615,3355 3910,3405 4096,3625 V4096 H3200 C3228,3850 3285,3655 3380,3520 Z" fill="#78986f"/>
+
+  <!-- Open hero-placement area: lower-left side-stage viewpoint. -->
+  <path d="M0,2700 C305,2490 720,2450 1075,2560 C1390,2655 1585,2860 1635,3115 C1300,3305 785,3390 275,3285 C120,3255 30,3200 0,3165 Z" fill="#dfc39a"/>
+  <ellipse cx="790" cy="2915" rx="600" ry="370" fill="#ead9b8" opacity="0.85"/>
+
+  <!-- Fork ground, to the right of the future child. -->
+  <ellipse cx="2060" cy="2740" rx="990" ry="390" fill="#c7a074"/>
+
+  <!-- Plain uphill path: quiet, muted, slightly harder. -->
+  <path d="M1320,2740 C1540,2310 1805,1960 2090,1620 C2320,1345 2490,1065 2570,760" fill="none" stroke="#b78e62" stroke-width="235" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1320,2740 C1540,2310 1805,1960 2090,1620 C2320,1345 2490,1065 2570,760" fill="none" stroke="#d8bb8b" stroke-width="132" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+  <path d="M1320,2740 C1540,2310 1805,1960 2090,1620 C2320,1345 2490,1065 2570,760" fill="none" stroke="#80624b" stroke-width="20" stroke-linecap="round" opacity="0.25"/>
+  <path d="M1765,2050 C1850,1990 1970,2000 2055,2088" fill="none" stroke="#ead4a7" stroke-width="22" stroke-linecap="round" opacity="0.65"/>
+  <path d="M2120,1560 C2208,1500 2318,1510 2390,1590" fill="none" stroke="#ead4a7" stroke-width="20" stroke-linecap="round" opacity="0.62"/>
+
+  <!-- Shiny easy path: tempting right-side option, clearly separate. -->
+  <path d="M2480,3010 C2840,2590 3315,2260 3845,2240" fill="none" stroke="#d8b1d7" stroke-width="305" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2480,3010 C2840,2590 3315,2260 3845,2240" fill="none" stroke="#f5d887" stroke-width="82" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"/>
+  <path d="M2650,3180 C3055,2875 3460,2675 3890,2685" fill="none" stroke="#fdf0b0" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Tiny warm voice glow near the plain path. -->
+  <circle cx="2480" cy="1520" r="66" fill="#ffd86f"/>
+  <circle cx="2480" cy="1520" r="150" fill="#ffd86f" opacity="0.28" filter="url(#soft)"/>
+
+  <!-- Sparse sparkle markers on shiny path only. -->
+  <circle cx="2730" cy="2990" r="16" fill="#fff2a8"/>
+  <circle cx="3070" cy="2585" r="14" fill="#fff2a8"/>
+  <circle cx="3500" cy="2210" r="13" fill="#fff2a8"/>
+  <circle cx="3635" cy="2625" r="12" fill="#fff2a8" opacity="0.8"/>
+</svg>
