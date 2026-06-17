@@ -31,7 +31,7 @@ Welcome to Little Hero Books! This guide will help you set up your development e
 
 ```bash
 # Clone the repository
-git clone https://github.com/amoeboar/little-hero-books.git
+git clone https://github.com/jtlapenna/little-hero-books.git
 cd little-hero-books
 
 # Install dependencies and browsers

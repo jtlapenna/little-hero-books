@@ -4,7 +4,7 @@ This repository is a personal Little Hero Labs project.
 
 ## Account Boundary
 
-- GitHub account for this repo: `amoeboar`
+- GitHub repository: `jtlapenna/little-hero-books`
 - Personal email: `john.s.capogna@gmail.com`
 - Do not use the business GitHub account `johncapogna` or business email `john@thepeakbeyond.com` for this repo.
 - This rule is project-scoped to `little-hero-books` / Little Hero Labs only. Do not apply it to unrelated repos.
@@ -21,12 +21,12 @@ Expected local repo config:
 
 ```text
 user.email=john.s.capogna@gmail.com
-codex.githubAccount=amoeboar
+codex.githubAccount=jtlapenna
 codex.accountBoundary=personal-only
-origin=https://amoeboar@github.com/jtlapenna/little-hero-books.git
+origin=https://github.com/jtlapenna/little-hero-books.git
 ```
 
-If GitHub push fails because the active CLI account is `johncapogna`, do not switch global identity for all projects without confirming the impact. Prefer a repo-scoped credential fix or ask the user to authenticate/push as `amoeboar`.
+If GitHub push fails because the active CLI account is not authorized for `jtlapenna/little-hero-books`, do not switch global identity for all projects without confirming the impact. Prefer a repo-scoped credential fix or ask the user to authenticate/push with an account that has access to `jtlapenna/little-hero-books`.
 
 ## Memory Boundary
 

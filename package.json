@@ -39,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amoeboar/little-hero-books.git"
+    "url": "https://github.com/jtlapenna/little-hero-books.git"
   },
   "engines": {
     "node": ">=18.0.0"
