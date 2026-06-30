@@ -383,13 +383,14 @@ Do not judge this plan by immediate clicks. The first win is search discovery:
 
 **2026-06-30:** Semrush site-audit repo-side closeout shipped.
 
-- Added Cloudflare Pages `_headers` for HSTS and basic security headers.
+- Added Cloudflare Pages `_headers` and Astro middleware for HSTS and basic security headers.
 - Shortened public SEO titles that were above the usual search-snippet comfort range.
 - Added useful copy to `/how-it-works` and `/our-books` to address low word-count / low text-to-HTML warnings without adding thin filler.
 - Replaced generic CTA/nav anchor copy with more descriptive anchor text.
 - Updated `llms.txt` with the new SEO landing pages.
 - Fixed the remaining mobile hero clipping pattern on `/how-it-works`.
 - Cleaned the CSS import-order warning so the production build no longer has avoidable stylesheet warnings.
+- Added a frontend Cloudflare Pages deploy workflow so `frontend/**` changes deploy from `main` instead of relying on manual deployment.
 - Verification: production Astro build passed; local browser smoke test checked `/`, `/how-it-works`, `/our-books`, and `/personalized-birthday-book/` on desktop/mobile for title length, word count, no broken images, no horizontal overflow, structured data presence, and hero spacing.
 
 **Audit exceptions / platform settings:**

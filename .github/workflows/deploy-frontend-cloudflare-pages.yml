@@ -1,0 +1,73 @@
+name: Deploy Frontend to Cloudflare Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend-cloudflare-pages.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PAGES_PROJECT: little-hero-books-frontend
+      PUBLIC_SITE_URL: https://www.littleherolabs.com
+      PUBLIC_API_URL: https://admin.littleherolabs.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f dist/_headers
+          test -f dist/robots.txt
+          test -f dist/llms.txt
+        working-directory: frontend
+
+      - name: Fail-fast account/project wiring checks
+        run: |
+          set -euo pipefail
+          WRANGLER_PROJECT_NAME=$(node -e "const fs=require('fs');const txt=fs.readFileSync('wrangler.toml','utf8');const match=txt.match(/^name\\s*=\\s*\"([^\"]+)\"/m);if(!match){console.error('Missing name in frontend/wrangler.toml');process.exit(1);}process.stdout.write(match[1]);")
+          echo "wrangler.toml project: $WRANGLER_PROJECT_NAME"
+          echo "workflow project: $CLOUDFLARE_PAGES_PROJECT"
+          if [ "$WRANGLER_PROJECT_NAME" != "$CLOUDFLARE_PAGES_PROJECT" ]; then
+            echo "ERROR: frontend/wrangler.toml project name does not match workflow target project."
+            exit 1
+          fi
+          PROJECT_LIST_JSON=$(npx wrangler pages project list --json)
+          node -e "const projects=JSON.parse(process.argv[1]);const name=process.env.CLOUDFLARE_PAGES_PROJECT;const found=(Array.isArray(projects)?projects:[]).some((p)=>p&&(p.name===name||p.project_name===name||p['Project Name']===name));if(!found){console.error('ERROR: target frontend Pages project not found in this Cloudflare account.');process.exit(1);}console.log('Project found:', name);" "$PROJECT_LIST_JSON"
+        working-directory: frontend
+
+      - name: Deploy frontend to Cloudflare Pages
+        run: npx wrangler pages deploy dist --project-name="${CLOUDFLARE_PAGES_PROJECT}" --branch=main
+        working-directory: frontend
+
+      - name: Smoke-check customer site
+        run: |
+          set -euo pipefail
+          curl -fsS https://www.littleherolabs.com/ | grep -q 'Little Hero Labs'
+          curl -fsS https://www.littleherolabs.com/sitemap.xml | grep -q 'personalized-birthday-book'
+          curl -fsSI https://www.littleherolabs.com/ | grep -qi '^strict-transport-security:'
