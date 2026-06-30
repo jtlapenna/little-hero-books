@@ -1,0 +1,44 @@
+[
+  {
+    "filename": "[Content_Types].xml",
+    "file_size": 830,
+    "compress_size": 291,
+    "crc": "db78dd11"
+  },
+  {
+    "filename": "_rels/.rels",
+    "file_size": 605,
+    "compress_size": 233,
+    "crc": "2331e0b2"
+  },
+  {
+    "filename": "docProps/app.xml",
+    "file_size": 183,
+    "compress_size": 145,
+    "crc": "d8777ce1"
+  },
+  {
+    "filename": "docProps/core.xml",
+    "file_size": 458,
+    "compress_size": 271,
+    "crc": "ef5e380c"
+  },
+  {
+    "filename": "word/_rels/document.xml.rels",
+    "file_size": 6097,
+    "compress_size": 716,
+    "crc": "e15c52c5"
+  },
+  {
+    "filename": "word/document.xml",
+    "file_size": 126994,
+    "compress_size": 9446,
+    "crc": "d7955b4b"
+  },
+  {
+    "filename": "word/settings.xml",
+    "file_size": 123,
+    "compress_size": 112,
+    "crc": "1e9943a1"
+  }
+]

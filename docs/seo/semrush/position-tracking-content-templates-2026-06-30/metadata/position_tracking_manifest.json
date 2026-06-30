@@ -1,0 +1,46 @@
+{
+  "capture_name": "Semrush Position Tracking inline paste capture",
+  "archive_date": "2026-06-30",
+  "domain": "littleherolabs.com",
+  "target": "United States (Google) - English",
+  "device": "Desktop",
+  "updated_label": "1 hour ago",
+  "keywords": 14,
+  "competitors": 6,
+  "files": [
+    {
+      "path": "raw/position-tracking-inline-paste-2026-06-30.md",
+      "line_count": 202,
+      "sha256": "5bcb566a5d082dc85b7e0cac6cf376c40205ac1c23539a1209851bf0a3ee38aa"
+    },
+    {
+      "path": "csv/position_tracking_summary_2026-06-30.csv",
+      "data_rows": 9,
+      "sha256": "bf96ac42fce8f3543cc85fc03968637fbde4fbdc3ea7df0eca65db3dbfad0471"
+    },
+    {
+      "path": "csv/position_tracking_keywords_2026-06-30.csv",
+      "data_rows": 14,
+      "sha256": "b815cf03609f3d46d5488853151a016a5a2e0f6bc5945cbd9e5398357ad77edf"
+    },
+    {
+      "path": "csv/position_tracking_selected_domains_2026-06-30.csv",
+      "data_rows": 7,
+      "sha256": "f4c2341ce912d184917b460a504f59092980db07ec43fdd952e6821a366e6435"
+    },
+    {
+      "path": "csv/position_tracking_competitor_discovery_top10_2026-06-30.csv",
+      "data_rows": 10,
+      "sha256": "7889626fa3605fd98a14f06f3ea9e4458bebd12a974e6f6e655782ffcaf5962d"
+    },
+    {
+      "path": "csv/position_tracking_market_visibility_2026-06-30.csv",
+      "data_rows": 15,
+      "sha256": "c251a267c69b60ee9dbed1a95b33fd6f061de339f0b044c4420cc609810487c5"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e1cdd8108ee29b3bd98196acd183fcd4e5a5ba9d60c486514f4885d09642950f"
+    }
+  ]
+}

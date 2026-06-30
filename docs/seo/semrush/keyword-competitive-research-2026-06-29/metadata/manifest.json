@@ -1,0 +1,81 @@
+{
+  "capture_name": "Semrush keyword and competitive research raw capture",
+  "archive_date": "2026-06-29",
+  "domain": "littleherolabs.com",
+  "purpose": "Preserve raw Semrush trial data for later SEO analysis.",
+  "raw_attachment_captures": [
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/9ecdbae3-b5d3-4e62-a926-637a80efc602/pasted-text.txt",
+      "archive_path": "raw/semrush-keyword-gap-littleherolabs-competitors-pasted-text.txt",
+      "line_count": 1546,
+      "sha256": "9057fde36e8945b00518bb6494ab71a900a1eb0185cc8f911223ce5efe3c230e"
+    },
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/621a2f29-67da-4cfc-a91c-522846a6a7a8/pasted-text.txt",
+      "archive_path": "raw/semrush-top-pages-wonderbly-pasted-text.txt",
+      "line_count": 1345,
+      "sha256": "d9f0d4961856da33e8d9841dbe61ae9909873ad311362005e594388cef649df4"
+    },
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/c4d1991f-8d50-4dcc-ae91-4061ce6b88e7/pasted-text.txt",
+      "archive_path": "raw/semrush-top-pages-iseeme-pasted-text.txt",
+      "line_count": 1328,
+      "sha256": "d451b31355203d552a0789a9d2eefcb3d4ad70ff5788e32def60ecdcf24b4b7b"
+    },
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/f28805d6-e8ce-4df8-b863-64d47e12aa07/pasted-text.txt",
+      "archive_path": "raw/semrush-top-pages-dinkleboo-pasted-text.txt",
+      "line_count": 1304,
+      "sha256": "56e99d151932caab546d5ca8921189bf2bad3525f46725e38b1e7ff4fe9b6542"
+    },
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/74f7c6aa-57c7-45d2-b486-783d39bac51d/pasted-text.txt",
+      "archive_path": "raw/semrush-top-pages-hoorayheroes-pasted-text.txt",
+      "line_count": 1338,
+      "sha256": "4281baa90349fd521b952813a57b1263cf092dc2b7ea1520f6a9902106e16b94"
+    },
+    {
+      "source_attachment_path": "/Users/johncapogna/.codex/attachments/05b592c0-3fe6-44f6-98a4-89528c616292/pasted-text.txt",
+      "archive_path": "raw/semrush-top-pages-putmeinthestory-pasted-text.txt",
+      "line_count": 717,
+      "sha256": "75ca4a2bfe1cc66c7227510b3822b04ddfbf30450cb0da1dd78fe3c9bae2a884"
+    }
+  ],
+  "inline_structured_captures": [
+    {
+      "archive_path": "csv/keyword_magic_inline_overview_2026-06-29.csv",
+      "data_rows": 11,
+      "sha256": "9847b2f5c4aa9a5934630a167daf457b4cb060d5770b6bf439b9667260b4ed74"
+    },
+    {
+      "archive_path": "csv/keyword_magic_inline_rows_2026-06-29.csv",
+      "data_rows": 113,
+      "sha256": "6fb85505847809085b4ba92e91336f6ccd97df55d6d75d202db4684d1709cf47"
+    },
+    {
+      "archive_path": "csv/keyword_gap_inline_top_opportunities_2026-06-29.csv",
+      "data_rows": 5,
+      "sha256": "57728e919633faa31496e6de25eadd3f41e0f58d03834163d6251370754c5ee8"
+    },
+    {
+      "archive_path": "csv/keyword_gap_inline_overlap_2026-06-29.csv",
+      "data_rows": 5,
+      "sha256": "b39de75ec4ab718d2b8a4a35140843f26e753e63462c52756be782c2d96c5063"
+    },
+    {
+      "archive_path": "csv/keyword_gap_littleherolabs_inline_details_2026-06-29.csv",
+      "data_rows": 2,
+      "sha256": "a686a59b70b25787636cb2e2a5c4e1f6c1af41dc87b198cbdfee395e4118a7db"
+    },
+    {
+      "archive_path": "csv/top_pages_putmeinthestory_inline_2026-06-29.csv",
+      "data_rows": 5,
+      "sha256": "39a1e6ba22a1b363f9e8bfa2b5858c01fec1ad889097cd83043a3c761f3cb3d9"
+    },
+    {
+      "archive_path": "raw/inline-keyword-magic-keyword-gap-top-pages-paste-2026-06-29.md",
+      "line_count": 51,
+      "sha256": "0f18c9b68761d952f997cccee717409eebebf51c4dd8a667aaf27be5ab727d6e"
+    }
+  ]
+}

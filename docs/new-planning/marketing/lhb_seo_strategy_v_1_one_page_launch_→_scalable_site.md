@@ -301,7 +301,78 @@ Sitemap: https://www.littleherolabs.com/sitemap.xml
 
 ---
 
-## 19) To Revisit / Do Later Parking Lot
+## 19) Semrush-Grounded SEO Growth Plan — 2026-06-30
+
+**Source archive:** Raw Semrush evidence is preserved under:
+
+- `docs/seo/semrush/site-audit-2026-06-29/`
+- `docs/seo/semrush/keyword-competitive-research-2026-06-29/`
+- `docs/seo/semrush/position-tracking-content-templates-2026-06-30/`
+
+**Current baseline:** Semrush Position Tracking was started with 14 keywords for United States (Google) / English / Desktop. Little Hero Labs currently has `0%` visibility and `0` tracked keywords in the top 100. This is expected for a new/under-indexed domain. Competitors already occupying the SERPs include `iseeme.com`, `storybug.com`, `wonderbly.com`, `hoorayheroes.com`, `dinkleboo.com`, plus discovered SERP competitors like `amazon.com`, `reddit.com`, `letterfest.com`, and `librio.com`.
+
+**Strategic read:** Do not try to win the broad head term battle first. `personalized books for kids`, `personalized kids books`, and related core terms show strong demand but entrenched competitors and higher KD. The first rankings should come from lower-difficulty, high-intent pages where Little Hero Labs can show unique product/art proof instead of generic copy.
+
+### Near-Term Build Order
+
+| Priority | Page / Workstream | Primary Target | Why Now | Required Content Proof |
+|---:|---|---|---|---|
+| 1 | Homepage SEO expansion | `personalized kids book`, `personalized children's book`, `custom children's book` | The homepage is the commercial hub and must support every cluster page | Product specifics, personalization proof, book specs, FAQ, trust/privacy, internal links |
+| 2 | Reusable SEO landing-page template | n/a | Prevents one-off page drift and makes pages easier to ship well | Shared schema, CTA pattern, related links, FAQ slots, image/alt-text pattern |
+| 3 | `/personalized-birthday-book/` | `personalized birthday book` | Low KD in Semrush exports and clear buyer intent | Gift use cases, first birthday note, preview images, FAQ, CTA |
+| 4 | `/personalized-dinosaur-book/` | `personalized dinosaur book` | Very low KD and actual animal/product relevance | Dinosaur/t-rex art, sample spread, personalization details, related animal links |
+| 5 | `/personalized-unicorn-book/` | `personalized unicorn book` | Very low KD and distinct visual page opportunity | Unicorn art, magical story context, preview image, related animal links |
+| 6 | `/childrens-books-about-courage/` | `children's books about courage` | Stronger topical fit with *Finding Our Inner Voice* than generic product pages | SEL/courage copy, read-aloud framing, book excerpt, parent/educator FAQ |
+| 7 | `/confidence-book-for-kids/` | `confidence book for kids` | Useful supporting SEL topic and internal-link target | Confidence/self-esteem positioning, gentle disclaimers, book tie-in |
+| 8 | Sitemap/internal-link refresh | all new URLs | New pages need crawl paths and priority signals | Header/footer or homepage links, related links, sitemap entries |
+
+### What Not To Do Yet
+
+- Do not publish dozens of animal, age, or name pages until 3-5 high-quality pages show impressions in GSC/Semrush.
+- Do not ship competitor-comparison pages until the upgraded product/fulfillment story is strong enough to withstand direct comparison.
+- Do not create thin gift-guide pages that exist only to funnel to the product. Age/gift pages should be editorially useful.
+
+### Minimum Bar For Each SEO Page
+
+Each page must include:
+
+- Unique title, meta description, H1, and focused URL.
+- At least one real product/art preview tied to the query.
+- 500-1,100 words depending on Semrush template guidance and intent.
+- 4-6 page-specific FAQs.
+- Internal links to homepage, `/our-books`, `/how-it-works`, create flow, and 2-3 related pages.
+- Self-referential canonical, sitemap inclusion, and relevant JSON-LD.
+- CTA language that matches the intent: gift, animal, SEL/courage, or core personalized-book purchase intent.
+
+### Measurement Loop
+
+Every 48 hours during the Semrush trial, export:
+
+- Position Tracking Overview
+- Rankings/Keywords table
+- Competitors/Competition Map
+- Landing Pages/Pages, even if empty
+- SERP Features
+- Rankings Distribution
+
+After the trial, use GSC + GA4 as the primary loop:
+
+- Weekly: impressions, average position, CTR, landing page, query cluster.
+- Biweekly: title/meta tests for pages with impressions but weak CTR.
+- Monthly: decide whether to ship one more cluster page, improve an existing page, or pause expansion.
+
+### First Success Criteria
+
+Do not judge this plan by immediate clicks. The first win is search discovery:
+
+- Any non-brand impressions for core or cluster terms.
+- Any page entering top 100 for long-tail animal/gift/SEL terms.
+- Any Google/Bing indexing of the new pages within 7-14 days.
+- Any external referral or backlink from Pinterest, parenting, kidlit, or SEL-related pages.
+
+---
+
+## 20) To Revisit / Do Later Parking Lot
 
 These came out of the 2026-06-16 Reddit SEO playbook review. They are useful, but should wait until the launch offer, print-vendor path, and basic crawl/indexing telemetry are stable.
 

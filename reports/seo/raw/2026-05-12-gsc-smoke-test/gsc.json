@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "generatedAt": "2026-05-12T20:27:01.063Z",
+    "startDate": "2026-05-12",
+    "endDate": "2026-05-12",
+    "siteUrl": "sc-domain:littleherolabs.com",
+    "source": "Google Search Console Search Analytics API",
+    "note": "Rows are safe to commit. OAuth tokens and credentials are not stored in this artifact."
+  },
+  "summary": {
+    "clicks": 0,
+    "impressions": 0,
+    "ctr": 0,
+    "avgPosition": 0
+  },
+  "reports": {
+    "daily": [],
+    "queries": [],
+    "pages": [],
+    "queryPages": []
+  }
+}
