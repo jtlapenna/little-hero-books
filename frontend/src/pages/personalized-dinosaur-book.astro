@@ -1,0 +1,69 @@
+---
+import SeoLandingPage from '../components/SeoLandingPage.astro';
+
+const faqs = [
+  {
+    question: 'Can my child choose a dinosaur companion?',
+    answer: 'Yes. The current animal options include a t-rex companion, so dinosaur fans can see that favorite creature included in their personalized book experience.',
+  },
+  {
+    question: 'Is this personalized dinosaur book scary?',
+    answer: 'No. The tone is gentle and read-aloud friendly. The dinosaur companion is there to make the adventure feel exciting, not frightening.',
+  },
+  {
+    question: 'What details can be customized?',
+    answer: "You can personalize the child's look, name, hometown, pronouns, dedication, and animal companion so the book feels made for that child.",
+  },
+  {
+    question: 'What age is best for a dinosaur personalized book?',
+    answer: 'The story is built for young read-alouds, with the strongest fit around ages 3 to 6 and room for younger dinosaur fans to enjoy it with help.',
+  },
+];
+---
+
+<SeoLandingPage
+  title="Personalized Dinosaur Book for Kids | Little Hero Labs"
+  description="Create a personalized dinosaur book for kids with a custom child character, dedication, hometown, and t-rex animal companion in a gentle picture-book adventure."
+  canonicalImage="/animals/t-rex.png"
+  eyebrow="Personalized animal book"
+  h1="A Personalized Dinosaur Book For Brave Little Explorers"
+  intro="For kids who light up at dinosaurs, a personalized story feels even bigger. Choose a t-rex companion and create a custom picture book where your child becomes the hero of a gentle adventure."
+  image="/animals/t-rex.png"
+  imageAlt="T-rex animal companion for a personalized dinosaur book"
+  primaryKeyword="personalized dinosaur book"
+  supportingKeywords={['personalized dinosaur books for kids', 'custom dinosaur book', 'dinosaur personalized childrens book']}
+  features={[
+    {
+      title: 'Dinosaur Energy, Gentle Tone',
+      text: 'The t-rex companion gives the page a sense of adventure while keeping the story warm enough for bedtime and preschool read-alouds.',
+    },
+    {
+      title: 'Made For The Child',
+      text: 'The child character can reflect their look, hometown, pronouns, dedication, and favorite animal companion.',
+    },
+    {
+      title: 'A Confidence Story',
+      text: 'Finding Our Inner Voice uses the adventure to help young readers think about bravery, listening to themselves, and feeling seen.',
+    },
+  ]}
+  bodySections={[
+    {
+      title: 'Why Dinosaur Pages Are A Smart First SEO Win',
+      text: 'Dinosaur searches are specific enough that a real product page can be helpful without pretending to be a giant toy catalog. A page with actual t-rex art, age guidance, and personalization details can answer the parent query directly.',
+    },
+    {
+      title: 'How The Dinosaur Companion Fits The Story',
+      text: 'The t-rex companion is one of the personalization choices that makes the book feel like it belongs to a particular child. It adds a favorite creature to a story that is still centered on the child discovering courage and self-trust.',
+    },
+    {
+      title: 'A Better Gift Than A Generic Dinosaur Item',
+      text: 'A dinosaur shirt or toy can be fun, but a personalized dinosaur book gives the child a role inside the adventure. That makes it a strong birthday, holiday, or grandparent gift for a child with a favorite prehistoric friend.',
+    },
+  ]}
+  faqs={faqs}
+  relatedLinks={[
+    { href: '/personalized-unicorn-book/', label: 'Unicorn Book', text: 'A magical companion option for kids who love enchanted stories.' },
+    { href: '/personalized-birthday-book/', label: 'Birthday Book', text: 'Turn the personalized story into a keepsake birthday gift.' },
+    { href: '/confidence-book-for-kids/', label: 'Confidence Book', text: 'A story built around self-trust and gentle courage.' },
+  ]}
+/>

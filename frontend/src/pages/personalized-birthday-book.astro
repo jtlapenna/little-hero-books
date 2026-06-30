@@ -1,0 +1,69 @@
+---
+import SeoLandingPage from '../components/SeoLandingPage.astro';
+
+const faqs = [
+  {
+    question: 'Is this a good personalized birthday book for toddlers and preschoolers?',
+    answer: 'Yes. The launch edition is written for cozy read-alouds, with the sweetest fit around ages 3 to 6 and simpler moments younger children can still enjoy with a grown-up.',
+  },
+  {
+    question: 'Where does the birthday personalization show up?',
+    answer: 'The child can be reflected through their name, appearance, hometown, dedication, pronouns, and animal companion so the gift feels made for them instead of only labeled with their name.',
+  },
+  {
+    question: 'Can grandparents give this as a birthday gift?',
+    answer: 'Yes. The dedication is a natural place for a grandparent, aunt, uncle, or family friend to add a keepsake note before the book is printed.',
+  },
+  {
+    question: 'Is the book only about birthdays?',
+    answer: 'No. Finding Our Inner Voice is an everyday courage and confidence story, which makes it useful long after the birthday morning is over.',
+  },
+];
+---
+
+<SeoLandingPage
+  title="Personalized Birthday Book for Kids | Little Hero Labs"
+  description="Create a personalized birthday book starring your child, with their look, name, dedication, hometown, pronouns, and animal companion woven into a gentle picture-book adventure."
+  canonicalImage="/preview/cover-laney-front.png"
+  eyebrow="Personalized birthday gift"
+  h1="A Personalized Birthday Book They Can See Themselves In"
+  intro="Make the birthday gift feel personal from the first page. Little Hero Labs creates a custom children's book where your child appears throughout the story, not just on a cover or dedication page."
+  image="/preview/cover-laney-front.png"
+  imageAlt="Personalized birthday book cover with a child's name"
+  primaryKeyword="personalized birthday book"
+  supportingKeywords={['personalized birthday books', 'personalized birthday books for kids', 'first birthday personalized book']}
+  features={[
+    {
+      title: 'Giftable by Design',
+      text: 'The book is short, warm, and easy to read aloud at a birthday party, bedtime, or a quiet family moment after the candles are done.',
+    },
+    {
+      title: 'Personal Beyond The Name',
+      text: "Add the child's look, hometown, dedication, pronouns, and animal companion so the present feels specific without becoming complicated.",
+    },
+    {
+      title: 'A Keepsake With A Point',
+      text: 'The story gives the child a birthday keepsake while reinforcing courage, confidence, and listening to their own inner voice.',
+    },
+  ]}
+  bodySections={[
+    {
+      title: 'Why A Personalized Book Works As A Birthday Gift',
+      text: 'A personalized birthday book sits in the sweet spot between toy and keepsake. It is fun enough for the child to open, but meaningful enough for parents and grandparents to save. Instead of adding another object to the pile, the gift gives the child a story where they are the hero.',
+    },
+    {
+      title: 'What Makes Little Hero Labs Different',
+      text: "Many custom children's books personalize only the cover or a few name fields. Little Hero Labs is built around the child feeling seen through the whole adventure. The character can reflect their appearance, pronouns, hometown, dedication, and animal companion in a gentle picture-book format.",
+    },
+    {
+      title: 'Best Fit For Ages 3 To 6',
+      text: 'The launch edition is a 16-page softcover made for young children and read-aloud time. It works especially well for preschool birthdays, early school-age confidence moments, and family gifts from people who want something more memorable than another plastic toy.',
+    },
+  ]}
+  faqs={faqs}
+  relatedLinks={[
+    { href: '/personalized-dinosaur-book/', label: 'Dinosaur Book', text: 'A custom dinosaur-themed story for kids who love big adventures.' },
+    { href: '/personalized-unicorn-book/', label: 'Unicorn Book', text: 'A magical personalized story with a favorite unicorn companion.' },
+    { href: '/childrens-books-about-courage/', label: 'Books About Courage', text: 'A gentle story for bravery, confidence, and inner voice.' },
+  ]}
+/>

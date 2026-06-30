@@ -5,7 +5,7 @@ const siteUrl = (import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.
 const staticPages = [
   {
     path: '/',
-    lastmod: '2026-06-16',
+    lastmod: '2026-06-30',
     changefreq: 'weekly',
     priority: '1.0',
     images: [
@@ -21,7 +21,7 @@ const staticPages = [
   },
   {
     path: '/our-books',
-    lastmod: '2026-06-16',
+    lastmod: '2026-06-30',
     changefreq: 'weekly',
     priority: '0.8',
     images: [
@@ -40,6 +40,66 @@ const staticPages = [
       {
         loc: '/how-it-works-hero.webp',
         caption: 'How to create a personalized children\'s book with Little Hero Labs',
+      },
+    ],
+  },
+  {
+    path: '/personalized-birthday-book',
+    lastmod: '2026-06-30',
+    changefreq: 'weekly',
+    priority: '0.7',
+    images: [
+      {
+        loc: '/preview/cover-laney-front.png',
+        caption: 'Personalized birthday book cover sample from Little Hero Labs',
+      },
+    ],
+  },
+  {
+    path: '/personalized-dinosaur-book',
+    lastmod: '2026-06-30',
+    changefreq: 'weekly',
+    priority: '0.7',
+    images: [
+      {
+        loc: '/animals/t-rex.png',
+        caption: 'T-rex companion for a personalized dinosaur book',
+      },
+    ],
+  },
+  {
+    path: '/personalized-unicorn-book',
+    lastmod: '2026-06-30',
+    changefreq: 'weekly',
+    priority: '0.7',
+    images: [
+      {
+        loc: '/animals/unicorn.png',
+        caption: 'Unicorn companion for a personalized unicorn book',
+      },
+    ],
+  },
+  {
+    path: '/childrens-books-about-courage',
+    lastmod: '2026-06-30',
+    changefreq: 'weekly',
+    priority: '0.7',
+    images: [
+      {
+        loc: '/preview/spread-3-forest-run.png',
+        caption: 'Personalized children\'s book spread about courage and adventure',
+      },
+    ],
+  },
+  {
+    path: '/confidence-book-for-kids',
+    lastmod: '2026-06-30',
+    changefreq: 'weekly',
+    priority: '0.7',
+    images: [
+      {
+        loc: '/preview/spread-5-autumn-forest.png',
+        caption: 'Personalized confidence book spread with a child in an autumn forest',
       },
     ],
   },

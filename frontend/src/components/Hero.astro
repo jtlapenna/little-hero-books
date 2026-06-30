@@ -524,6 +524,16 @@ const isLayered = bgImage && characterA && characterB;
     .hero-image-container {
       aspect-ratio: auto;
       min-height: auto;
+      overflow: visible;
+    }
+
+    .hero-image-container:has(.hero-bg) {
+      aspect-ratio: auto;
+      min-height: auto;
+    }
+
+    .hero-image {
+      height: auto;
     }
     
     /* Move hero content below image on mobile instead of overlaying */
@@ -560,4 +570,3 @@ const isLayered = bgImage && characterA && characterB;
     }
   }
 </style>
-

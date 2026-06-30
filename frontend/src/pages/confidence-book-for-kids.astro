@@ -1,0 +1,69 @@
+---
+import SeoLandingPage from '../components/SeoLandingPage.astro';
+
+const faqs = [
+  {
+    question: 'Is this a confidence book for kids?',
+    answer: 'Yes. Finding Our Inner Voice is designed around courage, confidence, and the feeling of listening to yourself in a gentle picture-book format.',
+  },
+  {
+    question: 'Does it replace parenting or classroom support?',
+    answer: 'No. It is a storybook, not a therapeutic program. It can support warm conversations about confidence and self-trust with a caring grown-up.',
+  },
+  {
+    question: 'Why make a confidence book personalized?',
+    answer: 'Personalization can help the child connect with the message because the hero can reflect their look, name, hometown, pronouns, and companion choice.',
+  },
+  {
+    question: 'What is the best age range?',
+    answer: 'The strongest fit is around ages 3 to 6, especially for read-aloud moments where a grown-up can talk through the story with the child.',
+  },
+];
+---
+
+<SeoLandingPage
+  title="Confidence Book for Kids | Personalized Story | Little Hero Labs"
+  description="Create a personalized confidence book for kids about courage, self-trust, and listening to your inner voice, with a custom child character throughout the story."
+  canonicalImage="/preview/spread-5-autumn-forest.png"
+  eyebrow="Confidence and self-trust"
+  h1="A Confidence Book For Kids Who Are Finding Their Voice"
+  intro="Confidence grows through small moments: trying, choosing, listening, and feeling seen. Little Hero Labs creates a personalized picture book that helps those ideas feel close to the child."
+  image="/preview/spread-5-autumn-forest.png"
+  imageAlt="Personalized confidence book spread with a child in an autumn forest"
+  primaryKeyword="confidence book for kids"
+  supportingKeywords={['self esteem book for kids', 'self confidence books for kids', "children's books about courage"]}
+  features={[
+    {
+      title: 'Personalized Confidence',
+      text: 'The child becomes the hero, with custom details that can make the confidence theme feel more personal.',
+    },
+    {
+      title: 'Gentle Emotional Language',
+      text: 'The story gives families a softer way to talk about courage, self-trust, and listening to yourself.',
+    },
+    {
+      title: 'Made For Re-Reading',
+      text: 'The launch edition is short enough for bedtime and meaningful enough to revisit when a child needs a small boost.',
+    },
+  ]}
+  bodySections={[
+    {
+      title: 'Why Confidence Books Work Best As Conversations',
+      text: 'A book cannot create confidence by itself, but it can open a door. When a child sees a hero moving through uncertainty and finding their voice, a parent or caregiver gets a simple way to talk about similar feelings in real life.',
+    },
+    {
+      title: 'The Role Of Personalization',
+      text: "Seeing a custom character can make the message feel less abstract. The story is not about a faraway character with no connection to the reader. It is about a hero who can share the child's name, look, hometown, and companion.",
+    },
+    {
+      title: 'A Keepsake With Emotional Use',
+      text: 'This makes the book useful as a birthday gift, transition gift, or quiet encouragement gift. The keepsake value comes from the personalization; the staying power comes from the confidence theme.',
+    },
+  ]}
+  faqs={faqs}
+  relatedLinks={[
+    { href: '/childrens-books-about-courage/', label: 'Books About Courage', text: 'Explore the courage and inner-voice side of the story.' },
+    { href: '/personalized-birthday-book/', label: 'Birthday Book', text: 'A personalized keepsake for preschool and early-reader birthdays.' },
+    { href: '/personalized-dinosaur-book/', label: 'Dinosaur Book', text: 'A custom animal-companion page for dinosaur fans.' },
+  ]}
+/>

@@ -1,0 +1,69 @@
+---
+import SeoLandingPage from '../components/SeoLandingPage.astro';
+
+const faqs = [
+  {
+    question: "Is Finding Our Inner Voice a children's book about courage?",
+    answer: 'Yes. The story is built around a young hero discovering quiet strength, listening to themselves, and finding bravery in gentle, age-appropriate ways.',
+  },
+  {
+    question: 'Is this an SEL book?',
+    answer: 'It can support SEL conversations about confidence, self-trust, and courage, though it is first and foremost a personalized picture book for families.',
+  },
+  {
+    question: 'What ages is the courage theme best for?',
+    answer: 'The story is best for young children around ages 3 to 6, especially as a read-aloud with a parent, grandparent, teacher, or caregiver.',
+  },
+  {
+    question: 'Does personalization distract from the courage message?',
+    answer: 'No. Personalization is used to make the courage message feel closer to the child, because the hero looks and feels more like them.',
+  },
+];
+---
+
+<SeoLandingPage
+  title="Children's Books About Courage | Little Hero Labs"
+  description="A personalized children's book about courage, confidence, and listening to your inner voice, made for young read-aloud moments and custom keepsake gifts."
+  canonicalImage="/preview/spread-3-forest-run.png"
+  eyebrow="Courage and confidence"
+  h1="A Personalized Children's Book About Courage"
+  intro="Courage can be loud, but for young children it often starts quietly: trying again, listening to yourself, and feeling seen. Finding Our Inner Voice turns that idea into a personalized picture-book adventure."
+  image="/preview/spread-3-forest-run.png"
+  imageAlt="Personalized children's book spread showing a child running through a forest adventure"
+  primaryKeyword="children's books about courage"
+  supportingKeywords={["children's book about courage", 'books about courage for kids', 'confidence book for kids']}
+  features={[
+    {
+      title: 'Gentle Courage',
+      text: 'The story focuses on quiet bravery and self-trust rather than fear-heavy scenes or big dramatic lessons.',
+    },
+    {
+      title: 'Personalized Empathy',
+      text: 'When the child can see a version of themselves in the story, the courage theme feels more immediate and memorable.',
+    },
+    {
+      title: 'Read-Aloud Friendly',
+      text: 'Short pages, full-color art, and simple emotional beats make it easy to use the book as a family conversation starter.',
+    },
+  ]}
+  bodySections={[
+    {
+      title: 'Why Courage Books Matter For Young Kids',
+      text: 'Young children practice courage in small, everyday ways. A good picture book can give language to those moments without turning them into a lecture. It gives the child a story they can return to when trying something new feels big.',
+    },
+    {
+      title: 'How Personalization Helps The Message Land',
+      text: 'A custom character can make the emotional lesson feel closer. The child is not only watching someone else be brave; they are seeing a hero built from their own details move through the adventure.',
+    },
+    {
+      title: 'A Useful Gift For Parents And Grandparents',
+      text: 'Because the theme is evergreen, a personalized courage book works beyond birthdays and holidays. It can become a bedtime book, a transition gift, or a keepsake for a child learning to trust their own voice.',
+    },
+  ]}
+  faqs={faqs}
+  relatedLinks={[
+    { href: '/confidence-book-for-kids/', label: 'Confidence Book', text: 'A companion page focused on self-esteem and self-trust.' },
+    { href: '/personalized-birthday-book/', label: 'Birthday Book', text: 'Give the courage story as a personalized birthday keepsake.' },
+    { href: '/personalized-unicorn-book/', label: 'Unicorn Book', text: 'Add a magical companion to a custom story adventure.' },
+  ]}
+/>

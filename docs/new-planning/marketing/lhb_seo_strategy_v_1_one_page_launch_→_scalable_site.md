@@ -370,6 +370,17 @@ Do not judge this plan by immediate clicks. The first win is search discovery:
 - Any Google/Bing indexing of the new pages within 7-14 days.
 - Any external referral or backlink from Pinterest, parenting, kidlit, or SEL-related pages.
 
+### Implementation Log
+
+**2026-06-30:** First SEO growth sprint shipped.
+
+- Expanded homepage targeting for `personalized kids book`, `custom children's book`, and related core terms with FAQ schema and internal links to new cluster pages.
+- Added a reusable SEO landing page component with WebPage + FAQPage JSON-LD, query chips, page-specific FAQs, product proof, related links, and create-flow CTAs.
+- Published first focused pages: `/personalized-birthday-book/`, `/personalized-dinosaur-book/`, `/personalized-unicorn-book/`, `/childrens-books-about-courage/`, and `/confidence-book-for-kids/`.
+- Added footer crawl links and sitemap entries for the new pages, each with relevant image metadata.
+- Fixed a broken `/our-books` interior image path and corrected the shared mobile hero layout so the headline/CTA are visible before the next section.
+- Verification: production Astro build passed; local browser smoke test checked desktop and mobile rendering, structured data presence, no broken images, no horizontal overflow, and sitemap output.
+
 ---
 
 ## 20) To Revisit / Do Later Parking Lot

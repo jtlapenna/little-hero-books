@@ -2,9 +2,45 @@
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import Button from '../components/Button.astro';
+
+const homepageFaqs = [
+  {
+    question: "What makes Little Hero Labs different from other personalized children's books?",
+    answer: "Little Hero Labs lets you build a child character with details like hair style, skin tone, hometown, dedication, pronouns, and animal companion so the child can feel present throughout the story.",
+  },
+  {
+    question: "What ages are Little Hero Labs books best for?",
+    answer: "The launch edition works best for read-aloud moments with young children, especially around ages 3 to 6, with younger children able to enjoy the pictures and personalization with help.",
+  },
+  {
+    question: "Can I choose a dinosaur or unicorn companion?",
+    answer: "Yes. Animal companion options include favorites like a t-rex and unicorn, along with other animals that can travel with the child through the story.",
+  },
+  {
+    question: "Is Finding Our Inner Voice a book about courage and confidence?",
+    answer: "Yes. The story is a gentle personalized adventure about quiet strength, listening to yourself, and finding the bravery to be exactly who you are.",
+  },
+];
+
+const homepageFaqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: homepageFaqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
 ---
 
-<Layout title="Personalized Children's Books | Custom Kids Books | Little Hero Labs" description="Create a personalized children's book where your child is the actual hero. Customize their look, hometown, dedication, pronouns, and animal companion in a 16-page launch edition softcover.">
+<Layout title="Personalized Kids Book | Custom Children's Book | Little Hero Labs" description="Create a personalized kids book where your child is the actual hero. Customize their look, hometown, dedication, pronouns, and animal companion in a 16-page softcover.">
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(homepageFaqSchema)}></script>
+  </Fragment>
+
   <Hero 
     imageSrc="/homepage-hero-mobile.webp" 
     imageAlt="Personalized children's books - Little Hero Labs"
@@ -127,6 +163,68 @@ import Button from '../components/Button.astro';
       </div>
     </div>
   </section>
+
+  <section class="section-padding seo-cluster-section" aria-labelledby="popular-personalized-books">
+    <div class="container">
+      <div class="cluster-header">
+        <p class="cluster-eyebrow">Popular personalized book searches</p>
+        <h2 id="popular-personalized-books" class="section-title">Find The Custom Book That Fits The Moment</h2>
+        <p class="section-text">
+          Whether you are shopping for a birthday, a favorite animal, or a story about courage and confidence,
+          these guides explain how the same personalized book can fit different gift moments.
+        </p>
+      </div>
+
+      <div class="cluster-grid">
+        <a class="cluster-link" href="/personalized-birthday-book/">
+          <span>Birthday Gift</span>
+          <strong>Personalized Birthday Book</strong>
+          <p>A keepsake story for preschool birthdays, first birthdays, and grandparent gifts.</p>
+        </a>
+        <a class="cluster-link" href="/personalized-dinosaur-book/">
+          <span>Dinosaur Fans</span>
+          <strong>Personalized Dinosaur Book</strong>
+          <p>Add a t-rex companion to a custom story built around your child.</p>
+        </a>
+        <a class="cluster-link" href="/personalized-unicorn-book/">
+          <span>Magical Stories</span>
+          <strong>Personalized Unicorn Book</strong>
+          <p>Choose a unicorn companion for a gentle adventure with a little extra sparkle.</p>
+        </a>
+        <a class="cluster-link" href="/childrens-books-about-courage/">
+          <span>Courage Theme</span>
+          <strong>Children's Books About Courage</strong>
+          <p>Use a personalized story to talk about bravery, self-trust, and inner voice.</p>
+        </a>
+        <a class="cluster-link" href="/confidence-book-for-kids/">
+          <span>Confidence Theme</span>
+          <strong>Confidence Book For Kids</strong>
+          <p>A warm read-aloud for children learning to listen to themselves.</p>
+        </a>
+        <a class="cluster-link" href="/our-books">
+          <span>Launch Edition</span>
+          <strong>Finding Our Inner Voice</strong>
+          <p>See the current personalized picture book and launch edition details.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-padding homepage-faq-section" aria-labelledby="homepage-faq-heading">
+    <div class="container">
+      <div class="faq-content">
+        <h2 id="homepage-faq-heading" class="section-title text-center">Questions Parents Ask</h2>
+        <div class="faq-grid">
+          {homepageFaqs.map((faq) => (
+            <details class="faq-item">
+              <summary>{faq.question}</summary>
+              <p>{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
 </Layout>
 
 <style>
@@ -244,6 +342,114 @@ import Button from '../components/Button.astro';
     margin-bottom: var(--spacing-sm);
     color: var(--color-navy-midnight);
   }
+
+  .seo-cluster-section {
+    background: var(--color-off-white);
+  }
+
+  .cluster-header {
+    max-width: 780px;
+    margin: 0 auto var(--spacing-xl);
+    text-align: center;
+  }
+
+  .cluster-eyebrow {
+    margin-bottom: var(--spacing-sm);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-forest-green);
+  }
+
+  .cluster-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .cluster-link {
+    display: flex;
+    min-height: 180px;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(45, 49, 66, 0.12);
+    border-radius: 12px;
+    background: white;
+    color: var(--color-navy-midnight);
+    box-shadow: 0 6px 16px rgba(45, 49, 66, 0.08);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .cluster-link:hover,
+  .cluster-link:focus-visible {
+    color: var(--color-navy-midnight);
+    border-color: var(--color-hero-coral);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(45, 49, 66, 0.12);
+  }
+
+  .cluster-link span {
+    margin-bottom: var(--spacing-sm);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-forest-green);
+  }
+
+  .cluster-link strong {
+    margin-bottom: var(--spacing-sm);
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    line-height: 1.25;
+  }
+
+  .cluster-link p {
+    margin: 0;
+    color: var(--color-soft-charcoal);
+    line-height: 1.65;
+  }
+
+  .homepage-faq-section {
+    background: var(--color-storybook-beige);
+  }
+
+  .faq-content {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+
+  .faq-grid {
+    display: grid;
+    gap: var(--spacing-md);
+  }
+
+  .faq-item {
+    border: 1px solid rgba(45, 49, 66, 0.12);
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 5px 14px rgba(45, 49, 66, 0.08);
+  }
+
+  .faq-item summary {
+    cursor: pointer;
+    padding: var(--spacing-lg);
+    color: var(--color-navy-midnight);
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    line-height: 1.35;
+  }
+
+  .faq-item p {
+    margin: 0;
+    padding: 0 var(--spacing-lg) var(--spacing-lg);
+    color: var(--color-soft-charcoal);
+    line-height: 1.7;
+  }
   
   @media (max-width: 768px) {
     .features-grid {
@@ -259,6 +465,10 @@ import Button from '../components/Button.astro';
     .steps-preview {
       grid-template-columns: 1fr;
       gap: var(--spacing-md);
+    }
+
+    .cluster-grid {
+      grid-template-columns: 1fr;
     }
 
     .section-text {

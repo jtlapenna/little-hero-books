@@ -1,0 +1,417 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Button from './Button.astro';
+
+interface Feature {
+  title: string;
+  text: string;
+}
+
+interface Faq {
+  question: string;
+  answer: string;
+}
+
+interface RelatedLink {
+  href: string;
+  label: string;
+  text: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalImage: string;
+  eyebrow: string;
+  h1: string;
+  intro: string;
+  image: string;
+  imageAlt: string;
+  primaryKeyword: string;
+  supportingKeywords: string[];
+  features: Feature[];
+  bodySections: Feature[];
+  faqs: Faq[];
+  relatedLinks: RelatedLink[];
+}
+
+const {
+  title,
+  description,
+  canonicalImage,
+  eyebrow,
+  h1,
+  intro,
+  image,
+  imageAlt,
+  primaryKeyword,
+  supportingKeywords,
+  features,
+  bodySections,
+  faqs,
+  relatedLinks,
+} = Astro.props;
+
+const siteUrl = (import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com').replace(/\/$/, '');
+const pageUrl = new URL(Astro.url.pathname, `${siteUrl}/`).toString();
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
+
+const webPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: h1,
+  url: pageUrl,
+  description,
+  image: new URL(canonicalImage, `${siteUrl}/`).toString(),
+  about: [
+    primaryKeyword,
+    ...supportingKeywords,
+  ],
+  isPartOf: {
+    '@type': 'WebSite',
+    name: 'Little Hero Labs',
+    url: siteUrl,
+  },
+};
+---
+
+<Layout title={title} description={description} image={canonicalImage}>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(webPageSchema)}></script>
+    <script type="application/ld+json" set:html={JSON.stringify(faqSchema)}></script>
+  </Fragment>
+
+  <section class="seo-hero">
+    <div class="container seo-hero-grid">
+      <div class="seo-hero-copy">
+        <p class="seo-eyebrow">{eyebrow}</p>
+        <h1>{h1}</h1>
+        <p class="seo-intro">{intro}</p>
+        <div class="seo-keywords" aria-label="Related book searches">
+          <span>{primaryKeyword}</span>
+          {supportingKeywords.slice(0, 3).map((keyword) => <span>{keyword}</span>)}
+        </div>
+        <div class="seo-actions">
+          <Button href="/create/character" variant="primary" size="lg">Create Your Book</Button>
+          <Button href="/our-books" variant="secondary" size="lg">See Inside</Button>
+        </div>
+      </div>
+      <figure class="seo-hero-media">
+        <img src={image} alt={imageAlt} />
+        <figcaption>Personalized details can include the child&apos;s look, hometown, dedication, pronouns, and animal companion.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="seo-section seo-proof">
+    <div class="container">
+      <div class="seo-feature-grid">
+        {features.map((feature) => (
+          <article class="seo-feature">
+            <h2>{feature.title}</h2>
+            <p>{feature.text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="seo-section">
+    <div class="container seo-body-grid">
+      <div class="seo-body-main">
+        {bodySections.map((section) => (
+          <section class="seo-copy-block">
+            <h2>{section.title}</h2>
+            <p>{section.text}</p>
+          </section>
+        ))}
+      </div>
+      <aside class="seo-sidebar" aria-label="Book details">
+        <h2>Launch Edition Details</h2>
+        <ul>
+          <li>16-page full-color picture book</li>
+          <li>8.5 x 8.5 softcover format</li>
+          <li>Made for ages 3-6, with younger and older read-aloud use</li>
+          <li>Personalized character, dedication, hometown, and animal companion</li>
+          <li>Gentle story about courage, confidence, and listening to yourself</li>
+        </ul>
+        <Button href="/how-it-works" variant="secondary" size="md">How It Works</Button>
+      </aside>
+    </div>
+  </section>
+
+  <section class="seo-section seo-faq-band">
+    <div class="container">
+      <h2 class="seo-section-title">Questions Parents Ask</h2>
+      <div class="seo-faq-list">
+        {faqs.map((faq) => (
+          <article class="seo-faq-item">
+            <h3>{faq.question}</h3>
+            <p>{faq.answer}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="seo-section">
+    <div class="container">
+      <h2 class="seo-section-title">Explore More Personalized Books</h2>
+      <div class="seo-related-grid">
+        {relatedLinks.map((link) => (
+          <a class="seo-related-link" href={link.href}>
+            <strong>{link.label}</strong>
+            <span>{link.text}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .seo-hero {
+    padding: clamp(7rem, 12vw, 10rem) 0 clamp(3rem, 8vw, 6rem);
+    background:
+      linear-gradient(135deg, rgba(255, 248, 240, 0.96), rgba(168, 218, 220, 0.38)),
+      var(--color-off-white);
+  }
+
+  .seo-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+
+  .seo-eyebrow {
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-forest-green);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .seo-hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4.9rem);
+    line-height: 1.04;
+    text-wrap: balance;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .seo-intro {
+    max-width: 680px;
+    font-size: clamp(1.08rem, 2vw, 1.28rem);
+    line-height: 1.75;
+    color: var(--color-soft-charcoal);
+  }
+
+  .seo-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .seo-keywords span {
+    border: 1px solid rgba(45, 49, 66, 0.16);
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: rgba(255, 255, 255, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: var(--color-navy-midnight);
+  }
+
+  .seo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+  }
+
+  .seo-hero-media {
+    margin: 0;
+    background: white;
+    border: 1px solid rgba(45, 49, 66, 0.12);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 50px rgba(45, 49, 66, 0.14);
+  }
+
+  .seo-hero-media img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+
+  .seo-hero-media figcaption {
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+    font-size: 0.94rem;
+    color: var(--color-soft-charcoal);
+    line-height: 1.6;
+  }
+
+  .seo-section {
+    padding: clamp(3rem, 7vw, 5rem) 0;
+  }
+
+  .seo-proof {
+    background: var(--color-storybook-beige);
+  }
+
+  .seo-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .seo-feature {
+    background: rgba(255, 255, 255, 0.72);
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(45, 49, 66, 0.09);
+  }
+
+  .seo-feature h2,
+  .seo-sidebar h2,
+  .seo-copy-block h2,
+  .seo-section-title {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .seo-feature p,
+  .seo-copy-block p,
+  .seo-sidebar li,
+  .seo-faq-item p,
+  .seo-related-link span {
+    line-height: 1.75;
+    color: var(--color-soft-charcoal);
+  }
+
+  .seo-body-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+  }
+
+  .seo-copy-block {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .seo-sidebar {
+    position: sticky;
+    top: 100px;
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+    background: linear-gradient(180deg, #ffffff, var(--color-soft-cream));
+    border: 1px solid rgba(45, 49, 66, 0.12);
+    box-shadow: 0 10px 30px rgba(45, 49, 66, 0.1);
+  }
+
+  .seo-sidebar ul {
+    margin: 0 0 var(--spacing-lg);
+    padding-left: 1.2rem;
+  }
+
+  .seo-sidebar li {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .seo-faq-band {
+    background: var(--color-warm-sand);
+  }
+
+  .seo-section-title {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .seo-faq-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .seo-faq-item {
+    background: white;
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(45, 49, 66, 0.1);
+  }
+
+  .seo-faq-item h3 {
+    font-size: 1.35rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .seo-related-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .seo-related-link {
+    display: block;
+    min-height: 140px;
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    background: white;
+    border: 1px solid rgba(45, 49, 66, 0.12);
+    color: var(--color-navy-midnight);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .seo-related-link:hover,
+  .seo-related-link:focus-visible {
+    color: var(--color-navy-midnight);
+    border-color: var(--color-hero-coral);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(45, 49, 66, 0.12);
+  }
+
+  .seo-related-link strong,
+  .seo-related-link span {
+    display: block;
+  }
+
+  .seo-related-link strong {
+    margin-bottom: var(--spacing-sm);
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+  }
+
+  @media (max-width: 860px) {
+    .seo-hero-grid,
+    .seo-body-grid,
+    .seo-feature-grid,
+    .seo-faq-list,
+    .seo-related-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .seo-sidebar {
+      position: static;
+    }
+
+    .seo-actions .btn {
+      width: 100%;
+    }
+  }
+</style>

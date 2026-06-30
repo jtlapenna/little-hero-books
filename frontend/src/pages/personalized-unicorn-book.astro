@@ -1,0 +1,69 @@
+---
+import SeoLandingPage from '../components/SeoLandingPage.astro';
+
+const faqs = [
+  {
+    question: "Can the unicorn appear as my child's animal companion?",
+    answer: 'Yes. A unicorn is one of the animal companion options, so the book can feel magical while still centering your child as the hero.',
+  },
+  {
+    question: 'Is this personalized unicorn book good for a birthday gift?',
+    answer: 'Yes. A unicorn companion works especially well for birthdays, holidays, and grandparent gifts because the theme feels celebratory and keepsake-worthy.',
+  },
+  {
+    question: 'Does the child appear throughout the story?',
+    answer: 'Yes. The goal is for the child to feel present throughout the story through their personalized character details, not only on the cover.',
+  },
+  {
+    question: 'Is the story only for kids who already love unicorns?',
+    answer: 'No. The unicorn companion is optional. It is a great fit for magical-story fans, but the larger story is about courage, confidence, and inner voice.',
+  },
+];
+---
+
+<SeoLandingPage
+  title="Personalized Unicorn Book for Kids | Little Hero Labs"
+  description="Create a personalized unicorn book where your child becomes the hero, with a custom child character, dedication, hometown, and magical unicorn companion."
+  canonicalImage="/animals/unicorn.png"
+  eyebrow="Magical personalized book"
+  h1="A Personalized Unicorn Book With Your Child At The Center"
+  intro="For a child who loves magical stories, a unicorn companion makes the book feel instantly theirs. Little Hero Labs turns that spark into a custom picture-book adventure built around the child."
+  image="/animals/unicorn.png"
+  imageAlt="Unicorn companion for a personalized unicorn book"
+  primaryKeyword="personalized unicorn book"
+  supportingKeywords={['personalized unicorn story', 'unicorn book for kids', 'personalized books for kids']}
+  features={[
+    {
+      title: 'Magical Without Being Generic',
+      text: "The unicorn is not just decoration. It is one of the personalized companion choices that can travel through the child's custom story.",
+    },
+    {
+      title: 'Built For Keepsake Gifts',
+      text: 'A personalized unicorn book is a natural fit for birthdays, holidays, and gifts from grandparents who want something more personal.',
+    },
+    {
+      title: 'Rooted In Confidence',
+      text: 'The magic supports a gentle story about courage and listening to yourself, so the book has emotional weight beyond the theme.',
+    },
+  ]}
+  bodySections={[
+    {
+      title: 'Why A Unicorn Companion Works',
+      text: 'Unicorns carry a kind of instant story magic for many young readers. When the companion is paired with a child character that reflects the reader, the book becomes both imaginative and personal.',
+    },
+    {
+      title: 'A Personalized Story, Not A Template Swap',
+      text: 'Little Hero Labs is designed around more than a name field. The child can have a custom look, pronouns, hometown, dedication, and animal companion so the final book feels like a thoughtful gift rather than a generic unicorn product.',
+    },
+    {
+      title: 'Best For Read-Aloud Moments',
+      text: 'The launch edition is short, warm, and visual. That makes it easy for a grown-up to read aloud while the child points to the details that make the story feel like their own.',
+    },
+  ]}
+  faqs={faqs}
+  relatedLinks={[
+    { href: '/personalized-dinosaur-book/', label: 'Dinosaur Book', text: 'A bolder animal companion for kids who love t-rex adventures.' },
+    { href: '/personalized-birthday-book/', label: 'Birthday Book', text: 'Make the personalized story part of a birthday keepsake.' },
+    { href: '/childrens-books-about-courage/', label: 'Courage Books', text: "Explore the story's courage and inner-voice themes." },
+  ]}
+/>
