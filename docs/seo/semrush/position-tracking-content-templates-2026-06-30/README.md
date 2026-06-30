@@ -21,4 +21,4 @@ It is an archive of raw source data, not an analysis or recommendation document.
 - `content_template_20260630_5.docx`: `confidence book for kids`
 - `content_template_20260630_6.docx`: `personalized unicorn book`
 - `content_template_20260630_7.docx`: `personalized dinosaur book`
-
+- `content_template_20260630_76.docx`: `personalized christmas book`

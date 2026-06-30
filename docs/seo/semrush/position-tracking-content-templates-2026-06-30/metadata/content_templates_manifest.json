@@ -258,6 +258,38 @@
       "package_part_count": 7,
       "package_parts_relative_path": "metadata/content_template_20260630_7.package-parts.json",
       "package_parts_sha256": "e985184f03df9b032a211264f6e7f2e2a080e678d445ac60ab80c863288ce196"
+    },
+    {
+      "file_name": "content_template_20260630_76.docx",
+      "relative_path": "originals/content_template_20260630_76.docx",
+      "size_bytes": 10210,
+      "sha256": "f74b66aea25a66cfae47e25cc8029301deb481012f8b1f0dcd48b552cdd40ba9",
+      "paragraph_count": 65,
+      "table_count": 0,
+      "extracted_line_count": 47,
+      "tables": [],
+      "core_properties": {
+        "author": "https://www.semrush.com",
+        "category": "",
+        "comments": "",
+        "content_status": "",
+        "created": "2026-06-30T06:53:11+00:00",
+        "identifier": "",
+        "keywords": "",
+        "language": "",
+        "last_modified_by": "",
+        "last_printed": null,
+        "modified": null,
+        "revision": 0,
+        "subject": "",
+        "title": "",
+        "version": ""
+      },
+      "extracted_text_relative_path": "extracted-text/content_template_20260630_76.txt",
+      "extracted_text_sha256": "9e2d7de2baf474e454fa5db8a3ebb23b9f288c2043436bf6d8d162d9516e8fdf",
+      "package_part_count": 7,
+      "package_parts_relative_path": "metadata/content_template_20260630_76.package-parts.json",
+      "package_parts_sha256": "137b2fe6d11ee10aff5ad197f3db4e31e8c4886b0230cd5c713f3a55b1ca36a7"
     }
   ]
 }
