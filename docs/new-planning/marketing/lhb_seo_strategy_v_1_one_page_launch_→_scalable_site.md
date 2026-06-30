@@ -310,6 +310,7 @@ Sitemap: https://www.littleherolabs.com/sitemap.xml
 - `docs/seo/semrush/position-tracking-content-templates-2026-06-30/`
 - `docs/seo/semrush/keyword-strategy-builder-2026-06-30/`
 - `docs/seo/semrush/keyword-magic-gap-research-2026-06-30/`
+- `docs/seo/semrush/seo-brief-generator-2026-06-30/`
 
 **Current baseline:** Semrush Position Tracking was started with 14 keywords for United States (Google) / English / Desktop. Little Hero Labs currently has `0%` visibility and `0` tracked keywords in the top 100. This is expected for a new/under-indexed domain. Competitors already occupying the SERPs include `iseeme.com`, `storybug.com`, `wonderbly.com`, `hoorayheroes.com`, `dinkleboo.com`, plus discovered SERP competitors like `amazon.com`, `reddit.com`, `letterfest.com`, and `librio.com`.
 
@@ -483,6 +484,26 @@ The Semrush SEO Content Template for `personalized christmas book` supports the 
 - Rival URLs include Dinkleboo, I See Me, Letterfest, Wonderbly, Namee, Storybug, Hooray Heroes, and LoveBook holiday/christmas pages.
 
 **Page implications:** A future `/personalized-christmas-book/` page should center on holiday gifting, read-aloud tradition, child-as-hero personalization, delivery/shipping cutoff clarity, and concrete Christmas imagery. It should not be padded. The page needs unique holiday artwork or at least holiday-framed product proof before publishing.
+
+### SEO Brief Generator Intake — 2026-06-30
+
+**Source:** `docs/seo/semrush/seo-brief-generator-2026-06-30/`
+
+Semrush SEO Brief Generator output was captured for five primary keywords: `personalized childrens books`, `personalized christmas book`, `custom kids book`, `create a personalized book`, and `personalize book character`.
+
+**How to use this data:** Treat the brief outputs as secondary-keyword and competitor evidence. Do not reuse the generated titles or outlines directly. Most of the suggested structures are generic article patterns (`Discover the Magic...`, `5 Reasons...`, broad introductions) and would muddy the product-led landing page strategy if copied.
+
+**Strategic read by brief:**
+
+| Brief | Use Now | Page Decision |
+|---|---|---|
+| `personalized childrens books` | Reinforces homepage language: custom children's book, personalized book for kids, custom kids books, personalized story books | Keep on homepage and `/our-books`; do not create a separate generic article. |
+| `personalized christmas book` | Reinforces Christmas page cluster and competitor set | Keep as high-priority seasonal page candidate, paired with the SEO Content Template guidance. |
+| `custom kids book` | Reinforces custom-book cluster with `custom books for kids`, `custom kids book`, and `custom kids books` | Fold into the future `/custom-childrens-book/` plan rather than creating a separate `/custom-kids-book/` page at first. |
+| `create a personalized book` | Confirms mixed intent: publishing tools, photo books, memory books, adult gift books, and some child-book queries | Support in `/how-it-works` copy/FAQ. Do not build a standalone page yet. |
+| `personalize book character` | Useful character-customization language, but many secondary keywords are about literary character analysis, quizzes, or costumes | Use as supporting copy for character personalization. Do not index `/create/character` or create a standalone SEO page. |
+
+**Plan change from this data:** No reset. The brief output strengthens the existing next-page order: custom-book page first if the homepage starts getting custom-query impressions, Christmas page when seasonal/fulfillment timing is right, and process/character terms as supporting content only.
 
 ---
 

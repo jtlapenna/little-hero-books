@@ -1,0 +1,23 @@
+{
+  "source": "Semrush SEO Brief Generator",
+  "captured_at": "2026-06-30",
+  "raw_files": [
+    "raw/seo_brief_generator_inline_briefs_2026-06-30.md",
+    "raw/seo_brief_generator_personalize_book_character_2026-06-30.txt"
+  ],
+  "brief_count": 5,
+  "primary_keywords": [
+    "personalized childrens books",
+    "personalized christmas book",
+    "custom kids book",
+    "create a personalized book",
+    "personalize book character"
+  ],
+  "extracted_files": [
+    "csv/seo_brief_generator_briefs_2026-06-30.csv",
+    "csv/seo_brief_generator_competitors_2026-06-30.csv",
+    "csv/seo_brief_generator_secondary_keywords_2026-06-30.csv",
+    "csv/seo_brief_generator_structure_2026-06-30.csv",
+    "metadata/seo_brief_generator_raw_lines_2026-06-30.jsonl"
+  ]
+}
