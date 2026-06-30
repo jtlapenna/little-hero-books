@@ -57,8 +57,6 @@ jobs:
             echo "ERROR: frontend/wrangler.toml project name does not match workflow target project."
             exit 1
           fi
-          PROJECT_LIST_JSON=$(npx wrangler pages project list --json)
-          node -e "const projects=JSON.parse(process.argv[1]);const name=process.env.CLOUDFLARE_PAGES_PROJECT;const found=(Array.isArray(projects)?projects:[]).some((p)=>p&&(p.name===name||p.project_name===name||p['Project Name']===name));if(!found){console.error('ERROR: target frontend Pages project not found in this Cloudflare account.');process.exit(1);}console.log('Project found:', name);" "$PROJECT_LIST_JSON"
         working-directory: frontend
 
       - name: Deploy frontend to Cloudflare Pages
