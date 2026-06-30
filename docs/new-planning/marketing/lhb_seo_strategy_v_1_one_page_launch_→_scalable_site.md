@@ -309,6 +309,7 @@ Sitemap: https://www.littleherolabs.com/sitemap.xml
 - `docs/seo/semrush/keyword-competitive-research-2026-06-29/`
 - `docs/seo/semrush/position-tracking-content-templates-2026-06-30/`
 - `docs/seo/semrush/keyword-strategy-builder-2026-06-30/`
+- `docs/seo/semrush/keyword-magic-gap-research-2026-06-30/`
 
 **Current baseline:** Semrush Position Tracking was started with 14 keywords for United States (Google) / English / Desktop. Little Hero Labs currently has `0%` visibility and `0` tracked keywords in the top 100. This is expected for a new/under-indexed domain. Competitors already occupying the SERPs include `iseeme.com`, `storybug.com`, `wonderbly.com`, `hoorayheroes.com`, `dinkleboo.com`, plus discovered SERP competitors like `amazon.com`, `reddit.com`, `letterfest.com`, and `librio.com`.
 
@@ -416,7 +417,7 @@ Semrush Keyword Strategy Builder exported 105 recommended keyword rows. It mappe
 **What it does not prove by itself:**
 
 - It does not replace Keyword Magic Tool research. Keyword Strategy Builder is biased toward the current site and the keywords Semrush could associate with known URLs.
-- It does not mean every unmapped keyword deserves a page. Several high-volume gaps are not a clean product fit yet, especially `personalized baby books`, `personalized board books`, `custom coloring books`, and `personalized coloring books`.
+- It does not mean every unmapped keyword deserves a page. Several high-volume gaps need format/offer validation first, especially board-book, baby-memory-book, photo-upload, and coloring-book terms.
 - It does not change the quality guardrail: no thin pages, no noun-swapped clusters, and no pages that imply formats we do not actually sell.
 
 **Unmapped clusters worth researching next in Keyword Magic Tool:**
@@ -442,6 +443,32 @@ Semrush Keyword Strategy Builder exported 105 recommended keyword rows. It mappe
 
 After those exports, add only the best-fit commercial keywords to Position Tracking and update page plans from combined Keyword Magic + GSC evidence.
 
+**Status:** Completed on 2026-06-30. See Keyword Magic Gap Research Intake below.
+
+### Keyword Magic Gap Research Intake — 2026-06-30
+
+**Source:** `docs/seo/semrush/keyword-magic-gap-research-2026-06-30/`
+
+The follow-up Keyword Magic Tool pulls captured 617 visible rows across seven seeds. Semrush reported larger keyword universes for several seeds, but only visible/shared rows are archived as raw evidence.
+
+| Seed | Reported Keyword Count | Reported Total Volume | Average KD | Captured Rows | Strategic Read |
+|---|---:|---:|---:|---:|---|
+| `custom children's book` | 144 | 3,350 | 36% | 100 | Strong current-product fit. Top terms include `custom children's books` (1,900 vol / KD 48), `custom children's book` (880 / KD 26), and `customized children's books` (210 / KD 24). |
+| `personalized story book` | 571 | 8,040 | 31% | 100 | Strong product-language cluster, but more crowded. Use as homepage/our-books support now; consider a focused page only after early indexing data. |
+| `personalized picture book` | 277 | 3,690 | 47% | 100 | Relevant as an illustrated picture-book phrase, but many rows imply photo/picture upload. Do not over-promise photos unless the product supports it. |
+| `personalized christmas book` | 261 | 4,890 | 4% | 100 | Best seasonal opportunity. Low KD and commercial intent make this a strong future page, timed around holiday buying and fulfillment confidence. |
+| `personalized coloring books` | 252 | 5,330 | 15% | 100 | Attractive volume/KD, but not a current paid product page unless we ship a real coloring/printable offer. Better as lead-magnet research than core page research. |
+| `personalized baby books` | 553 | 7,120 | 12% | 100 | Big opportunity, but product-fit gated. Avoid board-book/baby-memory-book claims unless format, age positioning, and fulfillment match. |
+| `create your own children's book` | 17 | 290 | 46% | 17 | Lower volume and mixed informational intent. Support in `/how-it-works`; not a standalone priority. |
+
+**Plan change from this data:** The overall SEO plan does not need a reset, but the next-page order should be adjusted.
+
+1. Move `custom children's book` from a generic homepage-support term to the top future core-page candidate. We can keep it on the homepage for now, but a future `/custom-childrens-book/` page is justified if GSC/Semrush show impressions for custom/customized variants.
+2. Move `personalized christmas book` up in the parking lot as the strongest seasonal page candidate. It should not be rushed if holiday shipping/fulfillment is not ready, but the keyword data is unusually favorable.
+3. Keep `personalized story book` and `personalized picture book` as copy/FAQ/internal-link support on homepage and `/our-books` before building separate pages. These are real clusters, but a dedicated page should have distinct product proof and avoid photo-upload claims.
+4. Do not build `personalized coloring books` or `personalized baby books` pages as commercial pages yet. They are promising only if the product/offer actually matches the query: printable/coloring lead magnet for coloring, and baby/board-book-safe positioning for baby terms.
+5. Add the best current-product-fit terms from this export to Position Tracking: `custom children's books`, `custom children's book`, `customized children's books`, `personalized children's story book`, `personalized story books`, `personalized children's christmas books`, and `personalized christmas book`.
+
 ---
 
 ## 20) To Revisit / Do Later Parking Lot
@@ -451,7 +478,11 @@ These came out of the 2026-06-16 Reddit SEO playbook review. They are useful, bu
 | Idea | Revisit Trigger | Notes |
 |---|---|---|
 | More animal pages beyond shipped unicorn/dinosaur pages (`/personalized-fox-book/`, etc.) | Search Console/Bing shows impressions for core terms and we have enough unique animal art/previews | Each page needs unique images, distinct gift/use context, and page-specific copy. Do not ship noun-swapped doorway pages. |
-| More age and occasion pages beyond shipped birthday page (`/books-for-3-year-olds/`, `/grandparent-gift-personalized-book/`, holiday pages) | Product quality and price are stable enough to make evergreen claims | Strong candidate for future cluster expansion because buyer intent is clearer than generic blog posts. Validate with Keyword Magic before building. |
+| More age and occasion pages beyond shipped birthday page (`/books-for-3-year-olds/`, `/grandparent-gift-personalized-book/`) | Product quality and price are stable enough to make evergreen claims | Strong candidate for future cluster expansion because buyer intent is clearer than generic blog posts. Validate with Keyword Magic before building. |
+| Custom children's book core page (`/custom-childrens-book/`) | GSC/Semrush shows impressions for custom/customized variants or homepage starts ranking but needs better intent match | Keyword Magic validates this as the strongest current-product-fit expansion candidate after the first sprint. Watch cannibalization with the homepage. |
+| Holiday/Christmas page (`/personalized-christmas-book/`) | Holiday fulfillment story is stable and publication can happen before seasonal demand | Keyword Magic shows unusually favorable KD and commercial intent. Needs holiday-specific artwork/copy and clear shipping cutoff language. |
+| Coloring/printable page or lead magnet | We ship an actual coloring-page offer or printable funnel | Keyword data is strong, but do not present the current storybook as a coloring book. |
+| Baby/board-book page | We can accurately position the product for babies/toddlers or offer a true baby/board-book format | Keyword data is strong, but avoid board-book/baby-memory-book claims unless the product matches. |
 | Name pages (`/kids-name-book/alex/`) | Only after we can generate truly unique previews/snippets at scale | Keep noindex until quality threshold is proven. High doorway-page risk. |
 | Comparison pages (`Wonderbly alternative`, `I See Me alternative`) | Upgraded bound product is live or the launch edition has enough proof/reviews | Useful commercial intent, but invites direct artifact comparison. Do not publish before quality confidence is high. |
 | Interactive gift finder or personalization preview builder | Email capture and basic content cluster are live | Better LHL equivalent of SaaS calculators. Build one excellent tool before considering a suite. |

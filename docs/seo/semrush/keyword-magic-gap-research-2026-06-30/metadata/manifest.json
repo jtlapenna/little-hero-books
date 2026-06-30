@@ -1,0 +1,77 @@
+{
+  "source": "Semrush Keyword Magic Tool",
+  "captured_at": "2026-06-30",
+  "raw_files": [
+    "raw/keyword_magic_create_your_own_childrens_book_2026-06-30.txt",
+    "raw/keyword_magic_custom_childrens_book_2026-06-30.txt",
+    "raw/keyword_magic_personalized_baby_books_2026-06-30.txt",
+    "raw/keyword_magic_personalized_christmas_book_2026-06-30.txt",
+    "raw/keyword_magic_personalized_coloring_books_2026-06-30.txt",
+    "raw/keyword_magic_personalized_picture_book_2026-06-30.txt",
+    "raw/keyword_magic_personalized_story_book_2026-06-30.txt"
+  ],
+  "extracted_files": [
+    "csv/keyword_magic_gap_research_rows_2026-06-30.csv",
+    "csv/keyword_magic_gap_research_summary_2026-06-30.csv",
+    "metadata/keyword_magic_gap_research_raw_lines_2026-06-30.jsonl"
+  ],
+  "total_rows_extracted": 617,
+  "summaries": [
+    {
+      "source_file": "raw/keyword_magic_create_your_own_childrens_book_2026-06-30.txt",
+      "seed_keyword": "create your own children's book",
+      "all_keywords_reported": "17",
+      "total_volume_reported": "290",
+      "average_kd_reported": "46%",
+      "captured_rows": "17"
+    },
+    {
+      "source_file": "raw/keyword_magic_custom_childrens_book_2026-06-30.txt",
+      "seed_keyword": "custom children's book",
+      "all_keywords_reported": "144",
+      "total_volume_reported": "3,350",
+      "average_kd_reported": "36%",
+      "captured_rows": "100"
+    },
+    {
+      "source_file": "raw/keyword_magic_personalized_baby_books_2026-06-30.txt",
+      "seed_keyword": "personalized baby books",
+      "all_keywords_reported": "553",
+      "total_volume_reported": "7,120",
+      "average_kd_reported": "12%",
+      "captured_rows": "100"
+    },
+    {
+      "source_file": "raw/keyword_magic_personalized_christmas_book_2026-06-30.txt",
+      "seed_keyword": "personalized christmas book",
+      "all_keywords_reported": "261",
+      "total_volume_reported": "4,890",
+      "average_kd_reported": "4%",
+      "captured_rows": "100"
+    },
+    {
+      "source_file": "raw/keyword_magic_personalized_coloring_books_2026-06-30.txt",
+      "seed_keyword": "personalized coloring books",
+      "all_keywords_reported": "252",
+      "total_volume_reported": "5,330",
+      "average_kd_reported": "15%",
+      "captured_rows": "100"
+    },
+    {
+      "source_file": "raw/keyword_magic_personalized_picture_book_2026-06-30.txt",
+      "seed_keyword": "personalized picture book",
+      "all_keywords_reported": "277",
+      "total_volume_reported": "3,690",
+      "average_kd_reported": "47%",
+      "captured_rows": "100"
+    },
+    {
+      "source_file": "raw/keyword_magic_personalized_story_book_2026-06-30.txt",
+      "seed_keyword": "personalized story book",
+      "all_keywords_reported": "571",
+      "total_volume_reported": "8,040",
+      "average_kd_reported": "31%",
+      "captured_rows": "100"
+    }
+  ]
+}
