@@ -308,6 +308,7 @@ Sitemap: https://www.littleherolabs.com/sitemap.xml
 - `docs/seo/semrush/site-audit-2026-06-29/`
 - `docs/seo/semrush/keyword-competitive-research-2026-06-29/`
 - `docs/seo/semrush/position-tracking-content-templates-2026-06-30/`
+- `docs/seo/semrush/keyword-strategy-builder-2026-06-30/`
 
 **Current baseline:** Semrush Position Tracking was started with 14 keywords for United States (Google) / English / Desktop. Little Hero Labs currently has `0%` visibility and `0` tracked keywords in the top 100. This is expected for a new/under-indexed domain. Competitors already occupying the SERPs include `iseeme.com`, `storybug.com`, `wonderbly.com`, `hoorayheroes.com`, `dinkleboo.com`, plus discovered SERP competitors like `amazon.com`, `reddit.com`, `letterfest.com`, and `librio.com`.
 
@@ -399,6 +400,48 @@ Do not judge this plan by immediate clicks. The first win is search discovery:
 - Live `robots.txt` is affected by Cloudflare Managed Content / Content-Signal lines that are prepended outside this repo. The repo robots file is valid and includes the sitemap. If Semrush continues to flag `Invalid robots.txt format`, resolve in Cloudflare dashboard by disabling or adjusting the managed content-signal injection, or accept as a platform-level false positive.
 - `Disallowed external resources` is expected for third-party analytics/font resources and is not a ranking blocker. Do not remove GA4/Ahrefs analytics solely to silence this notice unless performance or privacy goals change.
 
+### Keyword Strategy Builder Intake — 2026-06-30
+
+**Source:** `docs/seo/semrush/keyword-strategy-builder-2026-06-30/`
+
+Semrush Keyword Strategy Builder exported 105 recommended keyword rows. It mapped 27 rows to existing Little Hero Labs URLs and left 78 rows unmapped, which should be treated as gap/opportunity data rather than automatic page recommendations.
+
+**What it validates:**
+
+- The homepage is the correct first target for broad commercial terms such as `personalized childrens books`, `personalized book for kids`, `custom children's book`, `kids personalized books`, and `custom childrens books`.
+- `/our-books` should keep supporting `custom kids book` and related collection/product-discovery intent.
+- `/how-it-works` should keep supporting process terms such as `create a personalized book` and `how to make a personalized book`.
+- The first sprint's keyword choices were directionally right: core personalized/custom book terms belong on the homepage and product pages; lower-difficulty specific pages like birthday, dinosaur, unicorn, courage, and confidence remain good first cluster pages because Keyword Magic and SEO Content Template data support them.
+
+**What it does not prove by itself:**
+
+- It does not replace Keyword Magic Tool research. Keyword Strategy Builder is biased toward the current site and the keywords Semrush could associate with known URLs.
+- It does not mean every unmapped keyword deserves a page. Several high-volume gaps are not a clean product fit yet, especially `personalized baby books`, `personalized board books`, `custom coloring books`, and `personalized coloring books`.
+- It does not change the quality guardrail: no thin pages, no noun-swapped clusters, and no pages that imply formats we do not actually sell.
+
+**Unmapped clusters worth researching next in Keyword Magic Tool:**
+
+| Cluster | Why It Matters | Current Recommendation |
+|---|---|---|
+| Custom/create-your-own book | Largest unmapped total volume; close to current customization flow | Research next. Consider a future `/custom-childrens-book/` or `/create-your-own-childrens-book/` page only if SERPs are product/commercial rather than generic publishing tools. |
+| Storybook / photo / picture book | Strong product fit and likely overlaps with personalized kids book buyers | Research next. Strengthen homepage and `/our-books`; consider one focused page if SERP intent is clearly buyer intent. |
+| Christmas / holiday | Low difficulty in earlier Keyword Magic exports and high seasonal intent | Research next, but hold publishing until seasonal timing and product fulfillment story are ready. |
+| Baby / board books | High volume and relatively attractive KD, but current product is not a baby board book | Do not target as a product page unless the product/format supports it. Could become a comparison/fit guide later. |
+| Coloring / activity books | Very high opportunity score, but current paid product is not a coloring/activity book | Do not target as a commercial page yet. Revisit if we ship a coloring-page lead magnet or standalone printable. |
+| Local / near-me | One high-volume term, but weak fit for an ecommerce-first brand | Deprioritize unless local bookstore/retail partnerships exist. |
+
+**Next Semrush action:** run Keyword Magic Tool, not another Strategy Builder export, for the gap clusters above. Export full tables for:
+
+- `custom children's book`
+- `create your own children's book`
+- `personalized story book`
+- `personalized picture book`
+- `personalized christmas book`
+- `personalized coloring books`
+- `personalized baby books`
+
+After those exports, add only the best-fit commercial keywords to Position Tracking and update page plans from combined Keyword Magic + GSC evidence.
+
 ---
 
 ## 20) To Revisit / Do Later Parking Lot
@@ -407,8 +450,8 @@ These came out of the 2026-06-16 Reddit SEO playbook review. They are useful, bu
 
 | Idea | Revisit Trigger | Notes |
 |---|---|---|
-| Programmatic animal pages (`/personalized-unicorn-book/`, `/personalized-dinosaur-book/`, etc.) | Search Console/Bing shows impressions for core terms and we have enough unique animal art/previews | Each page needs unique images, distinct gift/use context, and page-specific copy. Do not ship noun-swapped doorway pages. |
-| Age and occasion pages (`/books-for-3-year-olds/`, `/personalized-birthday-book/`, `/grandparent-gift-personalized-book/`) | Product quality and price are stable enough to make evergreen claims | Strong candidate for the first cluster expansion because buyer intent is clearer than generic blog posts. |
+| More animal pages beyond shipped unicorn/dinosaur pages (`/personalized-fox-book/`, etc.) | Search Console/Bing shows impressions for core terms and we have enough unique animal art/previews | Each page needs unique images, distinct gift/use context, and page-specific copy. Do not ship noun-swapped doorway pages. |
+| More age and occasion pages beyond shipped birthday page (`/books-for-3-year-olds/`, `/grandparent-gift-personalized-book/`, holiday pages) | Product quality and price are stable enough to make evergreen claims | Strong candidate for future cluster expansion because buyer intent is clearer than generic blog posts. Validate with Keyword Magic before building. |
 | Name pages (`/kids-name-book/alex/`) | Only after we can generate truly unique previews/snippets at scale | Keep noindex until quality threshold is proven. High doorway-page risk. |
 | Comparison pages (`Wonderbly alternative`, `I See Me alternative`) | Upgraded bound product is live or the launch edition has enough proof/reviews | Useful commercial intent, but invites direct artifact comparison. Do not publish before quality confidence is high. |
 | Interactive gift finder or personalization preview builder | Email capture and basic content cluster are live | Better LHL equivalent of SaaS calculators. Build one excellent tool before considering a suite. |

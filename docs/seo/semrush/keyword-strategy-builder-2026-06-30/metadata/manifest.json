@@ -1,0 +1,32 @@
+{
+  "source": "Semrush Keyword Strategy Builder",
+  "captured_at": "2026-06-30",
+  "original_file": "originals/littleherolabs_com_-_keyword_strategy.xlsx",
+  "sheets": [
+    {
+      "name": "table",
+      "rows": 106,
+      "columns": 8
+    },
+    {
+      "name": "pivot table",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "extracted_files": [
+    "csv/littleherolabs_com_-_keyword_strategy__table.csv",
+    "metadata/littleherolabs_com_-_keyword_strategy__table.cells.jsonl"
+  ],
+  "table_rows_excluding_header": 105,
+  "table_columns": [
+    "url",
+    "title",
+    "description",
+    "keyword",
+    "keyword type",
+    "volume",
+    "keyword difficulty",
+    "intent"
+  ]
+}
