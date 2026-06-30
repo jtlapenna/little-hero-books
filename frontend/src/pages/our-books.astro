@@ -4,13 +4,13 @@ import Hero from '../components/Hero.astro';
 import Button from '../components/Button.astro';
 ---
 
-<Layout title="Personalized Children's Books Collection | Custom Kids Books | Little Hero Labs" description="Explore personalized children's books where your child is the actual hero. Customize their look, hometown, dedication, pronouns, and animal companion in a launch edition softcover.">
+<Layout title="Personalized Children's Books | Little Hero Labs" description="Explore personalized children's books where your child is the actual hero. Customize their look, hometown, dedication, pronouns, and animal companion in a launch edition softcover.">
   <Hero 
     imageSrc="/our-books-hero.webp" 
     imageAlt="Personalized children's books collection - Little Hero Labs"
     title="Personalized Children's Books"
     subtitle="Custom storybooks where your child is the actual hero, not a closest match."
-    buttonText="Create Your Book"
+    buttonText="Create A Personalized Book"
     buttonHref="/create/character"
   />
   
@@ -54,10 +54,46 @@ import Button from '../components/Button.astro';
               </div>
               <div class="book-cta">
                 <Button href="/create/character" variant="primary" size="md">
-                  Create Your Book
+                  Create A Personalized Book
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="book-proof-section">
+          <h2 class="section-title text-center">A Personalized Book With Real Story Purpose</h2>
+          <p class="section-text text-center" style="max-width: 760px; margin: 0 auto 3rem;">
+            Finding Our Inner Voice is the first Little Hero Labs launch edition. It is a custom
+            picture book for children who love seeing themselves inside an adventure, but it is also
+            built around a clear emotional theme: courage, confidence, and learning to listen to the
+            quiet voice inside.
+          </p>
+          <div class="book-proof-grid">
+            <article class="book-proof-item">
+              <h3>Beyond Name Personalization</h3>
+              <p>
+                The book can reflect a child&rsquo;s appearance, hometown, pronouns, dedication, favorite
+                color, and animal companion. Those details help the child recognize the hero as
+                their own character rather than a generic figure with a name pasted in.
+              </p>
+            </article>
+            <article class="book-proof-item">
+              <h3>Made For Gift Moments</h3>
+              <p>
+                The 16-page softcover format works well for birthdays, grandparent gifts, holiday
+                surprises, and confidence-building moments. It is short enough for a cozy read-aloud
+                and personal enough to become a keepsake.
+              </p>
+            </article>
+            <article class="book-proof-item">
+              <h3>Built To Expand Carefully</h3>
+              <p>
+                We are starting with one polished story instead of a crowded catalog. New stories and
+                themes will only be added when they can meet the same standard for personalization,
+                art, and emotional usefulness.
+              </p>
+            </article>
           </div>
         </div>
         
@@ -141,6 +177,36 @@ import Button from '../components/Button.astro';
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: var(--spacing-xl);
     margin-bottom: var(--spacing-xl);
+  }
+
+  .book-proof-section {
+    margin: var(--spacing-xl) 0;
+  }
+
+  .book-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .book-proof-item {
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(45, 49, 66, 0.1);
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 4px 14px rgba(45, 49, 66, 0.08);
+  }
+
+  .book-proof-item h3 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-forest-green);
+    font-size: 1.45rem;
+  }
+
+  .book-proof-item p {
+    margin-bottom: 0;
+    color: var(--color-soft-charcoal);
+    line-height: 1.75;
   }
   
   .book-card {
@@ -334,6 +400,11 @@ import Button from '../components/Button.astro';
     .features-grid {
       grid-template-columns: 1fr;
       gap: var(--spacing-lg);
+    }
+
+    .book-proof-grid {
+      grid-template-columns: 1fr;
+      gap: var(--spacing-md);
     }
 
     /* Remove top/bottom padding on mobile - fill container completely */

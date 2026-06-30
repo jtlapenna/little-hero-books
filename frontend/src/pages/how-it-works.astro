@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Button from '../components/Button.astro';
 ---
 
-<Layout title="How to Create Your Personalized Children's Book | Little Hero Labs" description="Learn how to create a personalized children's book in three simple steps. Customize your child's actual look, hometown, dedication, pronouns, and animal companion.">
+<Layout title="How Personalized Kids Books Work | Little Hero Labs" description="Learn how to create a personalized children's book in three simple steps. Customize your child's actual look, hometown, dedication, pronouns, and animal companion.">
   <section class="hiw-hero">
     <div class="hiw-hero-image-container">
       <img src="/how-it-works-hero.webp" alt="How It Works - Little Hero Labs" class="hiw-bg" />
@@ -25,7 +25,7 @@ import Button from '../components/Button.astro';
           </h1>
           <p class="hiw-subtitle">Three simple steps to bring your child&rsquo;s custom storybook adventure <span class="keep-together">to life.</span></p>
           <div class="button-container">
-            <Button href="/create/character" variant="primary" size="lg">Get Started</Button>
+            <Button href="/create/character" variant="primary" size="lg">Create A Personalized Book</Button>
           </div>
         </div>
       </div>
@@ -93,6 +93,72 @@ import Button from '../components/Button.astro';
             </div>
           </div>
         </div>
+
+        <div class="details-section">
+          <h2 class="section-title text-center">What You Personalize</h2>
+          <p class="section-text text-center" style="max-width: 760px; margin: 0 auto 3rem;">
+            Little Hero Labs is built around meaningful personalization, not a single name swap.
+            The choices you make shape how the hero appears, how the dedication reads, and how
+            the story feels when a child sees themselves on the page.
+          </p>
+          <div class="details-grid">
+            <article class="detail-item">
+              <h3>The Child Character</h3>
+              <p>
+                Start with visible details like hair style, hair color, skin tone, and favorite color.
+                These choices help the book feel closer to the child before the story even begins.
+              </p>
+            </article>
+            <article class="detail-item">
+              <h3>The Story Context</h3>
+              <p>
+                Add the child&rsquo;s hometown, pronouns, and dedication note so the book can sound like
+                it came from the family member, grandparent, teacher, or friend giving the gift.
+              </p>
+            </article>
+            <article class="detail-item">
+              <h3>The Animal Companion</h3>
+              <p>
+                Choose a companion that fits the child&rsquo;s personality, from magical favorites like a
+                unicorn to adventure-ready options like a t-rex. The companion gives each copy a
+                little more story texture.
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <div class="details-section">
+          <h2 class="section-title text-center">What Happens After You Create It</h2>
+          <p class="section-text text-center" style="max-width: 760px; margin: 0 auto 3rem;">
+            The launch edition is intentionally simple: a short, full-color softcover that works for
+            birthdays, bedtime, confidence-building moments, and read-aloud gifts. The goal is a
+            keepsake children can recognize immediately and parents can read without a long setup.
+          </p>
+          <div class="details-grid">
+            <article class="detail-item">
+              <h3>Built For Read-Alouds</h3>
+              <p>
+                Finding Our Inner Voice uses gentle language, warm art, and a clear emotional arc so
+                grown-ups can read it comfortably with preschool and early-reader children.
+              </p>
+            </article>
+            <article class="detail-item">
+              <h3>Printed As A Keepsake</h3>
+              <p>
+                Each book is made to order as an 8.5 x 8.5 softcover with 16 full-color pages,
+                giving the child a physical story they can revisit after the gift moment passes.
+              </p>
+            </article>
+            <article class="detail-item">
+              <h3>Easy To Give</h3>
+              <p>
+                The same personalized book can work as a birthday present, grandparent gift,
+                confidence book, or quiet encouragement gift because the story centers on courage
+                and listening to your inner voice.
+              </p>
+            </article>
+          </div>
+        </div>
         
         <div class="cta-section">
           <h2 class="section-title text-center">Ready to Begin?</h2>
@@ -101,7 +167,7 @@ import Button from '../components/Button.astro';
           </p>
           <div class="button-container text-center">
             <Button href="/our-books" variant="primary" size="lg">
-              View Our Books
+              View Personalized Books
             </Button>
           </div>
         </div>
@@ -300,6 +366,7 @@ import Button from '../components/Button.astro';
       aspect-ratio: auto;
       min-height: auto;
       position: relative;
+      overflow: visible;
     }
     
     .hiw-mobile { 
@@ -357,6 +424,36 @@ import Button from '../components/Button.astro';
     flex-direction: column;
     gap: var(--spacing-xl);
     margin: var(--spacing-xl) 0;
+  }
+
+  .details-section {
+    margin: var(--spacing-xl) 0;
+  }
+
+  .details-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .detail-item {
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(45, 49, 66, 0.1);
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 4px 14px rgba(45, 49, 66, 0.08);
+  }
+
+  .detail-item h3 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-forest-green);
+    font-size: 1.45rem;
+  }
+
+  .detail-item p {
+    margin-bottom: 0;
+    color: var(--color-soft-charcoal);
+    line-height: 1.75;
   }
   
   .step-item {
@@ -461,6 +558,11 @@ import Button from '../components/Button.astro';
       grid-template-columns: 1fr;
       text-align: center;
       padding: var(--spacing-md);
+    }
+
+    .details-grid {
+      grid-template-columns: 1fr;
+      gap: var(--spacing-md);
     }
     
     .step-item.reverse .step-visual,

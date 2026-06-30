@@ -381,6 +381,23 @@ Do not judge this plan by immediate clicks. The first win is search discovery:
 - Fixed a broken `/our-books` interior image path and corrected the shared mobile hero layout so the headline/CTA are visible before the next section.
 - Verification: production Astro build passed; local browser smoke test checked desktop and mobile rendering, structured data presence, no broken images, no horizontal overflow, and sitemap output.
 
+**2026-06-30:** Semrush site-audit repo-side closeout shipped.
+
+- Added Cloudflare Pages `_headers` for HSTS and basic security headers.
+- Shortened public SEO titles that were above the usual search-snippet comfort range.
+- Added useful copy to `/how-it-works` and `/our-books` to address low word-count / low text-to-HTML warnings without adding thin filler.
+- Replaced generic CTA/nav anchor copy with more descriptive anchor text.
+- Updated `llms.txt` with the new SEO landing pages.
+- Fixed the remaining mobile hero clipping pattern on `/how-it-works`.
+- Cleaned the CSS import-order warning so the production build no longer has avoidable stylesheet warnings.
+- Verification: production Astro build passed; local browser smoke test checked `/`, `/how-it-works`, `/our-books`, and `/personalized-birthday-book/` on desktop/mobile for title length, word count, no broken images, no horizontal overflow, structured data presence, and hero spacing.
+
+**Audit exceptions / platform settings:**
+
+- `/create/` pages intentionally remain `noindex, follow`. They are transactional customization surfaces, not SEO landing pages. If Semrush continues to flag them as blocked/not crawlable, exclude `/create/*` from the audit scope rather than indexing checkout/customization pages.
+- Live `robots.txt` is affected by Cloudflare Managed Content / Content-Signal lines that are prepended outside this repo. The repo robots file is valid and includes the sitemap. If Semrush continues to flag `Invalid robots.txt format`, resolve in Cloudflare dashboard by disabling or adjusting the managed content-signal injection, or accept as a platform-level false positive.
+- `Disallowed external resources` is expected for third-party analytics/font resources and is not a ranking blocker. Do not remove GA4/Ahrefs analytics solely to silence this notice unless performance or privacy goals change.
+
 ---
 
 ## 20) To Revisit / Do Later Parking Lot
