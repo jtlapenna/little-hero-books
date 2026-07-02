@@ -30,9 +30,10 @@ Current pilot facts:
 - If the `mcp__google_analytics__` tools are available, use them for GA4 reports.
 - If GA4 tools are not available, say the GA4 MCP is missing in the current session and ask for a GA4 export.
 - GA4 follows the same pattern as Build More Better: the official Google Analytics MCP is configured globally in Codex.
-- GSC follows the Build More Better pattern too: there is no official GSC MCP configured here; use `npm run marketing:gsc:pull` to call Google's official Search Console API through local Google ADC.
-- If the GSC pull fails for auth, verify `gcloud auth application-default login`, Search Console API access, and `LHL_GSC_SITE_URL`.
-- If GSC still cannot be pulled, ask for a Search Console export or use a browser/UI workflow if explicitly available.
+- GSC is configured through the `google_search_console` MCP for `sc-domain:littleherolabs.com` as of 2026-07-02.
+- If GSC MCP calls fail after config/package changes, restart Codex or start a fresh thread so the MCP server reloads.
+- `npm run marketing:gsc:pull` remains available for report exports through the official Search Console API.
+- Bing Webmaster Tools is not connected until `BING_API_KEY` is added to the Search Console MCP env.
 - Amazon Ads and Seller Central are not connected through MCP here. Ask for CSV exports, screenshots, or pasted campaign metrics.
 - Do not infer Amazon conversions from GA4. Amazon Ads/Seller Central are the source of truth for Amazon Sponsored Products.
 

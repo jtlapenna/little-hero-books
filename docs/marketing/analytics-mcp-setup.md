@@ -39,14 +39,31 @@ Useful GA4 MCP reports for launch check-ins:
 
 ## Google Search Console
 
-Status: use the local official-API pull script, not a third-party GSC MCP.
+Status: configured through the Search Console MCP for Little Hero Labs.
 
-Build More Better does not currently rely on an official GSC MCP. Its working pattern is:
+Current Codex global MCP config points the `google_search_console` server at Little Hero Labs:
 
-- GA4: official Google Analytics MCP.
-- GSC: local script calling Google's official Search Console Search Analytics API with Google ADC.
+```toml
+[mcp_servers.google_search_console.env]
+BMB_GA4_PROPERTY_ID = "513268817"
+BMB_GSC_SITE_URL = "sc-domain:littleherolabs.com"
+GOOGLE_APPLICATION_CREDENTIALS = "/Users/johncapogna/Sites/buildmorebetter/.bmb-growth/google/application_default_credentials.json"
+```
 
-Little Hero Labs now follows that same approach:
+Notes:
+
+- The MCP package still uses `BMB_*` env var names, but the values are now Little Hero Labs values.
+- The local Google credential was refreshed on 2026-07-02 with Search Console write scope and GA4 read scope.
+- The local cached `search-console-mcp` package was patched from `webmasters.readonly` to `webmasters` because sitemap submission requires the full Search Console scope.
+- If the MCP transport was already loaded before the patch, restart Codex or start a fresh thread so the server reloads the patched package.
+
+Verified on 2026-07-02:
+
+- `inspection_inspect` works for `sc-domain:littleherolabs.com`.
+- `https://www.littleherolabs.com/sitemap.xml` was submitted through the official Search Console API.
+- GSC reported the sitemap as submitted and downloaded with `0` warnings and `0` errors.
+
+The local official-API pull script remains available for report exports:
 
 ```bash
 npm run marketing:gsc:pull -- --start-date 2026-05-12 --end-date 2026-05-19 --label 2026-05-12-launch-pilot
@@ -67,7 +84,10 @@ Use the exact property name from Search Console. If the verified property is URL
 Auth check:
 
 ```bash
-gcloud auth application-default login
+# gcloud is not installed locally as of 2026-07-02.
+# Use the Search Console MCP desktop OAuth flow or refresh the local ADC file with:
+# - https://www.googleapis.com/auth/webmasters
+# - https://www.googleapis.com/auth/analytics.readonly
 ```
 
 Output:
@@ -81,9 +101,18 @@ Credential caveat:
 - `.lhl-growth/` is gitignored and should hold local credential/env hints only.
 - Do not commit Google credential JSON files.
 
-## Why Not A GSC MCP?
+## Bing Webmaster Tools
 
-We looked at the adjacent Build More Better project and found that its production-ready path is not an official GSC MCP. It uses the official Google Analytics MCP for GA4 and a local Search Console API script for GSC. Little Hero Labs now follows that same pattern to avoid taking a dependency on a random third-party GSC MCP package.
+Status: not configured yet in MCP.
+
+The Search Console MCP supports Bing, but it needs a Bing Webmaster Tools API key:
+
+```toml
+[mcp_servers.google_search_console.env]
+BING_API_KEY = "..."
+```
+
+Get the key from Bing Webmaster Tools settings. Until this is added, Bing MCP tools return `No bing accounts found`.
 
 ## Amazon Caveat
 
