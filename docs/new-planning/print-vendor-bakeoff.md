@@ -970,7 +970,7 @@ Measurement plan:
 - Seller Central business reports should track sessions, unit session percentage, buy-box/listing health, orders, refunds, and returns.
 - Amazon Manage Your Experiments can test listing content if the brand/ASIN are eligible and have enough traffic. Use it for title, images, bullets, description, and A+ Content; do not rely on it for true vendor/print-quality testing.
 - GA4 and GSC are essential for DTC and organic search, but they do not directly measure Amazon listing conversion from Amazon ads.
-- GA4 is installed directly on the website through `gtag.js` with measurement id `G-DEH39J706V`.
+- GA4 is installed directly on the website through `gtag.js` with measurement id `G-K0G1398N35`.
 - GA4 connector access was verified for `Little Hero Labs`, property `properties/513268817`.
 - GA4 Data API query on 2026-05-12 returned zero rows for the last 7 days, so verify live website event flow once pilot traffic starts.
 - The GA4 property has a Google Ads link to customer id `2448506241` with ads personalization disabled. This is useful for future Google Ads/DTC work, not for Amazon Sponsored Products attribution.

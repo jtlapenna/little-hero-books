@@ -22,7 +22,7 @@ Current pilot facts:
 - Current ad budget: `$10/day`
 - Current product: launch-edition Lulu 8.5 x 8.5 softcover, 16 pages.
 - GA4 property: `properties/513268817`
-- GA4 measurement id: `G-DEH39J706V`
+- GA4 measurement id: `G-K0G1398N35`
 - GSC site URL: set locally as `LHL_GSC_SITE_URL` in `.lhl-growth/.env.local`
 
 ## Tooling Reality

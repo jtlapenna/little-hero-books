@@ -27,7 +27,7 @@ Verified property:
 - Account: `accounts/375274448`
 - Property: `properties/513268817`
 - Display name: `Little Hero Labs`
-- Measurement ID on site: `G-DEH39J706V`
+- Measurement ID on site: `G-K0G1398N35`
 - Linked Google Ads customer id: `2448506241`
 
 Useful GA4 MCP reports for launch check-ins:

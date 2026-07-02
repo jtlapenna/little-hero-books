@@ -141,7 +141,7 @@ Seller Central should be checked alongside Amazon Ads:
 Website analytics are supportive, not decisive for Amazon Sponsored Products:
 
 - GA4 is installed directly via `gtag.js`.
-- Measurement ID: `G-DEH39J706V`.
+- Measurement ID: `G-K0G1398N35`.
 - GA4 property: `properties/513268817`.
 - Display name: `Little Hero Labs`.
 - GA4 Data API query on 2026-05-12 returned zero rows for the last 7 days, so verify live event flow once pilot traffic starts.
