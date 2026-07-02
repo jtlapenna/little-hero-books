@@ -1,0 +1,639 @@
+Skip to content
+Search
+Pricing
+Enterprise
+More
+
+h
+SEO
+Dashboard
+Site Performance
+Site Audit
+Position Tracking
+Competitive Analysis
+Domain Overview
+Organic Rankings
+Top Pages
+Compare Domains
+Keyword Gap
+Backlink Gap
+Keyword Research
+Keyword Overview
+Keyword Magic Tool
+Keyword Strategy Builder
+Content Ideas
+SEO Writing Assistant
+Topic Research
+Link Building
+Backlinks
+Referring Domains
+Backlink Audit
+Extras
+Sensor
+SEOquake
+Semrush Rank
+Other
+On Page SEO Checker
+Organic Traffic Insights
+
+Home
+SEO
+Position Tracking
+User manual
+Send feedback
+Position Tracking:  
+United States (Google) • English
+Updated: 15 hours ago
+Keywords: 23
+Competitors: 6
+SERP features
+Depth
+Filter by keyword
+Competition Map
+
+Smart zoom
+100
+50
+0
+Average Position
+5
+10
+15
+20
+25
+Number of Keywords
++
++
++
++
++
++
++
++
++
++
+Competitor
+Visibility
+
+iseeme.com
+52.26
+-11.01
+
+wonderbly.com
+28.08
++10.52
+
+storybug.com
+26.29
++3.13
+
+reddit.com
+20.6
++1.16
+
+hoorayheroes.com
+18.26
++5.6
+
+google.com
+17.39
+-2.27
+
+amazon.com
+15.43
++0.03
+
+librio.com
+15.3
++4.37
+
+magicalchildrensbook.com
+14.25
++8.74
+
+letterfest.com
+12.67
++0.65
+Competitors
+1-100 (361)
+Domain
+Visibility
+Diff
+Est. Traffic
+Diff
+Keywords
+Avg. Pos.
+1.	
+iseem
+e.com
+52.258%
+-11.013	89.36	-16.56	18	23.57	± 40.34	
+2.	
+wonderb
+ly.com
+28.082%
++10.523	42.93	+19.08	18	24.30	± 39.91	
+3.	
+storyb
+ug.com
+26.29%
++3.129	37.23	+5.04	18	24.65	± 39.80	
+4.	
+reddi
+t.com
+20.6%
++1.159	17.96	+4.40	16	34.39	± 43.51	
+5.	
+hoorayhe
+roes.com
+18.256%
++5.602	19.50	-2.04	18	26.83	± 38.80	
+6.	
+googl
+e.com
+17.391%
+-2.269	11.53	+3.27	4	82.78	± 37.52	
+7.	
+amazo
+n.com
+15.434%
++0.031	10.00	+1.05	23	9.70	± 6.05	
+8.	
+libri
+o.com
+15.295%
++4.368	21.93	+7.53	11	54.87	± 47.23	
+9.	
+magicalchild
+rensbook.com
+14.25%
++8.737	21.17	+11.62	14	43.91	± 45.18	
+10.	
+letterf
+est.com
+12.671%
++0.652	12.54	+0.38	17	33.74	± 39.91	
+11.	
+dinkleb
+oo.com
+12.452%
+-0.248	19.28	-0.30	18	31.87	± 36.31	
+12.	
+targe
+t.com
+9.197%
++4.142	2.36	+1.15	5	80.04	± 37.97	
+13.	
+mystoryt
+ale.com
+8.981%
++3.716	13.75	+7.95	17	33.78	± 39.50	
+14.	
+counselorc
+helsey.com
+8.696%
+0	0	0	2	91.39	± 27.90	
+15.	
+wonderwr
+aps.com
+8.576%
++2.815	15.60	+2.68	13	51.83	± 43.36	
+16.	
+namee
+.com
+7.723%
++2.742	14.05	+7.53	16	35.96	± 42.45	
+17.	
+facebo
+ok.com
+5.681%
+-0.528	1.54	-1.49	5	80.13	± 37.77	
+18.	
+leo-boo
+ks.com
+5.506%
++3.995	3.91	+2.15	8	72.78	± 37.99	
+19.	
+potterybar
+nkids.com
+5.281%
++3.616	4.49	+2.22	6	77.17	± 38.54	
+20.	
+hartsteinpsyc
+hological.com
+4.802%
+-3.894	0	0	2	91.65	± 27.06	
+21.	
+readbrig
+htly.com
+4.723%
++0.037	0.39	0	5	83.83	± 31.31	
+22.	
+quora
+.com
+4.55%
++0.027	0.35	+0.15	3	89.74	± 27.29	
+23.	
+ccaeduc
+ate.me
+4.491%
+0	0	0	2	92.04	± 25.88	
+24.	
+twink
+l.com
+4.446%
++0.002	0	0	2	92.65	± 24.19	
+25.	
+huffpo
+st.com
+4.431%
++4.362	1.33	+1.33	2	92.91	± 23.54	
+26.	
+elisabethmc
+knight.com
+4.348%
++4.348	1.33	+1.33	1	95.70	± 20.19	
+27.	
+kiddingaroundg
+reenville.com
+4.348%
++4.348	1.33	+1.33	1	95.70	± 20.19	
+28.	
+melissaan
+ddoug.com
+4.348%
+0	1.33	0	1	95.70	± 20.19	
+29.	
+mentalhealthc
+enterkids.com
+4.348%
+0	0	0	1	95.70	± 20.19	
+30.	
+peanutbutte
+rrunner.com
+4.348%
++4.222	0.24	+0.24	1	95.70	± 20.19	
+31.	
+penguin
+.com.au
+4.348%
+0	0	0	1	95.70	± 20.19	
+32.	
+proudtobep
+rimary.com
+4.348%
+0	0	0	1	95.70	± 20.19	
+33.	
+shutter
+fly.com
+4.348%
++4.216	2.55	+2.33	1	95.70	± 20.19	
+34.	
+storyjum
+per.com
+4.348%
++4.348	8.74	+8.74	1	95.70	± 20.19	
+35.	
+theguard
+ian.com
+4.348%
+0	0.24	0	1	95.70	± 20.19	
+36.	
+themagictoy
+shop.co.uk
+4.348%
++4.348	1.33	+1.33	1	95.70	± 20.19	
+37.	
+troom
+i.com
+4.348%
+0	0	0	1	95.70	± 20.19	
+38.	
+workspacefor
+children.com
+4.348%
++3.93	1.33	+1.21	1	95.70	± 20.19	
+39.	
+youtub
+e.com
+3.081%
+-0.346	4.45	-0.42	20	32.61	± 29.09	
+40.	
+littleti
+kes.com
+2.986%
+0	0.54	0	2	91.48	± 27.61	
+41.	
+thebum
+p.com
+2.606%
+-3.131	4.27	-6.79	12	56.09	± 42.70	
+42.	
+imagiti
+me.com
+2.49%
++0.609	4.03	+0.70	11	58.09	± 43.82	
+43.	
+etsy
+.com
+2.484%
+-0.971	1.58	-1.34	10	63.43	± 42.16	
+44.	
+nytime
+s.com
+2.09%
+-3.404	0.96	-1.10	3	87.70	± 31.78	
+45.	
+magicst
+ory.com
+1.868%
++0.113	2.68	+0.06	11	59.61	± 42.32	
+46.	
+mycustomkid
+sbooks.com
+1.786%
++0.182	3.10	+0.34	14	51.52	± 39.01	
+47.	
+bibliocom
+mons.com
+1.672%
++0.215	0	0	2	91.70	± 26.91	
+48.	
+akidsc
+o.com
+1.642%
++0.369	0	0	2	92.04	± 25.85	
+49.	
+thehighlysensi
+tivechild.com
+1.624%
+-3.858	0	0	2	91.70	± 26.91	
+50.	
+lovebooko
+nline.com
+1.616%
+-0.368	2.96	-0.11	8	70.78	± 40.16	
+51.	
+firstbo
+ok.org
+1.601%
++0.012	0.13	0	2	92.52	± 24.49	
+52.	
+pintere
+st.com
+1.493%
+-0.116	1.68	-0.35	10	66.43	± 38.57	
+53.	
+kdnovelt
+ies.com
+1.309%
+-0.704	1.60	-1.16	7	74.17	± 39.11	
+54.	
+harpercol
+lins.com
+1.183%
++0.239	0	0	2	91.83	± 26.49	
+55.	
+mymagics
+tory.com
+1.165%
++0.006	2.23	0	10	66.26	± 38.48	
+56.	
+mycreatea
+book.com
+1.154%
++0.143	1.90	+0.24	11	65.61	± 36.27	
+57.	
+modernnatur
+albaby.com
+1.135%
+0	0.35	0	1	95.78	± 19.78	
+58.	
+myadorab
+ook.com
+1.097%
++0.102	1.89	+0.24	10	67.74	± 36.98	
+59.	
+bookbyy
+ou.com
+1.036%
++0.017	2.01	-0.01	9	69.96	± 37.53	
+60.	
+forthatocc
+asion.com
+0.999%
++0.191	1.68	+0.34	11	67.96	± 33.66	
+61.	
+scribblyb
+ooks.com
+0.981%
++0.159	1.95	+0.29	10	69.57	± 34.84	
+62.	
+lindentree
+books.com
+0.944%
+0	0	0	1	95.83	± 19.58	
+63.	
+littlepara
+chutes.com
+0.944%
+-0.191	0.08	-0.02	1	95.83	± 19.58	
+64.	
+tellin
+ga.com
+0.864%
++0.147	1.68	+0.24	9	72.96	± 33.94	
+65.	
+scholas
+tic.com
+0.824%
+-0.356	0.05	-0.03	4	84.87	± 32.99	
+66.	
+walmar
+t.com
+0.796%
+-0.043	1.01	+0.25	9	74.17	± 32.33	
+67.	
+fromyout
+ome.com
+0.76%
++0.127	1.60	+0.26	8	76.26	± 32.83	
+68.	
+smartkidsp
+lanet.com
+0.729%
+-0.215	0.04	-0.01	1	95.87	± 19.37	
+69.	
+whatdowedo
+allday.com
+0.729%
++0.466	0.06	+0.04	1	95.87	± 19.37	
+70.	
+personalizat
+ionmall.com
+0.706%
+-0.699	1.40	-1.25	5	81.87	± 34.41	
+71.	
+cadenla
+ne.com
+0.694%
+-0.956	0.79	-1.95	5	82.00	± 34.17	
+72.	
+uncommong
+oods.com
+0.69%
+-0.311	0.60	-0.74	5	82.39	± 33.58	
+73.	
+lillianve
+rnon.com
+0.612%
+-1.039	1.02	-1.31	4	85.22	± 32.23	
+74.	
+hooray-h
+eroes.ca
+0.603%
+-0.03	0.71	-0.04	4	85.22	± 32.22	
+75.	
+eileenkenne
+dymoore.com
+0.597%
++0.012	0	0	2	92.17	± 25.37	
+76.	
+customstor
+ybooks.com
+0.59%
++0.115	1.17	+0.23	6	81.70	± 30.83	
+77.	
+onceuponb
+ooks.com
+0.581%
++0.121	0.79	+0.18	6	81.87	± 30.56	
+78.	
+cedarfo
+rt.com
+0.559%
++0.096	1.18	+0.18	6	82.26	± 29.92	
+79.	
+playtherapy
+supply.com
+0.557%
+-0.1	0	0	2	92.39	± 24.69	
+80.	
+alphabet-t
+rains.com
+0.549%
++0.041	0.53	+0.07	5	83.70	± 30.94	
+81.	
+dadsto
+re.com
+0.539%
++0.127	1.08	+0.33	6	82.65	± 29.36	
+82.	
+notonthehig
+hstreet.com
+0.535%
+-0.031	0.59	-0.01	5	83.96	± 30.51	
+83.	
+instagr
+am.com
+0.524%
+-1.016	0.30	-1.64	4	86.04	± 30.49	
+84.	
+ourlifehomes
+chooling.com
+0.49%
++0.036	0.04	0	1	95.91	± 19.17	
+85.	
+parenthoodad
+ventures.com
+0.49%
+0	0.15	0	1	95.91	± 19.17	
+86.	
+yoursurp
+rise.com
+0.49%
+-0.665	0	-1.24	1	95.91	± 19.17	
+87.	
+storysp
+ark.ai
+0.466%
++0.109	1.04	+0.24	5	85.22	± 28.07	
+88.	
+ali-is
+h.com
+0.454%
+0	0.03	0	1	95.96	± 18.97	
+89.	
+librona
+uts.com
+0.447%
+-0.053	0.70	-0.09	4	86.83	± 28.73	
+90.	
+personalcre
+ations.com
+0.431%
+-1.074	0.51	-2.00	3	89.04	± 28.29	
+91.	
+fatbrain
+toys.com
+0.418%
+-4.348	0.02	-1.33	1	96.00	± 18.76	
+92.	
+lionsto
+ry.com
+0.374%
+-0.03	0.59	-0.04	3	89.78	± 26.49	
+93.	
+justmyb
+ook.com
+0.368%
++0.019	0.35	+0.02	4	88.26	± 25.68	
+94.	
+personalizedk
+idsbooks.com
+0.362%
++0.178	0.83	+0.43	5	87.30	± 24.14	
+95.	
+wondem
+e.com
+0.358%
+-2.15	0.59	-6.48	1	96.04	± 18.56	
+96.	
+mixam
+.com
+0.357%
+-0.093	1.14	-0.16	3	89.78	± 26.39	
+97.	
+rompe
+r.com
+0.352%
++0.056	0.64	+0.10	4	88.83	± 24.79	
+98.	
+customhe
+roes.ai
+0.342%
++0.002	0.03	0	2	93.00	± 22.82	
+99.	
+personalized
+stories.com
+0.328%
++0.195	0.64	+0.39	5	88.26	± 22.30	
+100.	
+markandgr
+aham.com
+0.317%
+-0.965	0.26	-2.07	2	92.52	± 24.23	
+Page:
+1
+of
+4
+Page: 1
+Contact us
+About us
+Blog
+Cookie settings
+Legal info
+Privacy policy
+Do not sell my personal info
+© 2026 Semrush Holdings. All rights reserved.
+

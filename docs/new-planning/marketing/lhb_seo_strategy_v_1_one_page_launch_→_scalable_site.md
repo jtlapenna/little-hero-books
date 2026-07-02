@@ -518,9 +518,9 @@ Semrush Position Tracking was updated to 23 keywords for `littleherolabs.com` in
 - Selected-domain rankings distribution: `1-7 (7)`.
 - Little Hero Labs pages table: `0 (0)`, no pages found.
 
-**Captured incomplete table:**
+**Captured complete follow-up table:**
 
-- Competitor Discovery / Competition Map: only `1-10 (361)` was captured. This is useful but not complete. Full export is still worth collecting before Semrush cancellation.
+- Competitor Discovery / Competition Map: `1-361 (361)` is now fully captured from four pasted pages and extracted into a single CSV.
 
 **Important data quality note:** The tracker includes both `personalized christmas book` and `personalized christmas book.` with a trailing period. Treat the period version as a duplicate/mistake and remove it from Semrush tracking if the campaign is kept. The real keyword is `personalized christmas book`.
 

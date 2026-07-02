@@ -1,0 +1,13 @@
+{
+  "row_count": 361,
+  "min_rank": 1,
+  "max_rank": 361,
+  "missing_ranks": [],
+  "duplicate_ranks": [],
+  "source_files": [
+    "raw/position_tracking_competitor_discovery_page_1_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_2_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_3_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_4_2026-07-02.txt"
+  ]
+}

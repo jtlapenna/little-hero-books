@@ -7,7 +7,11 @@
   "keywords_count": 23,
   "competitors_count": 6,
   "raw_files": [
-    "raw/position_tracking_inline_paste_2026-07-02.md"
+    "raw/position_tracking_inline_paste_2026-07-02.md",
+    "raw/position_tracking_competitor_discovery_page_1_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_2_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_3_2026-07-02.txt",
+    "raw/position_tracking_competitor_discovery_page_4_2026-07-02.txt"
   ],
   "extracted_files": [
     "csv/position_tracking_summary_2026-07-02.csv",
@@ -15,13 +19,19 @@
     "csv/position_tracking_selected_domains_2026-07-02.csv",
     "csv/position_tracking_pages_2026-07-02.csv",
     "csv/position_tracking_cannibalization_rows_2026-07-02.csv",
-    "csv/position_tracking_competitor_discovery_top10_2026-07-02.csv"
+    "csv/position_tracking_competitor_discovery_top10_2026-07-02.csv",
+    "csv/position_tracking_competitor_discovery_full_2026-07-02.csv",
+    "metadata/competitor_discovery_full_summary.json"
+  ],
+  "support_files": [
+    "metadata/extract_competitor_discovery.py"
   ],
   "completeness_notes": [
     "Tracked keyword table appears complete: 1-23 (23).",
     "Selected-domain rankings distribution appears complete: 1-7 (7).",
     "Pages table appears complete for littleherolabs.com and has 0 rows.",
-    "Competitor Discovery is incomplete: only top 10 of 361 rows were pasted.",
-    "Cannibalization rows were captured as shown but appear unrelated to Little Hero Labs because they are t.com URLs behind a locked report."
+    "Competitor Discovery is complete: raw pages 1-100, 101-200, 201-300, and 301-361 were captured and extracted into 361 rows.",
+    "Cannibalization rows were captured as shown but appear unrelated to Little Hero Labs because they are t.com URLs behind a locked report.",
+    "A dedicated keyword-level SERP Features export has not been captured in this archive."
   ]
 }
