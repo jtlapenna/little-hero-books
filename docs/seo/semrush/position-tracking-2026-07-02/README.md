@@ -25,11 +25,11 @@ It preserves the raw pasted export plus structured CSV tables for later analysis
 - Landing pages table: 0 rows, no pages found for Little Hero Labs
 - Cannibalization table: captured as shown, but likely not relevant to Little Hero Labs because rows are `t.com` URLs behind a locked report
 - Competitor discovery / competition map: 361 of 361 rows
+- Featured Snippets report: captured as empty, with 0 keywords with featured snippets on the SERP and 0 table rows
 
 ## Completeness Notes
 
 The Little Hero Labs keyword table appears complete because Semrush shows `1-23 (23)`.
 The selected-domain rankings distribution appears complete because Semrush shows `1-7 (7)`.
 The competitor discovery table is now complete because raw pages `1-100`, `101-200`, `201-300`, and `301-361` were captured and extracted into one full CSV.
-
-Still not captured here: a dedicated keyword-level SERP Features export, if Semrush exposes one separately from the overview SERP feature widget.
+The Featured Snippets report appears complete because Semrush shows `0 keywords with Featured snippets on SERP` and `Sorry, nothing here`.

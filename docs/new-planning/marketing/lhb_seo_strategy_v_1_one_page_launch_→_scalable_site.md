@@ -517,6 +517,7 @@ Semrush Position Tracking was updated to 23 keywords for `littleherolabs.com` in
 - Full Little Hero Labs tracked-keyword table: `1-23 (23)`.
 - Selected-domain rankings distribution: `1-7 (7)`.
 - Little Hero Labs pages table: `0 (0)`, no pages found.
+- Featured Snippets report: `0 keywords with Featured snippets on SERP`; no opportunities or table rows shown.
 
 **Captured complete follow-up table:**
 

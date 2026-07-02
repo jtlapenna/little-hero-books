@@ -11,7 +11,8 @@
     "raw/position_tracking_competitor_discovery_page_1_2026-07-02.txt",
     "raw/position_tracking_competitor_discovery_page_2_2026-07-02.txt",
     "raw/position_tracking_competitor_discovery_page_3_2026-07-02.txt",
-    "raw/position_tracking_competitor_discovery_page_4_2026-07-02.txt"
+    "raw/position_tracking_competitor_discovery_page_4_2026-07-02.txt",
+    "raw/position_tracking_featured_snippets_empty_2026-07-02.txt"
   ],
   "extracted_files": [
     "csv/position_tracking_summary_2026-07-02.csv",
@@ -21,6 +22,7 @@
     "csv/position_tracking_cannibalization_rows_2026-07-02.csv",
     "csv/position_tracking_competitor_discovery_top10_2026-07-02.csv",
     "csv/position_tracking_competitor_discovery_full_2026-07-02.csv",
+    "csv/position_tracking_featured_snippets_2026-07-02.csv",
     "metadata/competitor_discovery_full_summary.json"
   ],
   "support_files": [
@@ -32,6 +34,6 @@
     "Pages table appears complete for littleherolabs.com and has 0 rows.",
     "Competitor Discovery is complete: raw pages 1-100, 101-200, 201-300, and 301-361 were captured and extracted into 361 rows.",
     "Cannibalization rows were captured as shown but appear unrelated to Little Hero Labs because they are t.com URLs behind a locked report.",
-    "A dedicated keyword-level SERP Features export has not been captured in this archive."
+    "Featured Snippets report is captured as empty: 0 keywords with Featured snippets on SERP and 0 visible table rows."
   ]
 }
