@@ -1,0 +1,27 @@
+{
+  "source": "Semrush Position Tracking",
+  "captured_at": "2026-07-02",
+  "domain": "littleherolabs.com",
+  "target": "United States (Google) • English • Desktop",
+  "date_window": "Jun 30, 2026 - Jul 2, 2026",
+  "keywords_count": 23,
+  "competitors_count": 6,
+  "raw_files": [
+    "raw/position_tracking_inline_paste_2026-07-02.md"
+  ],
+  "extracted_files": [
+    "csv/position_tracking_summary_2026-07-02.csv",
+    "csv/position_tracking_keywords_2026-07-02.csv",
+    "csv/position_tracking_selected_domains_2026-07-02.csv",
+    "csv/position_tracking_pages_2026-07-02.csv",
+    "csv/position_tracking_cannibalization_rows_2026-07-02.csv",
+    "csv/position_tracking_competitor_discovery_top10_2026-07-02.csv"
+  ],
+  "completeness_notes": [
+    "Tracked keyword table appears complete: 1-23 (23).",
+    "Selected-domain rankings distribution appears complete: 1-7 (7).",
+    "Pages table appears complete for littleherolabs.com and has 0 rows.",
+    "Competitor Discovery is incomplete: only top 10 of 361 rows were pasted.",
+    "Cannibalization rows were captured as shown but appear unrelated to Little Hero Labs because they are t.com URLs behind a locked report."
+  ]
+}

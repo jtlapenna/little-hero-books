@@ -1,0 +1,24 @@
+keyword,intent,sf,kd_percent,potential_traffic,potential_growth,pos_jun_30,pos_jul_2,pos_diff,visibility,visibility_diff,estimated_traffic,estimated_traffic_diff,volume,cpc,url
+birthday gift for 3 year old,I;C,5,17,0.01,+0.01,—,—,—,0,0,0,0,110,0,—
+birthday gift for 4 year old,I;C,4,29,0,0,—,—,—,0,0,0,0,20,0,—
+book with childs name,C,3,28,0,0,—,—,—,0,0,0,0,40,1.41,—
+childrens book about courage,C,3,17,0,0,—,—,—,0,0,0,0,30,0.88,—
+confidence book for kids,I;C,4,16,0,0,—,—,—,0,0,0,0,0,0,—
+custom children's book,C,3,46,0.06,+0.06,—,—,—,0,0,0,0,880,0,—
+custom children's books,I;C,3,45,0.13,+0.13,—,—,—,0,0,0,0,"1,900",1.86,—
+custom childrens book,C,3,62,0.05,+0.05,—,—,—,0,0,0,0,720,1.86,—
+custom kids book,C,2,58,0.04,+0.04,—,—,—,0,0,0,0,590,0,—
+customized children's books,I;C,3,58,0.01,+0.01,—,—,—,0,0,0,0,210,0,—
+grandparent gift personalized book,C,3,8,0,0,—,—,—,0,0,0,0,0,0,—
+personalized birthday book,C,2,10,0.04,+0.04,—,—,—,0,0,0,0,590,1.56,—
+personalized children's christmas books,I;C,4,6,0.03,+0.03,—,—,—,0,0,0,0,480,1.12,—
+personalized children's story book,C,3,48,0.05,+0.05,—,—,—,0,0,0,0,720,1.71,—
+personalized childrens book,C,3,62,0.04,+0.04,—,—,—,0,0,0,0,590,1.81,—
+personalized christmas book,C,2,11,0.04,+0.04,—,—,—,0,0,0,0,590,2.63,—
+personalized christmas book.,C,3,0,0.04,+0.04,—,—,—,0,0,0,0,590,2.63,—
+personalized dinosaur book,C,3,3,0.02,+0.02,—,—,—,0,0,0,0,260,1.22,—
+personalized kids book,C,3,59,0.04,+0.04,—,—,—,0,0,0,0,590,0,—
+personalized story books,I;C,4,62,0.05,+0.05,—,—,—,0,0,0,0,720,1.54,—
+personalized storybook,C,2,57,0,0,—,—,—,0,0,0,0,70,0,—
+personalized unicorn book,C,3,3,0,0,—,—,—,0,0,0,0,40,1.18,—
+self esteem book for kids,C,3,11,0,0,—,—,—,0,0,0,0,0,0,—

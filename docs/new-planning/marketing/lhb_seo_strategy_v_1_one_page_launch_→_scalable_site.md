@@ -311,6 +311,7 @@ Sitemap: https://www.littleherolabs.com/sitemap.xml
 - `docs/seo/semrush/keyword-strategy-builder-2026-06-30/`
 - `docs/seo/semrush/keyword-magic-gap-research-2026-06-30/`
 - `docs/seo/semrush/seo-brief-generator-2026-06-30/`
+- `docs/seo/semrush/position-tracking-2026-07-02/`
 
 **Current baseline:** Semrush Position Tracking was started with 14 keywords for United States (Google) / English / Desktop. Little Hero Labs currently has `0%` visibility and `0` tracked keywords in the top 100. This is expected for a new/under-indexed domain. Competitors already occupying the SERPs include `iseeme.com`, `storybug.com`, `wonderbly.com`, `hoorayheroes.com`, `dinkleboo.com`, plus discovered SERP competitors like `amazon.com`, `reddit.com`, `letterfest.com`, and `librio.com`.
 
@@ -504,6 +505,28 @@ Semrush SEO Brief Generator output was captured for five primary keywords: `pers
 | `personalize book character` | Useful character-customization language, but many secondary keywords are about literary character analysis, quizzes, or costumes | Use as supporting copy for character personalization. Do not index `/create/character` or create a standalone SEO page. |
 
 **Plan change from this data:** No reset. The brief output strengthens the existing next-page order: custom-book page first if the homepage starts getting custom-query impressions, Christmas page when seasonal/fulfillment timing is right, and process/character terms as supporting content only.
+
+### Position Tracking Follow-Up — 2026-07-02
+
+**Source:** `docs/seo/semrush/position-tracking-2026-07-02/`
+
+Semrush Position Tracking was updated to 23 keywords for `littleherolabs.com` in the United States (Google) / English / Desktop target. Little Hero Labs remains at `0%` visibility with `0` estimated traffic and `0` tracked keywords in the top 100, which is expected this soon after publishing the first SEO sprint.
+
+**Captured complete tables:**
+
+- Full Little Hero Labs tracked-keyword table: `1-23 (23)`.
+- Selected-domain rankings distribution: `1-7 (7)`.
+- Little Hero Labs pages table: `0 (0)`, no pages found.
+
+**Captured incomplete table:**
+
+- Competitor Discovery / Competition Map: only `1-10 (361)` was captured. This is useful but not complete. Full export is still worth collecting before Semrush cancellation.
+
+**Important data quality note:** The tracker includes both `personalized christmas book` and `personalized christmas book.` with a trailing period. Treat the period version as a duplicate/mistake and remove it from Semrush tracking if the campaign is kept. The real keyword is `personalized christmas book`.
+
+**Notable competitor signal:** `magicalchildrensbook.com` surfaced as a potential competitor with `14.25%` visibility, `+8.737` visibility change, `21.17` estimated traffic, `14` keywords, and `43.91` average position in the captured top-10 competitor discovery table.
+
+**What this changes:** No content-plan reset. This reinforces the need to wait for indexing/first impressions while preserving a fuller competitor export if possible. The strongest next-page candidates remain `/custom-childrens-book/` and `/personalized-christmas-book/`, but build timing should still depend on early GSC/Semrush visibility and product/fulfillment readiness.
 
 ---
 
