@@ -1,10 +1,12 @@
 import bookMvpSimpleAdventureV1Json from './configs/book-mvp-simple-adventure/v1.json';
+import innerVoiceV1Json from './configs/book-finding-our-inner-voice/v1.json';
 import book2ExampleV1Json from './configs/book-2-example/v1.json';
 import { BookConfig, BookConfigSchema, BookFormatConfig } from '@/lib/books/types';
 
 const BUNDLED_BOOK_CONFIGS = [
   bookMvpSimpleAdventureV1Json,
   book2ExampleV1Json,
+  innerVoiceV1Json,
 ] as const;
 
 type BundledConfigMap = Map<string, Map<number, BookConfig>>;

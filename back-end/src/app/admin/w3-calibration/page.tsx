@@ -1,4 +1,7 @@
 'use client';
+
+import type { BookPageLayer } from '@/lib/books/book-render-contract';
+
 /* eslint-disable @next/next/no-img-element */
 
 import {
@@ -76,6 +79,9 @@ type CalibrationPageOption = {
   editableAssetType: 'character' | 'animal' | 'cover-character';
   backgroundUrl: string | null;
   overlayUrls: string[];
+  fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
+  editableLayerPlacement?: BookPageLayer['placement'];
+  editableLayerIndex?: number;
   characterUrl: string | null;
   animalUrl: string | null;
   editableAssetUrl: string | null;
@@ -122,6 +128,9 @@ type CalibrationResponse = {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
+  fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
+  editableLayerPlacement?: BookPageLayer['placement'];
+  editableLayerIndex?: number;
     editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
@@ -223,7 +232,7 @@ function sortPlacementOverrides(
 }
 
 function buildPlacementStyle(
-  placement: PlacementEntry | null,
+  placement: (PlacementEntry & { height?: number; flipX?: boolean }) | null,
   placementBase: { width: number; height: number },
   options: {
     opacity?: number;
@@ -245,8 +254,10 @@ function buildPlacementStyle(
     transforms.push(`rotate(${placement.rotateDeg}deg)`);
   }
 
+  if (placement.flipX) transforms.push('translateX(100%)', 'scaleX(-1)');
   return {
     position: 'absolute',
+    height: placement.height ? `${(placement.height / placementBase.height) * 100}%` : undefined,
     left: `${(placement.left / placementBase.width) * 100}%`,
     top: `${(placement.top / placementBase.height) * 100}%`,
     width: `${(placement.width / placementBase.width) * 100}%`,
@@ -263,8 +274,9 @@ function buildPlacementStyle(
 function resolvePlacementBase(
   editableAssetType: CalibrationPageOption['editableAssetType'] | undefined,
   viewport: { width: number; height: number },
+  configured = false,
 ): { width: number; height: number } {
-  if (editableAssetType === 'cover-character') {
+  if (configured || editableAssetType === 'cover-character') {
     return viewport;
   }
 
@@ -780,6 +792,7 @@ export default function W3CalibrationPage() {
     const placementBase = resolvePlacementBase(
       data.selectedPage?.editableAssetType,
       data.selectedPage?.viewport ?? data.viewport,
+      Boolean(data.selectedPage?.editableLayerPlacement),
     );
     const deltaX =
       (event.clientX - dragState.startClientX) * (placementBase.width / rect.width);
@@ -864,6 +877,7 @@ export default function W3CalibrationPage() {
   const selectedPlacementBase = resolvePlacementBase(
     selectedPage?.editableAssetType,
     selectedPageViewport,
+    Boolean(selectedPage?.editableLayerPlacement),
   );
   const currentSelectionLabel =
     selectedStoryPageNumber === 0
@@ -1236,10 +1250,8 @@ export default function W3CalibrationPage() {
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">Interactive placement canvas</h2>
                       <p className="mt-1 text-sm text-gray-600">
-                        Palette: neutral admin chrome, cyan for the editable draft, violet for the legacy reference.
-                        Drag the current subject directly. The <span className="font-medium">Current draft render</span>{' '}
-                        below is the source of truth for the final W3 output. Interior pages default to a bottom-center
-                        anchor; the cover uses its own configured anchor.
+                        Drag the current subject. Other layers keep their configured positions. Check the{' '}
+                        <span className="font-medium">Current draft render</span> below before saving placement settings.
                       </p>
                     </div>
                     <div className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium ${
@@ -1285,7 +1297,7 @@ export default function W3CalibrationPage() {
                       ))}
 
                       {showLegacyGhost && selectedLegacyPlacement && (
-                        <div style={buildPlacementStyle(selectedLegacyPlacement, selectedPlacementBase, {
+                        <div style={buildPlacementStyle({ ...selectedPage.editableLayerPlacement, ...selectedLegacyPlacement }, selectedPlacementBase, {
                           opacity: 0.2,
                           outline: '2px dashed rgba(139, 92, 246, 0.85)',
                           filter: 'grayscale(0.25)',
@@ -1294,14 +1306,22 @@ export default function W3CalibrationPage() {
                           <img
                             src={selectedPage.editableAssetUrl}
                             alt=""
-                            className="block h-auto w-full select-none object-contain"
+                            className={selectedPage.editableLayerPlacement?.height ? 'block h-full w-full select-none object-contain' : 'block h-auto w-full select-none object-contain'}
                             draggable={false}
                           />
                         </div>
                       )}
 
-                      <div
-                        style={buildPlacementStyle(selectedPagePlacement, selectedPlacementBase, {
+                      {[
+                        ...(selectedPage.fixedLayers ?? []).map(layer => ({
+                          index: layer.index,
+                          node: <div key={layer.id} data-config-layer={layer.id} style={buildPlacementStyle({ ...layer.placement, anchorXPercent: 0, anchorYPercent: 0 }, selectedPlacementBase, { pointerEvents: 'none' })}>
+                            <img src={layer.imageUrl} alt="" className={layer.placement.height ? 'block h-full w-full object-contain' : 'block h-auto w-full object-contain'} draggable={false} />
+                          </div>,
+                        })),
+                        { index: selectedPage.editableLayerIndex ?? Number.MAX_SAFE_INTEGER, node: (
+                      <div key="editable" data-config-layer="editable"
+                        style={buildPlacementStyle({ ...selectedPage.editableLayerPlacement, ...selectedPagePlacement }, selectedPlacementBase, {
                           outline: '2px solid rgba(8, 145, 178, 0.8)',
                         })}
                         onPointerDown={handlePlacementDragStart}
@@ -1309,12 +1329,14 @@ export default function W3CalibrationPage() {
                         <img
                           src={selectedPage.editableAssetUrl}
                           alt=""
-                          className={`block h-auto w-full select-none object-contain drop-shadow-[0_12px_20px_rgba(15,23,42,0.18)] ${
+                          className={`block ${selectedPage.editableLayerPlacement?.height ? 'h-full' : 'h-auto'} w-full select-none object-contain drop-shadow-[0_12px_20px_rgba(15,23,42,0.18)] ${
                             dragging ? 'cursor-grabbing' : 'cursor-grab'
                           }`}
                           draggable={false}
                         />
                       </div>
+                        ) },
+                      ].sort((a, b) => a.index - b.index).map(layer => layer.node)}
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center text-sm text-gray-500">

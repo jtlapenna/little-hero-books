@@ -1,3 +1,5 @@
+import type { BookSnapshotFields } from '@/lib/books/book-snapshot';
+import { parseW3PageSelection } from '@/lib/books/w3-page-selection';
 import {
   appendWorkflowJobEvent,
   cancelWorkflowJob,
@@ -34,7 +36,9 @@ export interface W3AssemblyWorkflowFields {
   workflowSkipReason: string | null;
 }
 
-export interface W3AssemblyJobInput {
+export interface W3AssemblyJobInput extends BookSnapshotFields {
+  oneManifestKey?: string | null;
+  oneManifestUrl?: string | null;
   orderId: string;
   rootOrderId?: string | null;
   amazonOrderId?: string | null;
@@ -50,7 +54,7 @@ export interface W3AssemblyJobInput {
   pagePlanSource?: string | null;
   requiredPoseSource?: string | null;
   testMode?: boolean | null;
-  testModePages?: number | null;
+  testModePages?: number | number[] | null;
   claimedAt?: string | null;
   workflowJobId?: number | null;
   workflowJobIdempotencyKey?: string | null;
@@ -212,6 +216,9 @@ export function buildW3AssemblyJobIdentity(input: W3AssemblyJobInput) {
 
 function buildQueuedSnapshot(input: W3AssemblyJobInput): JsonRecord {
   return {
+    oneManifestKey: toTrimmedString(input.oneManifestKey) ?? null,
+    oneManifestUrl: toTrimmedString(input.oneManifestUrl) ?? null,
+    ...(input.renderSnapshot ? { renderSnapshot: input.renderSnapshot, configVersion: input.configVersion } : {}),
     orderId: input.orderId,
     rootOrderId: toTrimmedString(input.rootOrderId) ?? null,
     amazonOrderId: toTrimmedString(input.amazonOrderId) ?? null,
@@ -227,7 +234,7 @@ function buildQueuedSnapshot(input: W3AssemblyJobInput): JsonRecord {
     pagePlanSource: toTrimmedString(input.pagePlanSource) ?? null,
     requiredPoseSource: toTrimmedString(input.requiredPoseSource) ?? null,
     testMode: toBoolean(input.testMode),
-    testModePages: toInteger(input.testModePages) ?? 0,
+    testModePages: parseW3PageSelection(input.testModePages),
     claimedAt: toTrimmedString(input.claimedAt) ?? null,
   };
 }

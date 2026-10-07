@@ -35,6 +35,7 @@ export function validateRunManifest(manifest: unknown): RunManifestV3 {
 
   if (parsed.book.resolved.renderSnapshot) {
     const snapshot = validateRenderSnapshot(parsed.book.resolved.renderSnapshot, parsed.book.bookConfigRef);
+    if (snapshot.testOnly !== undefined && snapshot.testOnly !== (parsed.input.bookSpecs.testMode === true)) throw new Error('Render snapshot test marker mismatch');
     const expectedResolved = resolvePagePlan(snapshot.bookConfig, snapshot.formatId);
     for (const field of ['expectedPageCount', 'pageLabels', 'trimIn', 'bleedIn', 'templates', 'print', 'qaPolicy'] as const) {
       if (JSON.stringify(expectedResolved[field]) !== JSON.stringify(parsed.book.resolved[field])) throw new Error(`Render snapshot resolved ${field} mismatch`);

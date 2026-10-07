@@ -1,3 +1,4 @@
+import { resolveW3ManifestOptions, type W3ManifestOptions } from '@/lib/books/w3-manifest';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import {
@@ -27,10 +28,11 @@ function getErrorMessage(error: unknown): string {
 
 export function buildW3ManifestResponse(
   body: JsonRecord,
+  options: W3ManifestOptions = {},
 ): BuildW3ManifestResult & { success: true } {
   return {
     success: true,
-    ...buildW3Manifest(body),
+    ...buildW3Manifest(body, options),
   };
 }
 
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    return NextResponse.json(buildW3ManifestResponse(body));
+    return NextResponse.json(buildW3ManifestResponse(body, await resolveW3ManifestOptions(body)));
   } catch (error: unknown) {
     console.error('[Internal W3 Build Manifest] Error:', error);
     return NextResponse.json(

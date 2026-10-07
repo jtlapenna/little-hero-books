@@ -1,3 +1,9 @@
+import { downloadManifest } from '@/lib/r2-service';
+import { extractManifestKey } from '@/lib/order-paths';
+import { hasLegacyPoseProvenance } from './order-pose-context';
+import { normalizeW0Manifest, type NormalizedW0Manifest } from './normalize-w0-manifest';
+import { validateRenderSnapshot } from './book-render-recipe';
+import { parseW3PageSelection, selectW3Pages } from './w3-page-selection';
 import type { BookPageConfig } from '@/lib/books/types';
 import {
   buildManifestKeyFromOrderPrefix,
@@ -165,7 +171,23 @@ function extractCoverCloudflare(input: JsonRecord, coverImageKey: string | null)
   };
 }
 
-export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
+export interface W3ManifestOptions { intake?: NormalizedW0Manifest }
+function declaresConfiguredProvenance(input: JsonRecord): boolean {
+  return input.bookStatus !== undefined || input.testOnly !== undefined || input.renderingSchema !== undefined || input.selectedPageLabels !== undefined;
+}
+export async function resolveW3ManifestOptions(input: JsonRecord, loadManifest: (key: string) => Promise<unknown | null> = downloadManifest): Promise<W3ManifestOptions> {
+  if (input.renderSnapshot !== undefined) return {};
+  if (declaresConfiguredProvenance(input)) throw new Error('Configured W3 manifest lost its frozen render snapshot');
+  const bookId = resolveBookId(input, resolveOrderId(input));
+  if (hasLegacyPoseProvenance(bookId)) return {};
+  const hint = toTrimmedString(input.oneManifestKey) ?? toTrimmedString(input.oneManifestUrl);
+  const key = hint ? extractManifestKey(hint) : null;
+  if (!key) throw new Error('W3 manifest requires frozen intake provenance');
+  const raw = await loadManifest(key);
+  if (!raw) throw new Error('W3 manifest requires readable frozen intake provenance');
+  return { intake: normalizeW0Manifest(raw, { fallbackManifestKey: key }) };
+}
+export function buildW3Manifest(input: JsonRecord, options: W3ManifestOptions = {}): BuildW3ManifestResult {
   const orderId = resolveOrderId(input);
   if (!orderId) {
     throw new Error('W3 manifest assembly requires orderId');
@@ -182,11 +204,15 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
     toTrimmedString(input.manifest3Url) ??
     toTrimmedString(input.manifest_3_url) ??
     `${backendUrl}/api/manifests/${manifest3Key}`;
-  const pagePlan =
+  if (input.renderSnapshot === undefined && declaresConfiguredProvenance(input)) throw new Error('Configured W3 manifest lost its frozen render snapshot');
+  const snapshotValue = input.renderSnapshot !== undefined ? input.renderSnapshot : options.intake?.renderSnapshot;
+  if (snapshotValue === undefined && !hasLegacyPoseProvenance(bookId, options.intake)) throw new Error('W3 manifest requires validated frozen intake provenance');
+  const frozen = snapshotValue === undefined ? undefined : validateRenderSnapshot(snapshotValue, { bookId, formatId, version: input.configVersion == null ? undefined : Number(input.configVersion) });
+  const pagePlan = frozen ? frozen.bookConfig.formats[frozen.formatId].interior.pageSequence :
     Array.isArray(input.pagePlan) && input.pagePlan.length > 0
       ? (input.pagePlan as BookPageConfig[])
       : [];
-  const pageLabels =
+  const pageLabels = frozen ? pagePlan.map(page => page.label) :
     Array.isArray(input.pageLabels)
       ? input.pageLabels
       : pagePlan.map((page) => page.label);
@@ -265,6 +291,7 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
     }
 
     const pageId = pageIdForNumber(pageNumber);
+    if (frozen && (!pagePlanByNumber.has(pageNumber) || pages[pageId])) throw new Error('Configured preview contains an unknown or duplicate page');
     pages[pageId] = key;
 
     const pageMeta = pagePlanByNumber.get(pageNumber) ?? null;
@@ -303,6 +330,9 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
       .filter((value): value is string => !!value),
   };
 
+  const selectedPageLabels = frozen ? selectW3Pages(pagePlan, parseW3PageSelection(input.testModePages)).map(page => page.label) : undefined;
+  const fullConfiguredOutput = frozen ? pagePlan.every(page => Boolean(pages[page.label])) && pagePlan.length === pagePreviewImages.length && Boolean(coverImageKey) : true;
+  const configuredReady = frozen ? frozen.bookConfig.status === 'active' && !frozen.testOnly && input.testOnly !== true && options.intake?.bookSpecs.testMode !== true && input.testMode !== true && toRecord(input.bookSpecs).testMode !== true && fullConfiguredOutput && selectedPageLabels?.length === pagePlan.length : true;
   const nowIso = new Date().toISOString();
   const manifest = {
     schema: 'lhb.run-manifest@v2.0',
@@ -316,12 +346,13 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
     orderR2BaseKey,
     oneManifestKey,
     pageLabels,
+    ...(frozen ? { renderSnapshot: frozen, configVersion: frozen.bookConfig.version, bookStatus: frozen.bookConfig.status, selectedPageLabels, testOnly: frozen.bookConfig.status === 'draft' || !configuredReady } : {}),
     pagePlan,
     requiredPoseNumbers,
     requiredPoseSource,
     pngGeneration: {
-      sizeInterior: { w: 2625, h: 2625 },
-      sizeCover: { w: 5203, h: 2625 },
+      sizeInterior: frozen?.bookConfig.rendering.preview.interiorPx ?? { w: 2625, h: 2625 },
+      sizeCover: frozen?.bookConfig.rendering.preview.coverPx ?? { w: 5203, h: 2625 },
       pages,
       pagesWithCloudflare,
       coverSpreadImage: coverImageKey,
@@ -334,8 +365,8 @@ export function buildW3Manifest(input: JsonRecord): BuildW3ManifestResult {
     assetsUsed,
     pages,
     summary: {
-      percentComplete: 100,
-      readyForBook: true,
+      percentComplete: frozen && selectedPageLabels?.length ? Math.min(100, Math.round(selectedPageLabels.filter(label => pages[label]).length / selectedPageLabels.length * 100)) : 100,
+      readyForBook: configuredReady,
       needsHumanReview: true,
     },
     generatedAt: nowIso,
