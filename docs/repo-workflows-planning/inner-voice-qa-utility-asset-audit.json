@@ -1,0 +1,9 @@
+{
+  "key": "book-finding-our-inner-voice/backgrounds/transparency-qa/neon-background.png",
+  "sourceKey": "book-mvp-simple-adventure/backgrounds/transparency-qa/neon-background.png",
+  "sha256": "3331b726a35c7f2db21511d39754eac7bb3a98c2f067c2af4ecc811fac4e4d6c",
+  "width": 2048,
+  "height": 2048,
+  "role": "transparency-QA utility, excluded from story art",
+  "immutableReadback": true
+}

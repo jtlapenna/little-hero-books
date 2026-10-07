@@ -138,6 +138,26 @@ export function scanWorkflowExportText(
     });
   }
 
+  // Inspect provider header pairs without copying values into findings.
+  try {
+    const visit = (value: unknown): void => {
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) { value.forEach(visit); return; }
+      const record = value as Record<string, unknown>;
+      if (typeof record.name === "string" && record.name.toLowerCase() === "api_token" && typeof record.value === "string") {
+        const header = record.value.trim();
+        const safe = !header || header === "=" || /^=?REDACTED_[A-Z0-9_]+$/u.test(header) || /^=\{\{\s*\$(?:env|vars)(?:\.[A-Za-z_][A-Za-z0-9_]*|\[['"][A-Za-z_][A-Za-z0-9_]*['"]\])\s*\}\}$/u.test(header);
+        if (!safe && !findings.some(finding => finding.ruleId === "provider-api-token-header")) {
+          findings.push({ruleId:"provider-api-token-header",message:"Found a non-redacted provider token in a workflow header.",filePath,line:toLineNumber(text, Math.max(0, text.toLowerCase().indexOf('"api_token"')))});
+        }
+      }
+      Object.values(record).forEach(visit);
+    };
+    visit(JSON.parse(text));
+  } catch {
+    // Existing text rules also cover non-JSON source snippets.
+  }
+
   for (const rule of CONTENT_RULES) {
     const match = rule.pattern.exec(text);
     rule.pattern.lastIndex = 0;

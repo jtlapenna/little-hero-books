@@ -121,7 +121,21 @@ function testPresignedUrlFinding() {
   );
 }
 
+function testProviderTokenHeaders() {
+  const file = '/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json';
+  for (const value of ['synthetic-provider-token', '=synthetic-provider-token', "={{ $env.BRIA_API_TOKEN || 'synthetic-provider-token' }}"]) {
+    const findings = scanWorkflowExportText(file, JSON.stringify({nodes:[{parameters:{headerParameters:{parameters:[{name:'API_TOKEN',value}]}}}]}));
+    assert(findings.some(finding => finding.ruleId === 'provider-api-token-header'), 'Provider header literal must fail');
+    assert(!JSON.stringify(findings).includes('synthetic-provider-token'), 'Finding must omit credential value');
+  }
+  for (const value of ['REDACTED_BRIA_API_TOKEN', '=REDACTED_BRIA_API_TOKEN', '={{ $env.BRIA_API_TOKEN }}', '={{ $vars.BRIA_API_TOKEN }}', '=']) {
+    const findings = scanWorkflowExportText(file, JSON.stringify({name:'api_token',value}));
+    assert(!findings.some(finding => finding.ruleId === 'provider-api-token-header'), 'Redacted/direct variable/empty header may pass');
+  }
+}
+
 function main() {
+  testProviderTokenHeaders();
   testPathClassification();
   testLiveBackupFinding();
   testPlainSecretFinding();

@@ -25,54 +25,54 @@
       "name": "REPO - w2A-Orchestrator",
       "file": "w2A-Orchestrator.repo-centric.json",
       "active": true,
-      "versionId": "757751fc-9623-48c1-92d9-f01a269877ff",
-      "activeVersionId": "757751fc-9623-48c1-92d9-f01a269877ff",
-      "updatedAt": "2026-03-31T22:10:13.647Z"
+      "versionId": "5613ca47-dd88-410a-97c1-b0679b176e99",
+      "activeVersionId": "5613ca47-dd88-410a-97c1-b0679b176e99",
+      "updatedAt": "2026-10-07T10:21:34.217Z"
     },
     {
       "id": "S5apnAgeuitSIO5Z",
       "name": "REPO - w2A-SW0-Base_Character_Generation",
       "file": "w2A-SW0-Base_Character_Generation.repo-centric.json",
       "active": false,
-      "versionId": "57d6c25d-0860-46bc-9edd-81d1021fb006",
+      "versionId": "dbfeafb5-21ea-456e-be0a-99de405f5c8d",
       "activeVersionId": null,
-      "updatedAt": "2026-04-14T23:12:03.000Z"
+      "updatedAt": "2026-10-07T09:45:16.761Z"
     },
     {
       "id": "kGob5aDJ6e5WRPh7",
       "name": "REPO - w2A-SW1-Pose_Generation",
       "file": "w2A-SW1-Pose_Generation.repo-centric.json",
       "active": false,
-      "versionId": "5fd14d1d-cf9d-4dff-852a-74669b4268c3",
+      "versionId": "e92b4c16-ff2d-4240-86ff-84770cc8e426",
       "activeVersionId": null,
-      "updatedAt": "2026-04-14T23:12:05.000Z"
+      "updatedAt": "2026-10-07T10:21:33.041Z"
     },
     {
       "id": "KhMxEgo57Deo1QWu",
       "name": "REPO - w2B-main-orchestrator",
       "file": "w2B-main-orchestrator.repo-centric.json",
       "active": true,
-      "versionId": "e37de772-f5be-42e6-a024-225b71d0066e",
-      "activeVersionId": "e37de772-f5be-42e6-a024-225b71d0066e",
-      "updatedAt": "2026-03-25T03:18:27.094Z"
+      "versionId": "7a222398-c3a3-41c2-8959-7272c88c85f2",
+      "activeVersionId": "7a222398-c3a3-41c2-8959-7272c88c85f2",
+      "updatedAt": "2026-10-07T11:55:00.592Z"
     },
     {
       "id": "4fxha79xAEaYEBYb",
       "name": "REPO - w2B-sw1-single-pose",
       "file": "w2B-sw1-single-pose.repo-centric.json",
       "active": true,
-      "versionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
-      "activeVersionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
-      "updatedAt": "2026-04-14T23:12:07.350Z"
+      "versionId": "0b09813e-3df1-456a-96e5-be2185ca03ad",
+      "activeVersionId": "0b09813e-3df1-456a-96e5-be2185ca03ad",
+      "updatedAt": "2026-10-07T12:06:45.997Z"
     },
     {
       "id": "D4rQ0zJG8JlKhZqq",
       "name": "REPO - w3-Book-Assembly",
       "file": "w3-Book-Assembly.repo-centric.json",
       "active": true,
-      "versionId": "ab017e51-5676-4dd5-b899-22a035177b94",
-      "activeVersionId": "ab017e51-5676-4dd5-b899-22a035177b94",
-      "updatedAt": "2026-03-27T05:00:09.318Z"
+      "versionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "activeVersionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "updatedAt": "2026-10-07T08:47:17.706Z"
     },
     {
       "id": "m4qIN9PCgifUcYih",
@@ -91,6 +91,15 @@
       "versionId": "8db9037e-ab5e-45a8-9004-d6f33477a802",
       "activeVersionId": "8db9037e-ab5e-45a8-9004-d6f33477a802",
       "updatedAt": "2026-03-30T22:05:06.392Z"
+    },
+    {
+      "id": "oKsq2x0gARt43k5U",
+      "name": "SIBLING - w2A-SW3-Upload",
+      "active": false,
+      "versionId": "6532efe5-38af-4cbb-9558-d6588b83fabf",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-07T10:58:52.488Z",
+      "file": "w2A-SW3-Upload.repo-centric.json"
     }
   ]
 }

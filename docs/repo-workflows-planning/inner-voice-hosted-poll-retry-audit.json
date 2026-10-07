@@ -1,0 +1,39 @@
+{
+  "appliedAt": "2026-10-07T12:06:46.669Z",
+  "workflows": [
+    {
+      "id": "4fxha79xAEaYEBYb",
+      "beforeVersionId": "92bc5a3a-c418-4eea-a542-b1048486fc0a",
+      "beforeActiveVersionId": "92bc5a3a-c418-4eea-a542-b1048486fc0a",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "Normalize Pose Scale",
+          "field": "jsonBody",
+          "beforeSha256": "290451cbff2bdb0abc230d46e583f47c5de3e4da8b03da3cd9a45bd3d347557e",
+          "afterSha256": "290451cbff2bdb0abc230d46e583f47c5de3e4da8b03da3cd9a45bd3d347557e",
+          "changed": false
+        },
+        {
+          "node": "Build Bria Payload",
+          "field": "jsCode",
+          "beforeSha256": "a2708ac1f945e9ddcaf7efbe69baac8d2a7575367fee798345215da4a2fcd768",
+          "afterSha256": "a2708ac1f945e9ddcaf7efbe69baac8d2a7575367fee798345215da4a2fcd768",
+          "changed": false
+        },
+        {
+          "node": "Bria Poll",
+          "field": "retryPolicy",
+          "beforeSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "afterSha256": "ee35d9b1ccc35270f3f2b5c080fe67ff7615d3c8db3c741d6970ccf7ced868c0",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "0b09813e-3df1-456a-96e5-be2185ca03ad",
+      "afterActiveVersionId": "0b09813e-3df1-456a-96e5-be2185ca03ad",
+      "afterActive": true,
+      "afterUpdatedAt": "2026-10-07T12:06:45.997Z",
+      "credentialsAndTopologyPreserved": true
+    }
+  ]
+}

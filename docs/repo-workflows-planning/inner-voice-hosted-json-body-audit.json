@@ -1,0 +1,149 @@
+{
+  "appliedAt": "2026-10-07T10:02:45.892Z",
+  "workflows": [
+    {
+      "id": "S5apnAgeuitSIO5Z",
+      "beforeVersionId": "dbfeafb5-21ea-456e-be0a-99de405f5c8d",
+      "beforeActiveVersionId": null,
+      "beforeActive": false,
+      "fields": [
+        {
+          "node": "Schema Check + Defaults",
+          "field": "jsCode",
+          "beforeSha256": "8575bab4d8f4bc1da9ef172556cac249a6e5eae92523d4c752fb04ee8dcf6850",
+          "afterSha256": "8575bab4d8f4bc1da9ef172556cac249a6e5eae92523d4c752fb04ee8dcf6850",
+          "changed": false
+        },
+        {
+          "node": "Restore Finalized Base Envelope",
+          "field": "jsCode",
+          "beforeSha256": "d04e2bd89f58a5f3f3642e49a2435739343a654c255fd9ec3b633720c3351bf3",
+          "afterSha256": "d04e2bd89f58a5f3f3642e49a2435739343a654c255fd9ec3b633720c3351bf3",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "kGob5aDJ6e5WRPh7",
+      "beforeVersionId": "a6fa5f54-3087-4c9d-8bfe-a3b38b1b480b",
+      "beforeActiveVersionId": null,
+      "beforeActive": false,
+      "fields": [
+        {
+          "node": "Schema Check + Defaults1",
+          "field": "jsCode",
+          "beforeSha256": "3eb4950288c3a646b52fe2c0f0a044ec399d8e88a3b30a2b80c502d61aa9721d",
+          "afterSha256": "3eb4950288c3a646b52fe2c0f0a044ec399d8e88a3b30a2b80c502d61aa9721d",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "KhMxEgo57Deo1QWu",
+      "beforeVersionId": "417b1d6a-4ef0-4f3b-a98c-17df10b09a3c",
+      "beforeActiveVersionId": "417b1d6a-4ef0-4f3b-a98c-17df10b09a3c",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "Build Worklist",
+          "field": "jsCode",
+          "beforeSha256": "b192ff3c1865bc0821e8b6f305fa5c3569d9f1f9fb7cfed4efcf5c63eb6c963c",
+          "afterSha256": "b192ff3c1865bc0821e8b6f305fa5c3569d9f1f9fb7cfed4efcf5c63eb6c963c",
+          "changed": false
+        },
+        {
+          "node": "Merge Result Into 2B Manifest",
+          "field": "jsCode",
+          "beforeSha256": "708747bef5ebe55b94a9895e761869243ff0bcb5714bd9898f1772f1712c56c8",
+          "afterSha256": "708747bef5ebe55b94a9895e761869243ff0bcb5714bd9898f1772f1712c56c8",
+          "changed": false
+        },
+        {
+          "node": "Final Summary",
+          "field": "jsCode",
+          "beforeSha256": "e1e3940fdecdc6e3c195ea9e2519cb815e699ad71b24349bc1d893ad8e6bac62",
+          "afterSha256": "e1e3940fdecdc6e3c195ea9e2519cb815e699ad71b24349bc1d893ad8e6bac62",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "HduzTWm0ekmrvwrn",
+      "beforeVersionId": "5271b72a-2e4a-482e-8f41-c1657de3603a",
+      "beforeActiveVersionId": "5271b72a-2e4a-482e-8f41-c1657de3603a",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "Expand to N Poses",
+          "field": "jsCode",
+          "beforeSha256": "ddeaff6ff6ab4fa1b6879ba4274165b7a33c886705700c61238b6fe3fed91c17",
+          "afterSha256": "ddeaff6ff6ab4fa1b6879ba4274165b7a33c886705700c61238b6fe3fed91c17",
+          "changed": false
+        },
+        {
+          "node": "Resolve Pose Worklist",
+          "field": "acceptEncoding",
+          "beforeSha256": "3b995965e09e00254710db6c4419b67d1d2fdf2cf89a79617d5ef12db933f57f",
+          "afterSha256": "3b995965e09e00254710db6c4419b67d1d2fdf2cf89a79617d5ef12db933f57f",
+          "changed": false
+        },
+        {
+          "node": "Resolve Pose Worklist",
+          "field": "jsonRequestBody",
+          "beforeSha256": "5cf9856bc1866a5cb556e2e9e25b15eafa05c9b8d358a91be84156a64aa8e3bb",
+          "afterSha256": "55cdb0d83393a523e6577452ed2165097b17227e76c0eadaccc9a69da157a4ad",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "d50b2f5d-0e3d-455e-8cef-0fd7f30477f1",
+      "afterActiveVersionId": "d50b2f5d-0e3d-455e-8cef-0fd7f30477f1",
+      "afterActive": true,
+      "afterUpdatedAt": "2026-10-07T10:02:45.001Z",
+      "credentialsAndTopologyPreserved": true
+    },
+    {
+      "id": "4fxha79xAEaYEBYb",
+      "beforeVersionId": "92bc5a3a-c418-4eea-a542-b1048486fc0a",
+      "beforeActiveVersionId": "92bc5a3a-c418-4eea-a542-b1048486fc0a",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "Normalize Pose Scale",
+          "field": "jsonBody",
+          "beforeSha256": "290451cbff2bdb0abc230d46e583f47c5de3e4da8b03da3cd9a45bd3d347557e",
+          "afterSha256": "290451cbff2bdb0abc230d46e583f47c5de3e4da8b03da3cd9a45bd3d347557e",
+          "changed": false
+        },
+        {
+          "node": "Build Bria Payload",
+          "field": "jsCode",
+          "beforeSha256": "a2708ac1f945e9ddcaf7efbe69baac8d2a7575367fee798345215da4a2fcd768",
+          "afterSha256": "a2708ac1f945e9ddcaf7efbe69baac8d2a7575367fee798345215da4a2fcd768",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "D4rQ0zJG8JlKhZqq",
+      "beforeVersionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "beforeActiveVersionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "QA Gate (3A Phase 4)",
+          "field": "jsCode",
+          "beforeSha256": "5686f83d700a9f38e3256f914c0958768c3c2b26158ada1d97f072c4c7c5a58f",
+          "afterSha256": "5686f83d700a9f38e3256f914c0958768c3c2b26158ada1d97f072c4c7c5a58f",
+          "changed": false
+        },
+        {
+          "node": "Acceptance Tests (3A Phase 5)",
+          "field": "jsCode",
+          "beforeSha256": "059e9172db519a7c4d8480c8922deeb9ec91a55bf4fc1494466da8840dca8e5d",
+          "afterSha256": "059e9172db519a7c4d8480c8922deeb9ec91a55bf4fc1494466da8840dca8e5d",
+          "changed": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "appliedAt": "2026-10-07T10:58:52.488Z",
+  "inspectionOutcome": "Verified after strict guard stop. API inserted documented defaults; canonical parent and SW3 share owner project. Generic strict guard was retained.",
+  "workflows": [
+    {
+      "id": "oKsq2x0gARt43k5U",
+      "beforeVersionId": "1db12635-89ef-4475-ae9d-d0de63bc7311",
+      "beforeActive": false,
+      "beforeActiveVersionId": null,
+      "afterVersionId": "6532efe5-38af-4cbb-9558-d6588b83fabf",
+      "afterActive": false,
+      "afterActiveVersionId": null,
+      "afterUpdatedAt": "2026-10-07T10:58:52.488Z",
+      "fields": [
+        {
+          "node": "Keep Auto Flip Status",
+          "field": "jsCode",
+          "beforeSha256": "edc162963087a5756d062596df20bec3ee6a465179450f10b8491d54e2451120",
+          "afterSha256": "4bb93954ad393daf393be92155c5f9a4414ec7478e738656bc3376294490a192",
+          "changed": true
+        },
+        {
+          "node": "Return Upload Results",
+          "field": "jsCode",
+          "beforeSha256": "4ebb4956ffccf9ac4e378f888feb68a90f77b25c57e33d2daf966a2e0c009b93",
+          "afterSha256": "59679e0d80a6fcccedbb04aa6f8b078c94fb54f061877a1e24507d93bd056d3d",
+          "changed": true
+        }
+      ],
+      "credentialsAndTopologyPreserved": true,
+      "existingSettingValuesPreserved": true,
+      "serverAddedSettings": {
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+      },
+      "canonicalParentOwnerMatches": true
+    }
+  ]
+}
