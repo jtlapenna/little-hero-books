@@ -85,6 +85,8 @@ export interface NormalizePoseScaleResult {
   referenceAnchorMetrics: PoseAnchorMetrics | null;
   sourceBBoxFound: boolean;
   referenceBBoxFound: boolean;
+  containmentAdjusted?: boolean;
+  appliedTransform?: { scaleFactor: number; left: number; top: number; width: number; height: number };
 }
 
 export type NormalizePoseScaleFn = (
@@ -466,7 +468,7 @@ function normalizeImage(
   refBox: BBox,
   refGroundContactBand: GroundContactBand,
   refPng: DecodedPng,
-): DecodedPng {
+): { png: DecodedPng; containmentAdjusted: boolean; appliedTransform: NonNullable<NormalizePoseScaleResult['appliedTransform']> } {
   const canvasW = srcPng.width;
   const canvasH = srcPng.height;
   const { isBg: srcIsBg } = buildBgClassifier(srcPng);
@@ -492,12 +494,18 @@ function normalizeImage(
   const srcGroundOffsetX = srcGroundCenterX - srcBox.left;
   const mappedRefSpan = mappedRefGroundRow - mappedRef.top + 1;
   const srcSpan = srcGroundOffsetY + 1;
-  const scale = mappedRefSpan / srcSpan;
+  const requestedScale = mappedRefSpan / srcSpan;
+  const scale = Math.min(requestedScale, canvasW / srcBox.width, canvasH / srcBox.height);
   const scaledW = Math.round(srcBox.width * scale);
   const scaledH = Math.round(srcBox.height * scale);
   const dstGroundRow = Math.round(mappedRefGroundRow);
-  const dstTop = Math.round(dstGroundRow - srcGroundOffsetY * scale);
-  const dstLeft = Math.round(mappedRefGroundCenterX - srcGroundOffsetX * scale);
+  const requestedTop = Math.round(dstGroundRow - srcGroundOffsetY * requestedScale);
+  const requestedLeft = Math.round(mappedRefGroundCenterX - srcGroundOffsetX * requestedScale);
+  const desiredTop = Math.round(dstGroundRow - srcGroundOffsetY * scale);
+  const desiredLeft = Math.round(mappedRefGroundCenterX - srcGroundOffsetX * scale);
+  const dstTop = Math.max(0, Math.min(canvasH - scaledH, desiredTop));
+  const dstLeft = Math.max(0, Math.min(canvasW - scaledW, desiredLeft));
+  const containmentAdjusted = scale !== requestedScale || dstTop !== requestedTop || dstLeft !== requestedLeft;
 
   const outData = new Uint8Array(canvasW * canvasH * 4);
   for (let dy = 0; dy < scaledH; dy += 1) {
@@ -516,11 +524,9 @@ function normalizeImage(
   }
 
   return {
-    width: canvasW,
-    height: canvasH,
-    data: outData,
-    channels: 4,
-    depth: 8,
+    png: { width: canvasW, height: canvasH, data: outData, channels: 4, depth: 8 },
+    containmentAdjusted,
+    appliedTransform: { scaleFactor: scale, left: dstLeft, top: dstTop, width: scaledW, height: scaledH },
   };
 }
 
@@ -723,7 +729,7 @@ export async function normalizePoseScaleAsset(
     };
   }
 
-  const normalizedPng = normalizeImage(
+  const transformed = normalizeImage(
     imagePng,
     genBox,
     generatedSilhouette.groundContactBand,
@@ -731,6 +737,7 @@ export async function normalizePoseScaleAsset(
     referenceSilhouette.groundContactBand,
     refPng,
   );
+  const normalizedPng = transformed.png;
   const normalizedBytes = encode({
     width: normalizedPng.width,
     height: normalizedPng.height,
@@ -744,6 +751,7 @@ export async function normalizePoseScaleAsset(
   return {
     success: true,
     normalized: true,
+    ...(transformed.containmentAdjusted ? { containmentAdjusted: true, appliedTransform: transformed.appliedTransform } : {}),
     imageKey,
     refKey,
     poseNumber: input.poseNumber,

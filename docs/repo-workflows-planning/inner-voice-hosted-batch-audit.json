@@ -1,0 +1,46 @@
+{
+  "appliedAt": "2026-10-07T11:55:01.336Z",
+  "workflows": [
+    {
+      "id": "KhMxEgo57Deo1QWu",
+      "beforeVersionId": "417b1d6a-4ef0-4f3b-a98c-17df10b09a3c",
+      "beforeActiveVersionId": "417b1d6a-4ef0-4f3b-a98c-17df10b09a3c",
+      "beforeActive": true,
+      "fields": [
+        {
+          "node": "Build Worklist",
+          "field": "jsCode",
+          "beforeSha256": "b192ff3c1865bc0821e8b6f305fa5c3569d9f1f9fb7cfed4efcf5c63eb6c963c",
+          "afterSha256": "b192ff3c1865bc0821e8b6f305fa5c3569d9f1f9fb7cfed4efcf5c63eb6c963c",
+          "changed": false
+        },
+        {
+          "node": "Merge Result Into 2B Manifest",
+          "field": "jsCode",
+          "beforeSha256": "708747bef5ebe55b94a9895e761869243ff0bcb5714bd9898f1772f1712c56c8",
+          "afterSha256": "708747bef5ebe55b94a9895e761869243ff0bcb5714bd9898f1772f1712c56c8",
+          "changed": false
+        },
+        {
+          "node": "Final Summary",
+          "field": "jsCode",
+          "beforeSha256": "e1e3940fdecdc6e3c195ea9e2519cb815e699ad71b24349bc1d893ad8e6bac62",
+          "afterSha256": "e1e3940fdecdc6e3c195ea9e2519cb815e699ad71b24349bc1d893ad8e6bac62",
+          "changed": false
+        },
+        {
+          "node": "Split In Batches",
+          "field": "batchSize",
+          "beforeSha256": "7b888b46b55606a0b47e47795fa7e0bd1a409ac8481fc1bfc5a4ab6fc72d2310",
+          "afterSha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "7a222398-c3a3-41c2-8959-7272c88c85f2",
+      "afterActiveVersionId": "7a222398-c3a3-41c2-8959-7272c88c85f2",
+      "afterActive": true,
+      "afterUpdatedAt": "2026-10-07T11:55:00.592Z",
+      "credentialsAndTopologyPreserved": true
+    }
+  ]
+}

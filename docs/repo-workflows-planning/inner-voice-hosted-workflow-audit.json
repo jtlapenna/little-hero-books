@@ -1,0 +1,63 @@
+{
+  "appliedAt": "2026-10-07T08:47:17.706Z",
+  "workflows": [
+    {
+      "id": "HduzTWm0ekmrvwrn",
+      "beforeVersionId": "757751fc-9623-48c1-92d9-f01a269877ff",
+      "beforeActiveVersionId": "757751fc-9623-48c1-92d9-f01a269877ff",
+      "fields": [
+        {
+          "node": "Expand to N Poses",
+          "field": "jsCode",
+          "beforeSha256": "df23c5fdb6a3e079bb4a781ed372a6eeb9672950959a114e21347af4f8c15895",
+          "afterSha256": "1b2527c6ae24170355571f56a5b450cfa11bd95882af83ba3f165c004a6ec96d",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "bb0f60db-a652-4010-b7d6-29e755eedb7c",
+      "afterActiveVersionId": "bb0f60db-a652-4010-b7d6-29e755eedb7c",
+      "credentialsAndTopologyPreserved": true
+    },
+    {
+      "id": "4fxha79xAEaYEBYb",
+      "beforeVersionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
+      "beforeActiveVersionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
+      "fields": [
+        {
+          "node": "Normalize Pose Scale",
+          "field": "jsonBody",
+          "beforeSha256": "e829b70826df0b00c72c2025fe1493f3a2b18d1315d179c41bedd3ba0ebfc147",
+          "afterSha256": "290451cbff2bdb0abc230d46e583f47c5de3e4da8b03da3cd9a45bd3d347557e",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "6ec04c0b-c77b-4ba8-b970-bfb50027c4d2",
+      "afterActiveVersionId": "6ec04c0b-c77b-4ba8-b970-bfb50027c4d2",
+      "credentialsAndTopologyPreserved": true
+    },
+    {
+      "id": "D4rQ0zJG8JlKhZqq",
+      "beforeVersionId": "ab017e51-5676-4dd5-b899-22a035177b94",
+      "beforeActiveVersionId": "ab017e51-5676-4dd5-b899-22a035177b94",
+      "fields": [
+        {
+          "node": "QA Gate (3A Phase 4)",
+          "field": "jsCode",
+          "beforeSha256": "b9ea9a46b9d258a3d9054256c26c591bf0d195444368975dfd031a15838729ef",
+          "afterSha256": "5686f83d700a9f38e3256f914c0958768c3c2b26158ada1d97f072c4c7c5a58f",
+          "changed": true
+        },
+        {
+          "node": "Acceptance Tests (3A Phase 5)",
+          "field": "jsCode",
+          "beforeSha256": "b509cf650a216153e017f6c525da4b5bc07c404ac9d25bb4f8ee7d33aae1f114",
+          "afterSha256": "059e9172db519a7c4d8480c8922deeb9ec91a55bf4fc1494466da8840dca8e5d",
+          "changed": true
+        }
+      ],
+      "afterVersionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "afterActiveVersionId": "824e1e5a-5535-4be5-8da9-384daf8530ed",
+      "credentialsAndTopologyPreserved": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "orderId": "TEST-IV-GEN-20261007E",
+  "poseNumber": 11,
+  "providerRequestId": "5de9c832d31e439b94fc1589d7eebd68",
+  "sourceSha256": "b8af8476472f39b2510aa7e529c91ebc2c9ee92b5a7b607812c0d7df0f563e3f",
+  "beforeSha256": "1d7374515bc7d6b8da019c3b1ead8e3e3c9f2f394833124cb943f397126f5454",
+  "width": 2048,
+  "height": 2048,
+  "format": "png",
+  "hasAlpha": true
+}
