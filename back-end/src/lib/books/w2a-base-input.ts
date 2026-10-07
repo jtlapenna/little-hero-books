@@ -1,3 +1,4 @@
+import { resolveWorkflowBookConfig, type BookSnapshotFields, type WorkflowBookConfigOptions } from './book-snapshot';
 import { resolvePreviewCanonicalsForConfig } from '@/lib/preview-canonicals';
 import {
   buildAssetApiUrl,
@@ -5,7 +6,6 @@ import {
   resolveOrderPathContext,
 } from '@/lib/order-paths';
 import {
-  loadRuntimeBookConfig,
   type BookConfigRuntimeSource,
 } from '@/lib/books/runtime-book-config';
 import type { BookConfig } from '@/lib/books/types';
@@ -36,7 +36,7 @@ export interface W2ABasePromptMeta {
   hasSkinSwatch: boolean;
 }
 
-export interface BuildW2ABaseInputResult {
+export interface BuildW2ABaseInputResult extends BookSnapshotFields {
   orderId: string;
   rootOrderId: string | null;
   amazonOrderId: string | null;
@@ -91,7 +91,7 @@ export interface BuildW2ABaseInputResult {
   };
 }
 
-export interface BuildW2ABaseInputOptions {
+export interface BuildW2ABaseInputOptions extends WorkflowBookConfigOptions {
   loadConfig?: LoadConfigForW2ABaseInput;
   defaultBackendUrl?: string;
   defaultPublicR2Url?: string | null;
@@ -496,18 +496,14 @@ export async function buildW2ABaseInput(
     pathLikes,
   });
 
-  const loadConfig = options.loadConfig ?? loadRuntimeBookConfig;
   const configSource = normalizeConfigSource(
     pickFirstNonEmpty(input.configSource, orderContext.configSource, compatSnapshot.configSource),
   );
   const configVersion = toInteger(
     pickFirstNonEmpty(input.configVersion, input.version, orderContext.configVersion),
   );
-  const config = await loadConfig({
-    bookId,
-    version: configVersion ?? undefined,
-    source: configSource,
-  });
+  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId: resolveFormatId(input, orderContext), version: configVersion ?? undefined, source: configSource }, options);
+  const config = frozenConfig.config;
 
   const previewResolved = resolvePreviewCanonicalsForConfig(characterSpecs, config);
   const formatId = resolveFormatId(input, orderContext);
@@ -580,6 +576,7 @@ export async function buildW2ABaseInput(
   ].some(toBoolean);
 
   return {
+    ...(frozenConfig.renderSnapshot ? { renderSnapshot: frozenConfig.renderSnapshot, configVersion: config.version } : {}),
     orderId,
     rootOrderId:
       toTrimmedString(

@@ -1,3 +1,4 @@
+import { BookAssetKeySchema } from './books/book-render-contract';
 import { decode, encode } from 'fast-png';
 import { getObject, putObject } from '@/lib/r2-client';
 import { buildPoseReferenceAssetKey, extractBookIdFromPathLike } from '@/lib/order-paths';
@@ -60,6 +61,7 @@ export interface PoseScaleDiagnostics {
 }
 
 export interface NormalizePoseScaleInput {
+  referenceKey?: string;
   imageKey: string;
   poseNumber: number;
   bookId?: string | null;
@@ -575,7 +577,8 @@ async function loadPoseScaleInspectionState(
     throw new Error(`Unable to resolve bookId for pose ${input.poseNumber} from ${imageKey}`);
   }
 
-  const refKey = buildPoseReferenceAssetKey(resolvedBookId, input.poseNumber);
+  const refKey = input.referenceKey ? BookAssetKeySchema.parse(input.referenceKey) : buildPoseReferenceAssetKey(resolvedBookId, input.poseNumber);
+  if (!refKey.startsWith(`${resolvedBookId}/`)) throw new Error('Pose normalization reference outside book root');
   const imageBucket = getBucketFromKey(imageKey);
   const refBucket = getBucketFromKey(refKey);
   const [imageResp, refResp] = await Promise.all([

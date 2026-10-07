@@ -1,3 +1,5 @@
+import { validateRenderSnapshot, snapshotPoseReferenceKeys, pagePoseNumbers, coverPoseNumbers } from './book-render-recipe';
+import type { BookSnapshotFields } from './book-snapshot';
 import {
   buildAssetApiUrl,
   buildBgRemovedPoseAssetKey,
@@ -42,7 +44,7 @@ export interface W3ProcessedImage {
   sourceKey: 'bgRemovedKey' | 'approvedKey';
 }
 
-export interface BuildW3AssemblyInputResult {
+export interface BuildW3AssemblyInputResult extends BookSnapshotFields {
   orderId: string;
   amazonOrderId: string | null;
   rootOrderId: string | null;
@@ -535,13 +537,13 @@ function deriveBookState(
         ? 'runtime-config'
         : 'legacy-default';
   const requiredPoseNumbers =
-    normalizedOneManifest?.requiredPoseNumbers?.length
+    (normalizedOneManifest?.renderSnapshot || normalizedOneManifest?.requiredPoseNumbers?.length)
       ? [...normalizedOneManifest.requiredPoseNumbers]
       : runtimePlan?.qaPolicy.pose.requiredPoseNumbers?.length
         ? [...runtimePlan.qaPolicy.pose.requiredPoseNumbers]
         : [...LEGACY_REQUIRED_2B_POSE_NUMBERS];
   const requiredPoseSource: BuildW3AssemblyInputResult['requiredPoseSource'] =
-    normalizedOneManifest?.requiredPoseNumbers?.length
+    (normalizedOneManifest?.renderSnapshot || normalizedOneManifest?.requiredPoseNumbers?.length)
       ? 'w0-v3'
       : runtimePlan?.qaPolicy.pose.requiredPoseNumbers?.length
         ? 'runtime-config'
@@ -558,7 +560,7 @@ function deriveBookState(
     requiredPoseSource,
     marketplace_id: marketplaceId,
     expectedPageCount:
-      runtimePlan?.expectedPageCount ??
+      (normalizedOneManifest?.pagePlan.length ? pagePlan.length : runtimePlan?.expectedPageCount) ??
       pagePlan.length ??
       (isAmazonOrder ? 17 : 15),
   };
@@ -569,6 +571,7 @@ async function normalizeBgRemovedPoses(
   requiredPoseNumbers: number[],
   bookId: string,
   normalizePoseScale?: NormalizePoseScaleFn,
+  referenceKeys?: Record<string, string>,
 ): Promise<void> {
   if (!normalizePoseScale) {
     return;
@@ -603,6 +606,7 @@ async function normalizeBgRemovedPoses(
         imageKey: bgRemovedKey,
         poseNumber,
         bookId,
+        referenceKey: referenceKeys?.[String(poseNumber)],
         characterHash: toTrimmedString(entry.characterHash),
         mode: 'strict',
       });
@@ -630,6 +634,7 @@ async function normalizeCoverPose00(
   characterHash: string | null | undefined,
   bookId: string,
   normalizePoseScale?: NormalizePoseScaleFn,
+  referenceKeys?: Record<string, string>,
 ): Promise<void> {
   if (!normalizePoseScale || !characterHash) {
     return;
@@ -643,6 +648,7 @@ async function normalizeCoverPose00(
       imageKey,
       poseNumber: 0,
       bookId,
+      referenceKey: referenceKeys?.['0'],
       characterHash,
       mode: 'strict',
     });
@@ -904,6 +910,22 @@ export async function buildW3AssemblyInput(
     normalizedOneManifest,
     hintedBookId,
   );
+  if (normalizedOneManifest?.renderSnapshot) validateRenderSnapshot(normalizedOneManifest.renderSnapshot, { bookId: bookState.bookId, formatId: bookState.formatId, version: toInteger(primary.configVersion ?? nested.configVersion ?? orderContext.configVersion) });
+  if (!normalizedOneManifest?.renderSnapshot) {
+    let knownLegacy = false;
+    try { knownLegacy = !loadBundledBookConfig({ bookId: bookState.bookId }).rendering.recipe; } catch { /* Unregistered books require intake provenance. */ }
+    if (!knownLegacy && !normalizedOneManifest) throw new Error('Configured or unknown book requires its frozen W0 snapshot');
+    if (normalizedOneManifest) {
+      try {
+        if (loadBundledBookConfig({ bookId: bookState.bookId }).rendering.recipe) throw new Error('Configured W0 manifest has no render snapshot');
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith('Unknown bundled book config:')) throw error;
+      }
+    }
+  }
+  const renderSnapshot = normalizedOneManifest?.renderSnapshot;
+  const referenceKeys = renderSnapshot ? snapshotPoseReferenceKeys(renderSnapshot) : undefined;
+  const usedZero = renderSnapshot ? [...bookState.pagePlan.flatMap(pagePoseNumbers), ...coverPoseNumbers(renderSnapshot.bookConfig.rendering.recipe!.covers[renderSnapshot.formatId].layers)].includes(0) : true;
   const orderPrefixResolved = resolveOrderPathContext(identity.orderId, {
     bookId: bookState.bookId,
     orderPrefix: explicitOrderPrefix,
@@ -916,11 +938,13 @@ export async function buildW3AssemblyInput(
     bookState.requiredPoseNumbers,
     bookState.bookId,
     options.normalizePoseScale,
+    referenceKeys,
   );
-  await normalizeCoverPose00(
+  if (usedZero) await normalizeCoverPose00(
     identity.characterHash,
     bookState.bookId,
     options.normalizePoseScale,
+    referenceKeys,
   );
   const { processedImages, missingBgRemovedPoseNumbers } = buildProcessedImages(
     loaded2B.manifest,
@@ -928,7 +952,7 @@ export async function buildW3AssemblyInput(
     backendUrl,
   );
 
-  if (!processedImages.length) {
+  if (!processedImages.length && !(normalizedOneManifest?.renderSnapshot && bookState.requiredPoseNumbers.length === 0)) {
     throw new Error('W3 assembly input found no processedImages in the 2B manifest');
   }
 
@@ -974,6 +998,7 @@ export async function buildW3AssemblyInput(
     characterHash: identity.characterHash,
     bookId: bookState.bookId,
     formatId: bookState.formatId,
+    ...(normalizedOneManifest?.renderSnapshot ? { renderSnapshot: normalizedOneManifest.renderSnapshot, configVersion: normalizedOneManifest.configVersion } : {}),
     orderPrefix: orderPrefixResolved,
     orderR2BaseKey: orderPrefixResolved,
     oneManifestKey: oneManifestKeyResolved,

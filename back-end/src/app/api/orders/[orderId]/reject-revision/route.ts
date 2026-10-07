@@ -1,5 +1,7 @@
+import { readOrderPoseContext } from '@/lib/books/order-pose-context';
+import { extractOrderPrefixFromPathLike } from '@/lib/order-paths';
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteObject, getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
+import { deleteObject as storageDeleteObject, getObject as storageGetObject, putObject as storagePutObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { buildManifestKeyCandidates } from '@/lib/order-paths';
 
 // Helper to parse JSON safely
@@ -20,10 +22,15 @@ async function readJsonSafe<T = any>(res: Response): Promise<T> {
  * - poseNumber: number (required)
  * - temporaryR2Key: string (required)
  */
-export async function POST(
+export async function rejectRevisionResponse(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
+  options: { getObject?: typeof storageGetObject; readPoseContext?: typeof readOrderPoseContext; deleteObject?: typeof storageDeleteObject; putObject?: typeof storagePutObject } = {},
 ) {
+  const getObject = options.getObject ?? storageGetObject;
+  const readPoseContext = options.readPoseContext ?? readOrderPoseContext;
+  const deleteObject = options.deleteObject ?? storageDeleteObject;
+  const putObject = options.putObject ?? storagePutObject;
   try {
     console.log('[Reject Revision API] Request received');
     const { orderId } = await params;
@@ -39,9 +46,9 @@ export async function POST(
     const { poseNumber, temporaryR2Key, bookId, orderPrefix } = body;
 
     // Validation
-    if (typeof poseNumber !== 'number' || poseNumber < 0 || poseNumber > 12) {
+    if (!Number.isInteger(poseNumber) || poseNumber < 0 || poseNumber > 99) {
       return NextResponse.json(
-        { error: 'Invalid poseNumber: must be a number between 0 and 12' },
+        { error: 'Invalid poseNumber: must be an integer between 0 and 99' },
         { status: 400 }
       );
     }
@@ -84,6 +91,12 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    const poseOrderPrefix = extractOrderPrefixFromPathLike(manifestKey);
+    if (!poseOrderPrefix) return NextResponse.json({ error: 'Invalid pose manifest path' }, { status: 400 });
+    const poseBookId = poseOrderPrefix.split('/orders/')[0];
+    const frozenPoseContext = await readPoseContext({ bookId: poseBookId, orderPrefix: poseOrderPrefix });
+    if (!frozenPoseContext.allowed.includes(poseNumber)) return NextResponse.json({ error: 'Pose is not part of this order' }, { status: 400 });
 
     if (!manifest || !manifest.revisions || !manifest.revisions.pending) {
       return NextResponse.json(
@@ -197,4 +210,8 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: NextRequest, context: { params: Promise<{ orderId: string }> }) {
+  return rejectRevisionResponse(request, context);
 }

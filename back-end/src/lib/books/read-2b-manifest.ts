@@ -1,8 +1,11 @@
+import { hasLegacyPoseProvenance } from './order-pose-context';
 import { type CharacterAsset } from '@/lib/r2-service';
 import {
+  DEFAULT_BOOK_ID,
   buildManifestKeyCandidates,
   buildManifestKeyFromOrderPrefix,
   extractOrderPrefixFromPathLike,
+  inferBookIdFromPathLikes,
 } from '@/lib/order-paths';
 import {
   normalizeW0Manifest,
@@ -217,20 +220,28 @@ export async function read2BManifestWithPoseRequirements(
   let requiredPoseSource: Read2BManifestResult['requiredPoseSource'] = 'legacy-default';
 
   if (oneManifestKey && options.loadManifest) {
+    let declaresSnapshot = false;
     try {
       const oneManifest = await options.loadManifest(oneManifestKey);
       if (oneManifest) {
+        declaresSnapshot = !!toObject(toObject(toObject(oneManifest)?.book)?.resolved)?.renderSnapshot;
         oneManifestSnapshot = normalizeW0Manifest(oneManifest, {
           fallbackManifestKey: oneManifestKey,
         });
-        if (oneManifestSnapshot.requiredPoseNumbers.length > 0) {
+        if (oneManifestSnapshot.renderSnapshot || oneManifestSnapshot.requiredPoseNumbers.length > 0) {
           requiredPoseNumbers = uniqueSorted(oneManifestSnapshot.requiredPoseNumbers);
           requiredPoseSource = 'w0-v3';
         }
       }
-    } catch {
+    } catch (error) {
+      if (declaresSnapshot) throw error;
       // Preserve the legacy fallback when the companion W0 manifest cannot be read.
     }
+  }
+
+  if (requiredPoseSource === 'legacy-default') {
+    const bookId = toStringValue(options.manifest.bookId) ?? toStringValue(order.bookId) ?? inferBookIdFromPathLikes(oneManifestKey, toStringValue(order.assetPrefix), toStringValue(options.manifest.manifestUrl)) ?? (options.manifest.schema === 'lhb.run-manifest@v2.0' ? DEFAULT_BOOK_ID : null);
+    if (!hasLegacyPoseProvenance(bookId, oneManifestSnapshot)) throw new Error('Cannot determine configured pose requirements without readable frozen intake');
   }
 
   return {

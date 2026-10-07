@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BookPageLayerSchema, BookRenderRecipeSchema } from './book-render-contract';
 
 export const BookPageTypeSchema = z.enum([
   'title',
@@ -49,6 +50,7 @@ export const BookSinglePlacementConfigSchema = z.object({
 });
 
 export const BookPageConfigSchema = z.object({
+  layers: z.array(BookPageLayerSchema).optional(),
   index: z.number().int().nonnegative(),
   id: z.string().min(1),
   label: z.string().regex(/^p\d{2,}$/),
@@ -157,6 +159,7 @@ export const BookConfigSchema = z.object({
     }),
   }),
   rendering: z.object({
+    recipe: BookRenderRecipeSchema.optional(),
     preview: z.object({
       interiorPx: MeasurementPixelsSchema,
       coverPx: MeasurementPixelsSchema,
@@ -193,6 +196,14 @@ export const BookConfigSchema = z.object({
   notes: z.record(z.string(), z.unknown()).default({}),
 });
 
+export const BookRenderSnapshotSchema = z.object({
+  schema: z.literal('lhb.book-render-snapshot@v1'),
+  bookConfig: BookConfigSchema,
+  formatId: z.string().min(1),
+});
+
+export type BookRenderSnapshot = z.infer<typeof BookRenderSnapshotSchema>;
+
 export const RunManifestTypeSchema = z.enum(['w0', 'w2a', 'w2b', 'w3', 'w4', 'w4-error']);
 
 export const PlatformSchema = z.enum(['amazon', 'd2c']);
@@ -205,6 +216,7 @@ export const BookConfigRefSchema = z.object({
 });
 
 export const ResolvedBookPlanSchema = z.object({
+  renderSnapshot: BookRenderSnapshotSchema.optional(),
   expectedPageCount: z.number().int().positive(),
   pageLabels: z.array(z.string().regex(/^p\d{2,}$/)).min(1),
   pagePlan: z.array(BookPageConfigSchema).min(1),

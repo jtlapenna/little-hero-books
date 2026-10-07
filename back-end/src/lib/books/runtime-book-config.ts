@@ -331,13 +331,12 @@ async function fetchSinglePublishedBookConfigRow(
   }
 }
 
-function canFallbackToBundled(error: unknown): boolean {
+export function canFallbackToBundled(error: unknown): boolean {
   return (
     error instanceof PublishedBookConfigError &&
     (error.code === 'not-found' ||
       error.code === 'table-missing' ||
-      error.code === 'unavailable' ||
-      error.code === 'invalid-row')
+      error.code === 'unavailable')
   );
 }
 

@@ -1,3 +1,4 @@
+import type { BookSnapshotFields } from '../books/book-snapshot';
 import {
   appendWorkflowJobEvent,
   claimWorkflowJob,
@@ -43,7 +44,7 @@ export interface W2APoseWorkflowReplay {
   baseCharacterKey: string | null;
 }
 
-export interface W2APoseWorkItemLike {
+export interface W2APoseWorkItemLike extends BookSnapshotFields {
   orderId: string;
   rootOrderId?: string | null;
   amazonOrderId?: string | null;
@@ -187,6 +188,7 @@ function buildQueuedSnapshot(input: W2APoseWorkItemLike): JsonRecord {
     amazonOrderId: toTrimmedString(input.amazonOrderId) ?? null,
     bookId: input.bookId,
     formatId: toTrimmedString(input.formatId) ?? null,
+    ...(input.renderSnapshot ? { renderSnapshot: input.renderSnapshot, configVersion: input.configVersion } : {}),
     poseNumber: input.poseNumber,
     currentPoseNumber: toInteger(input.currentPoseNumber) ?? input.poseNumber,
     index: toInteger(input.index) ?? null,

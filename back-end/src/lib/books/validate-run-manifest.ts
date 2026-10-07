@@ -1,3 +1,5 @@
+import { resolvePagePlan } from './resolve-page-plan';
+import { validateRenderSnapshot, requiredRecipePoses } from './book-render-recipe';
 import { RunManifestV3, RunManifestV3Schema } from '@/lib/books/types';
 
 export function validateRunManifest(manifest: unknown): RunManifestV3 {
@@ -31,6 +33,17 @@ export function validateRunManifest(manifest: unknown): RunManifestV3 {
     );
   }
 
+  if (parsed.book.resolved.renderSnapshot) {
+    const snapshot = validateRenderSnapshot(parsed.book.resolved.renderSnapshot, parsed.book.bookConfigRef);
+    const expectedResolved = resolvePagePlan(snapshot.bookConfig, snapshot.formatId);
+    for (const field of ['expectedPageCount', 'pageLabels', 'trimIn', 'bleedIn', 'templates', 'print', 'qaPolicy'] as const) {
+      if (JSON.stringify(expectedResolved[field]) !== JSON.stringify(parsed.book.resolved[field])) throw new Error(`Render snapshot resolved ${field} mismatch`);
+    }
+    const frozenPlan = snapshot.bookConfig.formats[snapshot.formatId].interior.pageSequence;
+    if (JSON.stringify(frozenPlan) !== JSON.stringify(parsed.book.resolved.pagePlan)) throw new Error('Render snapshot page plan mismatch');
+    const required = requiredRecipePoses(snapshot.bookConfig, snapshot.formatId);
+    if (JSON.stringify(required) !== JSON.stringify(parsed.book.resolved.qaPolicy.pose.requiredPoseNumbers)) throw new Error('Render snapshot required poses mismatch');
+  }
   return parsed;
 }
 

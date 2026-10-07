@@ -1,3 +1,5 @@
+import { pagePoseNumbers } from './book-render-recipe';
+import type { BookPageLayer } from './book-render-contract';
 import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
 import type { BookConfig, BookPageConfig, BookPageType } from '@/lib/books/types';
 import type { NormalizedW0Manifest } from '@/lib/books/normalize-w0-manifest';
@@ -108,27 +110,24 @@ export function resolveReviewPageContext(options: {
 
 export function buildReviewPoseAssignments(
   pagePlan: BookPageConfig[],
+  coverLayers: BookPageLayer[] = [],
 ): ReviewPoseAssignment[] {
   const sortedPlan = [...pagePlan].sort((left, right) => left.index - right.index);
   const assignmentByPose = new Map<number, ReviewPoseAssignment>();
 
-  for (const page of sortedPlan) {
-    if (page.poseNumber === null || page.poseNumber === undefined) {
-      continue;
-    }
-
-    if (assignmentByPose.has(page.poseNumber)) {
-      continue;
-    }
-
-    assignmentByPose.set(page.poseNumber, {
-      poseNumber: page.poseNumber,
+  const coverPage: BookPageConfig = { index: -1, id: 'cover', label: 'p00', type: 'title', storyPageNumber: null, backgroundSlot: null, poseNumber: null, overlaySlot: null, required: true, layers: coverLayers };
+  for (const page of [...sortedPlan, coverPage]) {
+    for (const poseNumber of pagePoseNumbers(page)) {
+    if (assignmentByPose.has(poseNumber)) continue;
+    assignmentByPose.set(poseNumber, {
+      poseNumber,
       pageIndex: page.index,
       pageLabel: page.label,
       pageType: page.type,
       storyPageNumber: page.storyPageNumber,
       backgroundSlot: page.backgroundSlot,
     });
+    }
   }
 
   return Array.from(assignmentByPose.values()).sort(
@@ -138,10 +137,10 @@ export function buildReviewPoseAssignments(
 
 export function buildW2APoseWorklist(
   pagePlan: BookPageConfig[],
-  options: { includeZeroPose?: boolean } = {},
+  options: { includeZeroPose?: boolean; coverLayers?: BookPageLayer[] } = {},
 ): W2APoseWorkItem[] {
   const includeZeroPose = options.includeZeroPose ?? true;
-  const assignments = buildReviewPoseAssignments(pagePlan);
+  const assignments = buildReviewPoseAssignments(pagePlan, options.coverLayers);
   const worklist: W2APoseWorkItem[] = [];
 
   if (includeZeroPose && !assignments.some((assignment) => assignment.poseNumber === 0)) {

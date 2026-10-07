@@ -1,3 +1,5 @@
+import { validateRunManifest } from './validate-run-manifest';
+import type { BookRenderSnapshot } from './types';
 import { BookPageConfig, RunManifestV3, RunManifestV3Schema } from '@/lib/books/types';
 
 export interface ManifestDedication {
@@ -7,6 +9,8 @@ export interface ManifestDedication {
 }
 
 export interface NormalizedW0Manifest {
+  renderSnapshot?: BookRenderSnapshot;
+  configVersion?: number;
   schema: string | null;
   orderId: string | null;
   rootOrderId: string | null;
@@ -131,6 +135,8 @@ function normalizeV3Manifest(
     {};
 
   return {
+    renderSnapshot: manifest.book.resolved.renderSnapshot,
+    configVersion: manifest.book.bookConfigRef.version,
     schema: manifest.schema,
     orderId: manifest.order.orderId,
     rootOrderId: manifest.order.rootOrderId,
@@ -223,7 +229,7 @@ export function normalizeW0Manifest(
     if (!parsed.success) {
       throw new Error(`Invalid lhb.run-manifest@v3 payload: ${parsed.error.message}`);
     }
-    return normalizeV3Manifest(parsed.data, options);
+    return normalizeV3Manifest(validateRunManifest(parsed.data), options);
   }
 
   return normalizeLegacyManifest(manifest, options);
