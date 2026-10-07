@@ -1,0 +1,461 @@
+{
+  "schema": "lhb.hosted-book-proof@v1",
+  "bookId": "book-finding-our-inner-voice",
+  "configVersion": 1,
+  "orderId": "TEST-IV-GEN-20261007E",
+  "formatId": "standard",
+  "executionId": "54608",
+  "executionStatus": "success",
+  "lastNode": "Acceptance Tests (3A Phase 5)",
+  "replacedFailedExecution": "54607",
+  "qa": {
+    "pass": true,
+    "checks": [
+      {
+        "label": "schema",
+        "pass": true
+      },
+      {
+        "label": "declared selected labels",
+        "pass": true
+      },
+      {
+        "label": "selected pages present",
+        "pass": true
+      },
+      {
+        "label": "interior dimensions",
+        "pass": true
+      },
+      {
+        "label": "cover dimensions",
+        "pass": true
+      },
+      {
+        "label": "cover PNG present",
+        "pass": true
+      },
+      {
+        "label": "font and cover asset present",
+        "pass": true
+      }
+    ],
+    "reasons": []
+  },
+  "acceptanceVerdict": {
+    "sizesOk": true,
+    "hasAllPages": true,
+    "coverOk": true,
+    "qaPass": true,
+    "matchesCollector": true,
+    "readyToUploadManifest": true
+  },
+  "testOnly": true,
+  "bookStatus": "draft",
+  "readyForBook": false,
+  "pages": [
+    {
+      "label": "cover",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/cover-spread.png",
+      "width": 5203,
+      "height": 2625,
+      "sha256": "9570db07908ef4e4f883558abcf3e3410acf31874d357224b2b42784b5bf4c25"
+    },
+    {
+      "label": "p00",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p00.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "81a2f05b73d479e1a8cd6db71b4ea7f6c788d9d3134be55ef67ef525c93deb84"
+    },
+    {
+      "label": "p01",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p01.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "475a468b880646de1ec28b6034863f6b7d961cec604520b93ead140fc48ebcc2"
+    },
+    {
+      "label": "p02",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p02.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "46024894e8b0eee19c9f08d90d4ae0dc8141c1fbd26509eeb34a84db389875e2"
+    },
+    {
+      "label": "p03",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p03.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "475a468b880646de1ec28b6034863f6b7d961cec604520b93ead140fc48ebcc2"
+    },
+    {
+      "label": "p04",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p04.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "4d5305f25d56150e848180db3318834c51e043230336503485235be9adbe1845"
+    },
+    {
+      "label": "p05",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p05.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "288e62e64bdf5d12122d4a35cf49af54772984a660d00bccd4377cad15a77f2b"
+    },
+    {
+      "label": "p06",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p06.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "da7fe0c373bef92ccc40d8bca586959a49591ec22717fc080272f16a3cc889aa"
+    },
+    {
+      "label": "p07",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p07.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "388df2fef60483f03158c35e4d863514cd7d5d46e027334889db2a97ef71ad0a"
+    },
+    {
+      "label": "p08",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p08.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "3c134561d86a729084ba755f2ea99c618d7ccb665d0597c4e7422bac606324f8"
+    },
+    {
+      "label": "p09",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p09.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "70dfcc3280cbd9905665cad6101527a52412f697a79c4701afaf492af6452985"
+    },
+    {
+      "label": "p10",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p10.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "ae3932b06e3a12f412c579e248ab6472b6128c5c71dfb5410e8de5c3376adc5c"
+    },
+    {
+      "label": "p11",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p11.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "06ef556c6a0a1a640ef82ae59cf7a674785a6890d73650de0fe510383df1fad0"
+    },
+    {
+      "label": "p12",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p12.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "724647947d6fbafe681969426910872866a9fae8d6bfa7202115479e6d8a3b9d"
+    },
+    {
+      "label": "p13",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p13.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "b73d114346c91035001eebb3c13081baf65a73de6a9e1b425c32c33591b1cf12"
+    },
+    {
+      "label": "p14",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p14.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "b0747c8950de31f0b1595c29ea0f775fd40a779f39799ea6bf2165436b8b01fa"
+    },
+    {
+      "label": "p15",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p15.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "d697da3fbae5e270fce35733f1dae76a0e9a620907c12f26301a008f121b1130"
+    },
+    {
+      "label": "p16",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p16.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "a2f091ab2af59f056379d771085d7816cb2ea876114330d3c1e58aeae00fefa7"
+    },
+    {
+      "label": "p17",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p17.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "ccb35b74570e16ed6448ff600d7d72efc9d6b519f4f46be6457341710959f60c"
+    },
+    {
+      "label": "p18",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p18.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "6b41e533ed0d54e41209890b2729a272b794027a63530a48e94c20145be76527"
+    },
+    {
+      "label": "p19",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p19.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "c56ac8250ae31ef3247ad44c6fe378819bfc3a0e327b8444fa08995ef1f81753"
+    },
+    {
+      "label": "p20",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p20.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "4e8ff1095277315d9914222a9b68aa9ee7857601560b23707f40f7de487ae89b"
+    },
+    {
+      "label": "p21",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p21.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "21b93c36ba697a4a4596cfd09fbfea9294e250540acd2d556fc9b2fb94064f4a"
+    },
+    {
+      "label": "p22",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p22.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "5206e60746afc8cfa99330ee07d1404225840eb2c00967d7d3c2b502a187de58"
+    },
+    {
+      "label": "p23",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p23.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "b33c1c703bacc9adde5c564f5429802406d24ea16320b53ee15cc01e1a27a022"
+    },
+    {
+      "label": "p24",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p24.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "34647daaeaf86359a8ed1b5203a0f988cbb7b3f2c95c4ab00f125c05fe3024ce"
+    },
+    {
+      "label": "p25",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p25.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "1d24d5fa03e6e78da4b8b9ab4f7e5fde6659791b12bd549b3d9d281f887d3cba"
+    },
+    {
+      "label": "p26",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p26.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "13145c0a0aa2dfed5e9f825da7ecede0b48b81d5c11502a57098760c24fb65a5"
+    },
+    {
+      "label": "p27",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p27.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "59d8c5f38c77970fd769a058b12d7533f4caef723f40dd1f306bfc758c508ae4"
+    },
+    {
+      "label": "p28",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p28.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "475a468b880646de1ec28b6034863f6b7d961cec604520b93ead140fc48ebcc2"
+    },
+    {
+      "label": "p29",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p29.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "73ca3164450afbdbe2c8407409d43a331c93aac8a67731ab06d61709c9a9759b"
+    },
+    {
+      "label": "p30",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p30.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "c6e56d7ea31284b3ab990c3764c3ac182ea1a05cc5ef717f31fe8796725c71ff"
+    },
+    {
+      "label": "p31",
+      "key": "book-finding-our-inner-voice/orders/TEST-IV-GEN-20261007E/preview-images/p31.png",
+      "width": 2625,
+      "height": 2625,
+      "sha256": "475a468b880646de1ec28b6034863f6b7d961cec604520b93ead140fc48ebcc2"
+    }
+  ],
+  "fixtureState": {
+    "jobs": [
+      {
+        "id": 389,
+        "status": "canceled",
+        "stage": "3"
+      },
+      {
+        "id": 390,
+        "status": "succeeded",
+        "stage": "3"
+      },
+      {
+        "id": 371,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 372,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 362,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 373,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 363,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 364,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 374,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 365,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 366,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 367,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 368,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 369,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 370,
+        "status": "succeeded",
+        "stage": "2a"
+      },
+      {
+        "id": 387,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 377,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 378,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 375,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 388,
+        "status": "succeeded",
+        "stage": "3"
+      },
+      {
+        "id": 376,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 379,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 380,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 381,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 382,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 383,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 384,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 385,
+        "status": "succeeded",
+        "stage": "2b"
+      },
+      {
+        "id": 386,
+        "status": "succeeded",
+        "stage": "2b"
+      }
+    ],
+    "order": {
+      "orderId": "TEST-IV-GEN-20261007E",
+      "status": "pending_assembly_review",
+      "execution_status": "done",
+      "current_workflow": null,
+      "next_workflow": null,
+      "customer_email": null,
+      "customer_approval_status": null,
+      "customer_approval_requested_at": null,
+      "customer_approval_approved_at": null
+    }
+  },
+  "proofPdf": "output/book-revamp/configured-book-2026-10-07/standard-personalized-hosted-book-proof.pdf",
+  "pdfPageCount": 18,
+  "visualReview": {
+    "inspected": "All 32 interiors and the cover were inspected through full-page contact sheets. The repaired flying pose was inspected separately; PDF page count was verified.",
+    "creativeLimits": [
+      "Cream copy panels obscure pose regions on printed pages 9, 14 and 26",
+      "Character scale, position, gaze and expression remain draft",
+      "Static waiting-child placeholder, clue placement, cover slide, activity, credits and print geometry remain pending",
+      "The empty dedication fixture leaves a provisional panel; final copy approval remains pending"
+    ],
+    "scope": "Technical proof only. Customer launch and paid print remain unapproved."
+  }
+}
