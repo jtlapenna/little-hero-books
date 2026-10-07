@@ -1,5 +1,7 @@
+import { readOrderPoseContext } from '@/lib/books/order-pose-context';
+import { extractOrderPrefixFromPathLike } from '@/lib/order-paths';
 import { NextRequest, NextResponse } from 'next/server';
-import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
+import { getObject as storageGetObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import {
   buildBaseCharacterAssetKey,
   buildManifestKeyCandidates,
@@ -87,10 +89,13 @@ function ensureManifestRevisions(
  * - includePreviousOption?: boolean (default: true for subsequent revisions, false for first)
  * - previousOptionR2Key?: string (required if includePreviousOption is true)
  */
-export async function POST(
+export async function regeneratePoseResponse(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
+  options: { getObject?: typeof storageGetObject; readPoseContext?: typeof readOrderPoseContext } = {},
 ) {
+  const getObject = options.getObject ?? storageGetObject;
+  const readPoseContext = options.readPoseContext ?? readOrderPoseContext;
   try {
     console.log('[Regenerate Pose API] Request received');
     const { orderId } = await params;
@@ -115,9 +120,9 @@ export async function POST(
     } = body;
 
     // Validation
-    if (typeof poseNumber !== 'number' || poseNumber < 0 || poseNumber > 12) {
+    if (!Number.isInteger(poseNumber) || poseNumber < 0 || poseNumber > 99) {
       return NextResponse.json(
-        { error: 'Invalid poseNumber: must be a number between 0 and 12' },
+        { error: 'Invalid poseNumber: must be an integer between 0 and 99' },
         { status: 400 }
       );
     }
@@ -206,6 +211,12 @@ export async function POST(
     const poseRevisionsFromPending = currentPendingRevision && isWithinLastHour(currentPendingRevision) ? 1 : 0;
 
     const poseRevisionsInLastHour = poseRevisionsFromHistory + poseRevisionsFromPending;
+
+    const poseOrderPrefix = extractOrderPrefixFromPathLike(manifestKey);
+    if (!poseOrderPrefix) return NextResponse.json({ error: 'Invalid pose manifest path' }, { status: 400 });
+    const poseBookId = poseOrderPrefix.split('/orders/')[0];
+    const frozenPoseContext = await readPoseContext({ bookId: poseBookId, orderPrefix: poseOrderPrefix });
+    if (!frozenPoseContext.allowed.includes(poseNumber)) return NextResponse.json({ error: 'Pose is not part of this order' }, { status: 400 });
 
     // Count total revisions for this order in the last hour (from history)
     const orderRevisionsFromHistory = revisions.history.filter((rev) => {
@@ -298,7 +309,7 @@ export async function POST(
       });
 
     // Get pose reference key (static template)
-    const poseRefKey = buildPoseReferenceAssetKey(resolvedBookId, poseNumber);
+    const poseRefKey = frozenPoseContext.referenceKeys[String(poseNumber)];
 
     // Get base character key
     const baseCharacterKey = buildBaseCharacterAssetKey(characterHash, resolvedBookId);
@@ -738,4 +749,8 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: NextRequest, context: { params: Promise<{ orderId: string }> }) {
+  return regeneratePoseResponse(request, context);
 }

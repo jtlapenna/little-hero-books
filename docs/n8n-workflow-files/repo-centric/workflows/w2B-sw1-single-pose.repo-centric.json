@@ -477,7 +477,7 @@
         "url": "https://admin.littleherolabs.com/api/normalize-pose-scale",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"imageUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/{{ $('Prep Upload').item.json.bgRemovedKey }}\",\n  \"poseNumber\": {{ $('Prep Upload').item.json.poseNumber }},\n  \"characterHash\": \"{{ $('Prep Upload').item.json.characterHash }}\"\n}",
+        "jsonBody": "={\n  \"imageUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/{{ $('Prep Upload').item.json.bgRemovedKey }}\",\n  \"orderId\": \"{{ $('Prep Upload').item.json.orderId }}\",\n  \"bookId\": \"{{ $('Prep Upload').item.json.bookId }}\",\n  \"poseNumber\": {{ $('Prep Upload').item.json.poseNumber }},\n  \"characterHash\": \"{{ $('Prep Upload').item.json.characterHash }}\"\n}",
         "options": {
           "timeout": 30000
         }

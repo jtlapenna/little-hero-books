@@ -1,3 +1,5 @@
+import { normalizeW0Manifest } from '@/lib/books/normalize-w0-manifest';
+import { frozenPoseReferenceKeys, orderReviewPoseNumbers } from '@/lib/books/order-pose-context';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCharacterAssets, downloadManifest } from '@/lib/r2-service';
 import { Order, SharedImageInfo } from '@/types/order';
@@ -197,9 +199,13 @@ async function getOrder(
     fallbackFormatId === 'amazon' ||
     order.platform === 'amazon' ||
     Boolean(order.amazonOrderId);
+  const intakeRaw = await downloadManifest(`${manifestOrderPrefix}/manifests/1-manifest.json`).catch(() => null);
+  const intakeSnapshot = intakeRaw ? normalizeW0Manifest(intakeRaw) : null;
   let reviewPageContext: ReturnType<typeof resolveReviewPageContext>;
 
-  if (reviewBookIdHint) {
+  if (intakeSnapshot?.renderSnapshot) {
+    reviewPageContext = resolveReviewPageContext({ snapshot: intakeSnapshot });
+  } else if (reviewBookIdHint) {
     try {
       const runtimeBookConfig = await loadRuntimeBookConfig({
         bookId: reviewBookIdHint,
@@ -224,6 +230,7 @@ async function getOrder(
   }
 
   order.bookContext = {
+    poseReferenceKeys: frozenPoseReferenceKeys(intakeSnapshot),
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {
@@ -546,7 +553,7 @@ async function getOrder(
       : null;
 
   reviewPageContext = resolveReviewPageContext({
-    snapshot: postBriaManifestSnapshot?.oneManifestSnapshot ?? null,
+    snapshot: postBriaManifestSnapshot?.oneManifestSnapshot ?? intakeSnapshot,
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     isAmazonOrder:
@@ -556,6 +563,7 @@ async function getOrder(
   });
 
   order.bookContext = {
+    poseReferenceKeys: frozenPoseReferenceKeys(postBriaManifestSnapshot?.oneManifestSnapshot ?? intakeSnapshot),
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {
@@ -636,6 +644,7 @@ async function getOrder(
   const manifestEntries = manifest?.entries || [];
   const expectedPoseCount = manifest?.poses?.total || manifestEntries.length || preBriaManifestEntries.length || postBriaManifestEntries.length || 13; // Default to 13 if not specified
   
+  const reviewPoseNumbers = orderReviewPoseNumbers({ frozen: postBriaManifestSnapshot?.oneManifestSnapshot ?? intakeSnapshot, legacyCount: expectedPoseCount });
   // Create a map of existing assets by pose number for quick lookup
   // Use order updated_at timestamp for cache-busting to ensure fresh images after workflow reruns
   // This ensures that when workflow 2A reruns and overwrites images, we get fresh URLs
@@ -670,7 +679,7 @@ async function getOrder(
   // Build complete list of pre-Bria poses, including placeholders for missing/exhausted ones
   // Use preBriaManifestEntries for flag data (flags are saved to 2a manifest)
   const preBriaPoses: any[] = [];
-  for (let poseNum = 0; poseNum < expectedPoseCount; poseNum++) {
+  for (const poseNum of reviewPoseNumbers) {
     const existingPose = existingPreBriaMap.get(poseNum);
     const manifestEntry = preBriaManifestEntries.find((e: any) => e.poseNumber === poseNum);
     
@@ -743,7 +752,9 @@ async function getOrder(
   
   // Create map of existing post-Bria poses by poseNumber
   const existingPostBriaMap = new Map(existingPostBriaPoses.map(p => [p.poseNumber, p]));
-  const postBriaPoseNumbers = postBriaManifestSnapshot
+  const postBriaPoseNumbers = intakeSnapshot?.renderSnapshot
+    ? reviewPoseNumbers
+    : postBriaManifestSnapshot
     ? Array.from(
         new Set([
           ...postBriaManifestSnapshot.availablePoseNumbers,
@@ -751,7 +762,7 @@ async function getOrder(
           ...existingPostBriaMap.keys(),
         ]),
       ).sort((left, right) => left - right)
-    : Array.from({ length: expectedPoseCount }, (_, index) => index);
+    : reviewPoseNumbers;
   
   // Build complete list of post-Bria poses
   const postBriaPoses: any[] = [];

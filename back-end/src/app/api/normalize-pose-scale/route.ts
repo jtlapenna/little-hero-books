@@ -1,3 +1,6 @@
+import { readOrderPoseContext } from '@/lib/books/order-pose-context';
+import { loadBundledBookConfig } from '@/lib/books/load-book-config';
+import { buildOrderPrefix } from '@/lib/order-paths';
 import { NextRequest, NextResponse } from 'next/server';
 import { extractBookIdFromPathLike } from '@/lib/order-paths';
 import { extractR2Key } from '@/lib/r2-utils';
@@ -8,7 +11,8 @@ export const maxDuration = 30;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageUrl, poseNumber, characterHash, bookId, mode } = body as {
+    const { imageUrl, poseNumber, characterHash, bookId, mode, orderId } = body as {
+      orderId?: unknown;
       imageUrl?: unknown;
       poseNumber?: unknown;
       characterHash?: unknown;
@@ -34,7 +38,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const resolvedBookId = (typeof bookId === 'string' && bookId.trim()) || extractBookIdFromPathLike(imageKey);
+    let referenceKey: string | undefined;
+    if (typeof orderId === 'string' && resolvedBookId) {
+      const context = await readOrderPoseContext({ bookId: resolvedBookId, orderPrefix: buildOrderPrefix(orderId, resolvedBookId) });
+      if (!context.allowed.includes(poseNumber)) throw new Error('Pose is not part of this order');
+      referenceKey = context.referenceKeys[String(poseNumber)];
+    } else if (resolvedBookId) {
+      let legacy = false;
+      try { legacy = !loadBundledBookConfig({ bookId: resolvedBookId }).rendering.recipe; } catch { /* Unknown recipe needs order provenance. */ }
+      if (!legacy) throw new Error('Configured pose normalization requires orderId');
+    }
     const result = await normalizePoseScaleAsset({
+      referenceKey,
       imageKey,
       poseNumber,
       characterHash: typeof characterHash === 'string' ? characterHash : null,

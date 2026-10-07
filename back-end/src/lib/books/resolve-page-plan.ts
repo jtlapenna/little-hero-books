@@ -1,3 +1,5 @@
+import { validateBookRenderRecipe, requiredRecipePoses } from './book-render-recipe';
+import { BookRenderSnapshotSchema } from './types';
 import { getBookFormatConfig } from '@/lib/books/load-book-config';
 import { BookConfig, BookPageConfig, ResolvedBookPlan } from '@/lib/books/types';
 
@@ -33,6 +35,7 @@ export function resolvePagePlan(config: BookConfig, formatId?: string): Resolved
     );
   }
 
+  validateBookRenderRecipe(config, format.formatId);
   assertSequentialPageIndexes(pagePlan);
   assertUniqueLabels(pagePlan);
 
@@ -44,7 +47,8 @@ export function resolvePagePlan(config: BookConfig, formatId?: string): Resolved
     bleedIn: format.bleedIn,
     templates: format.templates,
     print: format.print,
-    qaPolicy: config.qa,
+    qaPolicy: config.rendering.recipe ? { ...config.qa, pose: { ...config.qa.pose, requiredPoseNumbers: requiredRecipePoses(config, format.formatId) } } : config.qa,
+    ...(config.rendering.recipe ? { renderSnapshot: BookRenderSnapshotSchema.parse({ schema: 'lhb.book-render-snapshot@v1', bookConfig: config, formatId: format.formatId }) } : {}),
   };
 }
 

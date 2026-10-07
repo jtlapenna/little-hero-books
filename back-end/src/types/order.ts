@@ -21,6 +21,7 @@ export interface OrderBookPagePlanEntry {
 }
 
 export interface OrderBookContext {
+  poseReferenceKeys?: Record<string, string>;
   bookId?: string | null;
   formatId?: string | null;
   orderPrefix: string;

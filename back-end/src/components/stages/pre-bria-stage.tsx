@@ -316,7 +316,7 @@ export function PreBriaStage({ orderId, order, isApproved, onApprove, onInitiate
         // Build reference pose URL for comparison
         const paddedPoseNumber = String(poseNumber).padStart(2, '0');
         const referencePoseUrl = buildAssetApiUrl(
-          buildPoseReferenceAssetKey(referenceBookId, poseNumber),
+          order.bookContext?.poseReferenceKeys?.[String(poseNumber)] ?? buildPoseReferenceAssetKey(referenceBookId, poseNumber),
         );
         
         // Check for pending revision

@@ -1,3 +1,6 @@
+import { loadBundledBookConfig } from '@/lib/books/load-book-config';
+import { canFallbackToBundled } from '@/lib/books/runtime-book-config';
+import { validateRenderSnapshot } from '@/lib/books/book-render-recipe';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyBearerAuth } from "@/lib/auth";
 import { downloadManifest } from "@/lib/r2-service";
@@ -223,6 +226,10 @@ export async function resolveW2APoseWorklistResponse(
   const resolvedFormatId =
     oneManifestSnapshot?.formatId ?? resolveFormatId(body);
 
+  let renderSnapshot = oneManifestSnapshot?.renderSnapshot;
+  if (renderSnapshot) {
+    for (const context of [body, orderContext]) validateRenderSnapshot(renderSnapshot, { bookId: toTrimmedString(context.bookId), formatId: toTrimmedString(context.formatId), version: toPositiveInt(context.configVersion) ?? toPositiveInt(context.version) });
+  }
   let pagePlanSource: "w0-v3" | "runtime-config" | "legacy-default";
   let pagePlan;
   let pageLabels;
@@ -240,18 +247,25 @@ export async function resolveW2APoseWorklistResponse(
     pageLabels = reviewContext.pageLabels;
     expectedPageCount = reviewContext.expectedPageCount;
   } else {
+    let configuredRecipe = false;
     try {
       const config = await (options.loadBookConfig ?? loadRuntimeBookConfig)({
         bookId: resolvedBookId,
         version: configVersion,
         source: configSource,
       });
+      configuredRecipe = !!config.rendering.recipe;
+      if (configuredRecipe && orderId) throw new Error('Configured order requires its frozen W0 snapshot');
       const resolvedPlan = resolvePagePlan(config, resolvedFormatId);
+      renderSnapshot = resolvedPlan.renderSnapshot;
       pagePlanSource = "runtime-config";
       pagePlan = resolvedPlan.pagePlan;
       pageLabels = resolvedPlan.pageLabels;
       expectedPageCount = resolvedPlan.expectedPageCount;
-    } catch {
+    } catch (error) {
+      if (configuredRecipe || !canFallbackToBundled(error)) throw error;
+      const legacyConfig = loadBundledBookConfig({ bookId: resolvedBookId });
+      if (legacyConfig.rendering.recipe) throw error;
       const fallbackContext = resolveReviewPageContext({
         snapshot: null,
         bookId: resolvedBookId,
@@ -267,6 +281,7 @@ export async function resolveW2APoseWorklistResponse(
 
   const poseWorklist = buildW2APoseWorklist(pagePlan, {
     includeZeroPose,
+    coverLayers: renderSnapshot?.bookConfig.rendering.recipe?.covers[resolvedFormatId].layers,
   });
   const requiredPoseNumbers = poseWorklist
     .map((item) => item.poseNumber)
@@ -286,6 +301,7 @@ export async function resolveW2APoseWorklistResponse(
       amazonOrderId,
       bookId: resolvedBookId,
       formatId: resolvedFormatId,
+      ...(renderSnapshot ? { renderSnapshot, configVersion: renderSnapshot.bookConfig.version } : {}),
       oneManifestKey,
       backendUrl,
       publicR2Url,

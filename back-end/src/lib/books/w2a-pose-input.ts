@@ -1,3 +1,5 @@
+import { resolveWorkflowBookConfig, type BookSnapshotFields, type WorkflowBookConfigOptions } from './book-snapshot';
+import { resolveRecipePoseReference } from './book-render-recipe';
 import { resolvePreviewCanonicalsForConfig } from '@/lib/preview-canonicals';
 import {
   buildAssetApiUrl,
@@ -7,7 +9,6 @@ import {
   resolveOrderPathContext,
 } from '@/lib/order-paths';
 import {
-  loadRuntimeBookConfig,
   type BookConfigRuntimeSource,
 } from '@/lib/books/runtime-book-config';
 import type { BookConfig } from '@/lib/books/types';
@@ -38,7 +39,7 @@ export interface W2APosePromptMeta {
   hasHairRef: boolean;
 }
 
-export interface BuildW2APoseInputResult {
+export interface BuildW2APoseInputResult extends BookSnapshotFields {
   orderId: string;
   rootOrderId: string | null;
   amazonOrderId: string | null;
@@ -84,7 +85,7 @@ export interface BuildW2APoseInputResult {
   promptMeta: W2APosePromptMeta;
 }
 
-export interface BuildW2APoseInputOptions {
+export interface BuildW2APoseInputOptions extends WorkflowBookConfigOptions {
   loadConfig?: LoadConfigForW2APoseInput;
   defaultBackendUrl?: string;
   defaultPublicR2Url?: string | null;
@@ -337,6 +338,8 @@ function resolvePoseReferenceKey(
   poseNumber: number,
   characterSpecs: JsonRecord,
 ): string {
+  const namedReference = resolveRecipePoseReference(config, poseNumber);
+  if (namedReference) return namedReference;
   const poseVariantKey = extractSkinToneVariantKey(characterSpecs);
   const variantBasePath =
     (poseVariantKey && config.assets.poses.skinToneVariantPaths[poseVariantKey]) || null;
@@ -546,7 +549,6 @@ export async function buildW2APoseInput(
     pathLikes,
   });
 
-  const loadConfig = options.loadConfig ?? loadRuntimeBookConfig;
   const configSource = normalizeConfigSource(
     pickFirstNonEmpty(input.configSource, orderContext.configSource, compatSnapshot.configSource),
   );
@@ -558,11 +560,8 @@ export async function buildW2APoseInput(
       compatSnapshot.configVersion,
     ),
   );
-  const config = await loadConfig({
-    bookId,
-    version: configVersion ?? undefined,
-    source: configSource,
-  });
+  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId: resolveFormatId(input, orderContext), version: configVersion ?? undefined, source: configSource }, options);
+  const config = frozenConfig.config;
   const formatId = resolveFormatId(input, orderContext);
 
   const explicitBackendUrl = normalizeLikelyUrl(
@@ -719,6 +718,7 @@ export async function buildW2APoseInput(
   );
 
   return {
+    ...(frozenConfig.renderSnapshot ? { renderSnapshot: frozenConfig.renderSnapshot, configVersion: config.version } : {}),
     orderId,
     rootOrderId:
       toTrimmedString(
