@@ -161,7 +161,7 @@ function buildRepresentativeW0Manifest(
     characterHash: 'integrityhash001',
     input: {
       characterSpecs: buildRepresentativeCharacterSpecs(),
-      bookSpecs: { formatId },
+      bookSpecs: { formatId, ...(config.rendering.recipe && config.status === 'draft' ? { testMode: true } : {}) },
       orderDetails: { quantity: 1 },
       dedicationText: 'For Integrity',
     },

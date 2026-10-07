@@ -1,3 +1,4 @@
+import { parseW3PageSelection, selectW3Pages } from '@/lib/books/w3-page-selection';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
 type JsonRecord = Record<string, unknown>;
@@ -19,7 +20,7 @@ export interface PrepareW3AssemblyRunResult extends JsonRecord {
   requiredPoseNumbers: unknown[];
   requiredPoseSource: string;
   dedicationText: string | null;
-  testModePages: number;
+  testModePages: number | number[];
   isAmazonOrder: boolean;
   expectedPageCount: number;
 }
@@ -201,12 +202,13 @@ export function prepareW3AssemblyRun(input: JsonRecord): PrepareW3AssemblyRunRes
     throw new Error('Missing required order data: orderId or characterHash');
   }
 
-  if (!processedImages.length) {
+  if (!processedImages.length && !(payload.renderSnapshot && Array.isArray(payload.requiredPoseNumbers) && payload.requiredPoseNumbers.length === 0)) {
     throw new Error('No processed images received from Workflow 2B');
   }
 
   const testMode = toBoolean(payload.testMode);
-  const testModePages = toInteger(payload.testModePages ?? (testMode ? 2 : 0)) ?? 0;
+  const selector = payload.testModePages ?? (testMode ? 2 : 0);
+  const testModePages = parseW3PageSelection(selector);
   const numericExpected = toInteger(payload.expectedPageCount);
   const expectedPageCount =
     pagePlan.length > 0
@@ -222,7 +224,7 @@ export function prepareW3AssemblyRun(input: JsonRecord): PrepareW3AssemblyRunRes
     status: 'book_assembly_in_progress',
     assemblyStartedAt: new Date().toISOString(),
     pagesGenerated: 0,
-    totalPagesRequired: expectedPageCount,
+    totalPagesRequired: payload.renderSnapshot ? selectW3Pages(pagePlan.map(page => ({ ...page, index: Number(page.index) })), testModePages).length : expectedPageCount,
     assemblyProgress: 0,
     orderId,
     amazonOrderId,

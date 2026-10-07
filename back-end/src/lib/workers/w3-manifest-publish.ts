@@ -1,3 +1,4 @@
+import { resolveW3ManifestOptions } from '@/lib/books/w3-manifest';
 import { buildW3Manifest, type BuildW3ManifestResult } from '@/lib/books';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
@@ -25,6 +26,7 @@ export interface PublishW3ManifestOptions {
   updateOrderImpl?: UpdateOrderImpl;
   putObjectImpl?: PutObjectImpl;
   now?: Date;
+  loadManifestImpl?: (key: string) => Promise<unknown | null>;
 }
 
 export interface PublishW3ManifestResult extends BuildW3ManifestResult {
@@ -101,7 +103,7 @@ function buildOrderPatch(input: {
     manifest_3_url: input.built.manifest3Url,
     status: 'pending_assembly_review',
     review_stages: input.mergedReviewStages,
-    next_workflow: '4',
+    next_workflow: toRecord(input.built.manifest.summary).readyForBook === false ? null : '4',
     execution_status: 'done',
     started_at: null,
     current_workflow: null,
@@ -114,7 +116,7 @@ export async function publishW3Manifest(
   input: PublishW3ManifestInput,
   options: PublishW3ManifestOptions = {},
 ): Promise<PublishW3ManifestResult> {
-  const built = buildW3Manifest(input);
+  const built = buildW3Manifest(input, await resolveW3ManifestOptions(input, options.loadManifestImpl));
   const backendUrl =
     firstString(input.backendUrl, (built as JsonRecord).backendUrl) ??
     resolveCanonicalBackendBaseUrl();

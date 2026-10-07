@@ -51,7 +51,9 @@ export function buildW0RunManifestFromConfig(
   const createdAt = input.createdAt ?? new Date().toISOString();
   const runId = input.runId ?? `w0-${input.orderId}-${Date.now()}`;
   const rootOrderId = input.rootOrderId ?? input.orderId;
+  if (config.rendering.recipe && config.status === 'draft' && input.input?.bookSpecs?.testMode !== true) throw new Error('Draft configured book intake requires bookSpecs.testMode:true');
   const resolved = resolvePagePlan(config, input.formatId);
+  if (resolved.renderSnapshot) resolved.renderSnapshot.testOnly = input.input?.bookSpecs?.testMode === true;
   const formatId = input.formatId ?? config.defaultFormatId;
   const orderPrefix = config.assets.generated.orderPrefix.replaceAll('{orderId}', input.orderId);
   const manifestKey = `${orderPrefix}/manifests/1-manifest.json`;

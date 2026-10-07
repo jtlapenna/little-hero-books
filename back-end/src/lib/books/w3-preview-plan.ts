@@ -1,3 +1,6 @@
+import { parseW3PageSelection, selectW3Pages } from './w3-page-selection';
+import { renderConfiguredBook } from './configured-book-rendering';
+import { validateRenderSnapshot } from './book-render-recipe';
 import {
   buildBgRemovedPoseAssetKey,
   buildOrderPrefix,
@@ -1671,6 +1674,21 @@ export function buildW3PreviewPlan(
     } catch {
       bookConfig = null;
     }
+  }
+  let snapshot = input.renderSnapshot;
+  if (snapshot === undefined && bookConfig?.rendering.recipe) snapshot = resolvePagePlan(bookConfig, explicitFormatId ?? undefined).renderSnapshot;
+  if (snapshot !== undefined) {
+    const frozen = validateRenderSnapshot(snapshot, { bookId, formatId: explicitFormatId, version: input.configVersion == null ? undefined : Number(input.configVersion) });
+    const backendUrl = resolveBackendUrl(input);
+    const rendered = renderConfiguredBook({ ...input, backendUrl }, frozen, options);
+    const config = rendered.config;
+    const base = { ...input, orderId, amazonOrderId, rootOrderId, bookId, backendUrl, orderR2BaseKey: resolveOrderR2BaseKey(input, orderId, bookId), formatId: rendered.formatId, configVersion: config.version, renderSnapshot: frozen, renderingSchema: config.rendering.recipe!.schema, bookStatus: config.status, testOnly: Boolean(frozen.testOnly || config.status === 'draft' || input.testMode === true || input.testOnly === true), pagePlan: rendered.pageBlocks.map(block => block.page), pageLabels: rendered.pageBlocks.map(block => block.page.label), backgroundImages: rendered.backgroundImages, overlayImages: rendered.overlayImages, animalImages: rendered.animalImages, processedImages: rendered.processedImages, characterImages: rendered.characterImages, storyTexts: rendered.storyTexts, animalDisplayName: rendered.animalDisplayName, trailType: rendered.trailType, pronounsResolved: rendered.pronounsResolved, pronounsExtracted: toTrimmedString(toRecord(input.characterSpecs).pronouns) ?? '', inputs: buildNormalizedInputs(input), renderContext: { ...buildRenderContext(input), font: config.assets.fonts.primary, coversBg: rendered.coverKey, coversBgAmazon: rendered.coverKey, preview: config.rendering.preview }, coverSpreadImagePath: `${backendUrl}/api/assets/${rendered.coverKey}` };
+    const interior: InteriorHtmlResult = { pages_html: rendered.pageBlocks.map(block => block.html).join(''), interiorPagesHTML: rendered.pageBlocks.map(block => block.html), page_css: rendered.page_css, pageBlocks: rendered.pageBlocks, useImgBackgrounds: true, pdfMonkeyImageTemplateId: config.rendering.recipe!.pagePreviewTemplateId, pdfMonkeyTemplateId: config.rendering.recipe!.pagePreviewTemplateId, pdfFilename: config.rendering.pdf.interiorFilenamePattern.replaceAll('{orderId}', orderId) };
+    const coverImageFilename = 'cover-spread.png', coverImageR2Key = `${base.orderR2BaseKey}/preview-images/${coverImageFilename}`;
+    const coverPreviewItem = { ...base, coverHTML: rendered.coverHTML, cover_html: rendered.coverHTML, coverImageFilename, coverImageR2Key, coverPngFilename: coverImageFilename, coverPngR2Key: coverImageR2Key, workflowJobId: toInteger(input.workflowJobId), workflowJobIdempotencyKey: toTrimmedString(input.workflowJobIdempotencyKey), workflowJobStatus: toTrimmedString(input.workflowJobStatus), workflowAttemptId: toInteger(input.workflowAttemptId), workflowAttempt: toInteger(input.workflowAttempt), workflowClaimed: toBoolean(input.workflowClaimed), pdfMonkeyCoverTemplateId: rendered.coverTemplateId, pdfMonkeyImageTemplateId: rendered.coverTemplateId, pdfMonkeyTemplateId: rendered.coverTemplateId };
+    const pagePreviewItems = buildPagePreviewItems({ ...base, testModePages: parseW3PageSelection(input.testModePages) }, interior);
+    selectW3Pages(rendered.pageBlocks.map(block => block.page), parseW3PageSelection(input.testModePages));
+    return { ...base, ...interior, selectedPageLabels: pagePreviewItems.map(item => item.pageLabel), pagePreviewItems, coverPreviewItem } as BuildW3PreviewPlanResult;
   }
   const sortedPagePlan = [...pagePlan].sort((left, right) => left.index - right.index);
   const inputs = buildNormalizedInputs(input);

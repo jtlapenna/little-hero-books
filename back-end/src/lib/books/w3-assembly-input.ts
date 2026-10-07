@@ -1,3 +1,4 @@
+import { parseW3PageSelection } from './w3-page-selection';
 import { validateRenderSnapshot, snapshotPoseReferenceKeys, pagePoseNumbers, coverPoseNumbers } from './book-render-recipe';
 import type { BookSnapshotFields } from './book-snapshot';
 import {
@@ -72,7 +73,7 @@ export interface BuildW3AssemblyInputResult extends BookSnapshotFields {
   missingBgRemovedPoseNumbers: number[];
   dedicationText: string | null;
   testMode: boolean;
-  testModePages: number;
+  testModePages: number | number[];
   characterSpecs: JsonRecord;
   bookSpecs: JsonRecord;
   orderDetails: JsonRecord;
@@ -760,14 +761,13 @@ export async function buildW3AssemblyInput(
   const testMode = toBoolean(
     pickFirstNonEmpty(primary.testMode, nested.testMode, orderContext.testMode, false),
   );
-  const testModePages = toInteger(
-    pickFirstNonEmpty(
+  const testModeSelector = pickFirstNonEmpty(
       primary.testModePages,
       nested.testModePages,
       orderContext.testModePages,
       testMode ? 2 : 0,
-    ),
-  ) ?? 0;
+    );
+  const testModePages = parseW3PageSelection(testModeSelector);
 
   const pathLikes = collectPathLikes(primary, nested, orderContext);
   const explicitOrderId = toTrimmedString(

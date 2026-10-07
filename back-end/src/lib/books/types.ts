@@ -197,6 +197,7 @@ export const BookConfigSchema = z.object({
 });
 
 export const BookRenderSnapshotSchema = z.object({
+  testOnly: z.boolean().optional(),
   schema: z.literal('lhb.book-render-snapshot@v1'),
   bookConfig: BookConfigSchema,
   formatId: z.string().min(1),

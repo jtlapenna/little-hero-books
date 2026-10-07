@@ -1,0 +1,2609 @@
+{
+  "schema": "lhb.draft-asset-inventory@v1",
+  "bookId": "book-finding-our-inner-voice",
+  "version": 1,
+  "namespace": "book-finding-our-inner-voice/v1",
+  "manuscriptSha256": "db33f2fd86947ae211b5a20c9a8890ceea8491dc268383ea537df1f99a9f9115",
+  "configSha256": "17b2d420786412f48fb9756b6e4ebf9fc5d8fe2a7ea6e3a8ff3af089fc7392dc",
+  "artworkApproval": "pending",
+  "splits": [
+    {
+      "masterId": "s10-11-bedroom-forest",
+      "sourceSha256": "4b2405111f7f5cd281ce0346ab068408f1ee4d289e7619757a851463bc8eebc7",
+      "masterSize": [
+        4096,
+        2048
+      ],
+      "rectangles": [
+        [
+          0,
+          0,
+          2048,
+          2048
+        ],
+        [
+          2048,
+          0,
+          2048,
+          2048
+        ]
+      ],
+      "pixelIdenticalRejoin": true
+    },
+    {
+      "masterId": "s12-13-footprints-bush",
+      "sourceSha256": "e34158ec7767a2456779553d653619ef09d8ebe4e2da1e3f0aa85b368a155eb2",
+      "masterSize": [
+        4096,
+        2048
+      ],
+      "rectangles": [
+        [
+          0,
+          0,
+          2048,
+          2048
+        ],
+        [
+          2048,
+          0,
+          2048,
+          2048
+        ]
+      ],
+      "pixelIdenticalRejoin": true
+    },
+    {
+      "masterId": "s14-15-chaos-breath-path",
+      "sourceSha256": "a7a97be4dcdb1c9357c80adfa916700109fb91dffb3b29afa584dc705857f476",
+      "masterSize": [
+        4096,
+        2048
+      ],
+      "rectangles": [
+        [
+          0,
+          0,
+          2048,
+          2048
+        ],
+        [
+          2048,
+          0,
+          2048,
+          2048
+        ]
+      ],
+      "pixelIdenticalRejoin": true
+    },
+    {
+      "masterId": "s20-21-softened-wall",
+      "sourceSha256": "39438144fb3971960caaee66a1c2c8c3af89710603d5005b2b46072038b4cb87",
+      "masterSize": [
+        4096,
+        2048
+      ],
+      "rectangles": [
+        [
+          0,
+          0,
+          2048,
+          2048
+        ],
+        [
+          2048,
+          0,
+          2048,
+          2048
+        ]
+      ],
+      "pixelIdenticalRejoin": true
+    },
+    {
+      "masterId": "s22-23-cave-clearing",
+      "sourceSha256": "e1bff9ed73cf4acee22689e9fbb349f5cbe54d6cd966e7081c34d9a54c5b60d5",
+      "masterSize": [
+        4096,
+        2048
+      ],
+      "rectangles": [
+        [
+          0,
+          0,
+          2048,
+          2048
+        ],
+        [
+          2048,
+          0,
+          2048,
+          2048
+        ]
+      ],
+      "pixelIdenticalRejoin": true
+    }
+  ],
+  "assets": [
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/cover-standard.png",
+      "sha256": "2e53749b46349e483b5e1a8198b69e7717b3e638f9a5c8e66966f8cffc175124",
+      "width": 4096,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/cover-background.png",
+      "sourceSha256": "2e53749b46349e483b5e1a8198b69e7717b3e638f9a5c8e66966f8cffc175124",
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "cover-background"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/cover-amazon.png",
+      "sha256": "2e53749b46349e483b5e1a8198b69e7717b3e638f9a5c8e66966f8cffc175124",
+      "width": 4096,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/cover-background.png",
+      "sourceSha256": "2e53749b46349e483b5e1a8198b69e7717b3e638f9a5c8e66966f8cffc175124",
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "cover-background"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_03.png",
+      "sha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p03-dedication.png",
+      "sourceSha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        2048,
+        2048
+      ],
+      "resolutionMethod": "Exact-size copy; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p03-dedication"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_05.png",
+      "sha256": "90af6b99bd0cc441d27a997eae2c1813c6d493aef2401013d4be4b44a045fc26",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p05-park-arrival.png",
+      "sourceSha256": "90af6b99bd0cc441d27a997eae2c1813c6d493aef2401013d4be4b44a045fc26",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p05-park-arrival"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_06.png",
+      "sha256": "93c6f83b682c69a72af64144368619c1bddd7b394338024acd9f3dc52b5a753e",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p06-park-choices.png",
+      "sourceSha256": "93c6f83b682c69a72af64144368619c1bddd7b394338024acd9f3dc52b5a753e",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement of approved v002; no generated detail",
+      "reviewStatus": "accepted",
+      "masterId": "p06-park-choices"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_07.png",
+      "sha256": "c1f3f8f62c1a91eb4afe4c7036c3cd15553fd6f6c3d75d38fd73bd2cc9a916e4",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p07-tall-slide.png",
+      "sourceSha256": "c1f3f8f62c1a91eb4afe4c7036c3cd15553fd6f6c3d75d38fd73bd2cc9a916e4",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement of approved v002; no generated detail",
+      "reviewStatus": "accepted",
+      "masterId": "p07-tall-slide"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_08.png",
+      "sha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p08-slide-top.png",
+      "sourceSha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement of approved v002; no generated detail",
+      "reviewStatus": "accepted",
+      "masterId": "p08-slide-top"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_09.png",
+      "sha256": "1389eed71087b6902d3475b0f8ffebd1c6dec29fe5ead527a90d23b4a10b214f",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/texture-corrections-2026-10-05/page-09-bedroom-wide-35mm-v001-2k.png",
+      "sourceSha256": "1389eed71087b6902d3475b0f8ffebd1c6dec29fe5ead527a90d23b4a10b214f",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p09-bedroom"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_10.png",
+      "sha256": "677d3b310344bdc876ee6fbb8510adcadc44fdebc79e29444634a00b1268ac64",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s10-11-bedroom-forest.png",
+      "sourceSha256": "4b2405111f7f5cd281ce0346ab068408f1ee4d289e7619757a851463bc8eebc7",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s10-11-bedroom-forest"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_11.png",
+      "sha256": "e5b176ddb432222d09fd93556a5cd3f4d9c07461f08294ae81540c20cb613240",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s10-11-bedroom-forest.png",
+      "sourceSha256": "4b2405111f7f5cd281ce0346ab068408f1ee4d289e7619757a851463bc8eebc7",
+      "cropRectangle": [
+        2048,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s10-11-bedroom-forest"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_12.png",
+      "sha256": "335202752da25b169087e398fc599f69d39bf1f1e0992ce47c6062d9eef2051c",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/.codex/generated_images/01a10eca-04ce-7cf1-8ca1-ee226c2e409e/exec-eee48efe-faff-4a4d-bafa-f773d874ba2f.png",
+      "sourceSha256": "e34158ec7767a2456779553d653619ef09d8ebe4e2da1e3f0aa85b368a155eb2",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        1774,
+        887
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement",
+      "reviewStatus": "pending cleanup review",
+      "masterId": "s12-13-footprints-bush"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_13.png",
+      "sha256": "b3485b66a378d598ad619223d5b509c266e5c26b77c05fa6cf955d9ad63b266f",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/.codex/generated_images/01a10eca-04ce-7cf1-8ca1-ee226c2e409e/exec-eee48efe-faff-4a4d-bafa-f773d874ba2f.png",
+      "sourceSha256": "e34158ec7767a2456779553d653619ef09d8ebe4e2da1e3f0aa85b368a155eb2",
+      "cropRectangle": [
+        2048,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        1774,
+        887
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement",
+      "reviewStatus": "pending cleanup review",
+      "masterId": "s12-13-footprints-bush"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_14.png",
+      "sha256": "45dc3dc9ac9c983fb470ab2486079459a227a3ee6f2795b1e88a2b41d75f9402",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s14-15-chaos-breath-path.png",
+      "sourceSha256": "a7a97be4dcdb1c9357c80adfa916700109fb91dffb3b29afa584dc705857f476",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s14-15-chaos-breath-path"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_15.png",
+      "sha256": "0fbf1c27b4ae202bbcc16e54ba451d46aa35df2445be18029f521bcfb516e043",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s14-15-chaos-breath-path.png",
+      "sourceSha256": "a7a97be4dcdb1c9357c80adfa916700109fb91dffb3b29afa584dc705857f476",
+      "cropRectangle": [
+        2048,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s14-15-chaos-breath-path"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_16.png",
+      "sha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p16-two-paths.png",
+      "sourceSha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        2013,
+        2013
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p16-two-paths"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_17.png",
+      "sha256": "6753c2c2296f16022ae5d0a924f31e7b6a73aa22fecb036f0976524e7dfeeee6",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p17-cave-approach.png",
+      "sourceSha256": "6753c2c2296f16022ae5d0a924f31e7b6a73aa22fecb036f0976524e7dfeeee6",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p17-cave-approach"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_18.png",
+      "sha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p18-prickly-wall.png",
+      "sourceSha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p18-prickly-wall"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_19.png",
+      "sha256": "ad76d13e385ccdf7f698cd6c6191c9eafbcd5338e8a0e649909b164942144ba8",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p19-cave-breath.png",
+      "sourceSha256": "ad76d13e385ccdf7f698cd6c6191c9eafbcd5338e8a0e649909b164942144ba8",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p19-cave-breath"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_20.png",
+      "sha256": "eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s20-21-softened-wall.png",
+      "sourceSha256": "39438144fb3971960caaee66a1c2c8c3af89710603d5005b2b46072038b4cb87",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s20-21-softened-wall"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_21.png",
+      "sha256": "416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s20-21-softened-wall.png",
+      "sourceSha256": "39438144fb3971960caaee66a1c2c8c3af89710603d5005b2b46072038b4cb87",
+      "cropRectangle": [
+        2048,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s20-21-softened-wall"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_22.png",
+      "sha256": "d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s22-23-cave-clearing.png",
+      "sourceSha256": "e1bff9ed73cf4acee22689e9fbb349f5cbe54d6cd966e7081c34d9a54c5b60d5",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s22-23-cave-clearing"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_23.png",
+      "sha256": "c27a20e328c04c1167ea479c19fbe249dd41cc6ed41cc2a406d90015e2e333d4",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/s22-23-cave-clearing.png",
+      "sourceSha256": "e1bff9ed73cf4acee22689e9fbb349f5cbe54d6cd966e7081c34d9a54c5b60d5",
+      "cropRectangle": [
+        2048,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        4096,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1774,
+        887
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "s22-23-cave-clearing"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_24.png",
+      "sha256": "c85ae114813462ecbc0bdcfd2947baf9ccefc1550646286e5e53d234bc18f4f4",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/.codex/generated_images/01a10eca-04ce-7cf1-8ca1-ee226c2e409e/exec-e6f24915-343c-4ac3-a710-17027493b6a4.png",
+      "sourceSha256": "2aa0752ca455a2982f21e62240fca4f28183ce1de44b46c6aba5b07d9171c607",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        1254,
+        1254
+      ],
+      "retainedNativeResolution": [
+        2625,
+        2625
+      ],
+      "resolutionMethod": "Lanczos enlargement",
+      "reviewStatus": "pending cleanup review",
+      "masterId": "p24-final-clues"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_25.png",
+      "sha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p25-animal-reveal.png",
+      "sourceSha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        2625,
+        2625
+      ],
+      "resolutionMethod": "Lanczos downsample from larger original; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p25-animal-reveal"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_26.png",
+      "sha256": "b72b98f786f710c44d61da9abbd6341d4140d39a953dc2d7b2e2e81825c4fe63",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p26-flying-home.png",
+      "sourceSha256": "b72b98f786f710c44d61da9abbd6341d4140d39a953dc2d7b2e2e81825c4fe63",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p26-flying-home"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_27.png",
+      "sha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p27-return-slide.png",
+      "sourceSha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p27-return-slide"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_28.png",
+      "sha256": "ae011ba2079e0c1ec21c5c979a93b915ddb26f59b47301c87b982ccf83996f6c",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p28-almost-ready.png",
+      "sourceSha256": "ae011ba2079e0c1ec21c5c979a93b915ddb26f59b47301c87b982ccf83996f6c",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p28-almost-ready"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/page_30.png",
+      "sha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/backgrounds-2026-10-05-remainder/p30-spiral-activity.png",
+      "sourceSha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7",
+      "cropRectangle": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "sourceResolution": [
+        2048,
+        2048
+      ],
+      "retainedNativeResolution": [
+        1254,
+        1254
+      ],
+      "resolutionMethod": "Lanczos enlargement; no generated detail",
+      "reviewStatus": "pending",
+      "masterId": "p30-spiral-activity"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB",
+      "source": "generated solid page",
+      "sourceSha256": null
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/cover-base.png",
+      "sha256": "f81c6ab1dab5360027a8dc747570cfd5023024b3b7dcb3de6f9562242c19d445",
+      "width": 1216,
+      "height": 1294,
+      "mode": "RGBA",
+      "source": "/Users/jeff/.codex/generated_images/01a10eca-04ce-7cf1-8ca1-ee226c2e409e/exec-d88d4d40-bb97-4cce-a4b2-19e9086b60d0.png",
+      "sourceSha256": "307f6ee5c079bea44aa2dd1d08124478eca29945cd50617a471c442fab71c88d",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/arrival.png",
+      "sha256": "391e3e1a2cff3492f90c9f10d9239d0bac6ce47582e1f75594925634656eeca5",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-image-01-arrival-v2.png",
+      "sourceSha256": "7e7cddc5f9248f89ba0d5f749b890bde8931c2d11d711cffcb45164632321c53",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/slide-awe.png",
+      "sha256": "4bacd0f508496730f467de2805b8e9dd0219f2eff70f2d1f6d20e301314738bc",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose10.png",
+      "sourceSha256": "17f2bf2007ce24176d3e4a0fdb7fde34a2fe4598d66642253670f4e33558ae2a",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/sad-seated.png",
+      "sha256": "17cfc74a2f103bb97ef69ddc4f638e758d47228470f0e3cff25eb451423059b9",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-09-sad-seated-v1.png",
+      "sourceSha256": "8652607b9f663909630372f2e587016b7a1ad53859f8772691a14ac73091f9b7",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/walk.png",
+      "sha256": "b596cca56bd6ae874330ca0d8dda079cb1a607992c0b5c19af897d1a65a3e16d",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose05.png",
+      "sourceSha256": "020310f2b4a808e83361b9167cea289d29e4d6616b4fbd5085c03293a2f67a4a",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/crouch.png",
+      "sha256": "af5d0699904be15e5a3c5ec3c094b7dffe58f290bd5fe4d6d744170a835715a8",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose08.png",
+      "sourceSha256": "8c100c0ed87f2e4567e3fa416b3b115a5bc9491c6256be0c07e26f2048fda8d4",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/overwhelmed.png",
+      "sha256": "e26ddab0db8fc7c8ea59f8bd4dd649e4855ad179ca3cbd71ecea699d9bc2d0db",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose11.png",
+      "sourceSha256": "dc97b4f190c13aedd67f9ca71455a386bde87d61d28a54906a251f0cbf182690",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/breath.png",
+      "sha256": "b896da3aba15d889ea4caff4f12285b2266f0a50e02f3b84220a5dc29de4a478",
+      "width": 992,
+      "height": 1056,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose00.png",
+      "sourceSha256": "c5a4fc473290ee00e3ad7c1870ed8bbfb3991ea343a83ec02f2b018df3992a66",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/crawl.png",
+      "sha256": "e71e7db958927ed6c2bb4f07593ed6f33b23f41ca981dea29c89d2a13a9d9ed2",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose09.png",
+      "sourceSha256": "e83d79947ec9f1b88a82acde355ff153ff65ed50e17904f7d28cd135d9120430",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/climb.png",
+      "sha256": "a5a5aefb53c9433178fc6cc52a5dc4baf8be9c80fb0434dc3b5570bf03ff0ec0",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose02.png",
+      "sourceSha256": "92036409ef072a26a553aced76ff4dc46622645186aac7f595f4f9b7232be304",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/run.png",
+      "sha256": "8af4332c7f432aedcefe9eaf5b472f0819a77f4d2388d6a7417312c307c1ac2f",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose06.png",
+      "sourceSha256": "0d351d53ab1dfe2a4be939fed576860099273b0d50666c7fff03949e7e66e1ab",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/fly.png",
+      "sha256": "0db372b1d8a4cdb71398ef7996f5c4e64dc2cd91167cf31b527a626b996ed5f2",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose12.png",
+      "sourceSha256": "b0d5f4bb490b8519d0890cf3c035901d5f9dd9c7430aa7642f22a311ddc44bb8",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/references/calm-speaking.png",
+      "sha256": "9ffc9ac3cf37d07b1f54af474cb99070321042369a3de0d1e3b9f899ee1f5d73",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-28-calm-speaking-v1.png",
+      "sourceSha256": "f1520ff345504c4bb1619dcf2795523a106a29ad1f5bc9844a21ab3ab818b006",
+      "reviewStatus": "pending final pose assembly"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/overlays/waiting-child.png",
+      "sha256": "f81c6ab1dab5360027a8dc747570cfd5023024b3b7dcb3de6f9562242c19d445",
+      "width": 1216,
+      "height": 1294,
+      "mode": "RGBA",
+      "source": "/Users/jeff/.codex/generated_images/01a10eca-04ce-7cf1-8ca1-ee226c2e409e/exec-d88d4d40-bb97-4cce-a4b2-19e9086b60d0.png",
+      "sourceSha256": "307f6ee5c079bea44aa2dd1d08124478eca29945cd50617a471c442fab71c88d",
+      "reviewStatus": "pending cutout edge review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/dog-portrait.png",
+      "sha256": "1864f80b094860794dfc481bd70d265db78820ea7ada5087f725143903b3cbb8",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/dog.png",
+      "sourceSha256": "9420e8c1c17de3e64eb944679c2e069714481177ca8f466e73b86db5ce24607b"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/dog-appears.png",
+      "sha256": "31bf320c4e8028381e767123ea53d6232665d1be5a686c951f815322a5649f27",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/dog-appears.png",
+      "sourceSha256": "d5716f1ddca202c065289680795a97168c3370dc18451123d1aa3b405a54a6bd"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/dog-flying.png",
+      "sha256": "325d643a9b5be84561e7736c84b391e3689bc16815d2dd4415e9ace16503261b",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/dog-flying.png",
+      "sourceSha256": "70df399a60752ae452768594ecc11c6b76b9257e3ebbc9ce079865e7760554dd"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/dog-clues.png",
+      "sha256": "9db0ef19eadfba8c1506d0ace7a52ee9bcddb552c71b64014fa8b860096ca1d4",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-footprints.png",
+      "sourceSha256": "ad19ce75923038a4060cca85201f558c9dab2faefe37ab7a1e406c22fe8f5767",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/cat-portrait.png",
+      "sha256": "3f83dfee1c0b9c151a658d0a17106b2cd560fef9715f97713f5114017937da50",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/cat.png",
+      "sourceSha256": "8742f333f06460f49e586cdfba840724fd4b525b5c475c36402a9e9623bb9fc2"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/cat-appears.png",
+      "sha256": "2a30128e29eaa6d933290d662e6ee0ef59dddb7aee3e105cd76288bfcfc73560",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/cat-appears.png",
+      "sourceSha256": "af27d267b0add0732b724f2e9a0a41642d85ee122739d73e88093c288da6a4fd"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/cat-flying.png",
+      "sha256": "b017c48708e116d6fdd6c68832f84662d926dfd9a26353d6ce03bb92b6409aa1",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/cat-flying.png",
+      "sourceSha256": "6df5428e6b0efc7208e22edfebc3607dca713a887497c44eb9aaf09bc53a7ab8"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/cat-clues.png",
+      "sha256": "9db0ef19eadfba8c1506d0ace7a52ee9bcddb552c71b64014fa8b860096ca1d4",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-footprints.png",
+      "sourceSha256": "ad19ce75923038a4060cca85201f558c9dab2faefe37ab7a1e406c22fe8f5767",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/owl-portrait.png",
+      "sha256": "b295ce1c89a95ffef1476fdae6f06bd8a9671d28403a2db97dacdf686e4b0ea4",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/owl.png",
+      "sourceSha256": "9f145dc6b86ab38e0917be7e9904c4749365faf56543b5d10f2dbbbbb0def57d"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/owl-appears.png",
+      "sha256": "8027586c5671f8e4a962e9943fae150b5aa040e2943f84e2ed83e824fdae29f5",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/owl-appears.png",
+      "sourceSha256": "4b84de05e2e3e66d5aa429f732439cabc5644db3487c4555004da37b6c2cef59"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/owl-flying.png",
+      "sha256": "47a92bfa4aee7d56f10f2240e27675dfca18d951d78e0576039d8f87b9d8a7da",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/owl-flying.png",
+      "sourceSha256": "5083df27841321805c4d00074d2ca85fec84c22da737ee3d03b4c2c26813eada"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+      "sha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-owl-feathers.png",
+      "sourceSha256": "1165cf44b06a82885dab4c509665de5afd5e6eeb2f4ca00c52b5398ba062617a",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/lion-portrait.png",
+      "sha256": "6fce6c7018076cc6c99c2f46181fb550abdc45eeb37bfb9e891461a24ee9700d",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/lion.png",
+      "sourceSha256": "a0cd450d218ae5843493f0e114b0beb3085bbccba56689617c20ce73d0bca2e9"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/lion-appears.png",
+      "sha256": "d7d0c3f68645788510f835d91c6ea2fc9a6d797b7a33b0526d84691fda372cf8",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/lion-appears.png",
+      "sourceSha256": "7768cf458c56b75c31304c598ef60051cd791a21a193e57e8c3929bdac1768a9"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/lion-flying.png",
+      "sha256": "086945ffb869a64d7b647fad566222a73845ed1c29eafb906a59dd05747a33d0",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/lion-flying.png",
+      "sourceSha256": "138ee32b69a1f9782933d3badd6c9edd8e3f5f3dbd82f941d526c42c5b447ec4"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/lion-clues.png",
+      "sha256": "9db0ef19eadfba8c1506d0ace7a52ee9bcddb552c71b64014fa8b860096ca1d4",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-footprints.png",
+      "sourceSha256": "ad19ce75923038a4060cca85201f558c9dab2faefe37ab7a1e406c22fe8f5767",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/tiger-portrait.png",
+      "sha256": "6a6ab1f016fcba0b5a6ab112e450e7d5f4a1a913988d6f2f47f8d6fd59730239",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/tiger.png",
+      "sourceSha256": "f04c36860e102e42e878aa7e61935e5cc056a15983408c7e6370725c7760b1c2"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/tiger-appears.png",
+      "sha256": "3119d481147a58a482d8a8400e3f68b592b55791b9656dfece34fddb78d9646a",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/tiger-appears.png",
+      "sourceSha256": "9f843a13fdcdf393cd05d07c0d2ecb297fe1106bbd56986c5b48ebf371cf4c64"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/tiger-flying.png",
+      "sha256": "ebe81fca91a78163dc6a131a4eac5231224ac9e5a7f46a6698fe39386efd355e",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/tiger-flying.png",
+      "sourceSha256": "3ff2f4d38e5a9efcc0a1f951b9d3d1776040921c354dd18329dcf5c63cf6137c"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/tiger-clues.png",
+      "sha256": "9db0ef19eadfba8c1506d0ace7a52ee9bcddb552c71b64014fa8b860096ca1d4",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-footprints.png",
+      "sourceSha256": "ad19ce75923038a4060cca85201f558c9dab2faefe37ab7a1e406c22fe8f5767",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/penguin-portrait.png",
+      "sha256": "7c6e505373f68e8217333067da8290508509aafe0333d7a3d6fd8507f3f996f3",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/penguin.png",
+      "sourceSha256": "6c007bc74bce46a29980f4110dc6797017b951a376ec94af888c14faf5d2f820"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/penguin-appears.png",
+      "sha256": "bc445a2005fbe5b68631cd124906d1ee8725e42ee06cb9c66df7a111cde8d2fe",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/penguin-appears.png",
+      "sourceSha256": "85921cb7bde31157eac6884a4d32b9a9ff19cb452de8541108805a9c1971047b"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/penguin-flying.png",
+      "sha256": "2b17c6bc1c9d22a04830fbdd0fb00751d7d128993b631950ede35f647d45d68b",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/penguin-flying.png",
+      "sourceSha256": "f53cec38547183af5056ee3500ed43a0776e15f57bf0902ade17239fe409f89c"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/penguin-clues.png",
+      "sha256": "8900e394d88ac47f84da30bb2a93e2bba4016a899c0d592e2d5f110db2b14ef5",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-penguin-feathers.png",
+      "sourceSha256": "1a4a0a840095d7dcfc51a893ae2ba2afc8754789efd802990d2b93fd967c60f8",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/t-rex-portrait.png",
+      "sha256": "4eb364657de561269b643faa11386130c91e91e8e8f90c28e3a0db91ae385553",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/t-rex.png",
+      "sourceSha256": "06687dd1c51398b7c0db3cc1add1b4309f226683bd0eb121c2e1349365208d13"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/t-rex-appears.png",
+      "sha256": "062ee957d7acf79a665e6dd8d592a02214650a73deaec6d55c0137a458d4b0d8",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/t-rex-appears.png",
+      "sourceSha256": "69b3c1a0fe6c628858a56660150daf0abfb1b1ee6002110db41176c2277216fb"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/t-rex-flying.png",
+      "sha256": "bf082ac17c86c726208a7d6c5f1471113f324a6792de0aed9291da44b6816995",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/t-rex-flying.png",
+      "sourceSha256": "a7bcec557dd08363bbf2303a6b15bfcbe714aa7711acc6f98e6c48c25015b0d6"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/t-rex-clues.png",
+      "sha256": "5df5d0923fffc7101d9610303f8870884d5bc7eeefbfde44f0d34602190ba005",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-clawprints.png",
+      "sourceSha256": "c893578850b5258b0fdeee2c08bb03cabf1cb12619ab4cf067627f3d6a601143",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/unicorn-portrait.png",
+      "sha256": "3e51c97fcf7981bff2326b57464925afd3412dcc0423a430211fb4e63c0cd28a",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/base-animals/unicorn.png",
+      "sourceSha256": "425e0af3b7d7351e9e7e561593cdcf7e94310e5c8c58f2799880ac0cc2af6a76"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/unicorn-appears.png",
+      "sha256": "81ba1e6027363c90579d87506adfabcfa97ecd452f6944fd42229289ab454b46",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/unicorn-appears.png",
+      "sourceSha256": "c6537ec6123451f600c21994712c3bfacd1ff4bc37e819522e1076307ce7b419"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/unicorn-flying.png",
+      "sha256": "94c667d939e6c75c324f45faa1f9ab7187854fe3adbab3ef4a71888b18f093ca",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/animals/animals-no-outline/unicorn-flying.png",
+      "sourceSha256": "fdb8b31deb5b314bda042fa331f1483a329a7caec633f61428a531081b9200bd"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/animals/unicorn-clues.png",
+      "sha256": "1de04c2afb1b48c2acafcd84fae6b60c2eb98e67e3f19525e11fe7db26b579e7",
+      "width": 2550,
+      "height": 2550,
+      "mode": "RGBA",
+      "source": "/Users/jeff/Projects/little-hero-books/assets/overlays/page05-meadow-fur.png",
+      "sourceSha256": "552aaa3c18c6c8f938fb0957734272aff34c929495dae421fd95d5ecfa553aae",
+      "reviewStatus": "pending clue style and placement review"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/fonts/CustomBook.ttf",
+      "sha256": "d74f5c371e23f3ef556961b300a1141b9b1dd012ed15655380265ce4b1fdec7f",
+      "source": "retained legacy Custom.ttf font",
+      "sourceSha256": "d74f5c371e23f3ef556961b300a1141b9b1dd012ed15655380265ce4b1fdec7f"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-light.png",
+      "sha256": "2540c733bff62cac38ea6a4d3f2f2a74f0b296d2a9e112d82c2cb8a45b1ad59f",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-light.png",
+      "sourceSha256": "2540c733bff62cac38ea6a4d3f2f2a74f0b296d2a9e112d82c2cb8a45b1ad59f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-medium.jpg",
+      "sha256": "ec6de163ac6023906638c9efb53fd5e1e31db053b73d6c1ceb72c0faf258a08e",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-medium.jpg",
+      "sourceSha256": "ec6de163ac6023906638c9efb53fd5e1e31db053b73d6c1ceb72c0faf258a08e",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-tan.png",
+      "sha256": "950eb78acc5aefc1ee0da88ac770ed80ba8a158f20fb9aab428d957af8fdc836",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-tan.png",
+      "sourceSha256": "950eb78acc5aefc1ee0da88ac770ed80ba8a158f20fb9aab428d957af8fdc836",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-light-aa.png",
+      "sha256": "21dc8e191638cde54b61b3abadfac99bb78c61381cd44ba9f7dcd1863de926fe",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-light-aa.png",
+      "sourceSha256": "21dc8e191638cde54b61b3abadfac99bb78c61381cd44ba9f7dcd1863de926fe",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-dark-aa.png",
+      "sha256": "9bc8b90ec55b127d08a0827cebe7371ec968a7142ebf864a4ad53fbd7af2a637",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-dark-aa.png",
+      "sourceSha256": "9bc8b90ec55b127d08a0827cebe7371ec968a7142ebf864a4ad53fbd7af2a637",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-light--dress.png",
+      "sha256": "6b36ed9864061a33d4bc472008fca79fd26d27a66f9fa51e62c65baf7b0e7b03",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-light--dress.png",
+      "sourceSha256": "6b36ed9864061a33d4bc472008fca79fd26d27a66f9fa51e62c65baf7b0e7b03",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-medium--dress.png",
+      "sha256": "97fe2f0a0d9ea7b4be691aa5d53c21c6800817de4ec276c590336160ebb6d539",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-medium--dress.png",
+      "sourceSha256": "97fe2f0a0d9ea7b4be691aa5d53c21c6800817de4ec276c590336160ebb6d539",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-tan--dress.png",
+      "sha256": "5c3b72e30eba142ed11e745d11a7f8ee210cefa21f27e97b8f620ce2bdbccf47",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-tan--dress.png",
+      "sourceSha256": "5c3b72e30eba142ed11e745d11a7f8ee210cefa21f27e97b8f620ce2bdbccf47",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-light-aa--dress.png",
+      "sha256": "c1ac4bc935691c3aa321cc8476fdf86242c71f312beb48e3973da2b6dbded717",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-light-aa--dress.png",
+      "sourceSha256": "c1ac4bc935691c3aa321cc8476fdf86242c71f312beb48e3973da2b6dbded717",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/bases/base--skin-dark-aa--dress.png",
+      "sha256": "b58b8ace3e2163a3c76b497579807ea262eba1b626fcd5dbfe76085d04056e43",
+      "width": 992,
+      "height": 1056,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/poses/bases/base--skin-dark-aa--dress.png",
+      "sourceSha256": "b58b8ace3e2163a3c76b497579807ea262eba1b626fcd5dbfe76085d04056e43",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-auburn.jpg",
+      "sha256": "2ebc85ca9df464a21de929c06b3f46b319c74499fe2c873a943edc1cfa4790be",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-auburn.jpg",
+      "sourceSha256": "2ebc85ca9df464a21de929c06b3f46b319c74499fe2c873a943edc1cfa4790be",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-black.jpg",
+      "sha256": "40dc98e9d2a6ea94b73ba739f8607579cebaa21500cd722e644e5acaac69f693",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-black.jpg",
+      "sourceSha256": "40dc98e9d2a6ea94b73ba739f8607579cebaa21500cd722e644e5acaac69f693",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-blonde.jpg",
+      "sha256": "145b2397573be14654e34454e19696b0c05f2aae2161a898a6637821547f5091",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-blonde.jpg",
+      "sourceSha256": "145b2397573be14654e34454e19696b0c05f2aae2161a898a6637821547f5091",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-dark-brown.jpg",
+      "sha256": "60fde6134685ee69b2fff7ec6cd18be44f6163fe87c342311a96a61c1bfb710f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-dark-brown.jpg",
+      "sourceSha256": "60fde6134685ee69b2fff7ec6cd18be44f6163fe87c342311a96a61c1bfb710f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-light-brown.jpg",
+      "sha256": "793c92edf1dd6c1dd99b077e45c3e45f7813bf1878baf7890d2a927d212259ab",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-light-brown.jpg",
+      "sourceSha256": "793c92edf1dd6c1dd99b077e45c3e45f7813bf1878baf7890d2a927d212259ab",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-medium-brown.jpg",
+      "sha256": "a8763d3ad729b159566f3f545eabe1393555eccdf8d0c3a8c3af23f56532c015",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-medium-brown.jpg",
+      "sourceSha256": "a8763d3ad729b159566f3f545eabe1393555eccdf8d0c3a8c3af23f56532c015",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-red.jpg",
+      "sha256": "d760b527946a2f124d6a7ce9f4176dd140ecf9cfbdd22c6ac62d52f01cb2e3f6",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-red.jpg",
+      "sourceSha256": "d760b527946a2f124d6a7ce9f4176dd140ecf9cfbdd22c6ac62d52f01cb2e3f6",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/afro-strawberry-blonde.jpg",
+      "sha256": "ec01331f3de3d817b1420f87876a7b769c1a5d605414e583b18a8a4ebe2462ea",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/afro-strawberry-blonde.jpg",
+      "sourceSha256": "ec01331f3de3d817b1420f87876a7b769c1a5d605414e583b18a8a4ebe2462ea",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-auburn.jpg",
+      "sha256": "58c227633f51843fcd1899a0d9666592998e82101d441989e765e533d1866aed",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-auburn.jpg",
+      "sourceSha256": "58c227633f51843fcd1899a0d9666592998e82101d441989e765e533d1866aed",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-black.jpg",
+      "sha256": "851dbbfbf714715c85c33e59835dd3ee7e8e175b5283d78b198db2951dda9a36",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-black.jpg",
+      "sourceSha256": "851dbbfbf714715c85c33e59835dd3ee7e8e175b5283d78b198db2951dda9a36",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-blonde.jpg",
+      "sha256": "359bbba005246ebc4616a77ea03fbd2a5f1b8cc64f6492d2427f4e2e32dc4851",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-blonde.jpg",
+      "sourceSha256": "359bbba005246ebc4616a77ea03fbd2a5f1b8cc64f6492d2427f4e2e32dc4851",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-dark-brown.jpg",
+      "sha256": "52d01fdbe8e07f92ac48087d246efa6f7cf5fad9f01a6bbb9ada746775b4ed38",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-dark-brown.jpg",
+      "sourceSha256": "52d01fdbe8e07f92ac48087d246efa6f7cf5fad9f01a6bbb9ada746775b4ed38",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-light-brown.jpg",
+      "sha256": "e1d04bfffeadf5397fc221d520d8debaf0fc2fdfe8cf40980fb09ff794ab83d9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-light-brown.jpg",
+      "sourceSha256": "e1d04bfffeadf5397fc221d520d8debaf0fc2fdfe8cf40980fb09ff794ab83d9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-medium-brown.jpg",
+      "sha256": "8f0437e7fefc7471e5fec565450d6f1cb74d088ae2ddec72e658997dec3bb6b1",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-medium-brown.jpg",
+      "sourceSha256": "8f0437e7fefc7471e5fec565450d6f1cb74d088ae2ddec72e658997dec3bb6b1",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-red.jpg",
+      "sha256": "b2c9f46d36577e2b031ff62ace19f2267a460e86e1f6fded720b4ce5e1c0f3c6",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-red.jpg",
+      "sourceSha256": "b2c9f46d36577e2b031ff62ace19f2267a460e86e1f6fded720b4ce5e1c0f3c6",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/bun-strawberry-blonde.jpg",
+      "sha256": "50f9837867871c7d3a982fd7bc0a191991415c5c086b54f9a864677da8a8c5d2",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/bun-strawberry-blonde.jpg",
+      "sourceSha256": "50f9837867871c7d3a982fd7bc0a191991415c5c086b54f9a864677da8a8c5d2",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-auburn.jpg",
+      "sha256": "2f7b133e211a5ce676f6bfaf8d9955f87be37a819a11fbfe1668de0cf997aced",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-auburn.jpg",
+      "sourceSha256": "2f7b133e211a5ce676f6bfaf8d9955f87be37a819a11fbfe1668de0cf997aced",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-black.jpg",
+      "sha256": "114a2c377e65671f78305f2144d7bb5fcac31c677c72b2d1720ed9fb9a4cf4ce",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-black.jpg",
+      "sourceSha256": "114a2c377e65671f78305f2144d7bb5fcac31c677c72b2d1720ed9fb9a4cf4ce",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-blonde.jpg",
+      "sha256": "f0ca4863e7c36b4cf8de49ba63584894b27608445f5df3ff2108dd3c7f1b077f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-blonde.jpg",
+      "sourceSha256": "f0ca4863e7c36b4cf8de49ba63584894b27608445f5df3ff2108dd3c7f1b077f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-dark-brown.jpg",
+      "sha256": "03ec7512b6b93dba0c3d7cb4776e6c2f068fb725bd3be2e846cf83f8acfa7dd9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-dark-brown.jpg",
+      "sourceSha256": "03ec7512b6b93dba0c3d7cb4776e6c2f068fb725bd3be2e846cf83f8acfa7dd9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-light-brown.jpg",
+      "sha256": "eeff7468b07150459c2e7fbe1516fc63221f943ae0db83f99718ffc5126f0cd1",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-light-brown.jpg",
+      "sourceSha256": "eeff7468b07150459c2e7fbe1516fc63221f943ae0db83f99718ffc5126f0cd1",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-medium-brown.jpg",
+      "sha256": "5b11ef906a0d2c90b378bd918b5815de4c9c46b1fbbbb196c7db6a9a7cfbc716",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-medium-brown.jpg",
+      "sourceSha256": "5b11ef906a0d2c90b378bd918b5815de4c9c46b1fbbbb196c7db6a9a7cfbc716",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-red.jpg",
+      "sha256": "00e13315773c4886c9b9bd1a22cc1f0327809c3f5c76b98843775c38c00b9d0c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-red.jpg",
+      "sourceSha256": "00e13315773c4886c9b9bd1a22cc1f0327809c3f5c76b98843775c38c00b9d0c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/buzz-strawberry-blonde.jpg",
+      "sha256": "50db3248e3d15e35f5c793cc86d85388a59df821e0c645e59cf623fbc0687a29",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/buzz-strawberry-blonde.jpg",
+      "sourceSha256": "50db3248e3d15e35f5c793cc86d85388a59df821e0c645e59cf623fbc0687a29",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-auburn.jpg",
+      "sha256": "ebb39f60879b7963d589bb95c4b6ad902b19d7d46513fa75cbcbcf34da058f22",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-auburn.jpg",
+      "sourceSha256": "ebb39f60879b7963d589bb95c4b6ad902b19d7d46513fa75cbcbcf34da058f22",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-black.jpg",
+      "sha256": "d1e3e86f0b90cf8eae2ebdfecb723627bc3c342cf5ec1be29a6f0efac78f89ed",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-black.jpg",
+      "sourceSha256": "d1e3e86f0b90cf8eae2ebdfecb723627bc3c342cf5ec1be29a6f0efac78f89ed",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-blonde.jpg",
+      "sha256": "18873834a9727f60dd4a03f97cb393ee3998368de0741daab23cf63a2e4c2c44",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-blonde.jpg",
+      "sourceSha256": "18873834a9727f60dd4a03f97cb393ee3998368de0741daab23cf63a2e4c2c44",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-dark-brown.jpg",
+      "sha256": "e826f79573fd7993a36518ec6a0671478b2cd7cab4eb157f429e1c8345eacc07",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-dark-brown.jpg",
+      "sourceSha256": "e826f79573fd7993a36518ec6a0671478b2cd7cab4eb157f429e1c8345eacc07",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-light-brown.jpg",
+      "sha256": "0af25ec6d43c60d75ae541ff5150b3dad2d590030be0ae4e3920d44501a71729",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-light-brown.jpg",
+      "sourceSha256": "0af25ec6d43c60d75ae541ff5150b3dad2d590030be0ae4e3920d44501a71729",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-medium-brown.jpg",
+      "sha256": "e319d536d8e71b8e5d25b3278ebf6a947c7ebc548ec3f9106ffcd61353d74eeb",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-medium-brown.jpg",
+      "sourceSha256": "e319d536d8e71b8e5d25b3278ebf6a947c7ebc548ec3f9106ffcd61353d74eeb",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-red.jpg",
+      "sha256": "e11808df4e7dff595ba7d230ef898b79944ed8802580327863a4a2bfbe206786",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-red.jpg",
+      "sourceSha256": "e11808df4e7dff595ba7d230ef898b79944ed8802580327863a4a2bfbe206786",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-crop-strawberry-blonde.jpg",
+      "sha256": "e9938eb0db9f1c9dd78c26369f7b1f5294b7f492ff34655f287d8350c9c29f2c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-crop-strawberry-blonde.jpg",
+      "sourceSha256": "e9938eb0db9f1c9dd78c26369f7b1f5294b7f492ff34655f287d8350c9c29f2c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-auburn.jpg",
+      "sha256": "e7fa075b74444f5e359531c84f69570c3525a25297ae3e93bace61dd867a7a4d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-auburn.jpg",
+      "sourceSha256": "e7fa075b74444f5e359531c84f69570c3525a25297ae3e93bace61dd867a7a4d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-black.jpg",
+      "sha256": "283aaaec70d0858a91fd15774f4a96323ecc20ea696d7a67844c169afad2e73d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-black.jpg",
+      "sourceSha256": "283aaaec70d0858a91fd15774f4a96323ecc20ea696d7a67844c169afad2e73d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-blonde.jpg",
+      "sha256": "2a9d0ff89405e1d28a0d22e05ff4c8c1a62b60d71b1ef0acc25cfee19372e2b6",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-blonde.jpg",
+      "sourceSha256": "2a9d0ff89405e1d28a0d22e05ff4c8c1a62b60d71b1ef0acc25cfee19372e2b6",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-dark-brown.jpg",
+      "sha256": "a4e16ed3a06d747a2a37b034629f54fb12501ad05bb12b8a6e0f878ba4abbbe7",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-dark-brown.jpg",
+      "sourceSha256": "a4e16ed3a06d747a2a37b034629f54fb12501ad05bb12b8a6e0f878ba4abbbe7",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-light-brown.jpg",
+      "sha256": "011fa5de3e7917e34d8d3e4e8f96d7d3a6458f71458bcfd9598879c9092b725a",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-light-brown.jpg",
+      "sourceSha256": "011fa5de3e7917e34d8d3e4e8f96d7d3a6458f71458bcfd9598879c9092b725a",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-medium-brown.jpg",
+      "sha256": "030f1aa4c8a2491b3532bbb0d7da188a2b2f33b4ddeda9a628ecf9b3ec4b9c20",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-medium-brown.jpg",
+      "sourceSha256": "030f1aa4c8a2491b3532bbb0d7da188a2b2f33b4ddeda9a628ecf9b3ec4b9c20",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-red.jpg",
+      "sha256": "b48ceada886e43f0e8b117ad0db1a13a5cbfdc05e9528a39c80374900d13eb60",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-red.jpg",
+      "sourceSha256": "b48ceada886e43f0e8b117ad0db1a13a5cbfdc05e9528a39c80374900d13eb60",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-long-strawberry-blonde.jpg",
+      "sha256": "80bcf64bb8255ee43d8a1d8f5800e9789106ce8d1dbd8739e4931f2b95fbce42",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-long-strawberry-blonde.jpg",
+      "sourceSha256": "80bcf64bb8255ee43d8a1d8f5800e9789106ce8d1dbd8739e4931f2b95fbce42",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-auburn.jpg",
+      "sha256": "5ef10e83281acce33c40eaeadc2e4660ab0fd6a6685da9c1ded93028edae26bf",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-auburn.jpg",
+      "sourceSha256": "5ef10e83281acce33c40eaeadc2e4660ab0fd6a6685da9c1ded93028edae26bf",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-black.jpg",
+      "sha256": "f490e520eac40cc748b426c12d03c0496dc8e367d0961519f34884bd7d4cc85d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-black.jpg",
+      "sourceSha256": "f490e520eac40cc748b426c12d03c0496dc8e367d0961519f34884bd7d4cc85d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-blonde.jpg",
+      "sha256": "5c1c4a54f3198ff57438525972f2bdde2d3a4bcbead4580ce10d911cd749a941",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-blonde.jpg",
+      "sourceSha256": "5c1c4a54f3198ff57438525972f2bdde2d3a4bcbead4580ce10d911cd749a941",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-dark-brown.jpg",
+      "sha256": "3ec316aadb9dfefea2408c59c53a672f9f4eac0519206e8a82e16562180aa71b",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-dark-brown.jpg",
+      "sourceSha256": "3ec316aadb9dfefea2408c59c53a672f9f4eac0519206e8a82e16562180aa71b",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-light-brown.jpg",
+      "sha256": "553a1121a4d42e8eb30673d5320d70737be5c0961e6d2ad2511ba8149872af5c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-light-brown.jpg",
+      "sourceSha256": "553a1121a4d42e8eb30673d5320d70737be5c0961e6d2ad2511ba8149872af5c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-medium-brown.jpg",
+      "sha256": "cf61f26316690d8ac512cadc800944890fe0f0dac6e4fa05cc777051f2a96780",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-medium-brown.jpg",
+      "sourceSha256": "cf61f26316690d8ac512cadc800944890fe0f0dac6e4fa05cc777051f2a96780",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-red.jpg",
+      "sha256": "6acc9881734fcf8a79b5aa4ce98aca44dca83ee6df812d84e7f2317761b84ef9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-red.jpg",
+      "sourceSha256": "6acc9881734fcf8a79b5aa4ce98aca44dca83ee6df812d84e7f2317761b84ef9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-medium-strawberry-blonde.jpg",
+      "sha256": "e87d8b512bbe38482f1f5af7890bb3786b81253f57ef929fa1c4dd26ef586b59",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-medium-strawberry-blonde.jpg",
+      "sourceSha256": "e87d8b512bbe38482f1f5af7890bb3786b81253f57ef929fa1c4dd26ef586b59",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-auburn.jpg",
+      "sha256": "49ea7764357dd30f25b1b39d77e9e436fbb6c1ce8091ae6a100446ac2115c597",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-auburn.jpg",
+      "sourceSha256": "49ea7764357dd30f25b1b39d77e9e436fbb6c1ce8091ae6a100446ac2115c597",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-black.jpg",
+      "sha256": "2366047e127b25cd746e60d7f1114d0139cb30058f508aea5f28f431b94b0812",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-black.jpg",
+      "sourceSha256": "2366047e127b25cd746e60d7f1114d0139cb30058f508aea5f28f431b94b0812",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-blonde.jpg",
+      "sha256": "7dd0f1a79bfdc9af0f736aac5075912bcebee7e23af935db144b5f43b382375c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-blonde.jpg",
+      "sourceSha256": "7dd0f1a79bfdc9af0f736aac5075912bcebee7e23af935db144b5f43b382375c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-dark-brown.jpg",
+      "sha256": "fced3be3b15a4f317b8b458e3c5b43fb836a4bb61976cabae9e37da0d52597f1",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-dark-brown.jpg",
+      "sourceSha256": "fced3be3b15a4f317b8b458e3c5b43fb836a4bb61976cabae9e37da0d52597f1",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-light-brown.jpg",
+      "sha256": "77ccb8a1cc1385bcdbfd8b7e61437a53e1eebaca73e300b0e525f3fc3f7b2d0f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-light-brown.jpg",
+      "sourceSha256": "77ccb8a1cc1385bcdbfd8b7e61437a53e1eebaca73e300b0e525f3fc3f7b2d0f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-medium-brown.jpg",
+      "sha256": "5f46bc2a6e07cba4b154e53a94fbed83bde94872fc173a1e2dccd115b0150729",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-medium-brown.jpg",
+      "sourceSha256": "5f46bc2a6e07cba4b154e53a94fbed83bde94872fc173a1e2dccd115b0150729",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-red.jpg",
+      "sha256": "340243ed10453f0fc9bdc87c90a536e6de0441f89bd6e17f1c4ce78e4c61e9e5",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-red.jpg",
+      "sourceSha256": "340243ed10453f0fc9bdc87c90a536e6de0441f89bd6e17f1c4ce78e4c61e9e5",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-short-strawberry-blonde.jpg",
+      "sha256": "4403c94559516ee7c8ded8c4e7cbdc21fdf715ccd4aead4314408363bf4092ec",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-short-strawberry-blonde.jpg",
+      "sourceSha256": "4403c94559516ee7c8ded8c4e7cbdc21fdf715ccd4aead4314408363bf4092ec",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-auburn.jpg",
+      "sha256": "dd5c8be0564ac7c24ec478a98cc4dcb90979d18d34d5274b959f2ed12c0d1e40",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-auburn.jpg",
+      "sourceSha256": "dd5c8be0564ac7c24ec478a98cc4dcb90979d18d34d5274b959f2ed12c0d1e40",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-black.jpg",
+      "sha256": "26f4ca51278395680ab0cdcf49ac24a569a32c115a102f661ffd8bb5d9f4b97f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-black.jpg",
+      "sourceSha256": "26f4ca51278395680ab0cdcf49ac24a569a32c115a102f661ffd8bb5d9f4b97f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-blonde.jpg",
+      "sha256": "6c550e1b2bd4b779509b9fb0eb76a0089019400b6500883ca26f59a4c9a6246d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-blonde.jpg",
+      "sourceSha256": "6c550e1b2bd4b779509b9fb0eb76a0089019400b6500883ca26f59a4c9a6246d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-dark-brown.jpg",
+      "sha256": "1e7bdaa4c76028307dc5272b2624fcc06da36eeafbfd8a10535ee04da1d278c5",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-dark-brown.jpg",
+      "sourceSha256": "1e7bdaa4c76028307dc5272b2624fcc06da36eeafbfd8a10535ee04da1d278c5",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-light-brown.jpg",
+      "sha256": "ab0cc11a1e6568a033c41111e057e325b928acc2cd29452d6608fb818b092a99",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-light-brown.jpg",
+      "sourceSha256": "ab0cc11a1e6568a033c41111e057e325b928acc2cd29452d6608fb818b092a99",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-medium-brown.jpg",
+      "sha256": "d4020ce383b05c38505852ea2cd27d39071dd01e6a5d3a1fcb6953105861c432",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-medium-brown.jpg",
+      "sourceSha256": "d4020ce383b05c38505852ea2cd27d39071dd01e6a5d3a1fcb6953105861c432",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-red.jpg",
+      "sha256": "7fc9a403525f3177825f551cf071c8de0fd6bb6b1d524bd34f726fad007aba7f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-red.jpg",
+      "sourceSha256": "7fc9a403525f3177825f551cf071c8de0fd6bb6b1d524bd34f726fad007aba7f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/curly-tight-strawberry-blonde.jpg",
+      "sha256": "52325dd186cc88941adb0bd205d108c3b085546047c17f2e642b157eee5bd65d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/curly-tight-strawberry-blonde.jpg",
+      "sourceSha256": "52325dd186cc88941adb0bd205d108c3b085546047c17f2e642b157eee5bd65d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-auburn.jpg",
+      "sha256": "da13ea7410d01b0b9b50049e237681fe343f4167121964d8dca8ecb413e97d56",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-auburn.jpg",
+      "sourceSha256": "da13ea7410d01b0b9b50049e237681fe343f4167121964d8dca8ecb413e97d56",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-black.jpg",
+      "sha256": "96cef955019e047dd62d77ecf60d442b2640a8353edc6cddff6171252c56f535",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-black.jpg",
+      "sourceSha256": "96cef955019e047dd62d77ecf60d442b2640a8353edc6cddff6171252c56f535",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-blonde.jpg",
+      "sha256": "31461fc32d41c38f44d2fb502d1e5eb45e3c48c76680481074de4cd11117e1de",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-blonde.jpg",
+      "sourceSha256": "31461fc32d41c38f44d2fb502d1e5eb45e3c48c76680481074de4cd11117e1de",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-dark-brown.jpg",
+      "sha256": "4ba7e0d408792cab038a87dd2cef7180349e1c442f2390a36c1c6cdd8c3caf7e",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-dark-brown.jpg",
+      "sourceSha256": "4ba7e0d408792cab038a87dd2cef7180349e1c442f2390a36c1c6cdd8c3caf7e",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-light-brown.jpg",
+      "sha256": "d24a829ea0e648c14e2dfb7a874b90c1523a6d70b6f9b07be6091890a36c8f77",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-light-brown.jpg",
+      "sourceSha256": "d24a829ea0e648c14e2dfb7a874b90c1523a6d70b6f9b07be6091890a36c8f77",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-medium-brown.jpg",
+      "sha256": "ab930fbdce2ecef6d4b225bc15af8bd87d1274764c5527ecc88d1a8d94e0b142",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-medium-brown.jpg",
+      "sourceSha256": "ab930fbdce2ecef6d4b225bc15af8bd87d1274764c5527ecc88d1a8d94e0b142",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-red.jpg",
+      "sha256": "5e0ac1c1bc53e807922f832ff69b5659728761993163c1f919716dca8ec279fa",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-red.jpg",
+      "sourceSha256": "5e0ac1c1bc53e807922f832ff69b5659728761993163c1f919716dca8ec279fa",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pigtails-strawberry-blonde.jpg",
+      "sha256": "8f77929555e55af2e074d343337c756aefc159b84f7e1f29f5144e133b597d8c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pigtails-strawberry-blonde.jpg",
+      "sourceSha256": "8f77929555e55af2e074d343337c756aefc159b84f7e1f29f5144e133b597d8c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-auburn.jpg",
+      "sha256": "3ab6d440ea19c782417408b7bc3d2efe09be90c1bfa8d02166bdb26a680161b9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-auburn.jpg",
+      "sourceSha256": "3ab6d440ea19c782417408b7bc3d2efe09be90c1bfa8d02166bdb26a680161b9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-black.jpg",
+      "sha256": "62d15bab8a6c89bad7fdc8df649977ebfebf514725ca563b0f019a4aa4267068",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-black.jpg",
+      "sourceSha256": "62d15bab8a6c89bad7fdc8df649977ebfebf514725ca563b0f019a4aa4267068",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-blonde.jpg",
+      "sha256": "196e2b841319344febe18b43f7d211209905199566eebe7f487e42f86ccb4ded",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-blonde.jpg",
+      "sourceSha256": "196e2b841319344febe18b43f7d211209905199566eebe7f487e42f86ccb4ded",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-dark-brown.jpg",
+      "sha256": "e47145ce32f18a385b0710fc3cfece2e839b00128904d3b00c186d96da06b5d4",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-dark-brown.jpg",
+      "sourceSha256": "e47145ce32f18a385b0710fc3cfece2e839b00128904d3b00c186d96da06b5d4",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-light-brown.jpg",
+      "sha256": "84e7007fc87ad440561da3690fa3bc24b05061f96079c4b082b8fce06dcd1e65",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-light-brown.jpg",
+      "sourceSha256": "84e7007fc87ad440561da3690fa3bc24b05061f96079c4b082b8fce06dcd1e65",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-medium-brown.jpg",
+      "sha256": "f1447a9f6a777d3d7c0d9927377cf7a206a77b4fcf5061b0f533f1c292f51f57",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-medium-brown.jpg",
+      "sourceSha256": "f1447a9f6a777d3d7c0d9927377cf7a206a77b4fcf5061b0f533f1c292f51f57",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-red.jpg",
+      "sha256": "96c88d1e9dbda38e4edddb50d269bbf18957b3a277c141dd8457cc8747346342",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-red.jpg",
+      "sourceSha256": "96c88d1e9dbda38e4edddb50d269bbf18957b3a277c141dd8457cc8747346342",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/pom-poms-strawberry-blonde.jpg",
+      "sha256": "58c6ef86f07b3aecab17eabb3f7f1f987e345c04db4267a5879ba2c00081d5d5",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/pom-poms-strawberry-blonde.jpg",
+      "sourceSha256": "58c6ef86f07b3aecab17eabb3f7f1f987e345c04db4267a5879ba2c00081d5d5",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-auburn.jpg",
+      "sha256": "8c4784852bcf085f1493c9f63adc148f1704db430dd95e384a8b5ce62f58e760",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-auburn.jpg",
+      "sourceSha256": "8c4784852bcf085f1493c9f63adc148f1704db430dd95e384a8b5ce62f58e760",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-black.jpg",
+      "sha256": "0ad7ccc91a2373770d88581cc0fd01c5a3131e2fe924106e8914a613b068fe8f",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-black.jpg",
+      "sourceSha256": "0ad7ccc91a2373770d88581cc0fd01c5a3131e2fe924106e8914a613b068fe8f",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-blonde.jpg",
+      "sha256": "8e11f597c43989ae70e0a6157c1416798d3852afb99d49c88faed78fd4a2d2f9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-blonde.jpg",
+      "sourceSha256": "8e11f597c43989ae70e0a6157c1416798d3852afb99d49c88faed78fd4a2d2f9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-dark-brown.jpg",
+      "sha256": "14b67fb4f5bd5e275bc2f213a798595a6e735d3314e681abf75a1fb01890c92c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-dark-brown.jpg",
+      "sourceSha256": "14b67fb4f5bd5e275bc2f213a798595a6e735d3314e681abf75a1fb01890c92c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-light-brown.jpg",
+      "sha256": "9a2b55e756d04dadcf2acf03e9d98c1ee72e3f9b2aa1ca149148b614479f0855",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-light-brown.jpg",
+      "sourceSha256": "9a2b55e756d04dadcf2acf03e9d98c1ee72e3f9b2aa1ca149148b614479f0855",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-medium-brown.jpg",
+      "sha256": "661b6b8e3e30f2746883facb5ddb62436b109b487371cc17542992605c7d5868",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-medium-brown.jpg",
+      "sourceSha256": "661b6b8e3e30f2746883facb5ddb62436b109b487371cc17542992605c7d5868",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-red.jpg",
+      "sha256": "50e9785cac078bb99a4b9b8a9ec6aa83e1e654edcff14aea4e456a87e9b138e2",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-red.jpg",
+      "sourceSha256": "50e9785cac078bb99a4b9b8a9ec6aa83e1e654edcff14aea4e456a87e9b138e2",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/ponytail-strawberry-blonde.jpg",
+      "sha256": "c812d8e0e2826273ec1c117d32ab29daae9f88711ff40f0a3fab146ced12651a",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/ponytail-strawberry-blonde.jpg",
+      "sourceSha256": "c812d8e0e2826273ec1c117d32ab29daae9f88711ff40f0a3fab146ced12651a",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-auburn.jpg",
+      "sha256": "af476fadd8d3a29aa217f6a47ce4113754dc4af852219a21a07c738bbfaa4220",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-auburn.jpg",
+      "sourceSha256": "af476fadd8d3a29aa217f6a47ce4113754dc4af852219a21a07c738bbfaa4220",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-black.jpg",
+      "sha256": "350ecc129a5d901974f67ae5c6b7c61410040b4e3a82bced15868ee61dceaf93",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-black.jpg",
+      "sourceSha256": "350ecc129a5d901974f67ae5c6b7c61410040b4e3a82bced15868ee61dceaf93",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-blonde.jpg",
+      "sha256": "7045c80dc2a113d7cacc64c75561dc36bacb679e0d20b0f2bcc2fb730f3c954b",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-blonde.jpg",
+      "sourceSha256": "7045c80dc2a113d7cacc64c75561dc36bacb679e0d20b0f2bcc2fb730f3c954b",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-dark-brown.jpg",
+      "sha256": "01372d4393379d47d7479342bf68ecb5ba9ee5447d6f2bc57101d3aa35186e24",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-dark-brown.jpg",
+      "sourceSha256": "01372d4393379d47d7479342bf68ecb5ba9ee5447d6f2bc57101d3aa35186e24",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-light-brown.jpg",
+      "sha256": "9fb51f220f1cbbbbfc941e35c69aef0ab8d855caaf046923b255eb63171276a5",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-light-brown.jpg",
+      "sourceSha256": "9fb51f220f1cbbbbfc941e35c69aef0ab8d855caaf046923b255eb63171276a5",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-medium-brown.jpg",
+      "sha256": "5780ba37c8088519a96023dda5e384d95dd3d4c6ea50877a6db9a039c15d1eca",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-medium-brown.jpg",
+      "sourceSha256": "5780ba37c8088519a96023dda5e384d95dd3d4c6ea50877a6db9a039c15d1eca",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-red.jpg",
+      "sha256": "398e2801326a5fa6ddee54f3e3d6010120fa87c2cc8cacd4b2fe995a383ae405",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-red.jpg",
+      "sourceSha256": "398e2801326a5fa6ddee54f3e3d6010120fa87c2cc8cacd4b2fe995a383ae405",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/puffy-ponytail-strawberry-blonde.jpg",
+      "sha256": "1b396acc18f89df44724fec073dd5347639faa3431cde77bece8662676db32f6",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/puffy-ponytail-strawberry-blonde.jpg",
+      "sourceSha256": "1b396acc18f89df44724fec073dd5347639faa3431cde77bece8662676db32f6",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-auburn.jpg",
+      "sha256": "f2c9dbfeda70af8802bf2d9542972e551b687d3978bb21cae27ba59cd9f02c19",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-auburn.jpg",
+      "sourceSha256": "f2c9dbfeda70af8802bf2d9542972e551b687d3978bb21cae27ba59cd9f02c19",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-black.jpg",
+      "sha256": "01b19a30401d038246ce563218565aea66adb8c3dd363be0ee2a7653d297cf24",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-black.jpg",
+      "sourceSha256": "01b19a30401d038246ce563218565aea66adb8c3dd363be0ee2a7653d297cf24",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-blonde.jpg",
+      "sha256": "cfd1110019b78cd1fbc6a4eb30a83f1c097dc2c819aa8019e075adcc14469177",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-blonde.jpg",
+      "sourceSha256": "cfd1110019b78cd1fbc6a4eb30a83f1c097dc2c819aa8019e075adcc14469177",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-dark-brown.jpg",
+      "sha256": "7bf67d28cf43f468dffd1aabb953817f48768463e4414ea1a91263f551ef0905",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-dark-brown.jpg",
+      "sourceSha256": "7bf67d28cf43f468dffd1aabb953817f48768463e4414ea1a91263f551ef0905",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-light-brown.jpg",
+      "sha256": "ab3ce10bd56503d436a1b4a6a00ae53839d1c2fa3d8037e20a61c09f338abd37",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-light-brown.jpg",
+      "sourceSha256": "ab3ce10bd56503d436a1b4a6a00ae53839d1c2fa3d8037e20a61c09f338abd37",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-medium-brown.jpg",
+      "sha256": "494cfb48501816f1efdc21daac5981cf5b06b1176a0731436b8dc8a67cf64a79",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-medium-brown.jpg",
+      "sourceSha256": "494cfb48501816f1efdc21daac5981cf5b06b1176a0731436b8dc8a67cf64a79",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-red.jpg",
+      "sha256": "b572ff00f015ac85d62881630d3de02cf5a4200c15456b26e0f8319489dbfe79",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-red.jpg",
+      "sourceSha256": "b572ff00f015ac85d62881630d3de02cf5a4200c15456b26e0f8319489dbfe79",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/side-part-strawberry-blonde.jpg",
+      "sha256": "8b50a1e85faf2596e9b29f19b52f2d640f1b4e9fba2a915b9ca8cd54fc2c935b",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/side-part-strawberry-blonde.jpg",
+      "sourceSha256": "8b50a1e85faf2596e9b29f19b52f2d640f1b4e9fba2a915b9ca8cd54fc2c935b",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-auburn.jpg",
+      "sha256": "08487aa89dba38cace00e620f63ac74ecf4dd92bfe82644f6617e2f6390e88f7",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-auburn.jpg",
+      "sourceSha256": "08487aa89dba38cace00e620f63ac74ecf4dd92bfe82644f6617e2f6390e88f7",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-black.jpg",
+      "sha256": "87e32a2dcd61bec37984e38435d14047a4710504a25c8ac022f8ad1ce1ea6269",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-black.jpg",
+      "sourceSha256": "87e32a2dcd61bec37984e38435d14047a4710504a25c8ac022f8ad1ce1ea6269",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-blonde.jpg",
+      "sha256": "3861f92cf2572524e098ef241b2dd6662d60821cffa218e737dbfb4a31287839",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-blonde.jpg",
+      "sourceSha256": "3861f92cf2572524e098ef241b2dd6662d60821cffa218e737dbfb4a31287839",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-dark-brown.jpg",
+      "sha256": "1e0d828b20eb205806dab8e1110b2f335cff6a74106e03586ad8361f541f2fe2",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-dark-brown.jpg",
+      "sourceSha256": "1e0d828b20eb205806dab8e1110b2f335cff6a74106e03586ad8361f541f2fe2",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-light-brown.jpg",
+      "sha256": "dfc4a361b7c69094f916bdda6bf0e6e73f05f2fe93b02d1815157ef5af8ace25",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-light-brown.jpg",
+      "sourceSha256": "dfc4a361b7c69094f916bdda6bf0e6e73f05f2fe93b02d1815157ef5af8ace25",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-medium-brown.jpg",
+      "sha256": "eddbd563c2a998fb375360d159ebff73dc0639e1e0a8aeda40698dc50cde3a45",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-medium-brown.jpg",
+      "sourceSha256": "eddbd563c2a998fb375360d159ebff73dc0639e1e0a8aeda40698dc50cde3a45",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-red.jpg",
+      "sha256": "115c2e8699f05412c34b03b0e4d6c50d99a702bfce486c1c4a2e68d95f2d0a1b",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-red.jpg",
+      "sourceSha256": "115c2e8699f05412c34b03b0e4d6c50d99a702bfce486c1c4a2e68d95f2d0a1b",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/small-puffy-ponytail-strawberry-blonde.jpg",
+      "sha256": "35c4623530fd282f5e0bcc90f19fc3da894d202d92d197c0053700f851f5b188",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/small-puffy-ponytail-strawberry-blonde.jpg",
+      "sourceSha256": "35c4623530fd282f5e0bcc90f19fc3da894d202d92d197c0053700f851f5b188",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-auburn.jpg",
+      "sha256": "76ff306df8203c965692b672086273212a4e65175c56bb65f176359659b14c0d",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-auburn.jpg",
+      "sourceSha256": "76ff306df8203c965692b672086273212a4e65175c56bb65f176359659b14c0d",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-black.jpg",
+      "sha256": "257322145fb7fab8be774eeea74fb6102ea66b8438a62344c2a62b9fa72bcb81",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-black.jpg",
+      "sourceSha256": "257322145fb7fab8be774eeea74fb6102ea66b8438a62344c2a62b9fa72bcb81",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-blonde.jpg",
+      "sha256": "45ea872ba6e11ae0a87b5d0afae4b7a6643f11a7b1700f3eb9c9a5c0f54b8967",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-blonde.jpg",
+      "sourceSha256": "45ea872ba6e11ae0a87b5d0afae4b7a6643f11a7b1700f3eb9c9a5c0f54b8967",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-dark-brown.jpg",
+      "sha256": "564401dff482039fff0a4b54ef622347e6fd9d8035b7f15617a086420f3b8776",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-dark-brown.jpg",
+      "sourceSha256": "564401dff482039fff0a4b54ef622347e6fd9d8035b7f15617a086420f3b8776",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-light-brown.jpg",
+      "sha256": "c21aa4409c5179dd25a1c7fb25b9dbd7fdef10a11833f90fecff43aae51d3ee9",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-light-brown.jpg",
+      "sourceSha256": "c21aa4409c5179dd25a1c7fb25b9dbd7fdef10a11833f90fecff43aae51d3ee9",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-medium-brown.jpg",
+      "sha256": "947b73046db60559422241e21929e12380870165a67b24c830b05efcf1622afb",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-medium-brown.jpg",
+      "sourceSha256": "947b73046db60559422241e21929e12380870165a67b24c830b05efcf1622afb",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-red.jpg",
+      "sha256": "c2e7f513dedce0f852fb5f7b6c10d12ccb3b6e47d51fb161aabc4d22397d4b7e",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-red.jpg",
+      "sourceSha256": "c2e7f513dedce0f852fb5f7b6c10d12ccb3b6e47d51fb161aabc4d22397d4b7e",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-long-strawberry-blonde.jpg",
+      "sha256": "c1f8dd24e291199fcb8d0f150fe4114b9b57c04b7d466166d05d880d744e521c",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-long-strawberry-blonde.jpg",
+      "sourceSha256": "c1f8dd24e291199fcb8d0f150fe4114b9b57c04b7d466166d05d880d744e521c",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-auburn.jpg",
+      "sha256": "ed6dc0589b02523f07eae2750027f759b1aa4f941c32a6cd01f6e10d95ad1fb1",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-auburn.jpg",
+      "sourceSha256": "ed6dc0589b02523f07eae2750027f759b1aa4f941c32a6cd01f6e10d95ad1fb1",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-black.jpg",
+      "sha256": "fa8c27fa361ea7c8bafde6b86f8ccfb05a7a6f78f6cd34263d0f4401ea2d86bc",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-black.jpg",
+      "sourceSha256": "fa8c27fa361ea7c8bafde6b86f8ccfb05a7a6f78f6cd34263d0f4401ea2d86bc",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-blonde.jpg",
+      "sha256": "1330ec79bfc6d4cac76369cce19ba865fe741aca775bda215de09ee3b77c99e0",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-blonde.jpg",
+      "sourceSha256": "1330ec79bfc6d4cac76369cce19ba865fe741aca775bda215de09ee3b77c99e0",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-dark-brown.jpg",
+      "sha256": "da7d83059c37a72a648a60c8dafe3221e924661a71786b2281bf72e1a29fdc57",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-dark-brown.jpg",
+      "sourceSha256": "da7d83059c37a72a648a60c8dafe3221e924661a71786b2281bf72e1a29fdc57",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-light-brown.jpg",
+      "sha256": "d1837cb82c5de526d66d86d1c30779e99b08022a822b2554889439aaf35a6b64",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-light-brown.jpg",
+      "sourceSha256": "d1837cb82c5de526d66d86d1c30779e99b08022a822b2554889439aaf35a6b64",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-medium-brown.jpg",
+      "sha256": "314252e174aadba83909c56dbae39bbcbfa8b6082923740d577b138a44a2b816",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-medium-brown.jpg",
+      "sourceSha256": "314252e174aadba83909c56dbae39bbcbfa8b6082923740d577b138a44a2b816",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-red.jpg",
+      "sha256": "87c694ca707558ce36cd9ab80a69f461e59c2e5fc6d7ba6fd9164ee4f1b108ae",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-red.jpg",
+      "sourceSha256": "87c694ca707558ce36cd9ab80a69f461e59c2e5fc6d7ba6fd9164ee4f1b108ae",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-medium-strawberry-blonde.jpg",
+      "sha256": "2aba39b9cc978a21bdeea7fc1e03f0fa09b6ca2e20b83a1fd0c01e35074889ec",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-medium-strawberry-blonde.jpg",
+      "sourceSha256": "2aba39b9cc978a21bdeea7fc1e03f0fa09b6ca2e20b83a1fd0c01e35074889ec",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-auburn.jpg",
+      "sha256": "57ddef9de89bd54a21c0cd9054ddf0dff2194aebee4979e9e6cac5fd03b68eda",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-auburn.jpg",
+      "sourceSha256": "57ddef9de89bd54a21c0cd9054ddf0dff2194aebee4979e9e6cac5fd03b68eda",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-black.jpg",
+      "sha256": "a4158640ff1f2aa278d7d7e2199d0b3592a64beaf5ccf8b7afb47898b44e1b7e",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-black.jpg",
+      "sourceSha256": "a4158640ff1f2aa278d7d7e2199d0b3592a64beaf5ccf8b7afb47898b44e1b7e",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-blonde.jpg",
+      "sha256": "41e55f6f4104f242f10970bbe6e76bbd27f2e7a3859f612e73f07316d1abd11e",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-blonde.jpg",
+      "sourceSha256": "41e55f6f4104f242f10970bbe6e76bbd27f2e7a3859f612e73f07316d1abd11e",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-dark-brown.jpg",
+      "sha256": "f13efe8d888b55a3dfe1fdf3da6e3c0071af756a2db76b352bd85b9bb3063514",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-dark-brown.jpg",
+      "sourceSha256": "f13efe8d888b55a3dfe1fdf3da6e3c0071af756a2db76b352bd85b9bb3063514",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-light-brown.jpg",
+      "sha256": "be5aa386f6bb250a56f6b57fb21b77072c99c25b44a894756cca33df6e80388b",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-light-brown.jpg",
+      "sourceSha256": "be5aa386f6bb250a56f6b57fb21b77072c99c25b44a894756cca33df6e80388b",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-medium-brown.jpg",
+      "sha256": "3361e5216efae913a0ce4ceaede7e1351f31ff04b8d4099cd0411437634c32bd",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-medium-brown.jpg",
+      "sourceSha256": "3361e5216efae913a0ce4ceaede7e1351f31ff04b8d4099cd0411437634c32bd",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-red.jpg",
+      "sha256": "2ded8f1d5f85fc888811fe22e94c586e9f80214bd52072a573df195bd167cd03",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-red.jpg",
+      "sourceSha256": "2ded8f1d5f85fc888811fe22e94c586e9f80214bd52072a573df195bd167cd03",
+      "role": "retained character customization reference"
+    },
+    {
+      "key": "book-finding-our-inner-voice/v1/characters/hairstyles/straight-short-strawberry-blonde.jpg",
+      "sha256": "2899629fe63000e8332d760b05f845df5b2df00e79046ae2c988f8159d8f20bd",
+      "width": 1024,
+      "height": 1024,
+      "source": "/Users/jeff/Projects/little-hero-books/assets/hair-references/generated/straight-short-strawberry-blonde.jpg",
+      "sourceSha256": "2899629fe63000e8332d760b05f845df5b2df00e79046ae2c988f8159d8f20bd",
+      "role": "retained character customization reference"
+    }
+  ]
+}

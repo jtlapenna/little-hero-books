@@ -1,3 +1,6 @@
+import { resolveConfiguredLayerPlacement } from '@/lib/books/configured-book-rendering';
+import type { BookPageLayer } from '@/lib/books/book-render-contract';
+import { pagePoseNumbers, resolveRecipePoseReference } from '@/lib/books/book-render-recipe';
 import {
   getLegacyReferenceAnimalPlacement,
   buildW3AssemblyInput,
@@ -71,6 +74,9 @@ export interface W3CalibrationPageOption {
   editableAssetType: 'character' | 'animal' | 'cover-character';
   backgroundUrl: string | null;
   overlayUrls: string[];
+  fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
+  editableLayerPlacement?: BookPageLayer['placement'];
+  editableLayerIndex?: number;
   characterUrl: string | null;
   animalUrl: string | null;
   editableAssetUrl: string | null;
@@ -117,6 +123,9 @@ export interface W3CalibrationResponse {
     legacySrcDoc: string | null;
     backgroundUrl: string | null;
     overlayUrls: string[];
+  fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
+  editableLayerPlacement?: BookPageLayer['placement'];
+  editableLayerIndex?: number;
     editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
@@ -870,7 +879,7 @@ async function buildAssemblyInputFromFixture(
     defaultBackendUrl: fixture.backendUrl ?? adminBaseUrl,
   });
 
-  const config = loadBundledBookConfig({ bookId: assemblyInput.bookId });
+  const config = assemblyInput.renderSnapshot?.bookConfig ?? loadBundledBookConfig({ bookId: assemblyInput.bookId });
   const resolvedPlan = resolvePagePlan(config, assemblyInput.formatId ?? undefined);
   const processedImages = resolvedPlan.pagePlan
     .map((page) => Number(page.poseNumber))
@@ -957,6 +966,32 @@ function buildPageOptions(
   currentCoverPlacement: BookCharacterPlacementEntry | null,
   legacyCoverPlacement: BookCharacterPlacementEntry | null,
 ): W3CalibrationPageOption[] {
+  if (assemblyInput.renderSnapshot) {
+    const config = assemblyInput.renderSnapshot.bookConfig, recipe = config.rendering.recipe!, formatId = assemblyInput.renderSnapshot.formatId;
+    const specs = toRecord(assemblyInput.characterSpecs);
+    const slug = String(toRecord(previewPlan.animalImages).slug || specs.animalGuide);
+    const url = (key: string) => `${previewPlan.backendUrl}/api/assets/${key}`;
+    const poseUrl = (number: number) => poseAssetMode === 'reference-standin' ? url(resolveRecipePoseReference(config, number)!) : assemblyInput.processedImages.find(image => image.poseNumber === number)?.publicUrl ?? (number === 0 ? url(buildBgRemovedPoseAssetKey(assemblyInput.characterHash, 0, config.bookId)) : null);
+    const fixedLayers = (layers: BookPageLayer[], editableId: string) => layers.map((layer, index) => ({ ...layer, index, placement: resolveConfiguredLayerPlacement(layer, index) })).filter(layer => layer.id !== editableId).map(layer => ({ id: layer.id, index: layer.index, placement: layer.placement, imageUrl: layer.kind === 'pose' ? poseUrl(layer.poseNumber)! : layer.kind === 'overlay' ? url(config.assets.overlays[layer.assetSlot]) : url(recipe.animals[slug][layer.role]) }));
+    const anchored = (placement: BookCharacterPlacementEntry) => ({ ...placement, anchorXPercent: 0, anchorYPercent: 0 });
+    const result: W3CalibrationPageOption[] = [];
+    const cover = recipe.covers[formatId], coverPose = cover.layers.find(layer => layer.kind === 'pose');
+    if (coverPose?.kind === 'pose') {
+      const imageUrl = poseUrl(coverPose.poseNumber);
+      if (imageUrl) result.push({ pageLabel: 'cover', pageNumber: 0, storyPageNumber: 0, poseNumber: coverPose.poseNumber, editableAssetType: 'cover-character', backgroundUrl: url(config.assets.backgrounds[cover.backgroundSlot]), overlayUrls: [], fixedLayers: fixedLayers(cover.layers, coverPose.id), editableLayerIndex: cover.layers.indexOf(coverPose), editableLayerPlacement: resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose)), characterUrl: imageUrl, animalUrl: null, editableAssetUrl: imageUrl, currentPlacement: anchored(resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose), currentCoverPlacement)), legacyPlacement: anchored(resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose))), viewport: { width: config.rendering.preview.coverPx.w, height: config.rendering.preview.coverPx.h } });
+    }
+    for (const item of previewPlan.pagePreviewItems) {
+      const page = config.formats[formatId].interior.pageSequence.find(entry => entry.label === item.pageLabel);
+      if (!page?.storyPageNumber) continue;
+      const primary = page.layers?.find(layer => layer.kind === 'pose'), animal = page.layers?.find(layer => layer.kind === 'animal');
+      const characterUrl = primary?.kind === 'pose' ? poseUrl(primary.poseNumber) : null;
+      const animalUrl = animal?.kind === 'animal' ? url(recipe.animals[slug][animal.role]) : null;
+      const editableAssetUrl = characterUrl ?? animalUrl; if (!editableAssetUrl) continue;
+      const isCharacter = Boolean(characterUrl), editable = isCharacter ? primary! : animal!, editableIndex = (page.layers ?? []).indexOf(editable), placement = resolveConfiguredLayerPlacement(editable, editableIndex);
+      result.push({ pageLabel: page.label, pageNumber: page.index, storyPageNumber: page.storyPageNumber, poseNumber: primary?.kind === 'pose' ? primary.poseNumber : null, editableAssetType: isCharacter ? 'character' : 'animal', backgroundUrl: page.backgroundSlot ? url(config.assets.backgrounds[page.backgroundSlot]) : null, overlayUrls: [], fixedLayers: fixedLayers(page.layers ?? [], isCharacter ? primary!.id : animal!.id), editableLayerIndex: editableIndex, editableLayerPlacement: placement, characterUrl, animalUrl, editableAssetUrl, currentPlacement: anchored(resolveConfiguredLayerPlacement(editable, editableIndex, isCharacter ? currentPlacementMap[page.storyPageNumber] : currentAnimalPlacementMap[page.storyPageNumber])), legacyPlacement: anchored(placement), viewport: { width: config.rendering.preview.interiorPx.w, height: config.rendering.preview.interiorPx.h } });
+    }
+    return result;
+  }
   const backgroundByLabel = new Map(
     previewPlan.backgroundImages.map((entry) => [String(entry.pageLabel), entry]),
   );
@@ -1116,10 +1151,16 @@ function buildPoseOptions(
     }
   }
 
+  if (assemblyInput.renderSnapshot) {
+    usedByStoryPages.clear();
+    for (const page of assemblyInput.pagePlan) for (const number of pagePoseNumbers(page)) {
+      if (page.storyPageNumber) usedByStoryPages.set(number, [...new Set([...(usedByStoryPages.get(number) ?? []), page.storyPageNumber])]);
+    }
+  }
   return assemblyInput.processedImages
     .filter((image) => Number.isFinite(image.poseNumber) && image.poseNumber > 0)
     .map((image) => {
-      const refKey = buildPoseReferenceAssetKey(assemblyInput.bookId, image.poseNumber);
+      const refKey = assemblyInput.renderSnapshot ? resolveRecipePoseReference(assemblyInput.renderSnapshot.bookConfig, image.poseNumber)! : buildPoseReferenceAssetKey(assemblyInput.bookId, image.poseNumber);
       return {
         poseNumber: image.poseNumber,
         imageUrl: image.publicUrl,
@@ -1159,9 +1200,10 @@ function resolveSelectedPoseNumber(
 
 export async function buildW3CalibrationResponse(
   request: W3CalibrationRequest,
+  options: { buildAssemblyInput?: () => Promise<BuildW3AssemblyInputResult>; inspectPose?: typeof inspectPoseScaleAsset } = {},
 ): Promise<W3CalibrationResponse> {
   const adminBaseUrl = resolveCanonicalBackendBaseUrl(request.adminBaseUrl);
-  const assemblyInput =
+  const assemblyInput = options.buildAssemblyInput ? await options.buildAssemblyInput() :
     request.sourceType === 'order'
       ? await buildAssemblyInputFromOrder(
           toTrimmedString(request.orderId) ?? '',
@@ -1172,7 +1214,7 @@ export async function buildW3CalibrationResponse(
           adminBaseUrl,
         );
 
-  const config = loadBundledBookConfig({ bookId: assemblyInput.bookId });
+  const config = assemblyInput.renderSnapshot?.bookConfig ?? loadBundledBookConfig({ bookId: assemblyInput.bookId });
   const placementOverride = parseCharacterPlacementOverride(
     request.characterPlacementOverrideByStoryPage,
   );
@@ -1260,10 +1302,11 @@ export async function buildW3CalibrationResponse(
     const imageKey = extractR2Key(selectedPoseOption.imageUrl);
     if (imageKey) {
       try {
-        selectedPoseInspection = await inspectPoseScaleAsset({
+        selectedPoseInspection = await (options.inspectPose ?? inspectPoseScaleAsset)({
           imageKey,
           poseNumber: selectedPoseOption.poseNumber,
           bookId: assemblyInput.bookId,
+          referenceKey: assemblyInput.renderSnapshot ? resolveRecipePoseReference(config, selectedPoseOption.poseNumber)! : undefined,
         });
       } catch (error) {
         selectedPoseInspectionError =
@@ -1365,6 +1408,9 @@ export async function buildW3CalibrationResponse(
                 : null,
           backgroundUrl: selectedPageOption.backgroundUrl,
           overlayUrls: selectedPageOption.overlayUrls,
+          fixedLayers: selectedPageOption.fixedLayers,
+          editableLayerPlacement: selectedPageOption.editableLayerPlacement,
+          editableLayerIndex: selectedPageOption.editableLayerIndex,
           editableAssetType: selectedPageOption.editableAssetType,
           editableAssetUrl: selectedPageOption.editableAssetUrl,
           characterUrl: selectedPageOption.characterUrl,
