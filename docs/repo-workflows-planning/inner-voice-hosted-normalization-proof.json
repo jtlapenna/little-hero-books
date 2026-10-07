@@ -1,0 +1,245 @@
+{
+  "schema": "lhb.hosted-normalization-proof@v1",
+  "orderId": "TEST-IV-GEN-20261007E",
+  "bookId": "book-finding-our-inner-voice",
+  "configVersion": 1,
+  "firstExecution": "54590",
+  "firstPersistedCount": 8,
+  "resumeExecution": "54600",
+  "resumeScheduledCount": 5,
+  "resumeSucceeded": true,
+  "summary": {
+    "percentComplete": 100,
+    "readyForBook": true,
+    "needsHumanReview": false,
+    "approvedPoseCount": 13,
+    "terminalPoseCount": 13,
+    "complete": true
+  },
+  "sourceApprovedKeysMatch": true,
+  "artifacts": [
+    {
+      "poseNumber": 0,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose00_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3255034,
+      "visibleBounds": {
+        "minX": 665,
+        "minY": 84,
+        "maxX": 1371,
+        "maxY": 1986
+      },
+      "sha256": "72a8e0894662552bf12f25c38da23adfaf25cd5e89034a1afddf1612ec11d516",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 1,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose01_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3407409,
+      "visibleBounds": {
+        "minX": 481,
+        "minY": 199,
+        "maxX": 1440,
+        "maxY": 1857
+      },
+      "sha256": "f4a05ba4d0015c5753bcfd86b1acfdd48e66050ee4f402e7d0b3150c96817f3e",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 2,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose02_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3465768,
+      "visibleBounds": {
+        "minX": 573,
+        "minY": 236,
+        "maxX": 1329,
+        "maxY": 1924
+      },
+      "sha256": "8b2b0491fb2a8852b1af1fd19aca4d303e975369acf7c91c411cdb0a841fe3d8",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 3,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose03_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3337564,
+      "visibleBounds": {
+        "minX": 605,
+        "minY": 176,
+        "maxX": 1343,
+        "maxY": 1943
+      },
+      "sha256": "e92841277309609d4d6ad68a6d43bd142377d4f294e76a19a1703fc7a2c79b2a",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 4,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose04_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3361900,
+      "visibleBounds": {
+        "minX": 442,
+        "minY": 160,
+        "maxX": 1292,
+        "maxY": 1894
+      },
+      "sha256": "2f5ac532de6a2b0ea4177539644c259e792e9993b9751527b71151bf43b52be7",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 5,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose05_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3648433,
+      "visibleBounds": {
+        "minX": 516,
+        "minY": 496,
+        "maxX": 1139,
+        "maxY": 1808
+      },
+      "sha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 6,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose06_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3500240,
+      "visibleBounds": {
+        "minX": 472,
+        "minY": 238,
+        "maxX": 1132,
+        "maxY": 1896
+      },
+      "sha256": "e98101c89f6cfff121025f8b2cda68a9dbf36012d6d8db402646a5fbea570bce",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 7,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose07_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3480222,
+      "visibleBounds": {
+        "minX": 763,
+        "minY": 241,
+        "maxX": 1394,
+        "maxY": 1924
+      },
+      "sha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 8,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose08_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3453881,
+      "visibleBounds": {
+        "minX": 406,
+        "minY": 478,
+        "maxX": 1667,
+        "maxY": 1722
+      },
+      "sha256": "1c46e36e0fcd239c48390b677d38447e8e18fa4571f12a5f1e411abaac509b23",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 9,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose09_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3383976,
+      "visibleBounds": {
+        "minX": 634,
+        "minY": 172,
+        "maxX": 1411,
+        "maxY": 1886
+      },
+      "sha256": "7f43428aadac2f51c617f554abe34a99aca2c9c2febe50b4dcb0cff8787ce32d",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 10,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose10_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3419181,
+      "visibleBounds": {
+        "minX": 541,
+        "minY": 210,
+        "maxX": 1447,
+        "maxY": 1836
+      },
+      "sha256": "7401ca27d81f3ffd4d350f44881af15a7a4478a0d0be65524ee32d11732f56cc",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    },
+    {
+      "poseNumber": 11,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose11_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3448725,
+      "visibleBounds": {
+        "minX": 0,
+        "minY": 328,
+        "maxX": 1333,
+        "maxY": 1644
+      },
+      "sha256": "5ff6f540509b41f7e46327ee9be394b7268e5b84c9b45df6e14b0712f31b51ff",
+      "qaPass": true,
+      "touchesCanvasEdge": true
+    },
+    {
+      "poseNumber": 12,
+      "key": "book-finding-our-inner-voice/order-generated-assets/characters/ef71d39ad9215074/characters_ef71d39ad9215074_pose12_nobg.png",
+      "width": 2048,
+      "height": 2048,
+      "hasAlpha": true,
+      "transparentPixels": 3410563,
+      "visibleBounds": {
+        "minX": 778,
+        "minY": 175,
+        "maxX": 1429,
+        "maxY": 1906
+      },
+      "sha256": "9311ced8d242ba07c7c5b52530acf22e7a5cc873ca8a22df9bccceb5e246982b",
+      "qaPass": true,
+      "touchesCanvasEdge": false
+    }
+  ],
+  "pose11ContainmentRepair": "inner-voice-hosted-pose11-repair-audit.json",
+  "note": "All 13 artifacts were verified after successful W3 execution 54608. Pose 11 touches the canvas edge but retains the complete tested silhouette. Repeated hosted normalization and final assembly preserve its corrected pixels."
+}
