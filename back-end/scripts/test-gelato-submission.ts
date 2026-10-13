@@ -10,7 +10,8 @@ import type { GelatoDraftOrderRequest } from '../src/lib/books/gelato-api-contra
 
 const config = GelatoPrintConfigSchema.parse(configFile.formats.standard.print);
 const identity = { submissionId: '11111111-1111-4111-8111-111111111111', claimToken: '22222222-2222-4222-8222-222222222222', executionId: 'execution-1', mode: 'siblings' as const };
-async function runScenario(failGet = false, storedCopy = false, changedBytes = false) {
+async function runScenario(failGet = false, storedCopy = false, changedBytes = false, optionalFields = false,
+  corruption?: 'recipient' | 'file' | 'items' | 'null') {
   const context: GelatoSubmissionContext = { providerOrders: [], submission: {
     id: identity.submissionId, provider: 'gelato', root_order_id: 'group-1', order_reference_id: 'lhb-gelato-1',
     workflow_job_idempotency_key: 'job-1', claim_token: identity.claimToken, lease_expires_at: '2026-10-11T12:15:00Z',
@@ -25,7 +26,7 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
   const dependencies: GelatoSubmissionDependencies = {
     verifyStoredFile: async () => !changedBytes,
     backendUrl: 'https://files.example.test', draftsEnabled: true, now: () => new Date('2026-10-11T12:00:00Z'), artifactExists: async () => true,
-    loadOrder: async (key) => ({ id: Number(key.slice(-1)), print_provider: 'gelato', print_submission_id: identity.submissionId, print_claim_token: identity.claimToken, quantity: 1, shipping_tier: 'standard', customer_email: 'test@example.com', shipping_address: { name: 'Taylor Example', address: '1 Main St', city: 'Seattle', state: 'WA', zip: '98101', country: 'US' } }),
+    loadOrder: async (key) => ({ id: Number(key.slice(-1)), print_provider: 'gelato', print_submission_id: identity.submissionId, print_claim_token: identity.claimToken, quantity: 1, shipping_tier: 'standard', customer_email: 'test@example.com', shipping_address: { name: 'Taylor Example', address: '1 Main St', city: 'Seattle', state: 'WA', zip: '98101', country: 'US', ...(optionalFields ? { address_line_2: 'Unit 2', phone: '+12065550123' } : {}) } }),
     loadPrintInput: async (key) => ({ orderId: key, orderDbId: Number(key.slice(-1)), orderPrefix: `book/orders/${key}`, bookConfigVersion: 2, rootOrderId: 'group-1',
       providerPrintConfig: config, shippingTier: 'standard', customer: { email: 'test@example.com' },
       shippingAddress: { name: 'Taylor Example', street1: '1 Main St', city: 'Seattle', state: 'WA', zip: '98101', country: 'US' } } as unknown as W4GelatoPrintInput),
@@ -33,7 +34,7 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
       calls.push(name);
       const s = context.submission;
       if (name === 'record_gelato_quote_snapshot') {
-        Object.assign(s, { quote_snapshot: p.p_snapshot, quote_id: p.p_quote_id, shipment_method_uid: p.p_shipment_method_uid,
+        Object.assign(s, { quote_snapshot: JSON.parse(JSON.stringify(p.p_snapshot)), quote_id: p.p_quote_id, shipment_method_uid: p.p_shipment_method_uid,
           shipment_policy_version: p.p_policy_version, quoted_at: p.p_quoted_at, quote_request_fingerprint: p.p_request_fingerprint });
       } else if (name === 'begin_gelato_print_submission') { s.request_state = 'submitting'; s.request_snapshot = s.quote_snapshot; }
       else if (name === 'authorize_gelato_print_send') { assert.equal(s.send_started_at, null); s.send_started_at = '2026-10-11T12:00:00Z'; }
@@ -55,6 +56,17 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
   };
   assert.equal((await handleGelatoSubmission({ ...identity, fileUrl: 'https://attacker.example.test' }, 'quote', dependencies)).status, 400);
   await quoteGelatoSubmission(identity, dependencies);
+  if (corruption) {
+    const snapshot = context.submission.quote_snapshot as { request: GelatoDraftOrderRequest };
+    if (corruption === 'recipient') snapshot.request.shippingAddress.postCode = '99999';
+    if (corruption === 'file') snapshot.request.items[0].files[0].url = 'https://files.example.test/different.pdf';
+    if (corruption === 'items') snapshot.request.items.reverse();
+    if (corruption === 'null') Object.assign(snapshot.request.shippingAddress, { phone: null });
+    await assert.rejects(submitGelatoDraft(identity, dependencies), corruption === 'null' ? /expected string/ : /saved quote snapshot/);
+    assert.deepEqual(calls, ['record_gelato_quote_snapshot']);
+    assert.equal(sends, 0); assert.equal(context.submission.request_state, 'claimed');
+    return;
+  }
   if (failGet || changedBytes) {
     await assert.rejects(submitGelatoDraft(identity, dependencies), /inspect/);
     assert.equal(context.submission.request_state, 'outcome_unknown');
@@ -72,5 +84,11 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     assert.ok(calls.indexOf('authorize_gelato_print_send') < calls.indexOf('record_gelato_accepted_root'));
   }
   assert.equal(sends, 1);
+  if (optionalFields) {
+    assert.equal(draft.shippingAddress.addressLine2, 'Unit 2');
+    assert.equal(draft.shippingAddress.phone, '+12065550123');
+  }
 }
-void Promise.all([runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true)]).then(() => console.log('Gelato quote-to-draft service and connected graph checks passed')).catch((error) => { console.error(error); process.exitCode = 1; });
+void Promise.all([runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true),
+  runScenario(false, false, false, true), ...(['recipient', 'file', 'items', 'null'] as const).map(corruption => runScenario(false, false, false, false, corruption)),
+]).then(() => console.log('Gelato persisted quote-to-draft service and connected graph checks passed')).catch((error) => { console.error(error); process.exitCode = 1; });

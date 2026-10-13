@@ -111,7 +111,11 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
     shipmentPolicyVersion: s.shipment_policy_version ?? 0, quotedAt: s.quoted_at ?? '', requestFingerprint: s.quote_request_fingerprint ?? '', shippingTier: snapshot.shippingTier };
   const request: GelatoDraftOrderRequest = buildGelatoDraftOrderRequest({ ...input.request, items: input.request.products.map((item) => ({ ...item, fileUrl: item.files[0].url })),
     recipient: input.request.recipient, config: input.config, selectedQuote: selection, now: (dependencies.now ?? (() => new Date()))() });
-  if (!isDeepStrictEqual(GelatoSavedSnapshotSchema.shape.request.parse(request), snapshot.request)) throw new Error('Gelato draft differs from its saved quote snapshot');
+  const validatedRequest = GelatoSavedSnapshotSchema.shape.request.parse(request);
+  // Optional undefined fields disappear when the quote is stored as JSON.
+  if (!isDeepStrictEqual(JSON.parse(JSON.stringify(validatedRequest)), JSON.parse(JSON.stringify(snapshot.request)))) {
+    throw new Error('Gelato draft differs from its saved quote snapshot');
+  }
   let begun = false;
   try {
     await dependencies.store.transition('begin_gelato_print_submission', { ...parameters(identity), p_execution_id: identity.executionId, p_request_fingerprint: selection.requestFingerprint });
