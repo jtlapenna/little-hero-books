@@ -1,0 +1,156 @@
+{
+  "recoveredAt": "2026-10-13T20:42:44.845Z",
+  "workflows": [
+    {
+      "id": "9E0oVs46bMoiyRIP",
+      "active": true,
+      "nodes": 15,
+      "credentialIds": [
+        "7tJOX9QjL1jqyEjf"
+      ]
+    },
+    {
+      "id": "TDwc85g03FqPf9D6",
+      "active": true,
+      "nodes": 28,
+      "credentialIds": []
+    },
+    {
+      "id": "m4qIN9PCgifUcYih",
+      "active": true,
+      "nodes": 72,
+      "credentialIds": []
+    },
+    {
+      "id": "boWA0mB20qYK2g4x",
+      "active": true,
+      "nodes": 49,
+      "credentialIds": []
+    },
+    {
+      "id": "8ZqgZ7ksY0Fj8Acx",
+      "active": false,
+      "nodes": 9,
+      "credentialIds": [
+        "4kX14mPZUjnDux47"
+      ]
+    },
+    {
+      "id": "d7wi1rS0CxGVdRVb",
+      "active": false,
+      "nodes": 9,
+      "credentialIds": [
+        "4kX14mPZUjnDux47"
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "id": 54649,
+      "status": "error",
+      "workflowId": "8ZqgZ7ksY0Fj8Acx",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request"
+      ],
+      "httpCode": null
+    },
+    {
+      "id": 54650,
+      "status": "error",
+      "workflowId": "8ZqgZ7ksY0Fj8Acx",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request",
+        "Assemble Gelato Print PDF"
+      ],
+      "httpCode": "409"
+    },
+    {
+      "id": 54651,
+      "status": "error",
+      "workflowId": "d7wi1rS0CxGVdRVb",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request"
+      ],
+      "httpCode": null
+    },
+    {
+      "id": 54652,
+      "status": "error",
+      "workflowId": "d7wi1rS0CxGVdRVb",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request",
+        "Assemble Gelato Print PDF"
+      ],
+      "httpCode": "409"
+    }
+  ],
+  "cloudflare": {
+    "commit": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+    "stage": {
+      "name": "deploy",
+      "started_on": "2026-10-13T19:49:38.550229Z",
+      "ended_on": "2026-10-13T19:49:58.827917Z",
+      "status": "success"
+    },
+    "flags": {
+      "GELATO_DRAFT_SUBMISSION_ENABLED": "false",
+      "GELATO_CANCEL_ENABLED": "false",
+      "GELATO_STATUS_RELAY_ENABLED": "false",
+      "GELATO_STATUS_POLLING_ENABLED": "false",
+      "GELATO_NOTIFICATIONS_ENABLED": "false"
+    },
+    "keyBound": true
+  },
+  "scope": "Native credential readback and terminal negative connectivity. No complete W4 draft execution yet.",
+  "database": {
+    "originalOrders": 9,
+    "gelatoSubmissions": 0,
+    "dispatch": false
+  },
+  "limits": [
+    "409 source-context probes prove backend authentication, not claim ownership",
+    "All gates false; no provider calls; copies inactive",
+    "Old live workflows remain active"
+  ],
+  "laterCheckpoint": {
+    "date": "2026-10-13",
+    "negativeOwnershipExecutions": [
+      54653,
+      54654
+    ],
+    "zeroArtifactAndReceiptWrites": true,
+    "positiveExecution": 54655,
+    "positiveOutcome": "PDF registered; quote failed before draft",
+    "pdfPageCount": 35,
+    "confirmedError": "bookId is required",
+    "providerCreate": false,
+    "sendStarted": false,
+    "quoteSnapshot": false,
+    "runtimeFix": {
+      "beforeFixRegression": "failed with bookId is required",
+      "afterFixRegression": "passed",
+      "canonicalProducerCoverage": [
+        "standard single",
+        "Amazon siblings"
+      ],
+      "independentReviews": 2,
+      "productionBuild": "passed"
+    },
+    "positiveDraftProof": "pending",
+    "cleanup": {
+      "dbDispatch": false,
+      "copiesInactive": true,
+      "activeRuntimeFlags": false,
+      "deploymentId": "63e0abb9-2f54-4327-b9cb-2f16bed3ecf9"
+    },
+    "originalOrdersAndWorkflows": "unchanged"
+  }
+}

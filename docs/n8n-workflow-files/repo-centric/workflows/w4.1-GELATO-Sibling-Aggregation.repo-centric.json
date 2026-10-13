@@ -13,8 +13,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        40080,
-        19200
+        9888,
+        -1264
       ],
       "webhookId": "59894d4a-e939-43e3-bd43-42936be46078"
     },
@@ -31,51 +31,190 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        40320,
-        19080
+        10128,
+        -1464
       ]
     },
     {
       "parameters": {
-        "jsCode": "const incoming = $input.first()?.json || {};\nconst payload = incoming.body && typeof incoming.body === 'object' ? incoming.body : incoming;\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend routing credentials are required for Gelato print assembly');\nif (!payload.submissionId || !payload.claimToken) throw new Error('Gelato print assembly requires the W1.1 submission claim');\nlet result;\ntry {\nresult = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendBase + '/api/internal/w4/build-gelato-sibling-print-pdf',\n  headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' },\n  body: payload,\n  json: true,\n  timeout: 120000,\n});\nif (!result || result.success !== true) throw new Error('Gelato print assembly did not return success');\n} catch {\n  throw new Error('Gelato PDF assembly failed; expired pre-send claims require server recovery');\n}\nreturn [{ json: { status: 'assembled', ...result, submissionId: payload.submissionId, claimToken: payload.claimToken, executionId: String($execution.id), mode: 'siblings' } }];"
+        "jsCode": "const incoming = $input.first()?.json;\nconst payload = incoming && Object.prototype.hasOwnProperty.call(incoming, 'body') ? incoming.body : incoming;\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!payload || typeof payload !== 'object' || Array.isArray(payload) || typeof payload.submissionId !== 'string' || !uuid.test(payload.submissionId) || typeof payload.claimToken !== 'string' || !uuid.test(payload.claimToken)) throw new Error('Gelato workflow requires exact submission and claim identity');\nconst backendBase = 'https://admin.littleherolabs.com';\nif (backendBase !== 'https://admin.littleherolabs.com') throw new Error('Gelato backend destination must be the canonical HTTPS admin origin');\nconst executionId = String($execution.id || '');\nif (!executionId || executionId.length > 200) throw new Error('Gelato workflow execution identity is required');\nreturn [{ json: { backendBase, assemblyBody: payload, identity: { submissionId: payload.submissionId, claimToken: payload.claimToken, executionId, mode: 'siblings' } } }];"
+      },
+      "id": "39d50cb2-a8ab-4a22-bc7a-fc7ce5c0ae43",
+      "name": "Prepare Gelato Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10368,
+        -1264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Prepare Gelato Request').first().json.backendBase + '/api/internal/w4/build-gelato-sibling-print-pdf' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Prepare Gelato Request').first().json.assemblyBody) }}",
+        "options": {
+          "timeout": 120000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        }
       },
       "id": "d495fc3d-216e-4bae-bdaf-c76897cdbac3",
       "name": "Assemble Gelato Print PDF",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        40560,
-        19280
+        10608,
+        -1264
       ],
-      "notes": "Registers canonical PDF receipts under the current W1.1 claim."
+      "notes": "Backend credential stays in n8n credential storage. No retries or redirects.",
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "stopWorkflow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "Little Hero Labs Backend API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const incoming = $input.first().json;\nconst identity = { submissionId: incoming.submissionId, claimToken: incoming.claimToken, executionId: incoming.executionId, mode: incoming.mode };\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend credentials are required');\nlet result;\ntry {\n  result = await this.helpers.httpRequest({ method: 'POST', url: backendBase + '/api/internal/w4/quote-gelato-submission',\n    headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' }, body: identity, json: true, timeout: 120000 });\n  if (!result || result.success !== true) throw new Error('Gelato transition was not confirmed');\n} catch {\n  throw new Error('Gelato transition failed; inspect saved submission before retrying');\n}\nreturn [{ json: { ...identity, ...result } }];"
+        "jsCode": "const result = $input.first()?.json;\nif (!result || result.success !== true) throw new Error('Gelato assembly was not confirmed; inspect saved submission before retrying');\nconst identity = $('Prepare Gelato Request').first().json.identity;\nreturn [{ json: { ...result, ...identity } }];"
+      },
+      "id": "86794ba4-b419-44ab-9345-f88669d0d774",
+      "name": "Check Gelato Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10848,
+        -1264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Prepare Gelato Request').first().json.backendBase + '/api/internal/w4/quote-gelato-submission' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Prepare Gelato Request').first().json.identity) }}",
+        "options": {
+          "timeout": 120000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        }
       },
       "id": "38d047df-6900-4d3f-9a63-0a35eb06766e",
       "name": "Quote Gelato Submission",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        11320,
+        11088,
         -1264
       ],
-      "notes": "Server derives canonical request. Held drafts require GELATO_DRAFT_SUBMISSION_ENABLED."
+      "notes": "Backend credential stays in n8n credential storage. No retries or redirects.",
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "stopWorkflow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "Little Hero Labs Backend API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const incoming = $input.first().json;\nconst identity = { submissionId: incoming.submissionId, claimToken: incoming.claimToken, executionId: incoming.executionId, mode: incoming.mode };\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend credentials are required');\nlet result;\ntry {\n  result = await this.helpers.httpRequest({ method: 'POST', url: backendBase + '/api/internal/w4/submit-gelato-draft',\n    headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' }, body: identity, json: true, timeout: 120000 });\n  if (!result || result.success !== true) throw new Error('Gelato transition was not confirmed');\n} catch {\n  throw new Error('Gelato transition failed; inspect saved submission before retrying');\n}\nreturn [{ json: { ...identity, ...result } }];"
+        "jsCode": "const result = $input.first()?.json;\nif (!result || result.success !== true) throw new Error('Gelato quote was not confirmed; inspect saved submission before retrying');\nconst identity = $('Prepare Gelato Request').first().json.identity;\nreturn [{ json: { ...result, ...identity } }];"
       },
-      "id": "c9aae85a-6530-4a8b-91eb-b6efaab5c1b6",
-      "name": "Create Held Gelato Draft",
+      "id": "1a11a1f0-a4d3-4658-94f0-283cec0dfb69",
+      "name": "Check Gelato Quote",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        11560,
+        11328,
+        -1264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Prepare Gelato Request').first().json.backendBase + '/api/internal/w4/submit-gelato-draft' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Prepare Gelato Request').first().json.identity) }}",
+        "options": {
+          "timeout": 120000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "c9aae85a-6530-4a8b-91eb-b6efaab5c1b6",
+      "name": "Create Held Gelato Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        11568,
         -1264
       ],
-      "notes": "Server derives canonical request. Held drafts require GELATO_DRAFT_SUBMISSION_ENABLED."
+      "notes": "Backend credential stays in n8n credential storage. No retries or redirects.",
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "stopWorkflow",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "Little Hero Labs Backend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first()?.json;\nif (!result || result.success !== true) throw new Error('Gelato draft was not confirmed; inspect saved submission before retrying');\nconst identity = $('Prepare Gelato Request').first().json.identity;\nreturn [{ json: { ...result, ...identity } }];"
+      },
+      "id": "d11a2378-ad87-4909-9719-490d1b0d2d68",
+      "name": "Check Gelato Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11808,
+        -1264
+      ]
     }
   ],
   "connections": {
@@ -88,6 +227,17 @@
             "index": 0
           },
           {
+            "node": "Prepare Gelato Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gelato Request": {
+      "main": [
+        [
+          {
             "node": "Assemble Gelato Print PDF",
             "type": "main",
             "index": 0
@@ -96,6 +246,17 @@
       ]
     },
     "Assemble Gelato Print PDF": {
+      "main": [
+        [
+          {
+            "node": "Check Gelato Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gelato Assembly": {
       "main": [
         [
           {
@@ -110,7 +271,29 @@
       "main": [
         [
           {
+            "node": "Check Gelato Quote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gelato Quote": {
+      "main": [
+        [
+          {
             "node": "Create Held Gelato Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Held Gelato Draft": {
+      "main": [
+        [
+          {
+            "node": "Check Gelato Draft",
             "type": "main",
             "index": 0
           }
