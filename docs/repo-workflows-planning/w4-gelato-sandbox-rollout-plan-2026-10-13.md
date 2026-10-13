@@ -44,6 +44,14 @@ Retain synthetic records as labelled held drafts for review. Never delete custom
 
 ## Known limits
 
+### Saved quote JSON comparison fix
+
+After PR7 deployment, execution54656 assembled its PDF and completed quotation. Draft stopped with no send timestamp, execution owner or accepted provider root. Read-only replay through actual runtime and submitGelatoDraft reproduces `Gelato draft differs from its saved quote snapshot` before any store transition or provider call. Optional addressLine2 and phone properties remain undefined in the fresh request, but JSON storage omits them from the saved snapshot. Existing in-memory fake storage preserves undefined properties and misses this difference.
+
+Compare schema-validated fresh and saved requests after their JSON transport conversion. Keep strict deep comparison, required fields, array order, null/value differences, quote fingerprint and SQL ownership/send checks. This fixes equality for what the API sends and the database stores. Change only gelato-submission.ts plus focused service regression. Make fake quote persistence perform an actual JSON round trip, reproduce the failure first, then prove quote-to-draft and connected graph cases pass. Add nonempty optional fields and changed persisted recipient/file rejection cases. Retain canonical runtime, routing, API, native workflow, PDF and stored-file regressions. Review plan and implementation, then run final release gate before publication. Keep execution54656 and its unsent saved quote/receipt unchanged; no provider retry or paid activation follows from this source fix.
+
+Run the existing service regression in the current workflow contract CI job and add its path to both triggers. This keeps the persistence failure covered when source or test changes.
+
 ### Resume after execution 54655
 
 Preserve the consumed execution and second-window journals before any new invocation. Read back execution 54655 as terminal error at quote, with no draft node, and verify its exact synthetic submission has null send timestamp, execution owner, accepted provider root, quote and request snapshots. Require no provider mappings or notification records. Read the existing PDF and record its SHA-256, size, 35-page count, key, fingerprint and old receipt token privately. Verify original orders and workflows remain at their saved hashes, both copies inactive, DB dispatch closed and active backend flags false.

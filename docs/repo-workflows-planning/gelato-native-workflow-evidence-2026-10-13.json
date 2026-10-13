@@ -152,5 +152,32 @@
       "deploymentId": "63e0abb9-2f54-4327-b9cb-2f16bed3ecf9"
     },
     "originalOrdersAndWorkflows": "unchanged"
+  },
+  "jsonPersistenceCheckpoint": {
+    "date": "2026-10-13",
+    "sourcePR": 7,
+    "mergedMain": "c0136e8890e4ed2fb56c712183e574ba26431747",
+    "executionId": 54656,
+    "testOrderDbId": 1066,
+    "pdfRegistered": true,
+    "quoteSucceeded": true,
+    "draftSucceeded": false,
+    "sendStarted": false,
+    "providerCreate": false,
+    "acceptedProviderRoot": null,
+    "confirmedReadOnlyError": "Gelato draft differs from its saved quote snapshot",
+    "regression": {
+      "beforeFix": "same snapshot mismatch",
+      "afterFix": "passed JSON-persistence and mutation cases"
+    },
+    "cleanup": {
+      "verified": true,
+      "dispatch": false,
+      "copiesInactive": true,
+      "activeFlags": false,
+      "deploymentId": "34b46bde-3da3-46ec-962d-8322f3600749"
+    },
+    "siblingProof": "pending",
+    "prior54655AndOriginalOrders": "unchanged"
   }
 }

@@ -300,3 +300,13 @@ The fix loads and verifies the exact persisted order, derives the book hint thro
 Two independent checkpoint reviews found no material source defects. Focused routing, submission, API, native workflow, PDF, stored-file and scanner tests passed; ESLint and production pages:build passed. Full typecheck retains baseline failures; changed runtime and regression have no diagnostics. No UI changed.
 
 Positive deployed quote/draft proof remains pending. Retain execution54655 and its existing artifact before separately reviewed pre-send reconciliation. Real W3 readiness, artwork approval, automatic W1.1 routing, physical proof and paid activation remain outside this synthetic checkpoint.
+
+## JSON quote persistence checkpoint, 2026-10-13
+
+PR7 merged as c0136e8890e4ed2fb56c712183e574ba26431747. Hosted contract CI and complete production deployment/smoke passed with gates closed. Fresh synthetic order1066 used complete canonical test fixtures; prior order1053, execution54655 and PDF remained unchanged.
+
+Execution54656 completed PDF assembly and actual Gelato quotation. Draft returned409 before begin/send: saved quote exists, but execution owner, send timestamp, accepted provider root and mappings remain absent. Read-only runtime/service replay reproduced `Gelato draft differs from its saved quote snapshot` before any store or provider boundary. JSON persistence drops optional undefined object fields that strict comparison previously retained in the fresh request.
+
+The fix compares schema-validated requests after JSON transport conversion. Strict value and array-order comparisons, fingerprint validation and SQL ownership/send checks remain. Service fake storage now round-trips JSON. It failed before the fix and passes afterward, including absent/present optional fields, connected graphs and pre-send rejection of changed saved addresses, file URLs, item order and explicit null. CI now runs the service regression. Two independent checkpoint reviews found no material defect.
+
+After the failed test, DB dispatch and both copies were independently closed. Disabled deployment34b46bde-3da3-46ec-962d-8322f3600749 passed the full deployment/smoke job and verified all five active flags false. No provider create, paid order or message occurred. Sibling proof remains pending; execution54656, saved quote and artifact remain retained.
