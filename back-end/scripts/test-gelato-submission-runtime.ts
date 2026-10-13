@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { NextRequest } from 'next/server';
+import * as draftRoute from '../src/app/api/internal/w4/submit-gelato-draft/route';
 import { gelatoSubmissionRuntime } from '../src/lib/books/gelato-submission-runtime';
 import { quoteGelatoSubmission } from '../src/lib/books/gelato-submission';
 import type { GelatoSubmissionContext } from '../src/lib/books/gelato-submission-store';
@@ -11,6 +13,72 @@ const bookId = 'book-finding-our-inner-voice';
 const now = new Date('2026-10-13T20:00:00Z');
 const token = '22222222-2222-4222-8222-222222222222';
 const submissionId = '11111111-1111-4111-8111-111111111111';
+
+async function diagnosticChecks() {
+  const globals = globalThis as typeof globalThis & { __BUILD_TIMESTAMP_MS__?: number };
+  const contextKey = Symbol.for('__cloudflare-context__');
+  const descriptor = Object.getOwnPropertyDescriptor(globals, contextKey);
+  const originalTimestamp = globals.__BUILD_TIMESTAMP_MS__;
+  const originalToken = process.env.BACKEND_API_TOKEN;
+  const originalFlag = process.env.GELATO_DRAFT_SUBMISSION_ENABLED;
+  const originalFetch = globalThis.fetch;
+  let fetches = 0;
+  globalThis.fetch = async () => { fetches++; throw new Error('Diagnostic must not perform network I/O'); };
+  process.env.BACKEND_API_TOKEN = 'synthetic-diagnostic-token';
+  const get = (draftRoute as unknown as { GET?: (request: NextRequest) => Promise<Response> }).GET;
+  const invoke = async (authorized = true) => {
+    const response = await get!(new NextRequest('https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft', {
+      headers: authorized ? { authorization: 'Bearer synthetic-diagnostic-token' } : {},
+    }));
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    return { status: response.status, body: await response.json() };
+  };
+  const classify = (value: unknown, present: boolean) => ({ present, isString: typeof value === 'string', isTrue: value === 'true', isFalse: value === 'false' });
+  try {
+    assert.equal(typeof get, 'function', 'Existing draft route must expose authenticated read-only GET');
+    Object.defineProperty(globals, contextKey, { configurable: true, value: undefined });
+    delete process.env.GELATO_DRAFT_SUBMISSION_ENABLED;
+    delete globals.__BUILD_TIMESTAMP_MS__;
+    assert.deepEqual(await invoke(false), { status: 401, body: { error: 'Unauthorized' } });
+    const absent = await invoke();
+    assert.equal(absent.status, 200);
+    assert.deepEqual(absent.body, {
+      contextAvailable: false, cloudflare: classify(undefined, false),
+      globalProcess: classify(undefined, false), nodeProcess: classify(undefined, false),
+      draftsEnabled: false, buildTimestampMs: null,
+    });
+    process.env.GELATO_DRAFT_SUBMISSION_ENABLED = 'false';
+    globals.__BUILD_TIMESTAMP_MS__ = 1791930000000;
+    for (const value of ['true', 'false', 'TRUE', ' true ', '', 'secret-must-never-appear', true, false, 1, null, undefined]) {
+      Object.defineProperty(globals, contextKey, { configurable: true, value: { env: { GELATO_DRAFT_SUBMISSION_ENABLED: value, PRIVATE_KEY: 'unrelated-secret' } } });
+      const result = await invoke();
+      assert.equal(result.status, 200);
+      assert.deepEqual(result.body, {
+        contextAvailable: true, cloudflare: classify(value, true),
+        globalProcess: classify('false', true), nodeProcess: classify('false', true),
+        draftsEnabled: false, buildTimestampMs: 1791930000000,
+      });
+      assert.ok(!JSON.stringify(result.body).includes('secret'));
+    }
+    Object.defineProperty(globals, contextKey, { configurable: true, value: { env: {} } });
+    for (const value of ['true', 'false', 'TRUE', '', 'unexpected-private-value']) {
+      process.env.GELATO_DRAFT_SUBMISSION_ENABLED = value;
+      const result = await invoke();
+      assert.deepEqual(result.body.globalProcess, classify(value, true));
+      assert.deepEqual(result.body.nodeProcess, classify(value, true));
+      assert.deepEqual(result.body.cloudflare, classify(undefined, false));
+      assert.equal(result.body.draftsEnabled, value === 'true');
+      assert.ok(!JSON.stringify(result.body).includes('unexpected-private-value'));
+    }
+    assert.equal(fetches, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (descriptor) Object.defineProperty(globals, contextKey, descriptor); else Reflect.deleteProperty(globals, contextKey);
+    if (originalTimestamp === undefined) delete globals.__BUILD_TIMESTAMP_MS__; else globals.__BUILD_TIMESTAMP_MS__ = originalTimestamp;
+    if (originalToken === undefined) delete process.env.BACKEND_API_TOKEN; else process.env.BACKEND_API_TOKEN = originalToken;
+    if (originalFlag === undefined) delete process.env.GELATO_DRAFT_SUBMISSION_ENABLED; else process.env.GELATO_DRAFT_SUBMISSION_ENABLED = originalFlag;
+  }
+}
 
 async function scenario(mode: 'single' | 'siblings') {
   const root = `TEST-GELATO-RUNTIME-${mode}`;
@@ -125,4 +193,4 @@ async function scenario(mode: 'single' | 'siblings') {
   assert.equal(quoteCalls, 1); assert.equal(transitions, 1);
 }
 
-void scenario('single').then(() => scenario('siblings')).then(() => console.log('Gelato runtime canonical lookup and quote checks passed')).catch(error => { console.error(error); process.exitCode = 1; });
+void diagnosticChecks().then(() => scenario('single')).then(() => scenario('siblings')).then(() => console.log('Gelato runtime diagnostic, canonical lookup and quote checks passed')).catch(error => { console.error(error); process.exitCode = 1; });
