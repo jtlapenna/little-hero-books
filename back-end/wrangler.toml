@@ -8,3 +8,9 @@ compatibility_flags = [
   "nodejs_compat_populate_process_env"
 ]
 
+[vars]
+GELATO_DRAFT_SUBMISSION_ENABLED = "false"
+GELATO_CANCEL_ENABLED = "false"
+GELATO_STATUS_RELAY_ENABLED = "false"
+GELATO_STATUS_POLLING_ENABLED = "false"
+GELATO_NOTIFICATIONS_ENABLED = "false"
