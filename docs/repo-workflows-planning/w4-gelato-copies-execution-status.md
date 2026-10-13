@@ -1,6 +1,6 @@
 # W4 Gelato execution status
 
-Date: 2026-10-11. Implementation remains local and uncommitted. Two synthetic Gelato drafts passed direct API checks and remain unconverted. Preview and provider stored-file repairs passed independent checkpoint review. Production release remains NOT READY because database administration/migration evidence is unavailable. No paid printing or customer messages occurred.
+Current checkpoint: 2026-10-13. Foundation merged in PR6 at c812d056 and deployed with the additive database migration. Both native Gelato copies are installed inactive. Draft, cancel, relay, polling, notification and DB dispatch gates remain false. Earlier synthetic direct API drafts remain unconverted. No new Lulu orders, paid printing or customer messages occurred. Historical sections below retain earlier results and blockers.
 
 Worktree: `/Users/jeff/Projects/little-hero-books-w4-gelato`. Branch: `codex/w4-gelato-copies`. HEAD and fetched `origin/main`: `46c1f81f00f70de5ec04766bcf406de9735d40dd`.
 
@@ -275,3 +275,28 @@ Near-final live inventory remains nine done/Lulu orders, zero unassigned or post
 Release result: READY WITH RESIDUAL RISK for the gated-off app candidate. The residual risk is missing deployed W1.1/W4/W4.1 execution and production resource/file proof. Closed dispatch and runtime gates prevent those paths from running in this release. Activation still needs runtime credentials, verified n8n environment values and bindings, canonical approved config/files, merchant contact and controlled deployed single/sibling draft tests. Recheck queues/provider assignment and the receipt identity immediately before Git release/deployment. No optional cleanup blocks the candidate; existing security advisories remain separate.
 
 The exact result, complete diff fingerprints, policy ledger, checks and reviewer coverage are recorded under worktree Git metadata at `release-safety/review.json`. The prepared candidate has not been committed, pushed or merged. Rigorous-build requires separate user approval before those Git actions. A merge will trigger the existing app deployment workflows; Gelato activation remains a later step.
+
+
+## Deployed draft foundation, 2026-10-13
+
+PR6 merged as c812d056a7f76ff8515e31bc25b86033dee77cbf. Backend and frontend production deployment, workflow export scanning and canonical backend smoke checks passed. The prior main reference remains 46c1f81f00f70de5ec04766bcf406de9735d40dd. No Lulu submission occurred. The two stored Lulu jobs 2736839 and 2756430 belong to February orders; their existence does not establish a new charge. Seven other rows carry test markers.
+
+Stored the Gelato key as a production secret after two independent checkpoint reviews. Five runtime flags are false; unrelated production bindings/config, preview config and canonical deployment stayed unchanged during the settings update. The subsequent successful deployment confirms the key and false flags in the active deployment snapshot. Authenticated malformed draft requests return 400. This does not create an order. Database dispatch remains false, all nine rows stay Lulu, no row is processing, and provider submission tables remain empty.
+
+Read-only Get rechecks of the two existing synthetic Gelato tests still report orderType, financialStatus and fulfillmentStatus draft, with one and two items respectively. They remain unconverted. No new provider create, paid printing or customer message occurred in this continuation.
+
+Native n8n credential binding is installed. Custom backend environment values are unverified; variables API is denied. New Gelato copies use native HTTP Request nodes with a credential stub, fixed admin origin, redirects/retries disabled, success checks and preserved execution/claim identity. Local producer-to-request tests reproduced absence of native binding first, then passed after conversion. Installed W4 8ZqgZ7ksY0Fj8Acx and W4.1 d7wi1rS0CxGVdRVb share one native backend credential. Readback confirms all six HTTP bindings and both copies inactive. Existing live W0/W1/Lulu workflows remain active and unchanged.
+
+Four terminal negative executions passed. Executions 54649 and 54651 reject invalid identity before HTTP assembly. Executions 54650 and 54652 reach assembly and receive authenticated 409 responses with missing synthetic source context; quote and draft nodes do not run. These prove native backend authentication and early rejection, not complete claim ownership or positive draft execution. Database dispatch and all five runtime flags remain false. See gelato-native-workflow-evidence-2026-10-13.json and w4-gelato-sandbox-rollout-plan-2026-10-13.md. Native source changes remain on codex/gelato-sandbox-rollout pending final release review.
+
+## Native proof and quote-runtime fix, 2026-10-13
+
+Executions 54653 and 54654 used complete synthetic sources with unknown claims. Both reached the ownership guard, returned409 and stopped before quote or draft. Scoped R2 inventories and artifact receipts stayed unchanged.
+
+Execution 54655 claimed the single synthetic order, assembled its 35-page PDF and registered the receipt, then stopped at quote. The draft node never ran. Its persisted submission has no send timestamp, execution owner, accepted provider root or quote/request snapshot. A read-only quote replay reproduced `bookId is required`: the runtime supplied only orderId to a builder that resolves book paths before reading the row.
+
+The fix loads and verifies the exact persisted order, derives the book hint through canonicalW0RoutingKey and calls the existing W4 builder. Frozen sources and assignments remain checked. Quote service still rereads claim ownership. The new regression failed before the fix, then passed standard single and complete Amazon sibling cases through canonical W0/W3 producers, persisted payloads, actual runtime and quote service. Invalid rows, provider/product mismatch, rotated tokens and unfinished W3 reject before provider quotation. CI runs this regression and native workflow contract checks.
+
+Two independent checkpoint reviews found no material source defects. Focused routing, submission, API, native workflow, PDF, stored-file and scanner tests passed; ESLint and production pages:build passed. Full typecheck retains baseline failures; changed runtime and regression have no diagnostics. No UI changed.
+
+Positive deployed quote/draft proof remains pending. Retain execution54655 and its existing artifact before separately reviewed pre-send reconciliation. Real W3 readiness, artwork approval, automatic W1.1 routing, physical proof and paid activation remain outside this synthetic checkpoint.
