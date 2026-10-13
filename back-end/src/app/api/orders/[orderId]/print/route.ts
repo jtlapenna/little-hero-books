@@ -6,6 +6,12 @@ import { extractManifestKey } from '@/lib/order-paths';
 import { downloadManifest } from '@/lib/r2-service';
 import { supabase } from '@/lib/supabase-client';
 import {
+  getPrintGroupProviderBlocker,
+  getPrintQueueSuccessMessage,
+  hasExistingGelatoSubmission,
+  type PrintProvider,
+} from '@/lib/books/gelato-consumer-policy';
+import {
   describeSiblingPrintSubmissionBlockers,
   getPerBookOrderId,
   getRootOrderId,
@@ -16,6 +22,12 @@ import {
 } from '@/lib/sibling-print-policy';
 
 type OrderRowLike = Record<string, unknown>;
+const RESOLVED_PRINT_PROVIDER_KEY = '__resolved_print_provider';
+
+function readPrintProvider(order: OrderRowLike): PrintProvider | null {
+  const value = toTrimmedString(order[RESOLVED_PRINT_PROVIDER_KEY] ?? order.print_provider);
+  return value === 'gelato' || value === 'lulu' ? value : null;
+}
 
 function toTrimmedString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -170,6 +182,42 @@ async function hydrateOrderShippingAddressForPrint(orderRow: OrderRowLike): Prom
   }
 
   return orderRow;
+}
+
+async function resolvePrintProviderForOrder(orderRow: OrderRowLike): Promise<PrintProvider> {
+  const explicitProvider = toTrimmedString(orderRow.print_provider);
+  if (explicitProvider) {
+    if (explicitProvider !== 'gelato' && explicitProvider !== 'lulu') {
+      throw createValidationError(`Unsupported print provider ${explicitProvider}`);
+    }
+    orderRow[RESOLVED_PRINT_PROVIDER_KEY] = explicitProvider;
+    return explicitProvider;
+  }
+
+  const manifestKey = extractManifestKey(
+    toTrimmedString(orderRow.one_manifest_url) ?? toTrimmedString(orderRow.oneManifestUrl),
+  );
+  if (manifestKey) {
+    try {
+      const manifest = await downloadManifest(manifestKey);
+      const normalizedManifest = normalizeW0Manifest(manifest, { fallbackManifestKey: manifestKey });
+      if (normalizedManifest.provider === 'gelato' || normalizedManifest.provider === 'lulu') {
+        orderRow[RESOLVED_PRINT_PROVIDER_KEY] = normalizedManifest.provider;
+        return normalizedManifest.provider;
+      }
+    } catch (error) {
+      console.warn('[POST /api/orders/[orderId]/print] Failed to resolve provider from one-manifest:', {
+        orderId: getPerBookOrderId(orderRow),
+        manifestKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw createValidationError('Print provider could not be verified from the book manifest');
+    }
+  }
+
+  // Legacy W0 manifests did not freeze a provider. Keep their established Lulu route.
+  orderRow[RESOLVED_PRINT_PROVIDER_KEY] = 'lulu';
+  return 'lulu';
 }
 
 function parseMissingColumn(error: unknown): string | null {
@@ -393,6 +441,10 @@ async function sendToPrint(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
 
+    const currentProvider = await resolvePrintProviderForOrder(currentOrder);
+    if (currentProvider === 'gelato' && hasExistingGelatoSubmission({ ...currentOrder, print_provider: 'gelato' })) {
+      throw createValidationError('Existing Gelato submission must be inspected or recovered before another print request');
+    }
     const currentOrderRowId = Number(currentOrder.id);
     if (!Number.isFinite(currentOrderRowId)) {
       throw new Error(`Order ${orderId} is missing numeric id; cannot queue print safely`);
@@ -401,8 +453,6 @@ async function sendToPrint(
     const currentPerBookOrderId = getPerBookOrderId(currentOrder) || orderId;
     const currentRootOrderId = getRootOrderId(currentOrder);
     const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
-
-    await validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
 
     let orderTargets = [
       {
@@ -413,16 +463,46 @@ async function sendToPrint(
 
     if (!isReprint && isSiblingChildOrder(currentOrder)) {
       const siblingRows = (await listOrdersByAmazonRootId(currentRootOrderId)) as OrderRowLike[];
-      const siblingMembers = await Promise.all(
-        getSiblingChildMembers(siblingRows, currentRootOrderId).map((member) =>
-          hydrateOrderShippingAddressForPrint(member),
-        ),
-      );
+      if (siblingRows.length >= 200) {
+        throw createValidationError('Sibling group exceeds the safe lookup limit; no orders were queued');
+      }
+      const siblingMembers = getSiblingChildMembers(siblingRows, currentRootOrderId);
+      await Promise.all(siblingMembers.map((member) => resolvePrintProviderForOrder(member)));
 
       if (siblingMembers.length < 2) {
         throw createValidationError(
           `Sibling order ${currentPerBookOrderId} must be sent to print as a group, but only ${siblingMembers.length} sibling row${siblingMembers.length === 1 ? '' : 's'} were found for root order ${currentRootOrderId}.`,
         );
+      }
+      if (!siblingMembers.some((member) => getPerBookOrderId(member) === currentPerBookOrderId)) {
+        throw createValidationError('Current order is missing from the resolved sibling group; no orders were queued');
+      }
+
+      const providerBlocker = getPrintGroupProviderBlocker(siblingMembers);
+      if (providerBlocker) throw createValidationError(providerBlocker);
+
+      const [archivedByRoot, archivedByLegacyOrderId] = await Promise.all([
+        supabase.from('archived_orders').select('order_data').eq('order_data->>root_order_id', currentRootOrderId).limit(200),
+        supabase.from('archived_orders').select('order_data').eq('order_data->>amazon_order_id', currentRootOrderId).limit(200),
+      ]);
+      if (archivedByRoot.error || archivedByLegacyOrderId.error) {
+        throw createValidationError('Unable to verify archived sibling membership; no orders were queued');
+      }
+      const activeMemberIds = new Set(siblingMembers.map((member) => getPerBookOrderId(member)));
+      const archivedSiblingIds = [...(archivedByRoot.data ?? []), ...(archivedByLegacyOrderId.data ?? [])]
+        .map((row) => toRecord(row.order_data))
+        .filter((member): member is Record<string, unknown> => !!member)
+        .map(getPerBookOrderId)
+        .filter((memberOrderId) => memberOrderId && memberOrderId !== currentRootOrderId && !activeMemberIds.has(memberOrderId));
+      if (archivedSiblingIds.length > 0) {
+        throw createValidationError(
+          `Sibling group ${currentRootOrderId} includes archived order${archivedSiblingIds.length === 1 ? '' : 's'} (${archivedSiblingIds.join(', ')}); verify the complete group before queueing print.`,
+        );
+      }
+
+      await Promise.all(siblingMembers.map((member) => hydrateOrderShippingAddressForPrint(member)));
+      for (const member of siblingMembers) {
+        await validateOrderReadinessForPrint(member, getPerBookOrderId(member));
       }
 
       const blockedMembers = siblingMembers
@@ -459,6 +539,10 @@ async function sendToPrint(
           orderLookupId: memberOrderId,
         };
       });
+    }
+
+    if (orderTargets.length === 1) {
+      await validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
     }
 
     const updates: Record<string, unknown> = {
@@ -507,6 +591,7 @@ async function sendToPrint(
 
     const grouped = orderTargets.length > 1;
     const queuedOrderIds = orderTargets.map((target) => target.orderLookupId);
+    const provider = grouped ? readPrintProvider(currentOrder) ?? currentProvider : currentProvider;
 
     console.log(
       `[POST /api/orders/[orderId]/print] ✅ Queued ${grouped ? `${orderTargets.length} sibling orders` : 'order'} ${queuedOrderIds.join(', ')} for W4 via router`,
@@ -514,9 +599,7 @@ async function sendToPrint(
 
     return NextResponse.json({
       success: true,
-      message: grouped
-        ? `Queued ${orderTargets.length} sibling orders for print fulfillment. Router will process the group together when capacity is available.`
-        : 'Order queued for print fulfillment workflow. Router will process it when capacity is available.',
+      message: getPrintQueueSuccessMessage(provider, grouped, orderTargets.length),
       orderId: currentPerBookOrderId,
       queuedOrderIds,
       rootOrderId: grouped ? currentRootOrderId : null,

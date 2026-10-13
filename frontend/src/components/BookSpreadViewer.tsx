@@ -62,6 +62,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
   const [zoomedItemIndex, setZoomedItemIndex] = useState<number | null>(null);
   const [imageStatus, setImageStatus] = useState<Record<string, 'loaded' | 'error'>>({});
   const zoomTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastExternalSpreadsRef = useRef<{ eventName: string; spreads: SpreadData[] } | null>(null);
 
   // Lock body scroll and disable header when image is zoomed
   useEffect(() => {
@@ -112,13 +113,20 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
       }>;
       const detail = customEvent.detail || {};
       const nextSpreads = Array.isArray(detail.spreads) ? detail.spreads : [];
+      if (lastExternalSpreadsRef.current?.eventName === externalEventName &&
+          lastExternalSpreadsRef.current.spreads === nextSpreads) return;
+      lastExternalSpreadsRef.current = { eventName: externalEventName, spreads: nextSpreads };
       setViewerSpreads(nextSpreads);
       const nextInitial = typeof detail.initialSpread === 'number' ? detail.initialSpread : 0;
       setCurrentIndex(clampIndex(nextInitial, nextSpreads.length));
     };
 
     window.addEventListener(externalEventName, handleSpreadsUpdate as EventListener);
-    return () => window.removeEventListener(externalEventName, handleSpreadsUpdate as EventListener);
+    window.dispatchEvent(new Event(`${externalEventName}:ready`));
+    return () => {
+      window.removeEventListener(externalEventName, handleSpreadsUpdate as EventListener);
+      window.dispatchEvent(new Event(`${externalEventName}:not-ready`));
+    };
   }, [externalEventName]);
 
   useEffect(() => {

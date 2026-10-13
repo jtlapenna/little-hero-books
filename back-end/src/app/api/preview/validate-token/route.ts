@@ -15,6 +15,7 @@ import { downloadManifest } from '@/lib/r2-service';
 import {
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
+  buildManifestKeyFromOrderPrefix,
 } from '@/lib/order-paths';
 import { Order } from '@/types/order';
 
@@ -152,6 +153,9 @@ export async function POST(request: NextRequest) {
         valid: validation.valid, // Return actual validation status
         order: {
           orderId: mergedOrder.orderId,
+          manifest3Key: mergedOrder.assetPrefix
+            ? buildManifestKeyFromOrderPrefix(mergedOrder.assetPrefix, '3')
+            : null,
           amazonOrderId: mergedOrder.amazonOrderId || mergedOrder.orderId,
           customerName: customerName,
           characterSpecs: mergedOrder.characterSpecs || null,

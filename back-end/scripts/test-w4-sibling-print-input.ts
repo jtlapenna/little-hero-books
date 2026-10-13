@@ -301,6 +301,7 @@ function buildFixtureState(options: {
 
     const orderRow: JsonRecord = {
       ...siblingInput,
+      print_provider: 'lulu',
       root_order_id: resolvedRootOrderId,
       bookId,
       formatId,

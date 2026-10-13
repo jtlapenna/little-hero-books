@@ -644,6 +644,10 @@ export function buildW0OrderUpsertPayload({
 }: BuildW0OrderUpsertPayloadInput): Record<string, unknown> {
   const manifestRecord = manifest as Record<string, unknown>;
   const manifestOrder = toObject(manifestRecord.order) ?? {};
+  const manifestBook = toObject(manifestRecord.book) ?? {};
+  const bookConfigRef = toObject(manifestBook.bookConfigRef) ?? {};
+  const resolvedBook = toObject(manifestBook.resolved) ?? {};
+  const print = toObject(resolvedBook.print) ?? {};
   const manifestInput = toObject(manifestRecord.input) ?? {};
   const buyer = toObject(manifestOrder.buyer) ?? {};
   const characterSpecs =
@@ -680,6 +684,15 @@ export function buildW0OrderUpsertPayload({
     null;
   const body: Record<string, unknown> = {
     orderId: primaryOrderId,
+    print_provider: print.provider ?? null,
+    print_config_version: bookConfigRef.version ?? null,
+    print_product_uid: print.productUid ?? null,
+    print_inner_page_count: print.innerPageCount ?? resolvedBook.expectedPageCount ?? null,
+    print_api_page_count: print.apiPageCount ?? null,
+    print_expected_pdf_page_count: print.expectedPdfPageCount ?? null,
+    print_book_id: bookConfigRef.bookId ?? null,
+    print_format_id: bookConfigRef.formatId ?? null,
+    print_manifest_key: bookConfigRef.bookId ? manifestKey : null,
     execution_status: 'ready_for_processing',
     next_workflow: '2A',
     one_manifest_url: manifestKey,

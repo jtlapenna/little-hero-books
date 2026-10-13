@@ -1,6 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { assertPrintAssignmentCompatible, FROZEN_PRINT_FIELDS } from '@/lib/books/print-assignment';
 
-let supabaseClient: ReturnType<typeof createClient> | null = null;
+let supabaseClient: SupabaseClient | null = null;
 let initializationError: Error | null = null;
 
 function createNoopQueryBuilder() {
@@ -78,7 +79,7 @@ function getSupabaseClient() {
 
 // Create a lazy proxy that only initializes when actually accessed
 // This prevents initialization during React module evaluation
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     // Skip initialization for React/Next.js internal properties
     if (prop === 'then' || prop === 'Symbol' || typeof prop === 'symbol') {
@@ -105,7 +106,7 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
         }
         return () => Promise.resolve({ data: null, error: null });
       }
-      const value = client[prop as keyof ReturnType<typeof createClient>];
+      const value = client[prop as keyof SupabaseClient];
       if (typeof value === 'function') {
         return value.bind(client);
       }
@@ -130,25 +131,25 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
 // Order CRUD operations
 // Note: Database uses integer `id` as PK with snake_case columns
 // We can query by: id (integer), or any text field that matches
-export async function getOrderFromSupabase(orderId: string) {
+export async function getOrderFromSupabase(orderId: string, signal?: AbortSignal) {
   // Purpose: tolerate trailing spaces and mixed identifier semantics.
   const trimmedOrderId = orderId.trim();
   if (!trimmedOrderId) return null;
 
   const numericId = /^\d+$/.test(trimmedOrderId) ? parseInt(trimmedOrderId, 10) : NaN;
   if (!Number.isNaN(numericId)) {
-    const { data, error } = await supabase.from('orders').select('*').eq('id', numericId).maybeSingle();
+    const { data, error } = await supabase.from('orders').select('*').eq('id', numericId).abortSignal(signal ?? new AbortController().signal).maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     if (data) return data;
   }
 
   const trySingleBy = async (column: string): Promise<Record<string, unknown> | null> => {
-    const { data, error } = await supabase.from('orders').select('*').eq(column, trimmedOrderId).maybeSingle();
+    const { data, error } = await supabase.from('orders').select('*').eq(column, trimmedOrderId).abortSignal(signal ?? new AbortController().signal).maybeSingle();
     if (error?.code === '42703') return null;
     if (error) throw error;
     if (data) return data as Record<string, unknown>;
 
-    const like = await supabase.from('orders').select('*').ilike(column, `${trimmedOrderId}%`).limit(1);
+    const like = await supabase.from('orders').select('*').ilike(column, `${trimmedOrderId}%`).limit(1).abortSignal(signal ?? new AbortController().signal);
     if (like.error?.code === '42703') return null;
     if (like.error) throw like.error;
     return (like.data?.[0] as Record<string, unknown> | undefined) ?? null;
@@ -166,7 +167,7 @@ export async function getOrderFromSupabase(orderId: string) {
     .from('orders')
     .select('*')
     .eq('root_order_id', trimmedOrderId)
-    .limit(50);
+    .limit(50).abortSignal(signal ?? new AbortController().signal);
   if (rootError?.code !== '42703' && rootError) throw rootError;
   if (byRoot && byRoot.length > 0) {
     const primary =
@@ -181,7 +182,7 @@ export async function getOrderFromSupabase(orderId: string) {
     .from('orders')
     .select('*')
     .eq('amazon_order_id', trimmedOrderId)
-    .limit(50);
+    .limit(50).abortSignal(signal ?? new AbortController().signal);
   if (amazonError?.code !== '42703' && amazonError) throw amazonError;
   if (byAmazon && byAmazon.length > 0) {
     const primary =
@@ -195,7 +196,7 @@ export async function getOrderFromSupabase(orderId: string) {
     .from('orders')
     .select('*')
     .ilike('root_order_id', `${trimmedOrderId}%`)
-    .limit(1);
+    .limit(1).abortSignal(signal ?? new AbortController().signal);
   if (byRootLike.error?.code !== '42703' && byRootLike.error) throw byRootLike.error;
   if (byRootLike.data?.[0]) return byRootLike.data[0] as any;
 
@@ -203,7 +204,7 @@ export async function getOrderFromSupabase(orderId: string) {
     .from('orders')
     .select('*')
     .ilike('amazon_order_id', `${trimmedOrderId}%`)
-    .limit(1);
+    .limit(1).abortSignal(signal ?? new AbortController().signal);
   if (byAmazonLike.error?.code !== '42703' && byAmazonLike.error) throw byAmazonLike.error;
   return (byAmazonLike.data?.[0] as any) ?? null;
 }
@@ -360,7 +361,8 @@ export interface UpsertByPerBookIdResult {
 }
 
 export async function upsertOrderByPerBookId(
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: { preserveFrozenIntake?: boolean } = {},
 ): Promise<UpsertByPerBookIdResult> {
   // Use per-book order id as the write key so sibling rows can share amazon_order_id safely.
   const perBookIdRaw = payload.orderId ?? payload.order_id;
@@ -380,7 +382,7 @@ export async function upsertOrderByPerBookId(
 
   const byOrderId = await supabase
     .from('orders')
-    .select('id')
+    .select('*')
     .eq('orderId', perBookId)
     .maybeSingle();
 
@@ -389,7 +391,7 @@ export async function upsertOrderByPerBookId(
   }
 
   const byOrderIdSnake = byOrderId.error?.code === '42703'
-    ? await supabase.from('orders').select('id').eq('order_id', perBookId).maybeSingle()
+    ? await supabase.from('orders').select('*').eq('order_id', perBookId).maybeSingle()
     : null;
 
   if (byOrderIdSnake?.error && byOrderIdSnake.error.code !== 'PGRST116') {
@@ -400,12 +402,42 @@ export async function upsertOrderByPerBookId(
     ?? (byOrderIdSnake?.data as { id?: number } | null)?.id;
 
   if (typeof existingId === 'number') {
-    const updated = await supabase
-      .from('orders')
-      .update(normalizedPayload)
-      .eq('id', existingId)
-      .select()
-      .single();
+    const existingRecord = (byOrderId.data as Record<string, unknown> | null)
+      ?? (byOrderIdSnake?.data as Record<string, unknown> | null);
+    if (existingRecord) {
+      try {
+        assertPrintAssignmentCompatible(existingRecord, normalizedPayload);
+      } catch (error) {
+        return { data: null, error: error instanceof Error ? error : new Error(String(error)), wasInsert: false };
+      }
+    }
+    const completeFrozenAssignment = async (record: Record<string, unknown>): Promise<UpsertByPerBookIdResult> => {
+      if (normalizedPayload.character_hash !== record.character_hash) {
+        return { data: null, error: new Error('Frozen W0 character identity mismatch'), wasInsert: false };
+      }
+      const missing = Object.fromEntries(FROZEN_PRINT_FIELDS.filter((field) => record[field] == null && normalizedPayload[field] != null)
+        .map((field) => [field, normalizedPayload[field]]));
+      if (Object.keys(missing).length) {
+        const frozen = await supabase.from('orders').update(missing).eq('id', existingId).select().single();
+        if (frozen.error) return { data: null, error: new Error(frozen.error.message), wasInsert: false };
+        return { data: frozen.data, error: null, wasInsert: false };
+      }
+      return { data: record, error: null, wasInsert: false };
+    };
+    // W0 retries fill missing freeze fields without rewriting downstream state.
+    if (options.preserveFrozenIntake && existingRecord?.one_manifest_url && existingRecord.execution_status !== 'pending_w0') {
+      return completeFrozenAssignment(existingRecord);
+    }
+    let update = supabase.from('orders').update(normalizedPayload).eq('id', existingId);
+    if (options.preserveFrozenIntake) update = update.eq('execution_status', 'pending_w0');
+    const updated = await update.select().maybeSingle();
+    if (options.preserveFrozenIntake && ((!updated.error && !updated.data) || (updated.error?.code === 'PGRST116' && updated.error.details?.includes('0 rows')))) {
+      const current = await supabase.from('orders').select('*').eq('id', existingId).single();
+      if (current.error) return { data: null, error: new Error(current.error.message), wasInsert: false };
+      try { assertPrintAssignmentCompatible(current.data, normalizedPayload); }
+      catch (error) { return { data: null, error: error as Error, wasInsert: false }; }
+      return completeFrozenAssignment(current.data);
+    }
 
     if (updated.error) {
       return { data: null, error: new Error(updated.error.message), wasInsert: false };
@@ -505,4 +537,3 @@ export async function listOrdersFromSupabase(options: ListOrdersOptions = {}) {
     throw error;
   }
 }
-

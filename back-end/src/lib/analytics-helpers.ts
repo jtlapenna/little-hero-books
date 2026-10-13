@@ -12,6 +12,10 @@ export interface AnalyticsOrderLike {
   display_order_id?: string | null;
   customer_name?: string | null;
   customer_email?: string | null;
+  print_provider?: string | null;
+  gelato_status?: string | null;
+  gelato_order_type?: string | null;
+  gelato_order_id?: string | null;
   lulu_job_id?: string | null;
   lulu_status?: string | null;
   print_submitted_at?: string | null;
@@ -60,6 +64,7 @@ export function getParentAmazonOrderId(value: string | null | undefined): string
 }
 
 export function hasFulfillmentSignal(order: AnalyticsOrderLike): boolean {
+  if (order.print_provider === 'gelato') return order.gelato_order_type === 'order' && Boolean(order.gelato_order_id);
   return Boolean(
     order.lulu_job_id ||
       order.lulu_status ||

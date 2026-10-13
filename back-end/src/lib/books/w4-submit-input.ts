@@ -1,6 +1,7 @@
 import { getBucketFromKey } from '@/lib/r2-utils';
 import type { LoadOrderForW4 } from '@/lib/books/w4-print-input';
 import { verifyW4ProductionApprovalToken } from '@/lib/w4-production-approval';
+import { assertLuluPrintOwnershipForOrder, assertNoNonLuluPrintOwnership } from './lulu-print-ownership';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -994,10 +995,12 @@ export async function buildW4SubmitInput(
     throw new Error(`W4 submit input is missing direct PDF URLs and PDF keys for ${orderId}`);
   }
 
-  const loadedOrder = options.loadOrder
-    ? await options.loadOrder(orderId).catch(() => null)
-    : null;
+  if (!options.loadOrder) throw new Error('W4 submit requires a verifiable print provider assignment');
+  const loadedOrder = await options.loadOrder(orderId);
+  if (!loadedOrder) throw new Error('W4 submit could not verify the print provider assignment');
   const loadedOrderRecord = toRecord(loadedOrder);
+  assertNoNonLuluPrintOwnership(input);
+  assertLuluPrintOwnershipForOrder(orderId, loadedOrderRecord);
 
   const signedUrlExpiresIn = options.signedUrlExpiresIn ?? 21600;
   const interiorSignedUrl = allowDirectPdfUrls && directInteriorUrl

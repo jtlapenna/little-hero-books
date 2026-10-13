@@ -21,6 +21,10 @@ interface OrderNeedingAttention {
   started_at?: string | null;
   current_workflow?: string | null;
   workflow_step?: string | null;
+  print_provider?: string | null;
+  gelato_status?: string | null;
+  gelato_action_reason?: string | null;
+  gelato_notification_attention?: boolean;
 }
 
 function getOrderHref(order: OrderNeedingAttention): string | null {
@@ -34,6 +38,10 @@ function getOrderLabel(order: OrderNeedingAttention): string {
     order.amazon_order_id ||
     'Unknown'
   );
+}
+
+function isGelatoOrder(order: OrderNeedingAttention): boolean {
+  return order.print_provider === 'gelato';
 }
 
 export default function OrdersNeedingAttentionPage() {
@@ -56,6 +64,8 @@ export default function OrdersNeedingAttentionPage() {
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setOrders(data.orders || []);
+      const recoverableIds = new Set<number>((data.orders || []).filter((order: OrderNeedingAttention) => !isGelatoOrder(order)).map((order: OrderNeedingAttention) => order.id));
+      setSelectedOrders((current) => new Set([...current].filter((id) => recoverableIds.has(id))));
       setLastRefresh(new Date());
     } catch (error) {
       console.error('Failed to fetch orders needing attention:', error);
@@ -91,17 +101,9 @@ export default function OrdersNeedingAttentionPage() {
     return <span className={`px-2 py-1 text-xs font-medium rounded ${badge.color}`}>{badge.label}</span>;
   };
 
-  const getRecoveryAction = (reason: string, executionStatus: string) => {
-    if (executionStatus === 'error_requires_manual_review') return 'manual_review';
-    if (reason === 'error_no_retry_scheduled' || reason === 'ready_not_picked_up') return 'schedule_retry';
-    if (reason === 'error_max_retries_exceeded') return 'manual_review';
-    if (reason.startsWith('processing_')) return 'reset_processing';
-    if (executionStatus === 'error') return 'reset_processing';
-    return 'manual_review';
-  };
-
   const recoverOrders = async (action: string) => {
-    if (selectedOrders.size === 0) return;
+    const recoverableIds = orders.filter((order) => selectedOrders.has(order.id) && !isGelatoOrder(order)).map((order) => order.id);
+    if (recoverableIds.length === 0) return;
     
     setRecovering(true);
     try {
@@ -109,7 +111,7 @@ export default function OrdersNeedingAttentionPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderIds: Array.from(selectedOrders),
+          orderIds: recoverableIds,
           action
         })
       });
@@ -127,6 +129,7 @@ export default function OrdersNeedingAttentionPage() {
   };
 
   const toggleOrder = (id: number) => {
+    if (orders.some((order) => order.id === id && isGelatoOrder(order))) return;
     const newSelected = new Set(selectedOrders);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -137,12 +140,15 @@ export default function OrdersNeedingAttentionPage() {
   };
 
   const selectAll = () => {
-    if (selectedOrders.size === orders.length) {
+    const recoverableOrders = orders.filter((order) => !isGelatoOrder(order));
+    if (selectedOrders.size === recoverableOrders.length) {
       setSelectedOrders(new Set());
     } else {
-      setSelectedOrders(new Set(orders.map(o => o.id)));
+      setSelectedOrders(new Set(recoverableOrders.map(o => o.id)));
     }
   };
+
+  const recoverableSelectionCount = orders.filter((order) => selectedOrders.has(order.id) && !isGelatoOrder(order)).length;
 
   // Get all possible error types (from DisplayStatus enum and common error reasons)
   const allPossibleErrorTypes = [
@@ -177,11 +183,11 @@ export default function OrdersNeedingAttentionPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Orders Needing Attention</h1>
               <p className="mt-2 text-gray-600">
-                All orders with errors, stuck processing, or requiring manual intervention
+                Review blocked orders and provider updates.
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -248,7 +254,7 @@ export default function OrdersNeedingAttentionPage() {
                   {orders.length} order{orders.length !== 1 ? 's' : ''} needing attention
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  These orders have errors, are stuck processing, or require manual intervention. Select orders and choose a recovery action.
+                For Gelato, open Print Status. Select other orders for workflow recovery.
                 </div>
               </div>
             </div>
@@ -259,26 +265,26 @@ export default function OrdersNeedingAttentionPage() {
           <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-blue-800">
-                {selectedOrders.size} order{selectedOrders.size !== 1 ? 's' : ''} selected
+                {recoverableSelectionCount} eligible order{recoverableSelectionCount !== 1 ? 's' : ''} selected
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => recoverOrders('schedule_retry')}
-                  disabled={recovering}
+                  disabled={recovering || recoverableSelectionCount === 0}
                   className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                 >
                   Schedule Retry
                 </button>
                 <button
                   onClick={() => recoverOrders('manual_review')}
-                  disabled={recovering}
+                  disabled={recovering || recoverableSelectionCount === 0}
                   className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
                 >
                   Mark for Manual Review
                 </button>
                 <button
                   onClick={() => recoverOrders('reset_processing')}
-                  disabled={recovering}
+                  disabled={recovering || recoverableSelectionCount === 0}
                   className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                   Reset Processing
@@ -310,13 +316,16 @@ export default function OrdersNeedingAttentionPage() {
                     <th className="px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedOrders.size === orders.length && orders.length > 0}
+                        checked={orders.some((order) => !isGelatoOrder(order)) && selectedOrders.size === orders.filter((order) => !isGelatoOrder(order)).length}
                         onChange={selectAll}
                         className="rounded border-gray-300"
                       />
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Order ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Print Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -358,13 +367,15 @@ export default function OrdersNeedingAttentionPage() {
                           type="checkbox"
                           checked={selectedOrders.has(order.id)}
                           onChange={() => toggleOrder(order.id)}
+                          disabled={isGelatoOrder(order)}
+                          aria-label={isGelatoOrder(order) ? `Use Print Status for ${getOrderLabel(order)}` : `Select ${getOrderLabel(order)} for workflow recovery`}
                           className="rounded border-gray-300"
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {getOrderHref(order) ? (
                           <a
-                            href={`/orders/${getOrderHref(order)}`}
+                            href={`/orders/${encodeURIComponent(getOrderHref(order)!)}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline"
                           >
                             {getOrderLabel(order)}
@@ -372,6 +383,13 @@ export default function OrdersNeedingAttentionPage() {
                         ) : (
                           <span className="text-gray-400">Unknown</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {isGelatoOrder(order) && getOrderHref(order) ? (
+                          <a href={`/orders/${encodeURIComponent(getOrderHref(order)!)}?stage=print-status`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                            Open Print Status
+                          </a>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.execution_status}

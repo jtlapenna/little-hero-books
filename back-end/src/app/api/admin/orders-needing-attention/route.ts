@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getGelatoNotificationChildOrderIds,
+  shouldExcludeFromPrintPhaseAttention,
+} from '@/lib/books/gelato-consumer-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -315,6 +319,53 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const { data: gelatoAttention, error: gelatoAttentionError } = await supabase.from('orders')
+      .select('id,orderId,amazon_order_id,display_order_id,execution_status,current_workflow,next_workflow,print_provider,gelato_status,gelato_action_reason,updated_at')
+      .eq('print_provider', 'gelato').not('gelato_action_reason', 'is', null).neq('gelato_action_reason', 'awaiting_draft_review');
+    if (gelatoAttentionError) throw new Error('Gelato attention lookup failed');
+    for (const order of gelatoAttention ?? []) orderMap.set(order.id, { ...order, source: 'error_status', timeStuck: null,
+      error_type: 'GELATO_REQUIRES_REVIEW', errorReason: order.gelato_action_reason, error_message: 'Gelato submission needs review. Inspect Print Status before retrying.' });
+
+    const { data: heldGelatoNotifications, error: heldGelatoNotificationsError } = await supabase
+      .from('print_provider_submission_notifications')
+      .select('child_order_id,notification_type,delivery_state,attempt_result,payload')
+      .in('delivery_state', ['held', 'ambiguous']);
+    if (heldGelatoNotificationsError) throw new Error('Gelato notification review lookup failed');
+    const notificationRows = (heldGelatoNotifications ?? []) as Array<Record<string, unknown>>;
+    const notificationOrderIds = getGelatoNotificationChildOrderIds(notificationRows);
+    if (notificationOrderIds.length > 0) {
+      const { data: notificationOrders, error: notificationOrdersError } = await supabase
+        .from('orders')
+        .select('id,orderId,amazon_order_id,display_order_id,execution_status,current_workflow,next_workflow,print_provider,gelato_status,gelato_action_reason,updated_at')
+        .eq('print_provider', 'gelato')
+        .in('id', notificationOrderIds);
+      if (notificationOrdersError) throw new Error('Gelato notification order lookup failed');
+      const notificationsByOrderId = new Map<number, Array<Record<string, unknown>>>();
+      for (const notification of notificationRows) {
+        const ids = getGelatoNotificationChildOrderIds([notification]);
+        for (const id of ids) {
+          const existing = notificationsByOrderId.get(id) ?? [];
+          existing.push(notification);
+          notificationsByOrderId.set(id, existing);
+        }
+      }
+      for (const order of notificationOrders ?? []) {
+        const rows = notificationsByOrderId.get(Number(order.id)) ?? [];
+        const reviewReasons = rows.map((row) => String(row.attempt_result || row.notification_type || row.delivery_state));
+        const reviewStates = [...new Set(rows.map((row) => String(row.delivery_state || 'unknown')))];
+        orderMap.set(order.id, {
+          ...order,
+          source: 'error_status',
+          timeStuck: null,
+          error_type: 'GELATO_NOTIFICATION_REQUIRES_REVIEW',
+          errorReason: reviewReasons.join(', '),
+          error_message: `Gelato customer notification needs review (${reviewStates.join(', ')}). Inspect Print Status before retrying.`,
+          gelato_notification_attention: true,
+          gelato_notification_states: reviewStates,
+        });
+      }
+    }
+
     // Process not picked up orders — exclude when in print phase or already with Lulu.
     // Include: "Awaiting Customer" (customer not yet approved) so they show as needing attention.
     // Exclude: has Lulu job/status, or workflow_step is print_fulfillment, or (next is W4 and customer approved).
@@ -390,27 +441,18 @@ export async function GET(request: NextRequest) {
       const ids = orders.map((o: any) => o.id);
       const { data: printPhaseRows } = await supabase
         .from('orders')
-        .select('id, orderId, amazon_order_id, display_order_id, lulu_job_id, lulu_status, workflow_step, customer_approval_status, next_workflow')
+        .select('id, orderId, amazon_order_id, display_order_id, print_provider, gelato_action_reason, lulu_job_id, lulu_status, workflow_step, customer_approval_status, next_workflow')
         .in('id', ids);
       const printPhaseMap = new Map<number, Record<string, unknown>>();
       (printPhaseRows || []).forEach((row: any) => {
         printPhaseMap.set(row.id, row);
       });
-      const excludeIdSet = new Set<number>();
-      (printPhaseRows || []).forEach((row: any) => {
-        const jobId = row?.lulu_job_id;
-        const status = row?.lulu_status;
-        const hasLulu = (jobId != null && jobId !== '') || (status != null && status !== '');
-        const inPrintStep = row?.workflow_step === 'print_fulfillment';
-        const approvedAndNextIsW4 = row?.next_workflow === '4' && row?.customer_approval_status === 'approved';
-        if (hasLulu || inPrintStep || approvedAndNextIsW4) excludeIdSet.add(row.id);
-      });
       orders = orders
-        .filter((o: any) => !excludeIdSet.has(o.id))
         .map((order: any) => ({
           ...printPhaseMap.get(order.id),
           ...order,
-        }));
+        }))
+        .filter((order: any) => !shouldExcludeFromPrintPhaseAttention(order));
     }
     
     // Final pass: Ensure next_retry_at is explicitly included for all orders
@@ -518,6 +560,31 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const selectedIds = [...new Set(orderIds)];
+    const { data: selectedOrders, error: selectedOrdersError } = await supabase
+      .from('orders')
+      .select('id, orderId, amazon_order_id, print_provider, retry_count')
+      .in('id', selectedIds);
+
+    if (selectedOrdersError) throw selectedOrdersError;
+    if ((selectedOrders || []).length !== selectedIds.length) {
+      return NextResponse.json(
+        { error: 'One or more selected orders could not be found. Refresh the list and try again.' },
+        { status: 409 }
+      );
+    }
+
+    const gelatoOrders = (selectedOrders || []).filter((order) => order.print_provider === 'gelato');
+    if (gelatoOrders.length > 0) {
+      return NextResponse.json({
+        error: 'Gelato orders cannot use these workflow recovery actions. Open Print Status to review the provider submission.',
+        printStatusOrders: gelatoOrders.map((order) => ({
+          id: order.id,
+          href: `/orders/${encodeURIComponent(String(order.orderId || order.amazon_order_id || order.id))}?stage=print-status`,
+        })),
+      }, { status: 409 });
+    }
+
     let updateData: any = {};
 
     switch (action) {
@@ -532,21 +599,20 @@ export async function POST(request: NextRequest) {
           next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
         };
         // Increment retry_count
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('id, retry_count')
-          .in('id', orderIds);
-        
-        const updates = orders?.map(order => ({
+        const updates = selectedOrders?.map(order => ({
           id: order.id,
           retry_count: (order.retry_count || 0) + 1
         })) || [];
         
         for (const update of updates) {
-          await supabase
+          const { data, error } = await supabase
             .from('orders')
             .update({ ...updateData, retry_count: update.retry_count })
-            .eq('id', update.id);
+            .eq('id', update.id)
+            .or('print_provider.is.null,print_provider.eq.lulu')
+            .select('id');
+          if (error) throw error;
+          if ((data || []).length !== 1) throw new Error(`Order ${update.id} was not updated`);
         }
         break;
 
@@ -557,10 +623,16 @@ export async function POST(request: NextRequest) {
           error_message: 'Order recovered - requires manual intervention',
           error_type: 'manual_review_required'
         };
-        await supabase
+        {
+          const { data, error } = await supabase
           .from('orders')
           .update(updateData)
-          .in('id', orderIds);
+          .in('id', selectedIds)
+          .or('print_provider.is.null,print_provider.eq.lulu')
+          .select('id');
+          if (error) throw error;
+          if ((data || []).length !== selectedIds.length) throw new Error('Not all selected orders were updated');
+        }
         break;
 
       case 'reset_processing':
@@ -574,16 +646,22 @@ export async function POST(request: NextRequest) {
           current_workflow: null,
           started_at: null
         };
-        await supabase
+        {
+          const { data, error } = await supabase
           .from('orders')
           .update(updateData)
-          .in('id', orderIds);
+          .in('id', selectedIds)
+          .or('print_provider.is.null,print_provider.eq.lulu')
+          .select('id');
+          if (error) throw error;
+          if ((data || []).length !== selectedIds.length) throw new Error('Not all selected orders were updated');
+        }
         break;
     }
 
     return NextResponse.json({
       success: true,
-      recovered: orderIds.length,
+      recovered: selectedIds.length,
       action,
       timestamp: new Date().toISOString()
     });

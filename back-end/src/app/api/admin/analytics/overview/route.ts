@@ -1,4 +1,6 @@
+import { hasFulfillmentSignal } from '@/lib/analytics-helpers';
 import { NextRequest, NextResponse } from 'next/server';
+import { isGelatoOrderCompleted, isGelatoOrderShipped } from '@/lib/books/gelato-consumer-policy';
 
 import { getLastNDays, groupByTimePeriod, isProductionOrder, isTestOrder } from '@/lib/analytics-helpers';
 import { AnalyticsFilters, AnalyticsReportingRecord, getOrdersForAnalytics } from '@/lib/supabase-analytics';
@@ -19,6 +21,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 function hasLuluActivity(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato') return hasFulfillmentSignal(order);
   return Boolean(
     order.lulu_job_id ||
       order.lulu_status ||
@@ -29,21 +32,25 @@ function hasLuluActivity(order: AnalyticsReportingRecord): boolean {
 }
 
 function isDelivered(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato') return order.gelato_order_type === 'order' && order.gelato_status === 'delivered';
   const status = String(order.lulu_status || '').toLowerCase();
   return Boolean(order.delivered_at || status === 'delivered');
 }
 
 function isShipped(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato') return isGelatoOrderShipped(order);
   const status = String(order.lulu_status || '').toLowerCase();
   return Boolean(order.shipped_at || isDelivered(order) || status === 'shipped');
 }
 
 function isFulfillmentException(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato') return ['canceled', 'failed', 'returned', 'on_hold'].includes(order.gelato_status ?? '');
   const status = String(order.lulu_status || '').toLowerCase();
   return ['canceled', 'cancelled', 'failed', 'error', 'rejected'].includes(status);
 }
 
 function isCompletedOrder(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato') return isGelatoOrderCompleted(order);
   return Boolean(
     order.execution_status === 'completed' ||
       order.status === 'completed' ||
@@ -71,6 +78,7 @@ function isInPrint(order: AnalyticsReportingRecord): boolean {
 }
 
 function needsAttention(order: AnalyticsReportingRecord): boolean {
+  if (order.print_provider === 'gelato' && order.gelato_action_reason && order.gelato_action_reason !== 'awaiting_draft_review') return true;
   return Boolean(
     order.error_type ||
       order.execution_status?.includes('error') ||
@@ -282,7 +290,7 @@ export async function GET(request: NextRequest) {
         { stage: 'W2A Poses', count: orders.filter((order) => hasReachedPoses(order)).length },
         { stage: 'W2B Cutout', count: orders.filter((order) => hasReachedBackgroundRemoval(order)).length },
         { stage: 'W3 Pages', count: orders.filter((order) => hasReachedPages(order)).length },
-        { stage: 'W4 / Lulu', count: orders.filter((order) => hasLuluActivity(order)).length },
+        { stage: 'W4 / Print', count: orders.filter((order) => hasLuluActivity(order)).length },
       ],
       approvalFunnel: [
         { stage: 'Pending approval', count: awaitingApproval.length },

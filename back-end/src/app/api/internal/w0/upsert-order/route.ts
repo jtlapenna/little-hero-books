@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
   const body = unwrapPayloadObject(parsedBody);
 
-  if (!body) {
+  if (!isRecord(parsedBody) || !body) {
     return NextResponse.json(
       { error: 'Request body must be a JSON object' },
       { status: 400 },
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { payload, orderId, manifestKey } = normalizeUpsertPayload(body);
-    const result = await upsertOrderByPerBookId(payload);
+    const result = await upsertOrderByPerBookId(payload, { preserveFrozenIntake: true });
 
     if (result.error) {
       throw result.error;

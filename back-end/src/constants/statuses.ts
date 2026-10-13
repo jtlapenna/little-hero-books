@@ -74,6 +74,8 @@ export enum DisplayStatus {
   AWAITING_CUSTOMER = 'awaiting_customer',
   NEEDS_REVISION = 'needs_revision',
   READY_TO_PRINT = 'ready_to_print',
+  PRINT_DRAFT = 'print_draft',
+  PREPARING_PRINT = 'preparing_print',
   PRINTING = 'printing',
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
@@ -200,6 +202,8 @@ export const StatusLabels: Record<string, string> = {
   [DisplayStatus.AWAITING_CUSTOMER]: 'Awaiting Customer',
   [DisplayStatus.NEEDS_REVISION]: 'Needs Revision',
   [DisplayStatus.READY_TO_PRINT]: 'Ready to Print',
+  [DisplayStatus.PRINT_DRAFT]: 'Draft Awaiting Review',
+  [DisplayStatus.PREPARING_PRINT]: 'Preparing for Print',
   [DisplayStatus.PRINTING]: 'Printing',
   [DisplayStatus.SHIPPED]: 'Shipped',
   [DisplayStatus.DELIVERED]: 'Delivered',
@@ -409,6 +413,8 @@ export const StatusColors: Record<string, {
     text: 'text-yellow-800',
     border: 'border-yellow-200'
   },
+  [DisplayStatus.PRINT_DRAFT]: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  [DisplayStatus.PREPARING_PRINT]: { bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-200' },
   [DisplayStatus.PRINTING]: {
     bg: 'bg-indigo-100',
     text: 'text-indigo-800',

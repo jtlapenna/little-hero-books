@@ -372,6 +372,7 @@ const normalizedBuilt = await buildOrderIntakeManifestFromNormalizedInputRuntime
   {
     schemaVersion: 'v3',
     configSource: 'bundled',
+    configVersion: 1,
   },
 );
 const normalizedBuiltManifest = normalizedBuilt.manifest as RunManifestV3;
@@ -405,6 +406,13 @@ assert(
 assert(
   normalizedUpsert.one_manifest_url === normalizedBuilt.manifestKey,
   'Normalized W0 upsert payload should reuse the manifest key as one_manifest_url',
+);
+assert(
+  normalizedUpsert.print_provider === normalizedBuiltManifest.book.resolved.print.provider &&
+    normalizedUpsert.print_config_version === normalizedBuiltManifest.book.bookConfigRef.version &&
+    normalizedUpsert.print_inner_page_count === normalizedBuiltManifest.book.resolved.expectedPageCount &&
+    normalizedUpsert.print_product_uid === null,
+  'Normalized W0 upsert should freeze the versioned print assignment on the order row',
 );
 assert(
   normalizedUpsert.root_order_id === '999-1111111-2222222',

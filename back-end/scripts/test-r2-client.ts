@@ -13,7 +13,9 @@ async function testStreamUploadsUseUnsignedPayload(): Promise<void> {
   process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY =
     process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || 'test-secret-key';
 
-  const { putObject, r2Client } = await import('@/lib/r2-client');
+  process.env.SUPABASE_URL = 'https://db.example.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-key';
+  const { putObject, getObject, r2Client } = await import('@/lib/r2-client');
   const originalFetch = globalThis.fetch;
   const originalSign = r2Client.sign.bind(r2Client);
 
@@ -58,6 +60,41 @@ async function testStreamUploadsUseUnsignedPayload(): Promise<void> {
       signedContentLength === null,
       'Expected stream uploads to omit content-length instead of buffering to compute it eagerly',
     );
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      assert((input as Request).headers.get('If-None-Match') === '*', 'Conditional manifest writes must sign and send If-None-Match');
+      return new Response(null, { status: 412 });
+    }) as typeof globalThis.fetch;
+    const conditional = await putObject('little-hero-orders', 'book/orders/test/manifests/1-manifest.json', '{}', 'application/json', { ifNoneMatch: '*' });
+    assert(conditional.status === 412, 'Conditional collision must be returned for frozen-manifest reconciliation');
+    const { w0ManifestStorage } = await import('@/lib/books/w0-manifest-storage');
+    globalThis.fetch = (async () => new Response('Synthetic absent object', { status: 404 })) as typeof globalThis.fetch;
+    assert(await w0ManifestStorage.loadManifest('book/orders/test/manifests/1-manifest.json') === null, 'Actual W0 adapter must treat 404 as absent');
+    await getObject('little-hero-orders', 'absent', { allowNotFound: true });
+    let strictRejected = false;
+    try { await getObject('little-hero-orders', 'absent'); } catch { strictRejected = true; }
+    assert(strictRejected, 'Existing strict R2 callers must still reject missing objects');
+    globalThis.fetch = (async () => new Response('Synthetic access denied', { status: 403 })) as typeof globalThis.fetch;
+    let deniedRejected = false;
+    try { await w0ManifestStorage.loadManifest('denied'); } catch { deniedRejected = true; }
+    assert(deniedRejected, 'W0 adapter must not treat permission failures as absent');
+    const { createGelatoStoredFileVerifier } = await import('@/lib/books/gelato-stored-file');
+    let buffered = false;
+    let canceled = false;
+    globalThis.fetch = (async (_input: RequestInfo | URL, options?: RequestInit) => {
+      assert(options?.redirect === 'error', 'Verifier R2 fetch must reject redirects');
+      assert(Boolean(options?.signal), 'Verifier R2 fetch must carry the shared deadline');
+      const response = new Response(new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(1024)); }, cancel() { canceled = true; } }), { status: 403 });
+      response.text = async () => { buffered = true; throw new Error('Error body must not be buffered'); };
+      return response;
+    }) as typeof globalThis.fetch;
+    const verifier = createGelatoStoredFileVerifier({ maxFileBytes: 1, maxOperationBytes: 2,
+      loadArtifact: (key, signal) => getObject('little-hero-orders', key, { signal, redirect: 'error', allowErrorResponse: true }) });
+    const key = `book/orders/child-1/gelato/print/v2/${'a'.repeat(24)}.pdf`;
+    let fileRejected = false;
+    try { await verifier({ child_order_key: 'child-1', artifact_key: key, artifact_fingerprint: 'a'.repeat(24), artifact_claim_token: 'token', pdf_page_count: 35 } as import('@/lib/books/gelato-submission-store').GelatoMember,
+      'https://gelato-api-live.s3.eu-west-1.amazonaws.com/synthetic.pdf', `https://files.example.test/api/pdf/${key}`); } catch { fileRejected = true; }
+    assert(fileRejected && canceled && !buffered, 'Actual R2 error transport must cancel without buffering before verifier limits');
+
   } finally {
     globalThis.fetch = originalFetch;
     r2Client.sign = originalSign as typeof r2Client.sign;

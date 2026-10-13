@@ -135,6 +135,18 @@ function testProviderTokenHeaders() {
 }
 
 function main() {
+  for (const key of ['serviceKey', 'apiToken', 'accessKeyId', 'secretAccessKey']) {
+    for (const quote of ["'", '"', '`']) {
+      const file = '/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json';
+      const source = JSON.stringify({ nodes: [{ parameters: { jsCode: `return { ${key}: ${quote}synthetic-secret-value${quote} };` } }] });
+      const findings = scanWorkflowExportText(file, source);
+      assert(findings.length > 0, `Decoded JavaScript ${key} literal must fail the scan`);
+      assert(!JSON.stringify(findings).includes('synthetic-secret-value'), 'Findings must omit values');
+    }
+    const oppositeQuote = scanWorkflowExportText('/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json',
+      JSON.stringify({ nodes: [{ parameters: { jsCode: `return { ${key}: 'synthetic-"quoted-secret' };` } }] }));
+    assert(oppositeQuote.length > 0, 'Opposite quote inside credential literal must fail the scan');
+  }
   testProviderTokenHeaders();
   testPathClassification();
   testLiveBackupFinding();

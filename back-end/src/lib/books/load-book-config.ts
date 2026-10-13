@@ -1,5 +1,6 @@
 import bookMvpSimpleAdventureV1Json from './configs/book-mvp-simple-adventure/v1.json';
 import innerVoiceV1Json from './configs/book-finding-our-inner-voice/v1.json';
+import innerVoiceV2Json from './configs/book-finding-our-inner-voice/v2.json';
 import book2ExampleV1Json from './configs/book-2-example/v1.json';
 import { BookConfig, BookConfigSchema, BookFormatConfig } from '@/lib/books/types';
 
@@ -7,6 +8,7 @@ const BUNDLED_BOOK_CONFIGS = [
   bookMvpSimpleAdventureV1Json,
   book2ExampleV1Json,
   innerVoiceV1Json,
+  innerVoiceV2Json,
 ] as const;
 
 type BundledConfigMap = Map<string, Map<number, BookConfig>>;
@@ -54,11 +56,11 @@ export function loadBundledBookConfig({
     return exact;
   }
 
-  const latest = Array.from(versions.values()).sort((a, b) => b.version - a.version)[0];
-  if (!latest) {
-    throw new Error(`No bundled config versions found for ${bookId}`);
+  const baseline = versions.get(1);
+  if (!baseline) {
+    throw new Error(`No baseline bundled config found for ${bookId}; specify version`);
   }
-  return latest;
+  return baseline;
 }
 
 export function getBookFormatConfig(config: BookConfig, formatId?: string): BookFormatConfig {

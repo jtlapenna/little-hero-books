@@ -1,6 +1,6 @@
 import { validateRunManifest } from './validate-run-manifest';
-import type { BookRenderSnapshot } from './types';
-import { BookPageConfig, RunManifestV3, RunManifestV3Schema } from '@/lib/books/types';
+import type { BookPrintConfig, BookRenderSnapshot } from './types';
+import { BookPageConfig, RunManifestV3 } from '@/lib/books/types';
 
 export interface ManifestDedication {
   raw: string;
@@ -11,6 +11,12 @@ export interface ManifestDedication {
 export interface NormalizedW0Manifest {
   renderSnapshot?: BookRenderSnapshot;
   configVersion?: number;
+  print?: BookPrintConfig;
+  provider?: BookPrintConfig['provider'];
+  productUid?: string;
+  innerPageCount?: number;
+  apiPageCount?: number;
+  expectedPdfPageCount?: number;
   schema: string | null;
   orderId: string | null;
   rootOrderId: string | null;
@@ -137,6 +143,14 @@ function normalizeV3Manifest(
   return {
     renderSnapshot: manifest.book.resolved.renderSnapshot,
     configVersion: manifest.book.bookConfigRef.version,
+    print: manifest.book.resolved.print,
+    provider: manifest.book.resolved.print.provider,
+    ...(manifest.book.resolved.print.provider === 'gelato' ? {
+      productUid: manifest.book.resolved.print.productUid,
+      innerPageCount: manifest.book.resolved.print.innerPageCount,
+      apiPageCount: manifest.book.resolved.print.apiPageCount,
+      expectedPdfPageCount: manifest.book.resolved.print.expectedPdfPageCount,
+    } : {}),
     schema: manifest.schema,
     orderId: manifest.order.orderId,
     rootOrderId: manifest.order.rootOrderId,
@@ -225,11 +239,7 @@ export function normalizeW0Manifest(
 
   const schema = toStringValue(manifest.schema);
   if (schema === 'lhb.run-manifest@v3') {
-    const parsed = RunManifestV3Schema.safeParse(manifest);
-    if (!parsed.success) {
-      throw new Error(`Invalid lhb.run-manifest@v3 payload: ${parsed.error.message}`);
-    }
-    return normalizeV3Manifest(validateRunManifest(parsed.data), options);
+    return normalizeV3Manifest(validateRunManifest(manifest), options);
   }
 
   return normalizeLegacyManifest(manifest, options);

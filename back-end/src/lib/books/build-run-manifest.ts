@@ -175,6 +175,9 @@ export function buildW0RunManifest(input: BuildW0RunManifestInput): RunManifestV
 export async function buildW0RunManifestRuntime(
   input: BuildW0RunManifestRuntimeInput,
 ): Promise<RunManifestV3> {
+  if (!Number.isInteger(input.configVersion) || (input.configVersion ?? 0) <= 0) {
+    throw new Error('W0 runtime intake requires an explicit positive configVersion');
+  }
   const config = await loadRuntimeBookConfig({
     bookId: input.bookId,
     version: input.configVersion,

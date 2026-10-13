@@ -186,14 +186,14 @@ export function parsePublishedBookConfigRow(
   const rowVersion =
     typeof row.version === 'number'
       ? row.version
-      : Number.parseInt(String(row.version ?? ''), 10);
-  if (rowBookId && rowBookId !== config.bookId) {
+      : Number(row.version);
+  if (rowBookId !== config.bookId) {
     throw new PublishedBookConfigError(
       'invalid-row',
       `Published row book_id ${rowBookId} does not match config bookId ${config.bookId}`,
     );
   }
-  if (Number.isFinite(rowVersion) && rowVersion !== config.version) {
+  if (!Number.isInteger(rowVersion) || rowVersion !== config.version) {
     throw new PublishedBookConfigError(
       'invalid-row',
       `Published row version ${rowVersion} does not match config version ${config.version}`,
@@ -202,7 +202,7 @@ export function parsePublishedBookConfigRow(
 
   const checksum = computeBookConfigChecksum(config);
   const storedChecksum = typeof row.checksum === 'string' ? row.checksum.trim() : '';
-  if (storedChecksum && storedChecksum !== checksum) {
+  if (storedChecksum !== checksum) {
     throw new PublishedBookConfigError(
       'invalid-row',
       `Published row checksum mismatch for ${config.bookId}@v${config.version}`,
@@ -281,35 +281,34 @@ async function fetchSinglePublishedBookConfigRow(
       return activeQuery.data as PublishedBookConfigRow;
     }
 
-    const latestQuery = await supabase
+    const baselineQuery = await supabase
       .from('book_configs')
       .select('*')
       .eq('book_id', bookId)
-      .order('version', { ascending: false })
-      .limit(1)
+      .eq('version', 1)
       .maybeSingle();
 
-    if (isTableMissingError(latestQuery.error, 'book_configs')) {
+    if (isTableMissingError(baselineQuery.error, 'book_configs')) {
       throw new PublishedBookConfigError(
         'table-missing',
         'book_configs table is not available',
       );
     }
-    if (latestQuery.error) {
+    if (baselineQuery.error) {
       throw new PublishedBookConfigError(
         'query-failed',
-        `Failed to read latest published book config for ${bookId}: ${latestQuery.error.message}`,
-        { cause: latestQuery.error },
+        `Failed to read baseline published book config for ${bookId}: ${baselineQuery.error.message}`,
+        { cause: baselineQuery.error },
       );
     }
-    if (!latestQuery.data) {
+    if (!baselineQuery.data) {
       throw new PublishedBookConfigError(
         'not-found',
-        `No published book config found for ${bookId}`,
+        `No baseline published book config found for ${bookId}; specify version`,
       );
     }
 
-    return latestQuery.data as PublishedBookConfigRow;
+    return baselineQuery.data as PublishedBookConfigRow;
   } catch (error) {
     if (error instanceof PublishedBookConfigError) {
       throw error;

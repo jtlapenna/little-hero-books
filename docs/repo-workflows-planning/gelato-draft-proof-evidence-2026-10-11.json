@@ -1,0 +1,254 @@
+{
+  "scope": "Synthetic direct API proof, not deployed W4/W4.1 execution",
+  "cases": [
+    {
+      "timestamp": "2026-10-12T03:31:03.753Z",
+      "itemCount": 1,
+      "orderReferenceId": "LHL-DRAFT-PROOF-5df80b75-7db4-4be9-a29c-1c6d478640a9",
+      "rootOrderId": "ae4fd511-b90e-472c-b47b-7e0a24d33875",
+      "shipmentMethodUid": "usps_ground_advantage",
+      "apiPageCount": 32,
+      "pdfPageCount": 35,
+      "artifactSha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+      "graph": [
+        {
+          "id": "ae4fd511-b90e-472c-b47b-7e0a24d33875",
+          "orderType": "draft",
+          "fulfillmentStatus": "draft",
+          "financialStatus": "draft",
+          "connectedOrderIds": [],
+          "items": [
+            {
+              "id": "48eeaf16-9376-45a6-b294-cb1ee5cdb827",
+              "itemReferenceId": "synthetic-item-1",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "files": 1
+            }
+          ]
+        }
+      ],
+      "searchIds": [
+        "ae4fd511-b90e-472c-b47b-7e0a24d33875"
+      ],
+      "canonicalGraphValidated": true,
+      "synthetic": true,
+      "paidConversion": false,
+      "quote": {
+        "quoteId": "b95a312f-7556-4860-8c3f-91fdd3fa7555",
+        "shipmentMethodUid": "usps_ground_advantage",
+        "shipmentPolicyVersion": 2,
+        "shippingTier": "standard",
+        "quotedAt": "2026-10-12T03:30:56.141Z",
+        "requestFingerprint": "17084d0f6bf18962b88aea21d1f0b0fefae6f95ef9fd88af50591216cf3fbc61",
+        "canonicalQuoteValidated": true
+      },
+      "readOnlyRecheck": {
+        "timestamp": "2026-10-12T03:50:36.854Z",
+        "graphValidated": false,
+        "graphValidatedAfterByteVerification": true,
+        "runtimeArtifactReceiptsExercised": false,
+        "itemComparisons": [
+          {
+            "itemReferenceId": "synthetic-item-1",
+            "productMatches": true,
+            "quantityMatches": true,
+            "pageCount": 32,
+            "expectedPageCount": 32,
+            "fileCount": 1,
+            "expectedFileCount": 1,
+            "fileTypes": [
+              "default"
+            ],
+            "exactFileUrls": false,
+            "returnedFileHosts": [
+              "gelato-api-live.s3.eu-west-1.amazonaws.com"
+            ]
+          }
+        ],
+        "storedFileChecks": [
+          {
+            "itemReferenceId": "synthetic-item-1",
+            "fileType": "default",
+            "bytes": 784477,
+            "sha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+            "matchesSubmittedPdf": true
+          }
+        ],
+        "nodes": [
+          {
+            "id": "ae4fd511-b90e-472c-b47b-7e0a24d33875",
+            "orderType": "draft",
+            "fulfillmentStatus": "draft",
+            "financialStatus": "draft",
+            "purchaseReceiptCount": 1,
+            "items": [
+              {
+                "id": "48eeaf16-9376-45a6-b294-cb1ee5cdb827",
+                "itemReferenceId": "synthetic-item-1",
+                "fulfillmentStatus": "created",
+                "processedFileAvailable": false,
+                "previewCount": 3,
+                "previewTypes": [
+                  "preview_default",
+                  "preview_thumbnail",
+                  "preview_flat"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-10-12T03:31:10.260Z",
+      "itemCount": 2,
+      "orderReferenceId": "LHL-DRAFT-PROOF-eb7e39ee-c219-499d-98be-18b11d2aefa5",
+      "rootOrderId": "de9bf2f5-12ea-48ff-9149-beaa30234b8d",
+      "shipmentMethodUid": "usps_ground_advantage",
+      "apiPageCount": 32,
+      "pdfPageCount": 35,
+      "artifactSha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+      "graph": [
+        {
+          "id": "de9bf2f5-12ea-48ff-9149-beaa30234b8d",
+          "orderType": "draft",
+          "fulfillmentStatus": "draft",
+          "financialStatus": "draft",
+          "connectedOrderIds": [],
+          "items": [
+            {
+              "id": "375efc3b-27f1-4912-92ab-255c087d5f79",
+              "itemReferenceId": "synthetic-item-1",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "files": 1
+            },
+            {
+              "id": "7478329b-e23d-42a8-a26f-bc9aa9af41a5",
+              "itemReferenceId": "synthetic-item-2",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "files": 1
+            }
+          ]
+        }
+      ],
+      "searchIds": [
+        "de9bf2f5-12ea-48ff-9149-beaa30234b8d"
+      ],
+      "canonicalGraphValidated": true,
+      "synthetic": true,
+      "paidConversion": false,
+      "quote": {
+        "quoteId": "1aed20c3-8204-4adf-976c-638bb07004b0",
+        "shipmentMethodUid": "usps_ground_advantage",
+        "shipmentPolicyVersion": 2,
+        "shippingTier": "standard",
+        "quotedAt": "2026-10-12T03:31:03.788Z",
+        "requestFingerprint": "0684252c85acc8fb735ae5fc68b18929069ac00c99136607ab87d026645e2ce9",
+        "canonicalQuoteValidated": true
+      },
+      "readOnlyRecheck": {
+        "timestamp": "2026-10-12T03:50:39.012Z",
+        "graphValidated": false,
+        "graphValidatedAfterByteVerification": true,
+        "runtimeArtifactReceiptsExercised": false,
+        "itemComparisons": [
+          {
+            "itemReferenceId": "synthetic-item-1",
+            "productMatches": true,
+            "quantityMatches": true,
+            "pageCount": 32,
+            "expectedPageCount": 32,
+            "fileCount": 1,
+            "expectedFileCount": 1,
+            "fileTypes": [
+              "default"
+            ],
+            "exactFileUrls": false,
+            "returnedFileHosts": [
+              "gelato-api-live.s3.eu-west-1.amazonaws.com"
+            ]
+          },
+          {
+            "itemReferenceId": "synthetic-item-2",
+            "productMatches": true,
+            "quantityMatches": true,
+            "pageCount": 32,
+            "expectedPageCount": 32,
+            "fileCount": 1,
+            "expectedFileCount": 1,
+            "fileTypes": [
+              "default"
+            ],
+            "exactFileUrls": false,
+            "returnedFileHosts": [
+              "gelato-api-live.s3.eu-west-1.amazonaws.com"
+            ]
+          }
+        ],
+        "storedFileChecks": [
+          {
+            "itemReferenceId": "synthetic-item-1",
+            "fileType": "default",
+            "bytes": 784477,
+            "sha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+            "matchesSubmittedPdf": true
+          },
+          {
+            "itemReferenceId": "synthetic-item-2",
+            "fileType": "default",
+            "bytes": 784477,
+            "sha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+            "matchesSubmittedPdf": true
+          }
+        ],
+        "nodes": [
+          {
+            "id": "de9bf2f5-12ea-48ff-9149-beaa30234b8d",
+            "orderType": "draft",
+            "fulfillmentStatus": "draft",
+            "financialStatus": "draft",
+            "purchaseReceiptCount": 1,
+            "items": [
+              {
+                "id": "375efc3b-27f1-4912-92ab-255c087d5f79",
+                "itemReferenceId": "synthetic-item-1",
+                "fulfillmentStatus": "created",
+                "processedFileAvailable": false,
+                "previewCount": 3,
+                "previewTypes": [
+                  "preview_default",
+                  "preview_thumbnail",
+                  "preview_flat"
+                ]
+              },
+              {
+                "id": "7478329b-e23d-42a8-a26f-bc9aa9af41a5",
+                "itemReferenceId": "synthetic-item-2",
+                "fulfillmentStatus": "created",
+                "processedFileAvailable": false,
+                "previewCount": 3,
+                "previewTypes": [
+                  "preview_default",
+                  "preview_thumbnail",
+                  "preview_flat"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Drafts remain unconverted.",
+    "Provider processedFileUrl is absent; preview metadata exists.",
+    "Stored files match submitted PDF; physical quality is unproved.",
+    "The repaired validator accepts ingested copies only after byte verification; production artifact receipts remain unexercised by this direct API probe."
+  ]
+}

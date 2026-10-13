@@ -5,7 +5,8 @@
   "options": {
     "schemaVersion": "v3",
     "bookId": "book-2-example",
-    "formatId": "standard"
+    "formatId": "standard",
+    "configVersion": 1
   },
   "expected": {
     "bookId": "book-2-example",

@@ -1,64 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
-import type { BookConfigRuntimeSource } from '@/lib/books/runtime-book-config';
+import { parseW0ManifestRequest } from '@/lib/w0-manifest-request';
 import {
   buildOrderIntakeManifestFromNormalizedInputRuntime,
-  buildW0OrderUpsertPayload,
-  resolveW0ManifestSchemaVersion,
-  type BuildOrderIntakeManifestOptions,
-  type NormalizedW0WorkflowInput,
 } from '@/lib/w0-manifest-builder';
+import { prepareFrozenW0Manifest } from '@/lib/books/freeze-w0-manifest';
+import { w0ManifestStorage } from '@/lib/books/w0-manifest-storage';
 
 export const dynamic = 'force-dynamic';
 
-function unwrapPayloadObject(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  const nested = record.payload;
-
-  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
-    return nested as Record<string, unknown>;
-  }
-
-  return record;
-}
-
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function parseConfigSource(value: unknown): BookConfigRuntimeSource | undefined {
-  const candidate = typeof value === 'string' ? value.trim() : '';
-
-  if (
-    candidate === 'bundled' ||
-    candidate === 'published' ||
-    candidate === 'published-first'
-  ) {
-    return candidate;
-  }
-
-  return undefined;
-}
-
-function buildManifestOptions(
-  body: Record<string, unknown>,
-): BuildOrderIntakeManifestOptions {
-  const configVersion =
-    typeof body.configVersion === 'number' && Number.isInteger(body.configVersion)
-      ? body.configVersion
-      : undefined;
-
-  return {
-    schemaVersion: resolveW0ManifestSchemaVersion(body.schemaVersion ?? 'v3'),
-    bookId: typeof body.bookId === 'string' ? body.bookId.trim() || undefined : undefined,
-    formatId: typeof body.formatId === 'string' ? body.formatId.trim() || undefined : undefined,
-    configVersion,
-    configSource: parseConfigSource(body.configSource) ?? 'published-first',
-  };
 }
 
 /**
@@ -88,27 +40,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = unwrapPayloadObject(parsedBody);
-
-  if (!body) {
-    return NextResponse.json(
-      { error: 'Request body must be a JSON object' },
-      { status: 400 },
-    );
+  let parsedRequest: ReturnType<typeof parseW0ManifestRequest>;
+  try {
+    parsedRequest = parseW0ManifestRequest(parsedBody, { allowLegacyMvpIntake: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid W0 config selection', details: getErrorMessage(error) }, { status: 400 });
   }
-  const manifestOptions = buildManifestOptions(body);
+  const body = parsedRequest.input;
+  const manifestOptions = parsedRequest.options;
 
   try {
     const builtManifest = await buildOrderIntakeManifestFromNormalizedInputRuntime(
-      body as NormalizedW0WorkflowInput,
+      body,
       manifestOptions,
     );
-    const { manifest, manifestKey } = builtManifest;
-    const orderUpsert = buildW0OrderUpsertPayload({
-      normalizedInput: body as NormalizedW0WorkflowInput,
-      manifest,
-      manifestKey,
-    });
+    const frozen = await prepareFrozenW0Manifest(body, builtManifest, w0ManifestStorage);
+    const { manifest, manifestKey, orderUpsert } = frozen;
 
     return NextResponse.json({
       success: true,

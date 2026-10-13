@@ -11,6 +11,19 @@ import {
   callSellingPartnerApi,
   resolveAmazonOrderId,
 } from '@/lib/amazon-sp-api';
+import { z } from 'zod';
+
+export const ExactAmazonPackageSchema = z.object({
+  packageReferenceId: z.string().regex(/^[1-9]\d*$/), shipDate: z.string().datetime({ offset: true }),
+  orderItems: z.array(z.object({ orderItemId: z.string().min(1), quantity: z.number().int().positive() })).min(1),
+});
+export function buildExactAmazonShipmentPackage(params: { trackingNumber?: string | null; carrier?: string | null; exactPackage: z.infer<typeof ExactAmazonPackageSchema> }) {
+  const exact = ExactAmazonPackageSchema.parse(params.exactPackage);
+  if (!params.trackingNumber?.trim() || !params.carrier?.trim() || new Set(exact.orderItems.map((item) => item.orderItemId)).size !== exact.orderItems.length) throw new Error('Exact shipment tracking and item mapping required');
+  const mapped = mapCarrierCode(params.carrier);
+  if (mapped.carrierCode === 'Other') throw new Error('Exact shipment carrier is not supported');
+  return { ...exact, ...mapped, shippingMethod: 'SHIPPING', trackingNumber: params.trackingNumber.trim() };
+}
 
 // ---------------------------------------------------------------------------
 // Carrier mapping (Lulu → Amazon)
@@ -64,8 +77,8 @@ export async function resolveOrderItemId(
       config,
       query: { MarketplaceIds: config.marketplaceId },
     });
-    const items = response?.payload?.OrderItems ?? response?.OrderItems ?? [];
-    return items[0]?.OrderItemId ?? null;
+    const parsed = z.object({ OrderItems: z.array(z.object({ OrderItemId: z.string() })).optional() }).safeParse(response.payload ?? response);
+    return parsed.success ? parsed.data.OrderItems?.[0]?.OrderItemId ?? null : null;
   } catch (err) {
     console.warn('[confirmShipment] Failed to fetch orderItems from SP-API:', err);
     return null;
@@ -82,6 +95,8 @@ export interface ConfirmShipmentParams {
   trackingNumber?: string | null;
   carrier?: string | null;
   trackingUrl?: string | null;
+  exactPackage?: z.infer<typeof ExactAmazonPackageSchema>;
+  signal?: AbortSignal;
 }
 
 export interface ConfirmShipmentResult {
@@ -99,8 +114,8 @@ export async function confirmAmazonShipment(params: ConfirmShipmentParams): Prom
   if (!parentOrderId) return { success: false, error: 'No Amazon order ID available' };
 
   // Resolve orderItemId (required by API)
-  const orderItemId = await resolveOrderItemId(params.order, config);
-  if (!orderItemId) return { success: false, error: 'Unable to resolve orderItemId' };
+  const orderItemId = params.exactPackage ? null : await resolveOrderItemId(params.order, config);
+  if (!params.exactPackage && !orderItemId) return { success: false, error: 'Unable to resolve orderItemId' };
 
   const { carrierCode, carrierName } = mapCarrierCode(params.carrier);
   const trackingNumber = params.trackingNumber?.trim() || 'N/A';
@@ -109,16 +124,17 @@ export async function confirmAmazonShipment(params: ConfirmShipmentParams): Prom
   }
 
   try {
-    const accessToken = await getAccessToken(config);
+    const accessToken = await getAccessToken(config, { signal: params.signal, safeLogging: Boolean(params.exactPackage) });
     await callSellingPartnerApi({
       method: 'POST',
+      signal: params.signal, safeLogging: Boolean(params.exactPackage),
       path: `/orders/v0/orders/${parentOrderId}/shipmentConfirmation`,
       accessToken,
       config,
       body: {
         marketplaceId: config.marketplaceId,
         codCollectionMethod: '',
-        packageDetail: {
+        packageDetail: params.exactPackage ? buildExactAmazonShipmentPackage({ ...params, exactPackage: params.exactPackage }) : {
           packageReferenceId: '1',
           carrierCode,
           carrierName,
@@ -131,6 +147,7 @@ export async function confirmAmazonShipment(params: ConfirmShipmentParams): Prom
     });
     return { success: true };
   } catch (err) {
+    if (params.exactPackage) return { success: false, error: 'Exact shipment confirmation was not confirmed' };
     const msg = err instanceof AmazonSpApiError ? err.message : (err instanceof Error ? err.message : String(err));
     console.error('[confirmShipment] Failed:', msg);
     return { success: false, error: msg };

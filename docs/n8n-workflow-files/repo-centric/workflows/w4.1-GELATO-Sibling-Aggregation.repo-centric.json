@@ -1,0 +1,130 @@
+{
+  "name": "W4.1 Gelato Sibling Aggregation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "w4-1-sibling-aggregation-gelato-repo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "17e93966-8202-4e3d-bd88-1ccdbb2c8cf7",
+      "name": "Webhook (Gelato Intake)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        40080,
+        19200
+      ],
+      "webhookId": "59894d4a-e939-43e3-bd43-42936be46078"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "5d41ac15-5e3d-4e49-96b9-4f3c8fd5064d",
+      "name": "Respond to Webhook (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        40320,
+        19080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first()?.json || {};\nconst payload = incoming.body && typeof incoming.body === 'object' ? incoming.body : incoming;\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend routing credentials are required for Gelato print assembly');\nif (!payload.submissionId || !payload.claimToken) throw new Error('Gelato print assembly requires the W1.1 submission claim');\nlet result;\ntry {\nresult = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendBase + '/api/internal/w4/build-gelato-sibling-print-pdf',\n  headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' },\n  body: payload,\n  json: true,\n  timeout: 120000,\n});\nif (!result || result.success !== true) throw new Error('Gelato print assembly did not return success');\n} catch {\n  throw new Error('Gelato PDF assembly failed; expired pre-send claims require server recovery');\n}\nreturn [{ json: { status: 'assembled', ...result, submissionId: payload.submissionId, claimToken: payload.claimToken, executionId: String($execution.id), mode: 'siblings' } }];"
+      },
+      "id": "d495fc3d-216e-4bae-bdaf-c76897cdbac3",
+      "name": "Assemble Gelato Print PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40560,
+        19280
+      ],
+      "notes": "Registers canonical PDF receipts under the current W1.1 claim."
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json;\nconst identity = { submissionId: incoming.submissionId, claimToken: incoming.claimToken, executionId: incoming.executionId, mode: incoming.mode };\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend credentials are required');\nlet result;\ntry {\n  result = await this.helpers.httpRequest({ method: 'POST', url: backendBase + '/api/internal/w4/quote-gelato-submission',\n    headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' }, body: identity, json: true, timeout: 120000 });\n  if (!result || result.success !== true) throw new Error('Gelato transition was not confirmed');\n} catch {\n  throw new Error('Gelato transition failed; inspect saved submission before retrying');\n}\nreturn [{ json: { ...identity, ...result } }];"
+      },
+      "id": "38d047df-6900-4d3f-9a63-0a35eb06766e",
+      "name": "Quote Gelato Submission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11320,
+        -1264
+      ],
+      "notes": "Server derives canonical request. Held drafts require GELATO_DRAFT_SUBMISSION_ENABLED."
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json;\nconst identity = { submissionId: incoming.submissionId, claimToken: incoming.claimToken, executionId: incoming.executionId, mode: incoming.mode };\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend credentials are required');\nlet result;\ntry {\n  result = await this.helpers.httpRequest({ method: 'POST', url: backendBase + '/api/internal/w4/submit-gelato-draft',\n    headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' }, body: identity, json: true, timeout: 120000 });\n  if (!result || result.success !== true) throw new Error('Gelato transition was not confirmed');\n} catch {\n  throw new Error('Gelato transition failed; inspect saved submission before retrying');\n}\nreturn [{ json: { ...identity, ...result } }];"
+      },
+      "id": "c9aae85a-6530-4a8b-91eb-b6efaab5c1b6",
+      "name": "Create Held Gelato Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11560,
+        -1264
+      ],
+      "notes": "Server derives canonical request. Held drafts require GELATO_DRAFT_SUBMISSION_ENABLED."
+    }
+  ],
+  "connections": {
+    "Webhook (Gelato Intake)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (Ack)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Assemble Gelato Print PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Gelato Print PDF": {
+      "main": [
+        [
+          {
+            "node": "Quote Gelato Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quote Gelato Submission": {
+      "main": [
+        [
+          {
+            "node": "Create Held Gelato Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "cfb60720-c5d1-4b36-b340-6a974ccfc956",
+  "meta": null,
+  "tags": []
+}

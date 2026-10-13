@@ -1,3 +1,4 @@
+import { gelatoDisplayStatus } from './books/gelato-consumer-status';
 import { Order, OrderListItem } from '@/types/order';
 import {
   CustomerApprovalStatus,
@@ -28,7 +29,7 @@ const NEW_STATUSES = new Set<string>([
 ]);
 
 function hasLuluPrintEvidence(order: Order): boolean {
-  return Boolean(order.luluStatus || order.luluJobId);
+  return order.printProvider !== 'gelato' && Boolean(order.luluStatus || order.luluJobId);
 }
 
 // Helper function to get phase based on display status and revision count
@@ -48,6 +49,8 @@ function getPhaseForDisplayStatus(displayStatus: DisplayStatus, revisionCount?: 
     case DisplayStatus.AWAITING_CUSTOMER:
     case DisplayStatus.NEEDS_REVISION:
       return OrderPhase.AWAITING_CUSTOMER;
+    case DisplayStatus.PRINT_DRAFT:
+    case DisplayStatus.PREPARING_PRINT:
     case DisplayStatus.READY_TO_PRINT:
     case DisplayStatus.PRINTING:
       return OrderPhase.SENT_TO_PRINT;
@@ -252,7 +255,11 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
   
   // 0. Check lulu_status FIRST if order has been sent to print (highest priority for print statuses)
   // Once an order is sent to print, lulu_status takes precedence over workflow status
-  if (order.luluStatus) {
+  if (order.printProvider === 'gelato') {
+    const status = gelatoDisplayStatus(order.gelatoStatus, order.gelatoOrderType, order.gelatoActionReason);
+    if (status) return status;
+  }
+  if (order.printProvider !== 'gelato' && order.luluStatus) {
     // Check for final print statuses first
     if (order.luluStatus === LuluStatus.DELIVERED) {
       return DisplayStatus.DELIVERED;
@@ -280,10 +287,10 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
   }
   
   // 1. Delivered/Shipped (fallback if lulu_status not set)
-  if (rawStatus && (DELIVERED_STATUSES.has(rawStatus) || order.luluStatus === LuluStatus.DELIVERED)) {
+  if (order.printProvider !== 'gelato' && rawStatus && (DELIVERED_STATUSES.has(rawStatus) || order.luluStatus === LuluStatus.DELIVERED)) {
     return DisplayStatus.DELIVERED;
   }
-  if (rawStatus && (SHIPPED_STATUSES.has(rawStatus) || order.luluStatus === LuluStatus.SHIPPED)) {
+  if (order.printProvider !== 'gelato' && rawStatus && (SHIPPED_STATUSES.has(rawStatus) || order.luluStatus === LuluStatus.SHIPPED)) {
     return DisplayStatus.SHIPPED;
   }
 
@@ -335,7 +342,7 @@ function calculateWorkflowStatus(order: Order): DisplayStatus {
       if (
         isWithLulu ||
         hasLuluPrintEvidence(order) ||
-        rawStatus === OrderStatus.IN_PRODUCTION
+        (order.printProvider !== 'gelato' && rawStatus === OrderStatus.IN_PRODUCTION)
       ) {
         return DisplayStatus.PRINTING;
       }

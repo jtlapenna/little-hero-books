@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { hasExistingGelatoSubmission } from '@/lib/books/gelato-consumer-policy';
 import {
   appendWorkflowJobEvent,
   cancelWorkflowJob,
@@ -24,6 +25,8 @@ const ACTIVE_W4_JOB_STATUSES = new Set([
   'polling',
   'retry_waiting',
 ]);
+
+class ExistingGelatoSubmissionError extends Error {}
 
 /**
  * Update order row while tolerating schema drift between environments.
@@ -99,6 +102,9 @@ async function restoreArchivedOrder(orderId: string): Promise<Record<string, unk
   if (!archivedRow?.order_data) return null;
 
   const orderData: Record<string, unknown> = { ...archivedRow.order_data };
+  if (hasExistingGelatoSubmission(orderData)) {
+    throw new ExistingGelatoSubmissionError('Existing Gelato submission must be inspected or recovered before Regenerate 4');
+  }
   // Remove PK so the DB assigns a fresh auto-increment id
   delete orderData.id;
 
@@ -217,6 +223,12 @@ export async function POST(
     }
 
     const orderRecord = currentOrder as Regenerate4OrderRecord;
+    if (hasExistingGelatoSubmission(orderRecord as Record<string, unknown>)) {
+      return NextResponse.json(
+        { error: 'Existing Gelato submission must be inspected or recovered before Regenerate 4' },
+        { status: 409 },
+      );
+    }
     const orderRowId = Number(orderRecord.id);
     if (!Number.isFinite(orderRowId)) {
       return NextResponse.json(
@@ -327,6 +339,9 @@ export async function POST(
       wasArchived,
     });
   } catch (error: unknown) {
+    if (error instanceof ExistingGelatoSubmissionError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     const errorMessage = error instanceof Error ? error.message : String(error ?? 'Unknown error');
     console.error('[Regenerate 4] Error:', error);
     return NextResponse.json(

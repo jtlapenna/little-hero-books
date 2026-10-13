@@ -31,11 +31,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -222,11 +222,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -274,11 +274,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -326,11 +326,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -350,7 +350,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...values) {\n  for (const value of values) {\n    if (value === undefined || value === null) continue;\n    if (typeof value === 'string') {\n      const trimmed = value.trim();\n      if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') return trimmed;\n      continue;\n    }\n    return value;\n  }\n  return null;\n}\n\nfunction normalizePathLike(value) {\n  const raw = firstNonEmpty(value);\n  if (!raw || typeof raw !== 'string') return null;\n  const withoutHash = raw.split('#')[0] || '';\n  const withoutQuery = withoutHash.split('?')[0] || '';\n  if (withoutQuery.includes('/api/manifests/')) {\n    return withoutQuery.split('/api/manifests/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  if (withoutQuery.includes('/api/assets/')) {\n    return withoutQuery.split('/api/assets/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  return withoutQuery.replace(/^\\/+/, '') || null;\n}\n\nfunction extractOrderPrefix(...values) {\n  for (const value of values) {\n    const normalized = normalizePathLike(value);\n    if (!normalized) continue;\n\n    const manifestIndex = normalized.indexOf('/manifests/');\n    if (manifestIndex > 0) {\n      return normalized.slice(0, manifestIndex);\n    }\n\n    const ordersMatch = normalized.match(/^([^/]+\\/orders\\/[^/]+)/);\n    if (ordersMatch?.[1]) {\n      return ordersMatch[1];\n    }\n  }\n\n  return null;\n}\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  const orderId = firstNonEmpty(order.orderId, order.order_id);\n  if (!orderId) {\n    console.error(`[Prep W3] Order DB id=${order.id} has no per-book orderId; skipping`);\n    skipped.push('(no per-book ID)');\n    continue;\n  }\n\n  const rootOrderId = firstNonEmpty(\n    order.root_order_id,\n    order.rootOrderId,\n    order.amazon_order_id,\n    order.amazonOrderId,\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(order.amazon_order_id, order.amazonOrderId, rootOrderId);\n  const oneManifestUrl = firstNonEmpty(order.one_manifest_url, order.oneManifestUrl);\n  const oneManifestKey = firstNonEmpty(order.one_manifest_key, order.oneManifestKey, oneManifestUrl);\n  const manifest2bUrl = firstNonEmpty(order.manifest_2b_url, order.manifest2bUrl);\n  const manifest3Url = firstNonEmpty(order.manifest_3_url, order.manifest3Url);\n  const assetPrefix = firstNonEmpty(order.asset_prefix, order.assetPrefix);\n  const orderPrefix = extractOrderPrefix(manifest3Url, manifest2bUrl, oneManifestUrl, oneManifestKey, assetPrefix);\n  const bookId = orderPrefix ? orderPrefix.split('/orders/')[0] || null : null;\n\n  if (!oneManifestKey && !manifest2bUrl && !manifest3Url && !assetPrefix && !orderPrefix) {\n    console.warn(`\\u26a0\\ufe0f Order ${orderId} missing W3 manifest context - marking as error`);\n\n    try {\n      await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`, {\n        method: 'PATCH',\n        headers: {\n          apikey: supabaseKey,\n          Authorization: `Bearer ${supabaseKey}`,\n          'Content-Type': 'application/json',\n          Prefer: 'return=representation',\n        },\n        body: JSON.stringify({\n          execution_status: 'error',\n          error_type: 'missing_manifest_context',\n          error_message: 'Missing required W3 manifest context (1/2B/3 manifest pointer or order asset prefix)',\n          updated_at: new Date().toISOString(),\n        }),\n      });\n    } catch (error) {\n      console.error(`Failed to mark order ${orderId} as error:`, error);\n    }\n\n    skipped.push(orderId);\n    continue;\n  }\n\n  processed.push({\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      orderPrefix: orderPrefix || undefined,\n      bookId: bookId || undefined,\n      oneManifestUrl: oneManifestUrl || undefined,\n      oneManifestKey: oneManifestKey || undefined,\n      manifest2bUrl: manifest2bUrl || undefined,\n      manifest3Url: manifest3Url || undefined,\n      assetPrefix: assetPrefix || undefined,\n      characterHash: firstNonEmpty(order.character_hash, order.characterHash),\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null,\n    },\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`\\u26a0\\ufe0f Skipped ${skipped.length} orders due to missing W3 manifest context: ${skipped.join(', ')}`);\n}\n\nconsole.log(`\\u2705 Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
+        "jsCode": "// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = String($env.SUPABASE_SERVICE_ROLE_KEY || '');\n\nfunction firstNonEmpty(...values) {\n  for (const value of values) {\n    if (value === undefined || value === null) continue;\n    if (typeof value === 'string') {\n      const trimmed = value.trim();\n      if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') return trimmed;\n      continue;\n    }\n    return value;\n  }\n  return null;\n}\n\nfunction normalizePathLike(value) {\n  const raw = firstNonEmpty(value);\n  if (!raw || typeof raw !== 'string') return null;\n  const withoutHash = raw.split('#')[0] || '';\n  const withoutQuery = withoutHash.split('?')[0] || '';\n  if (withoutQuery.includes('/api/manifests/')) {\n    return withoutQuery.split('/api/manifests/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  if (withoutQuery.includes('/api/assets/')) {\n    return withoutQuery.split('/api/assets/')[1]?.replace(/^\\/+/, '') || null;\n  }\n  return withoutQuery.replace(/^\\/+/, '') || null;\n}\n\nfunction extractOrderPrefix(...values) {\n  for (const value of values) {\n    const normalized = normalizePathLike(value);\n    if (!normalized) continue;\n\n    const manifestIndex = normalized.indexOf('/manifests/');\n    if (manifestIndex > 0) {\n      return normalized.slice(0, manifestIndex);\n    }\n\n    const ordersMatch = normalized.match(/^([^/]+\\/orders\\/[^/]+)/);\n    if (ordersMatch?.[1]) {\n      return ordersMatch[1];\n    }\n  }\n\n  return null;\n}\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  const orderId = firstNonEmpty(order.orderId, order.order_id);\n  if (!orderId) {\n    console.error(`[Prep W3] Order DB id=${order.id} has no per-book orderId; skipping`);\n    skipped.push('(no per-book ID)');\n    continue;\n  }\n\n  const rootOrderId = firstNonEmpty(\n    order.root_order_id,\n    order.rootOrderId,\n    order.amazon_order_id,\n    order.amazonOrderId,\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(order.amazon_order_id, order.amazonOrderId, rootOrderId);\n  const oneManifestUrl = firstNonEmpty(order.one_manifest_url, order.oneManifestUrl);\n  const oneManifestKey = firstNonEmpty(order.one_manifest_key, order.oneManifestKey, oneManifestUrl);\n  const manifest2bUrl = firstNonEmpty(order.manifest_2b_url, order.manifest2bUrl);\n  const manifest3Url = firstNonEmpty(order.manifest_3_url, order.manifest3Url);\n  const assetPrefix = firstNonEmpty(order.asset_prefix, order.assetPrefix);\n  const orderPrefix = extractOrderPrefix(manifest3Url, manifest2bUrl, oneManifestUrl, oneManifestKey, assetPrefix);\n  const bookId = orderPrefix ? orderPrefix.split('/orders/')[0] || null : null;\n\n  if (!oneManifestKey && !manifest2bUrl && !manifest3Url && !assetPrefix && !orderPrefix) {\n    console.warn(`\\u26a0\\ufe0f Order ${orderId} missing W3 manifest context - marking as error`);\n\n    try {\n      await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`, {\n        method: 'PATCH',\n        headers: {\n          apikey: supabaseKey,\n          Authorization: `Bearer ${supabaseKey}`,\n          'Content-Type': 'application/json',\n          Prefer: 'return=representation',\n        },\n        body: JSON.stringify({\n          execution_status: 'error',\n          error_type: 'missing_manifest_context',\n          error_message: 'Missing required W3 manifest context (1/2B/3 manifest pointer or order asset prefix)',\n          updated_at: new Date().toISOString(),\n        }),\n      });\n    } catch (error) {\n      console.error(`Failed to mark order ${orderId} as error:`, error);\n    }\n\n    skipped.push(orderId);\n    continue;\n  }\n\n  processed.push({\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      orderPrefix: orderPrefix || undefined,\n      bookId: bookId || undefined,\n      oneManifestUrl: oneManifestUrl || undefined,\n      oneManifestKey: oneManifestKey || undefined,\n      manifest2bUrl: manifest2bUrl || undefined,\n      manifest3Url: manifest3Url || undefined,\n      assetPrefix: assetPrefix || undefined,\n      characterHash: firstNonEmpty(order.character_hash, order.characterHash),\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null,\n    },\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`\\u26a0\\ufe0f Skipped ${skipped.length} orders due to missing W3 manifest context: ${skipped.join(', ')}`);\n}\n\nconsole.log(`\\u2705 Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
       },
       "id": "b4a5a5a6-82a7-4903-8acb-24c56e0f42e7",
       "name": "Prep Workflow 3 Orders",
@@ -460,7 +460,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Verify Order Claimed (4)\n// Verify claim state from Supabase directly so empty PATCH bodies do not drop the route.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n  return null;\n}\n\nfunction timestampKey(value) {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  const withZone = /(?:Z|[+-]\\d{2}:\\d{2})$/i.test(raw) ? raw : `${raw}Z`;\n  const parsed = Date.parse(withZone);\n  if (Number.isFinite(parsed)) return String(parsed);\n  return raw.replace(/Z$/i, '').replace(/[+-]00:00$/i, '');\n}\n\nconst prepItems = $items('Get Signed URL (1‑manifest)-W4', 0, $runIndex).map(item => item.json || {});\nif (!prepItems.length) {\n  console.log('No prep items for 4-claim verification');\n  return [];\n}\n\nconst expectedIds = [...new Set(\n  prepItems\n    .map((prep) => prep.orderDbId)\n    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n    .map((value) => String(value).trim())\n)];\n\nif (!expectedIds.length) {\n  console.log('No orderDbIds available for 4-claim verification');\n  return [];\n}\n\nconst rows = await this.helpers.request({\n  method: 'GET',\n  uri: `${supabaseUrl}/rest/v1/orders`,\n  qs: {\n    id: `in.(${expectedIds.join(',')})`,\n    select: 'id,orderId,root_order_id,amazon_order_id,execution_status,current_workflow,started_at,next_workflow'\n  },\n  headers: {\n    apikey: supabaseKey,\n    Authorization: `Bearer ${supabaseKey}`,\n  },\n  json: true,\n});\n\nconst rowById = new Map((Array.isArray(rows) ? rows : []).map((row) => [String(row.id), row]));\nconst output = [];\nconst siblingGroups = new Map();\n\nfor (const prep of prepItems) {\n  const dbId = prep.orderDbId != null ? String(prep.orderDbId).trim() : '';\n  if (!dbId) continue;\n  const row = rowById.get(dbId);\n  const expectedStartedAt = String(prep.claimStartedAt || '').trim();\n  const matches = !!row\n    && String(row.execution_status || '').trim() === 'processing'\n    && String(row.current_workflow || '').trim() === '4'\n    && (!expectedStartedAt || timestampKey(row.started_at) === timestampKey(expectedStartedAt));\n\n  if (prep._route === 'sibling') {\n    const rootId = firstNonEmpty(prep.claimRootOrderId, prep.rootOrderId, prep.amazonOrderId, prep.orderId);\n    if (rootId) {\n      if (!siblingGroups.has(rootId)) {\n        siblingGroups.set(rootId, {\n          expectedIds: new Set(),\n          matchedIds: new Set(),\n          expectedStartedAt,\n        });\n      }\n      const bucket = siblingGroups.get(rootId);\n      const claimIds = Array.isArray(prep.claimOrderDbIds)\n        ? prep.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean)\n        : [dbId];\n      for (const id of claimIds) bucket.expectedIds.add(id);\n      if (matches) bucket.matchedIds.add(dbId);\n    }\n  }\n\n  if (!matches) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      ...prep,\n      claimedAt: row.started_at || prep.claimStartedAt || null,\n      oneManifestUrl: prep.oneManifestUrl || prep.oneManifestKey || null,\n    },\n  });\n}\n\nfor (const [rootId, meta] of siblingGroups.entries()) {\n  const expectedCount = meta.expectedIds.size;\n  const matchedCount = meta.matchedIds.size;\n  if (expectedCount >= 2 && matchedCount !== expectedCount) {\n    throw new Error(`[Verify Order Claimed (4)] Partial sibling claim for ${rootId}: expected ${expectedCount}, matched ${matchedCount}, started_at=${meta.expectedStartedAt || 'n/a'}`);\n  }\n}\n\nif (output.length === 0) {\n  console.log('No verified claimed orders for 4');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 4`);\nreturn output;"
+        "jsCode": "// Verify Order Claimed (4)\n// Verify claim state from Supabase directly so empty PATCH bodies do not drop the route.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = String($env.SUPABASE_SERVICE_ROLE_KEY || '');\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    if (typeof v === 'string') {\n      const s = v.trim();\n      if (s !== '') return s;\n    } else {\n      return v;\n    }\n  }\n  return null;\n}\n\nfunction timestampKey(value) {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  const withZone = /(?:Z|[+-]\\d{2}:\\d{2})$/i.test(raw) ? raw : `${raw}Z`;\n  const parsed = Date.parse(withZone);\n  if (Number.isFinite(parsed)) return String(parsed);\n  return raw.replace(/Z$/i, '').replace(/[+-]00:00$/i, '');\n}\n\nconst prepItems = $items('Get Signed URL (1‑manifest)-W4', 0, $runIndex).map(item => item.json || {});\nif (!prepItems.length) {\n  console.log('No prep items for 4-claim verification');\n  return [];\n}\n\nconst expectedIds = [...new Set(\n  prepItems\n    .map((prep) => prep.orderDbId)\n    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n    .map((value) => String(value).trim())\n)];\n\nif (!expectedIds.length) {\n  console.log('No orderDbIds available for 4-claim verification');\n  return [];\n}\n\nconst rows = await this.helpers.request({\n  method: 'GET',\n  uri: `${supabaseUrl}/rest/v1/orders`,\n  qs: {\n    id: `in.(${expectedIds.join(',')})`,\n    select: 'id,orderId,root_order_id,amazon_order_id,execution_status,current_workflow,started_at,next_workflow'\n  },\n  headers: {\n    apikey: supabaseKey,\n    Authorization: `Bearer ${supabaseKey}`,\n  },\n  json: true,\n});\n\nconst rowById = new Map((Array.isArray(rows) ? rows : []).map((row) => [String(row.id), row]));\nconst output = [];\nconst siblingGroups = new Map();\n\nfor (const prep of prepItems) {\n  const dbId = prep.orderDbId != null ? String(prep.orderDbId).trim() : '';\n  if (!dbId) continue;\n  const row = rowById.get(dbId);\n  const expectedStartedAt = String(prep.claimStartedAt || '').trim();\n  const matches = !!row\n    && String(row.execution_status || '').trim() === 'processing'\n    && String(row.current_workflow || '').trim() === '4'\n    && (!expectedStartedAt || timestampKey(row.started_at) === timestampKey(expectedStartedAt));\n\n  if (prep._route === 'sibling') {\n    const rootId = firstNonEmpty(prep.claimRootOrderId, prep.rootOrderId, prep.amazonOrderId, prep.orderId);\n    if (rootId) {\n      if (!siblingGroups.has(rootId)) {\n        siblingGroups.set(rootId, {\n          expectedIds: new Set(),\n          matchedIds: new Set(),\n          expectedStartedAt,\n        });\n      }\n      const bucket = siblingGroups.get(rootId);\n      const claimIds = Array.isArray(prep.claimOrderDbIds)\n        ? prep.claimOrderDbIds.map((value) => String(value).trim()).filter(Boolean)\n        : [dbId];\n      for (const id of claimIds) bucket.expectedIds.add(id);\n      if (matches) bucket.matchedIds.add(dbId);\n    }\n  }\n\n  if (!matches) {\n    continue;\n  }\n\n  output.push({\n    json: {\n      ...prep,\n      claimedAt: row.started_at || prep.claimStartedAt || null,\n      oneManifestUrl: prep.oneManifestUrl || prep.oneManifestKey || null,\n    },\n  });\n}\n\nfor (const [rootId, meta] of siblingGroups.entries()) {\n  const expectedCount = meta.expectedIds.size;\n  const matchedCount = meta.matchedIds.size;\n  if (expectedCount >= 2 && matchedCount !== expectedCount) {\n    throw new Error(`[Verify Order Claimed (4)] Partial sibling claim for ${rootId}: expected ${expectedCount}, matched ${matchedCount}, started_at=${meta.expectedStartedAt || 'n/a'}`);\n  }\n}\n\nif (output.length === 0) {\n  console.log('No verified claimed orders for 4');\n  return [];\n}\n\nconsole.log(`Claimed ${output.length} order(s) for 4`);\nreturn output;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -473,7 +473,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Resolve usable 1-manifest URLs for W4.\nconst backendBase = 'https://admin.littleherolabs.com';\nconst endpoint = `${backendBase}/api/r2/signed-url`;\nconst token = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\nconst ttl = 600;\n\nfunction trimKey(value) {\n  return String(value || '').replace(/^\\/+/, '').split('?')[0].split('#')[0];\n}\n\nfunction normalizeManifestReference(value) {\n  const raw = value == null ? '' : String(value).trim();\n  if (!raw) return { raw: '', key: '', directUrl: null };\n\n  if (raw.startsWith('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.startsWith('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.includes('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: raw };\n  }\n  if (raw.includes('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: raw };\n  }\n  if (/^https?:\\/\\//i.test(raw)) {\n    try {\n      const url = new URL(raw);\n      return { raw, key: trimKey(url.pathname), directUrl: raw };\n    } catch {\n      return { raw, key: '', directUrl: raw };\n    }\n  }\n\n  return { raw, key: trimKey(raw), directUrl: null };\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconst inputItems = $input.all().map(item => item.json || {});\nconst output = [];\n\nfor (const item of inputItems) {\n  if (!item.oneManifestKey) {\n    throw new Error('Missing oneManifestKey');\n  }\n\n  const ref = normalizeManifestReference(item.oneManifestKey);\n  if (!ref.key && !ref.directUrl) {\n    throw new Error(`Could not normalize oneManifestKey: ${item.oneManifestKey}`);\n  }\n\n  if (ref.directUrl) {\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key || item.oneManifestKey,\n        oneManifestUrl: ref.directUrl,\n      },\n    });\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      uri: endpoint,\n      qs: { key: ref.key, bucket: 'little-hero-orders', expiresIn: ttl },\n      headers: {\n        Authorization: `Bearer ${token}`,\n        'Content-Type': 'application/json',\n      },\n      json: true,\n    });\n\n    const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n    if (!oneManifestUrl) {\n      throw new Error('Signed URL endpoint did not return a URL');\n    }\n\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key,\n        oneManifestUrl,\n      },\n    });\n  } catch (error) {\n    const status = error.response?.status || error.status || 'unknown';\n    const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;\n\n    if (status === 401) {\n      throw new Error('Authentication failed (401). Check BACKEND_API_TOKEN alignment between n8n and backend.');\n    }\n\n    throw new Error(`Get Signed URL (1-manifest)-W4 failed for key=${ref.key} (raw=${ref.raw}) status=${status}: ${details}`);\n  }\n}\n\nreturn output;\n"
+        "jsCode": "\n// Resolve usable 1-manifest URLs for W4.\nconst backendBase = 'https://admin.littleherolabs.com';\nconst endpoint = `${backendBase}/api/r2/signed-url`;\nconst token = String($env.BACKEND_API_TOKEN || '');\nconst ttl = 600;\n\nfunction trimKey(value) {\n  return String(value || '').replace(/^\\/+/, '').split('?')[0].split('#')[0];\n}\n\nfunction normalizeManifestReference(value) {\n  const raw = value == null ? '' : String(value).trim();\n  if (!raw) return { raw: '', key: '', directUrl: null };\n\n  if (raw.startsWith('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.startsWith('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: `${backendBase}${raw}` };\n  }\n  if (raw.includes('/api/manifests/')) {\n    return { raw, key: trimKey(raw.split('/api/manifests/')[1] || ''), directUrl: raw };\n  }\n  if (raw.includes('/api/assets/')) {\n    return { raw, key: trimKey(raw.split('/api/assets/')[1] || ''), directUrl: raw };\n  }\n  if (/^https?:\\/\\//i.test(raw)) {\n    try {\n      const url = new URL(raw);\n      return { raw, key: trimKey(url.pathname), directUrl: raw };\n    } catch {\n      return { raw, key: '', directUrl: raw };\n    }\n  }\n\n  return { raw, key: trimKey(raw), directUrl: null };\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconst inputItems = $input.all().map(item => item.json || {});\nconst output = [];\n\nfor (const item of inputItems) {\n  if (!item.oneManifestKey) {\n    throw new Error('Missing oneManifestKey');\n  }\n\n  const ref = normalizeManifestReference(item.oneManifestKey);\n  if (!ref.key && !ref.directUrl) {\n    throw new Error(`Could not normalize oneManifestKey: ${item.oneManifestKey}`);\n  }\n\n  if (ref.directUrl) {\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key || item.oneManifestKey,\n        oneManifestUrl: ref.directUrl,\n      },\n    });\n    continue;\n  }\n\n  try {\n    const res = await this.helpers.request({\n      method: 'GET',\n      uri: endpoint,\n      qs: { key: ref.key, bucket: 'little-hero-orders', expiresIn: ttl },\n      headers: {\n        Authorization: `Bearer ${token}`,\n        'Content-Type': 'application/json',\n      },\n      json: true,\n    });\n\n    const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n    if (!oneManifestUrl) {\n      throw new Error('Signed URL endpoint did not return a URL');\n    }\n\n    output.push({\n      json: {\n        ...item,\n        oneManifestKey: ref.key,\n        oneManifestUrl,\n      },\n    });\n  } catch (error) {\n    const status = error.response?.status || error.status || 'unknown';\n    const details = error.response?.data ? JSON.stringify(error.response.data) : error.message;\n\n    if (status === 401) {\n      throw new Error('Authentication failed (401). Check BACKEND_API_TOKEN alignment between n8n and backend.');\n    }\n\n    throw new Error(`Get Signed URL (1-manifest)-W4 failed for key=${ref.key} (raw=${ref.raw}) status=${status}: ${details}`);\n  }\n}\n\nreturn output;\n"
       },
       "id": "44a7409a-aad7-4ee2-9cb6-f1c0032bdc90",
       "name": "Get Signed URL (1‑manifest)-W4",
@@ -585,11 +585,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -620,7 +620,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646"
+              "value": "={{ 'Bearer ' + $env.BACKEND_API_TOKEN }}"
             }
           ]
         },
@@ -654,7 +654,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Classify W4 orders: 'single' -> w4, complete sibling groups -> w4.1.\n// If only part of a sibling group is present in the cron batch, hydrate the missing ready siblings from Supabase.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\nconst prefix = 'book-mvp-simple-adventure/orders';\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '') return s;\n  }\n  return null;\n}\n\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n\n  const normalized = { ...shipping };\n  if (normalized.address && !normalized.address_line_1) normalized.address_line_1 = normalized.address;\n  else if (normalized.address_line_1 && !normalized.address) normalized.address = normalized.address_line_1;\n\n  if (normalized.state && !normalized.state_code) normalized.state_code = normalized.state;\n  else if (normalized.state_code && !normalized.state) normalized.state = normalized.state_code;\n\n  if (normalized.zip && !normalized.postal_code) normalized.postal_code = normalized.zip;\n  else if (normalized.postal_code && !normalized.zip) normalized.zip = normalized.postal_code;\n\n  if (normalized.address2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address2;\n  else if (normalized.address_line_2 && !normalized.address2) normalized.address2 = normalized.address_line_2;\n\n  if (normalized.recipient_name && !normalized.name) normalized.name = normalized.recipient_name;\n\n  if (normalized.address_line1 && !normalized.address_line_1) normalized.address_line_1 = normalized.address_line1;\n  else if (normalized.address_line_1 && !normalized.address_line1) normalized.address_line1 = normalized.address_line_1;\n\n  if (normalized.address_line2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address_line2;\n  else if (normalized.address_line_2 && !normalized.address_line2) normalized.address_line2 = normalized.address_line_2;\n\n  if (!normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1 || normalized.address || '';\n  }\n\n  const rawPhone = normalized.phone_number || normalized.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  normalized.phone_number = phone_number;\n  if (!normalized.phone) normalized.phone = phone_number;\n\n  return normalized;\n}\n\nfunction buildPreparedItem(row, rootHint = null) {\n  const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n  if (!orderId) return null;\n\n  const rootOrderId = firstNonEmpty(\n    row.rootOrderId,\n    row.root_order_id,\n    deriveRoot(row.amazon_order_id || row.amazonOrderId || orderId),\n    rootHint,\n    deriveRoot(orderId),\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(\n    row.amazonOrderId,\n    row.amazon_order_id,\n    row.rootOrderId,\n    row.root_order_id,\n    rootOrderId,\n  );\n\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      characterHash: firstNonEmpty(row.characterHash, row.character_hash),\n      orderDbId: row.orderDbId != null ? row.orderDbId : row.id,\n      workflow: '4',\n      shipping_address: normalizeShippingAddress(row.shipping_address),\n      manifest3Key: firstNonEmpty(row.manifest3Key, row.three_manifest_url, row.manifest3Url, `${prefix}/${orderId}/manifests/3-manifest.json`),\n      oneManifestKey: firstNonEmpty(row.oneManifestKey, row.one_manifest_url, row.oneManifestUrl, `${prefix}/${orderId}/manifests/1-manifest.json`),\n      ShipmentServiceLevelCategory: firstNonEmpty(row.ShipmentServiceLevelCategory, row.amazon_shipment_service_level),\n      ShipServiceLevel: firstNonEmpty(row.ShipServiceLevel, row.amazon_shipment_service_level),\n      shipping_tier: firstNonEmpty(row.shipping_tier, row.shippingTier),\n    },\n  };\n}\n\nfunction parseItemNumber(orderId) {\n  const m = String(orderId || '').match(/-item-(\\d+)$/);\n  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;\n}\n\nfunction attachSiblingClaimMetadata(items, rootId) {\n  const claimOrderDbIds = [...new Set(\n    items\n      .map((item) => item?.json?.orderDbId)\n      .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n      .map((value) => String(value).trim())\n  )];\n  const claimGroupSize = claimOrderDbIds.length;\n  const claimStartedAt = new Date().toISOString();\n\n  for (const item of items) {\n    item.json._route = 'sibling';\n    item.json.claimOrderDbIds = claimOrderDbIds;\n    item.json.claimGroupSize = claimGroupSize;\n    item.json.claimRootOrderId = rootId;\n    item.json.claimStartedAt = claimStartedAt;\n  }\n\n  return items;\n}\n\nasync function fetchSiblingRows(rootId) {\n  return await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders`,\n    qs: {\n      root_order_id: `eq.${rootId}`,\n      select: 'id,orderId,root_order_id,amazon_order_id,character_hash,shipping_address,one_manifest_url,amazon_shipment_service_level,shipping_tier,execution_status,next_workflow'\n    },\n    headers: {\n      apikey: supabaseKey,\n      Authorization: `Bearer ${supabaseKey}`,\n    },\n    json: true,\n  });\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nconst groups = new Map();\nfor (const item of items) {\n  const prepared = buildPreparedItem(item.json || {});\n  if (!prepared) continue;\n  const rootId = firstNonEmpty(prepared.json.rootOrderId, deriveRoot(prepared.json.orderId), prepared.json.orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n  groups.get(rootId).push(prepared);\n}\n\nconst output = [];\nlet heldGroups = 0;\n\nfor (const [rootId, group] of groups) {\n  const preparedByOrderId = new Map();\n  for (const item of group) {\n    preparedByOrderId.set(item.json.orderId, item);\n  }\n\n  let siblingRows = null;\n  try {\n    siblingRows = await fetchSiblingRows.call(this, rootId);\n  } catch (e) {\n    console.warn(`Supabase sibling lookup failed for ${rootId}: ${e.message}`);\n  }\n\n  if (Array.isArray(siblingRows) && siblingRows.length > 0) {\n    const childRows = siblingRows.filter(row => {\n      const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n      return orderId && orderId !== rootId;\n    });\n\n    if (childRows.length > 1) {\n      const readyRows = childRows.filter(row => {\n        const executionStatus = String(row.execution_status || '').trim();\n        const nextWorkflow = String(row.next_workflow || '').trim();\n        return executionStatus === 'ready_for_processing' && (nextWorkflow === '4' || nextWorkflow === '4-aggregate');\n      });\n\n      if (readyRows.length === childRows.length) {\n        for (const row of readyRows) {\n          const built = buildPreparedItem(row, rootId);\n          if (!built) continue;\n          const existing = preparedByOrderId.get(built.json.orderId);\n          preparedByOrderId.set(built.json.orderId, existing ? { json: { ...built.json, ...existing.json } } : built);\n        }\n\n        const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n        if (completeGroup.length === childRows.length) {\n          const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n          for (const item of claimReadyGroup) {\n            output.push(item);\n          }\n          console.log(`Sibling group ${rootId}: hydrated ${claimReadyGroup.length}/${childRows.length} ready items -> w4.1`);\n          continue;\n        }\n\n        heldGroups += 1;\n        console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): expected ${childRows.length} siblings, hydrated ${completeGroup.length}`);\n        continue;\n      }\n\n      const blocked = childRows\n        .map(row => {\n          const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId) || '(unknown)';\n          const executionStatus = String(row.execution_status || 'null');\n          const nextWorkflow = String(row.next_workflow || 'null');\n          return `${orderId}[status=${executionStatus},next=${nextWorkflow}]`;\n        })\n        .join(', ');\n      heldGroups += 1;\n      console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): sibling group incomplete/not ready -> ${blocked}`);\n      continue;\n    }\n  }\n\n  if (preparedByOrderId.size >= 2) {\n    const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n    const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n    for (const item of claimReadyGroup) {\n      output.push(item);\n    }\n    console.log(`Sibling group ${rootId}: ${claimReadyGroup.length} batch items -> w4.1`);\n    continue;\n  }\n\n  const single = [...preparedByOrderId.values()][0];\n  if (!single) continue;\n  single.json._route = 'single';\n  single.json.claimStartedAt = new Date().toISOString();\n  output.push(single);\n  console.log(`Single order ${single.json.orderId} (rootId=${rootId}) -> w4`);\n}\n\nconsole.log(`Classify result: ${output.length} forwarded, ${heldGroups} sibling group(s) held`);\nreturn output;"
+        "jsCode": "// Classify W4 orders: 'single' -> w4, complete sibling groups -> w4.1.\n// If only part of a sibling group is present in the cron batch, hydrate the missing ready siblings from Supabase.\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = String($env.SUPABASE_SERVICE_ROLE_KEY || '');\nconst prefix = 'book-mvp-simple-adventure/orders';\n\nfunction deriveRoot(id) {\n  if (!id) return id;\n  const m = String(id).match(/^(.+?)-item-/);\n  return m ? m[1] : id;\n}\n\nfunction firstNonEmpty(...vals) {\n  for (const v of vals) {\n    if (v === undefined || v === null) continue;\n    const s = typeof v === 'string' ? v.trim() : v;\n    if (s !== '') return s;\n  }\n  return null;\n}\n\nfunction cleanPhoneNumber(phone) {\n  if (!phone) return null;\n  let cleaned = String(phone).trim();\n  cleaned = cleaned.replace(/\\s*(ext|extension|x)[\\s:\\.]*\\d+/gi, '');\n  cleaned = cleaned.trim();\n  return cleaned || null;\n}\n\nfunction normalizeShippingAddress(rawShipping) {\n  if (!rawShipping) return null;\n  let shipping = rawShipping;\n  if (typeof rawShipping === 'string') {\n    try {\n      shipping = JSON.parse(rawShipping);\n    } catch (e) {\n      console.warn('Failed to parse shipping_address JSON string:', e.message);\n      return null;\n    }\n  }\n  if (typeof shipping !== 'object' || Array.isArray(shipping) || shipping === null) {\n    return null;\n  }\n\n  const normalized = { ...shipping };\n  if (normalized.address && !normalized.address_line_1) normalized.address_line_1 = normalized.address;\n  else if (normalized.address_line_1 && !normalized.address) normalized.address = normalized.address_line_1;\n\n  if (normalized.state && !normalized.state_code) normalized.state_code = normalized.state;\n  else if (normalized.state_code && !normalized.state) normalized.state = normalized.state_code;\n\n  if (normalized.zip && !normalized.postal_code) normalized.postal_code = normalized.zip;\n  else if (normalized.postal_code && !normalized.zip) normalized.zip = normalized.postal_code;\n\n  if (normalized.address2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address2;\n  else if (normalized.address_line_2 && !normalized.address2) normalized.address2 = normalized.address_line_2;\n\n  if (normalized.recipient_name && !normalized.name) normalized.name = normalized.recipient_name;\n\n  if (normalized.address_line1 && !normalized.address_line_1) normalized.address_line_1 = normalized.address_line1;\n  else if (normalized.address_line_1 && !normalized.address_line1) normalized.address_line1 = normalized.address_line_1;\n\n  if (normalized.address_line2 && !normalized.address_line_2) normalized.address_line_2 = normalized.address_line2;\n  else if (normalized.address_line_2 && !normalized.address_line2) normalized.address_line2 = normalized.address_line_2;\n\n  if (!normalized.address_line_1) {\n    normalized.address_line_1 = normalized.address_line1 || normalized.address || '';\n  }\n\n  const rawPhone = normalized.phone_number || normalized.phone;\n  const cleanedPhone = cleanPhoneNumber(rawPhone);\n  const phone_number = cleanedPhone || '+1-678-478-3477';\n  normalized.phone_number = phone_number;\n  if (!normalized.phone) normalized.phone = phone_number;\n\n  return normalized;\n}\n\nfunction buildPreparedItem(row, rootHint = null) {\n  const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n  if (!orderId) return null;\n\n  const rootOrderId = firstNonEmpty(\n    row.rootOrderId,\n    row.root_order_id,\n    deriveRoot(row.amazon_order_id || row.amazonOrderId || orderId),\n    rootHint,\n    deriveRoot(orderId),\n    orderId,\n  );\n  const amazonOrderId = firstNonEmpty(\n    row.amazonOrderId,\n    row.amazon_order_id,\n    row.rootOrderId,\n    row.root_order_id,\n    rootOrderId,\n  );\n\n  return {\n    json: {\n      orderId,\n      rootOrderId,\n      amazonOrderId,\n      characterHash: firstNonEmpty(row.characterHash, row.character_hash),\n      orderDbId: row.orderDbId != null ? row.orderDbId : row.id,\n      workflow: '4',\n      shipping_address: normalizeShippingAddress(row.shipping_address),\n      manifest3Key: firstNonEmpty(row.manifest3Key, row.three_manifest_url, row.manifest3Url, `${prefix}/${orderId}/manifests/3-manifest.json`),\n      oneManifestKey: firstNonEmpty(row.oneManifestKey, row.one_manifest_url, row.oneManifestUrl, `${prefix}/${orderId}/manifests/1-manifest.json`),\n      ShipmentServiceLevelCategory: firstNonEmpty(row.ShipmentServiceLevelCategory, row.amazon_shipment_service_level),\n      ShipServiceLevel: firstNonEmpty(row.ShipServiceLevel, row.amazon_shipment_service_level),\n      shipping_tier: firstNonEmpty(row.shipping_tier, row.shippingTier),\n    },\n  };\n}\n\nfunction parseItemNumber(orderId) {\n  const m = String(orderId || '').match(/-item-(\\d+)$/);\n  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;\n}\n\nfunction attachSiblingClaimMetadata(items, rootId) {\n  const claimOrderDbIds = [...new Set(\n    items\n      .map((item) => item?.json?.orderDbId)\n      .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')\n      .map((value) => String(value).trim())\n  )];\n  const claimGroupSize = claimOrderDbIds.length;\n  const claimStartedAt = new Date().toISOString();\n\n  for (const item of items) {\n    item.json._route = 'sibling';\n    item.json.claimOrderDbIds = claimOrderDbIds;\n    item.json.claimGroupSize = claimGroupSize;\n    item.json.claimRootOrderId = rootId;\n    item.json.claimStartedAt = claimStartedAt;\n  }\n\n  return items;\n}\n\nasync function fetchOrderRows(query) {\n  return await this.helpers.request({\n    method: 'GET',\n    uri: `${supabaseUrl}/rest/v1/orders`,\n    qs: {\n      ...query,\n      select: 'id,orderId,root_order_id,amazon_order_id,character_hash,shipping_address,one_manifest_url,amazon_shipment_service_level,shipping_tier,execution_status,next_workflow'\n    },\n    headers: {\n      apikey: supabaseKey,\n      Authorization: `Bearer ${supabaseKey}`,\n    },\n    json: true,\n  });\n}\n\nasync function fetchSiblingRows(rootId) {\n  return fetchOrderRows.call(this, { root_order_id: `eq.${rootId}` });\n}\n\nasync function fetchRootRows(rootId) {\n  const [amazonRoot, selfRoot] = await Promise.all([\n    fetchOrderRows.call(this, { root_order_id: 'is.null', amazon_order_id: `eq.${rootId}` }),\n    fetchOrderRows.call(this, { root_order_id: 'is.null', amazon_order_id: 'is.null', orderId: `eq.${rootId}` }),\n  ]);\n  return [...(Array.isArray(amazonRoot) ? amazonRoot : []), ...(Array.isArray(selfRoot) ? selfRoot : [])];\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nconst groups = new Map();\nfor (const item of items) {\n  const prepared = buildPreparedItem(item.json || {});\n  if (!prepared) continue;\n  const rootId = firstNonEmpty(prepared.json.rootOrderId, deriveRoot(prepared.json.orderId), prepared.json.orderId);\n  if (!groups.has(rootId)) groups.set(rootId, []);\n  groups.get(rootId).push(prepared);\n}\n\nconst output = [];\nlet heldGroups = 0;\n\nfor (const [rootId, group] of groups) {\n  const preparedByOrderId = new Map();\n  for (const item of group) {\n    preparedByOrderId.set(item.json.orderId, item);\n  }\n\n  let siblingRows = null;\n  let rootRows = null;\n  try {\n    [siblingRows, rootRows] = await Promise.all([\n      fetchSiblingRows.call(this, rootId),\n      fetchRootRows.call(this, rootId),\n    ]);\n  } catch (e) {\n    console.warn(`Supabase complete-group lookup failed for ${rootId}`);\n  }\n  if (!Array.isArray(siblingRows) || !Array.isArray(rootRows)) {\n    heldGroups += 1;\n    console.log(`HOLD root ${rootId}: complete group membership lookup failed`);\n    continue;\n  }\n\n  const uniqueGroupRows = new Map();\n  for (const row of [...siblingRows, ...rootRows]) {\n    if (row?.id != null) uniqueGroupRows.set(String(row.id), row);\n  }\n  const childRows = [...uniqueGroupRows.values()].filter(row => {\n    const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId);\n    const rowRootId = firstNonEmpty(row.root_order_id, row.rootOrderId);\n    const rowAmazonId = firstNonEmpty(row.amazon_order_id, row.amazonOrderId);\n    return orderId && (rowRootId === rootId || (rowRootId == null && (rowAmazonId === rootId || orderId === rootId)));\n  });\n\n  if (childRows.length > 0) {\n\n    if (childRows.length > 1) {\n      const readyRows = childRows.filter(row => {\n        const executionStatus = String(row.execution_status || '').trim();\n        const nextWorkflow = String(row.next_workflow || '').trim();\n        return executionStatus === 'ready_for_processing' && (nextWorkflow === '4' || nextWorkflow === '4-aggregate');\n      });\n\n      if (readyRows.length === childRows.length) {\n        for (const row of readyRows) {\n          const built = buildPreparedItem(row, rootId);\n          if (!built) continue;\n          const existing = preparedByOrderId.get(built.json.orderId);\n          preparedByOrderId.set(built.json.orderId, existing ? { json: { ...built.json, ...existing.json } } : built);\n        }\n\n        const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n        if (completeGroup.length === childRows.length) {\n          const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n          for (const item of claimReadyGroup) {\n            output.push(item);\n          }\n          console.log(`Sibling group ${rootId}: hydrated ${claimReadyGroup.length}/${childRows.length} ready items -> w4.1`);\n          continue;\n        }\n\n        heldGroups += 1;\n        console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): expected ${childRows.length} siblings, hydrated ${completeGroup.length}`);\n        continue;\n      }\n\n      const blocked = childRows\n        .map(row => {\n          const orderId = firstNonEmpty(row.orderId, row.order_id, row.amazon_order_id, row.amazonOrderId) || '(unknown)';\n          const executionStatus = String(row.execution_status || 'null');\n          const nextWorkflow = String(row.next_workflow || 'null');\n          return `${orderId}[status=${executionStatus},next=${nextWorkflow}]`;\n        })\n        .join(', ');\n      heldGroups += 1;\n      console.log(`HOLD order ${group[0].json.orderId} (rootId=${rootId}): sibling group incomplete/not ready -> ${blocked}`);\n      continue;\n    }\n  }\n\n  if (preparedByOrderId.size >= 2) {\n    const completeGroup = [...preparedByOrderId.values()].sort((a, b) => parseItemNumber(a.json.orderId) - parseItemNumber(b.json.orderId));\n    const claimReadyGroup = attachSiblingClaimMetadata(completeGroup, rootId);\n    for (const item of claimReadyGroup) {\n      output.push(item);\n    }\n    console.log(`Sibling group ${rootId}: ${claimReadyGroup.length} batch items -> w4.1`);\n    continue;\n  }\n\n  const single = [...preparedByOrderId.values()][0];\n  if (!single) continue;\n  single.json._route = 'single';\n  single.json.claimStartedAt = new Date().toISOString();\n  output.push(single);\n  console.log(`Single order ${single.json.orderId} (rootId=${rootId}) -> w4`);\n}\n\nconsole.log(`Classify result: ${output.length} forwarded, ${heldGroups} sibling group(s) held`);\nreturn output;"
       },
       "id": "ea760945-6021-4997-a26e-b10eb2466ca6",
       "name": "Classify W4 Orders",
@@ -740,6 +740,201 @@
         -944
       ],
       "notes": "POSTs bundled sibling group to w4.1 aggregation webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.all().map(item => item.json || {});\nif (!incoming.length) return [];\nconst grouped = new Map();\nfor (const [index, order] of incoming.entries()) {\n  const rootOrderId = String(order.claimRootOrderId || order.rootOrderId || order.root_order_id || order.orderId || '').trim();\n  const key = rootOrderId || 'missing-root:' + index;\n  if (!grouped.has(key)) grouped.set(key, { rootOrderId, orders: [] });\n  grouped.get(key).orders.push(order);\n}\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('BACKEND_BASE_URL and BACKEND_API_TOKEN are required for print routing');\nconst output = [];\nfor (const { rootOrderId, orders } of grouped.values()) {\n  let result;\n  let idempotencyKey = null;\n  const orderDbIds = [...new Set(orders.map(order => Number(order.orderDbId)))].sort((a, b) => a - b);\n  try {\n    if (!rootOrderId || !orderDbIds.length || orderDbIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {\n      throw new Error('Invalid routing group identity');\n    }\n    idempotencyKey = `w1.1:${rootOrderId}:${orderDbIds.join('-')}`;\n    if (idempotencyKey.length > 255) throw new Error('Invalid routing idempotency key');\n    result = await this.helpers.request({\n      method: 'POST', uri: backendBase + '/api/internal/orders/print-routing/claim',\n      headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' },\n      body: { orderDbIds, idempotencyKey }, json: true,\n    });\n    if (!result || result.success !== true || !['lulu', 'gelato'].includes(result.provider) || !Array.isArray(result.routes)) {\n      throw new Error('Invalid routing response');\n    }\n    const routeIds = result.routes.map(route => Number(route.orderDbId)).sort((a, b) => a - b);\n    if (routeIds.length !== orderDbIds.length || routeIds.some((id, index) => id !== orderDbIds[index]) ||\n        result.routes.some(route => route.provider !== result.provider)) throw new Error('Invalid routing membership');\n    if (result.provider === 'lulu') {\n      for (const order of orders) output.push({ json: { ...order, provider: 'lulu', printRoutes: result.routes } });\n      continue;\n    }\n    const claim = result.claim;\n    if (!claim || typeof claim.dispatch !== 'boolean') throw new Error('Missing Gelato claim');\n    if (claim.dispatch && [claim.submissionId, claim.claimToken, claim.orderReferenceId].some(value => typeof value !== 'string' || !value.trim())) {\n      throw new Error('Invalid Gelato claim identity');\n    }\n    output.push({ json: {\n      provider: 'gelato', dispatchRoute: claim.dispatch ? 'dispatch' : 'hold',\n      holdReason: claim.reason || null, submissionId: claim.submissionId || null,\n      claimToken: claim.claimToken || null, orderReferenceId: claim.orderReferenceId || null,\n      idempotencyKey, rootOrderId, routeKind: orders.length > 1 ? 'sibling' : 'single',\n      orderId: orders.length === 1 ? String(orders[0].orderId || orders[0].order_id || orders[0].amazon_order_id || '').trim() : null,\n      orderDbIds, orders, printRoutes: result.routes,\n    } });\n  } catch {\n    let holdReason = 'routing_failed_reconcile_claim';\n    if (result?.claim && result.claim.dispatch !== false && result.claim.submissionId && result.claim.claimToken) {\n      try {\n        const fenced = await this.helpers.request({\n          method: 'POST', uri: backendBase + '/api/internal/orders/print-routing/claim/fence',\n          headers: { Authorization: 'Bearer ' + backendToken, 'Content-Type': 'application/json' },\n          body: { submissionId: result.claim.submissionId, claimToken: result.claim.claimToken }, json: true,\n        });\n        holdReason = fenced?.success === true && fenced?.fenced === true ? 'routing_failed_claim_fenced' : 'routing_failed_fence_unconfirmed';\n      } catch { holdReason = 'routing_failed_fence_unconfirmed'; }\n    }\n    output.push({ json: { provider: result?.provider || 'unresolved', dispatchRoute: 'hold', holdReason,\n      rootOrderId, orderDbIds, idempotencyKey, orders,\n      submissionId: result?.claim?.submissionId || null, claimToken: result?.claim?.claimToken || null } });\n  }\n}\nreturn output;"
+      },
+      "id": "ee0ab300-46f5-4982-9d81-e5fff081a549",
+      "name": "Claim and Route Gelato Groups",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "gelato-provider-route",
+              "leftValue": "={{ $json.dispatchRoute === 'hold' ? 'gelato' : $json.provider }}",
+              "rightValue": "gelato",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "88e94c94-fc52-4f47-aa23-82a8e369c20f",
+      "name": "IF Gelato Print Provider",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3488,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "gelato-claim-dispatch",
+              "leftValue": "={{ $json.dispatchRoute }}",
+              "rightValue": "dispatch",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7a3d82b8-09b7-4511-91fe-c3327991bf13",
+      "name": "IF Gelato Claim Dispatch",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "gelato-sibling-route",
+              "leftValue": "={{ $json.routeKind }}",
+              "rightValue": "sibling",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e5ec9ecc-980a-4b3b-a44e-1ad8e7564467",
+      "name": "IF Gelato Sibling Group",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first()?.json || {}; console.log(`Print dispatch held: ${item.holdReason || 'claim not granted'}`); return [];"
+      },
+      "id": "d3c1fc26-aa82-46b4-bc1c-28458e8ba713",
+      "name": "Log Gelato Claim Held",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        -1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-gelato-print-repo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.idempotencyKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "baf6b3bc-25b8-4727-a8bd-2a5607d584bc",
+      "name": "Trigger W4 Gelato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4304,
+        -1280
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-1-sibling-aggregation-gelato-repo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.idempotencyKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "c0eb7f12-4d8f-4461-b9ff-6be746a6d930",
+      "name": "Trigger W4.1 Gelato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4304,
+        -1472
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const claim = $input.first()?.json || {};\nif (!claim.submissionId || !claim.claimToken) throw new Error('Cannot fence dispatch without Gelato claim identity');\nconst backendBase = String($env.BACKEND_BASE_URL || '').replace(/\\/+$/, '');\nconst backendToken = String($env.BACKEND_API_TOKEN || '').trim();\nif (!backendBase || !backendToken) throw new Error('Backend routing credentials are required for Gelato claim fencing');\nconst result = await this.helpers.request({\n  method: 'POST',\n  uri: `${backendBase}/api/internal/orders/print-routing/claim/fence`,\n  headers: { Authorization: `Bearer ${backendToken}`, 'Content-Type': 'application/json' },\n  body: { submissionId: claim.submissionId, claimToken: claim.claimToken },\n  json: true,\n});\nif (!result || result.success !== true || result.fenced !== true) throw new Error('Gelato dispatch failure could not fence its claim');\nconsole.log('Gelato dispatch failure claim fenced; request state remains authoritative in backend');\nreturn [];"
+      },
+      "id": "a64631bf-e80c-4c84-9e74-352eb7a6e35c",
+      "name": "Fence Gelato Claim After Dispatch Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4896,
+        -1248
+      ],
+      "notes": "Revokes a Gelato claim if the downstream webhook request fails. The backend records claimed as failed, or submitting as outcome_unknown."
     }
   ],
   "connections": {
@@ -758,7 +953,7 @@
       "main": [
         [
           {
-            "node": "Validate Shipping for w4",
+            "node": "Claim and Route Gelato Groups",
             "type": "main",
             "index": 0
           }
@@ -1012,6 +1207,100 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Claim and Route Gelato Groups": {
+      "main": [
+        [
+          {
+            "node": "IF Gelato Print Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Gelato Print Provider": {
+      "main": [
+        [
+          {
+            "node": "IF Gelato Claim Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Shipping for w4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Gelato Claim Dispatch": {
+      "main": [
+        [
+          {
+            "node": "IF Gelato Sibling Group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Gelato Claim Held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Gelato Sibling Group": {
+      "main": [
+        [
+          {
+            "node": "Trigger W4.1 Gelato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger W4 Gelato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger W4 Gelato": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Fence Gelato Claim After Dispatch Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger W4.1 Gelato": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Fence Gelato Claim After Dispatch Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fence Gelato Claim After Dispatch Failure": {
+      "main": [
+        []
       ]
     }
   },

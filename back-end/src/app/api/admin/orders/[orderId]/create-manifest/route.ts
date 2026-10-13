@@ -160,6 +160,10 @@ export async function POST(
       );
     }
 
+    if (order.print_manifest_key != null || order.print_submission_id != null || order.print_provider === 'gelato') {
+      return NextResponse.json({ error: 'This order has frozen intake. Restore its saved manifest instead.' }, { status: 409 });
+    }
+
     // Validate required fields
     const hasCharacterSpecs =
       order.character_specs ||
@@ -202,12 +206,14 @@ export async function POST(
 
     // Upload to R2
     const manifestJson = JSON.stringify(manifest, null, 2);
-    await putObject(
+    const uploaded = await putObject(
       R2_ORDERS_BUCKET,
       r2Key,
       manifestJson,
-      'application/json'
+      'application/json',
+      { ifNoneMatch: '*' },
     );
+    if (!uploaded.ok) return NextResponse.json({ error: 'An intake manifest already exists. Restore its saved version instead.' }, { status: 409 });
 
     // Determine correct next_workflow based on order's actual progress
     // Don't blindly set to '2A' - check if order has already completed 2A, 2B, or 3
@@ -237,7 +243,7 @@ export async function POST(
         updated_at: new Date().toISOString(),
       });
     } catch (updateError: unknown) {
-      console.error('[Create Manifest] Failed to update Supabase:', updateError);
+      throw updateError;
     }
 
     return NextResponse.json({

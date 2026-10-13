@@ -11,8 +11,12 @@ import {
   normalizeW0Manifest,
   type NormalizedW0Manifest,
 } from '@/lib/books/normalize-w0-manifest';
-import type { BookPageConfig } from '@/lib/books/types';
+import type { BookPageConfig, BookPrintConfig } from '@/lib/books/types';
+import { BookPageConfigSchema } from '@/lib/books/types';
+import { validateRunManifest } from './validate-run-manifest';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import { assertLuluPrintOwnershipForOrder, assertNoNonLuluPrintOwnership } from './lulu-print-ownership';
+import { assertGelatoPrintOwnershipForOrder, assertNoNonGelatoPrintOwnership } from './gelato-print-ownership';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -75,6 +79,8 @@ export interface BuildW4PrintInputResult {
   orderDetails: JsonRecord;
   characterSpecs: JsonRecord;
   CONFIG?: JsonRecord;
+  providerPrintConfig?: BookPrintConfig;
+  bookConfigVersion?: number | null;
   generatedAt: string | null;
   runStamp: string | null;
   workflow: string | null;
@@ -85,6 +91,7 @@ export interface BuildW4PrintInputOptions {
   loadManifest: LoadManifestForW4;
   loadOrder?: LoadOrderForW4;
   defaultBackendUrl?: string;
+  expectedProvider?: 'lulu' | 'gelato';
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -406,12 +413,12 @@ function filterPagePlanByLabels(
 }
 
 function pickManifestKeyCandidates(
-  explicit: Array<string | null | undefined>,
+  explicit: unknown[],
   fallbackKey: string,
   generatedCandidates: string[],
 ): string[] {
   return dedupeStrings([
-    ...explicit.map((value) => extractManifestKey(value ?? null)),
+    ...explicit.map((value) => extractManifestKey(toTrimmedString(value))),
     fallbackKey,
     ...generatedCandidates,
   ]);
@@ -1347,6 +1354,33 @@ export async function buildW4PrintInput(
     oneManifestCandidates,
     options.loadManifest,
   );
+  const frozenGelato = options.expectedProvider === 'gelato' ? validateRunManifest(loadedOneManifest.manifest) : null;
+  if (frozenGelato) {
+    const ref = frozenGelato.book.bookConfigRef;
+    const canonicalPrefix = `${ref.bookId}/orders/${explicitOrderId}`;
+    const rowId = toTrimmedString(orderRecord?.orderId) ?? toTrimmedString(orderRecord?.order_id);
+    const rootId = toTrimmedString(orderRecord?.root_order_id) ?? toTrimmedString(orderRecord?.amazon_order_id) ?? explicitOrderId;
+    const three = loadedThreeManifest.manifest;
+    if (rowId !== explicitOrderId || frozenGelato.manifestType !== 'w0' || frozenGelato.order.orderId !== explicitOrderId ||
+        frozenGelato.order.rootOrderId !== rootId || frozenGelato.artifacts.orderPrefix !== canonicalPrefix ||
+        frozenGelato.artifacts.manifestKey !== `${canonicalPrefix}/manifests/1-manifest.json` ||
+        loadedOneManifest.manifestKey !== frozenGelato.artifacts.manifestKey ||
+        loadedThreeManifest.manifestKey !== `${canonicalPrefix}/manifests/3-manifest.json` ||
+        three.orderId !== explicitOrderId || three.bookId !== ref.bookId || three.formatId !== ref.formatId ||
+        three.orderR2BaseKey !== canonicalPrefix ||
+        (three.rootOrderId != null && three.rootOrderId !== rootId) ||
+        (three.oneManifestKey != null && three.oneManifestKey !== frozenGelato.artifacts.manifestKey) ||
+        (three.configVersion != null && three.configVersion !== ref.version) ||
+        (orderRecord?.one_manifest_url != null && extractManifestKey(toTrimmedString(orderRecord.one_manifest_url)) !== frozenGelato.artifacts.manifestKey)) {
+      throw new Error('Gelato source manifests do not match the canonical order/book identity');
+    }
+    if (!Array.isArray(three.pageLabels) || JSON.stringify(three.pageLabels) !== JSON.stringify(frozenGelato.book.resolved.pageLabels)) {
+      throw new Error('Gelato W3 page labels do not match the frozen W0 sequence');
+    }
+    if (!Array.isArray(three.pagePlan) || JSON.stringify(three.pagePlan.map((page) => BookPageConfigSchema.parse(page))) !== JSON.stringify(frozenGelato.book.resolved.pagePlan)) {
+      throw new Error('Gelato W3 page plan does not match the frozen W0 plan');
+    }
+  }
   const normalizedOneManifest =
     loadedOneManifest.manifest && loadedOneManifest.manifestKey
       ? normalizeW0Manifest(loadedOneManifest.manifest, {
@@ -1354,6 +1388,12 @@ export async function buildW4PrintInput(
         })
       : null;
 
+  const expectedProvider = options.expectedProvider ?? 'lulu';
+  if (expectedProvider === 'gelato') {
+    assertNoNonGelatoPrintOwnership(normalizedOneManifest, primary, nested);
+  } else {
+    assertNoNonLuluPrintOwnership(normalizedOneManifest, primary, nested);
+  }
   const identity = deriveIdentity(
     primary,
     nested,
@@ -1386,10 +1426,10 @@ export async function buildW4PrintInput(
   const manifest3Key = buildManifestKeyFromOrderPrefix(orderPrefix, '3');
   const manifest4Key = buildManifestKeyFromOrderPrefix(orderPrefix, '4');
   const oneManifestKey = loadedOneManifest.manifestKey ?? oneManifestKeyFallback;
-  const manifestPayload = buildManifestPayload(
-    sourcePayload,
-    loadedThreeManifest.manifest,
-  );
+  const manifestPayload = frozenGelato ? loadedThreeManifest.manifest : buildManifestPayload(sourcePayload, loadedThreeManifest.manifest);
+  if (frozenGelato && pickJsonRecord(manifestPayload.summary).readyForBook !== true) {
+    throw new Error('Gelato original W3 source is not ready for book assembly');
+  }
 
   const previewState = derivePreviewPageState({
     backendUrl,
@@ -1398,6 +1438,12 @@ export async function buildW4PrintInput(
     normalizedOneManifest,
     isAmazonOrder: bookState.isAmazonOrder,
   });
+  if (frozenGelato && (bookState.bookId !== frozenGelato.book.bookConfigRef.bookId ||
+      bookState.formatId !== frozenGelato.book.bookConfigRef.formatId ||
+      JSON.stringify(previewState.pageLabels) !== JSON.stringify(frozenGelato.book.resolved.pageLabels) ||
+      JSON.stringify(previewState.pagePlan) !== JSON.stringify(frozenGelato.book.resolved.pagePlan))) {
+    throw new Error('Gelato resolved pages do not match the frozen W0 plan');
+  }
   const coverState = buildCoverPreviewState({
     backendUrl,
     orderPrefix,
@@ -1461,9 +1507,32 @@ export async function buildW4PrintInput(
       ),
     ) ?? `${orderPrefix}/${coverPdfFilename}`;
 
+  if (!options.loadOrder) throw new Error('W4 print input requires a verifiable print provider assignment');
+  if (!orderRecord) throw new Error('W4 print input could not verify the print provider assignment');
+  if (expectedProvider === 'gelato') {
+    const print = normalizedOneManifest?.print;
+    const configVersion = normalizedOneManifest?.configVersion;
+    if (!print || print.provider !== 'gelato' || !configVersion) {
+      throw new Error('Gelato print input requires a versioned Gelato manifest assignment');
+    }
+    assertGelatoPrintOwnershipForOrder(identity.orderId, orderRecord, {
+      configVersion,
+      productUid: print.productUid,
+      innerPageCount: print.innerPageCount,
+      apiPageCount: print.apiPageCount,
+      expectedPdfPageCount: print.expectedPdfPageCount,
+    });
+  } else {
+    assertLuluPrintOwnershipForOrder(identity.orderId, orderRecord);
+  }
+
   return {
     ...manifestPayload,
     CONFIG: config,
+    ...(expectedProvider === 'gelato' && normalizedOneManifest?.print
+      ? { providerPrintConfig: normalizedOneManifest.print }
+      : {}),
+    bookConfigVersion: normalizedOneManifest?.configVersion ?? null,
     orderId: identity.orderId,
     amazonOrderId: identity.amazonOrderId,
     rootOrderId: identity.rootOrderId,

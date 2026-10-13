@@ -143,6 +143,7 @@ async function main(): Promise<void> {
   const siblingOrderRow = {
     id: 101,
     orderId: siblingOrderId,
+    print_provider: 'lulu',
     root_order_id: amazonOrderId,
     amazon_order_id: amazonOrderId,
     character_hash: 'w4charhash123456',
@@ -331,6 +332,7 @@ async function main(): Promise<void> {
   const liveProductionOrderRow = {
     id: 111,
     orderId: liveProductionOrderId,
+    print_provider: 'lulu',
     root_order_id: liveProductionOrderId,
     amazon_order_id: null,
     character_hash: 'w4prodhash001122',
@@ -527,6 +529,7 @@ async function main(): Promise<void> {
         }
         return null;
       },
+      loadOrder: async () => ({ orderId: standardOrderId, print_provider: 'lulu' }),
     },
   );
 
@@ -537,6 +540,19 @@ async function main(): Promise<void> {
       standardBuilt.pageLabels[14] === 'p14',
     'Expected standard W4 input to keep non-amazon identity and 15-page resolution',
   );
+  let missingAssignmentError = '';
+  try {
+    await buildW4PrintInput({
+      orderId: standardOrderId, provider: 'lulu', manifest3Key: standardThreeManifestKey,
+    }, {
+      loadManifest: async (key) => key === standardOneManifestKey ? standardOneManifest : standardThreeManifest,
+      loadOrder: async () => ({ orderId: standardOrderId }),
+    });
+  } catch (error) {
+    missingAssignmentError = error instanceof Error ? error.message : String(error);
+  }
+  assert(missingAssignmentError.includes('verified Lulu provider assignment'),
+    'Expected W4 print input to reject request-only Lulu assignment');
   assert(
     standardBuilt.shippingAddress.address_line_1 === '456 Direct Way' &&
       standardBuilt.shippingAddress.state_code === 'OR' &&
@@ -575,6 +591,7 @@ async function main(): Promise<void> {
         }
         return {
           orderId: standardOrderId,
+          print_provider: 'lulu',
           manifest_3_url: cloudflareManifest3Url,
           one_manifest_url: cloudflareOneManifestUrl,
         };
@@ -629,6 +646,7 @@ async function main(): Promise<void> {
         }
         return null;
       },
+      loadOrder: async () => ({ orderId: standardOrderId, print_provider: 'lulu' }),
     },
   );
 
@@ -689,6 +707,7 @@ async function main(): Promise<void> {
         }
         return null;
       },
+      loadOrder: async () => ({ orderId: bookTwoOrderId, print_provider: 'lulu' }),
     },
   );
 
