@@ -101,6 +101,7 @@
     "test:w0-legacy-rollout": "tsx scripts/test-w0-legacy-rollout.ts",
     "test:gelato-submission": "tsx scripts/test-gelato-submission.ts",
     "test:gelato-submission-runtime": "tsx scripts/test-gelato-submission-runtime.ts",
+    "test:gelato-runtime-bindings": "node scripts/test-gelato-runtime-bindings.mjs",
     "test:gelato-lifecycle": "tsx scripts/test-gelato-lifecycle.ts",
     "test:gelato-notifications": "tsx scripts/test-gelato-notifications.ts",
     "test:gelato-consumer-contract": "tsx scripts/test-gelato-consumer-contract.ts",
