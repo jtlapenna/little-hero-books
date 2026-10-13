@@ -62,6 +62,73 @@ export const BookPageConfigSchema = z.object({
   required: z.boolean(),
 });
 
+export const LuluPrintConfigSchema = z.object({
+  provider: z.literal('lulu'),
+  podPackageId: z.string().min(1),
+  color: z.string().min(1),
+  stock: z.string().min(1),
+  binding: z.string().min(1),
+  coverFinish: z.string().min(1),
+  defaultQuantity: z.number().int().positive(),
+});
+
+export const GelatoShipmentMethodRuleSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('uid'), uid: z.string().min(1) }).strict(),
+  z.object({
+    kind: z.literal('type'),
+    type: z.string().min(1),
+    uidPriority: z.array(z.string().min(1)).optional(),
+  }).strict(),
+]);
+
+export const GelatoPrintConfigSchema = z.object({
+  provider: z.literal('gelato'),
+  productUid: z.string().min(1),
+  innerPageCount: z.number().int().positive(),
+  apiPageCount: z.number().int().positive(),
+  apiPageCountVerified: z.boolean(),
+  expectedPdfPageCount: z.number().int().positive(),
+  printGeometryMm: z.object({
+    trim: z.object({ w: z.number().positive(), h: z.number().positive() }).strict(),
+    interiorCanvas: z.object({ w: z.number().positive(), h: z.number().positive() }).strict(),
+    bleed: z.number().positive(),
+    coverCanvas: z.object({ w: z.number().positive(), h: z.number().positive() }).strict(),
+    backPanel: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), w: z.number().positive(), h: z.number().positive() }).strict(),
+    spine: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), w: z.number().positive(), h: z.number().positive() }).strict(),
+    frontPanel: z.object({ x: z.number().nonnegative(), y: z.number().nonnegative(), w: z.number().positive(), h: z.number().positive() }).strict(),
+  }).strict(),
+  defaultQuantity: z.number().int().positive(),
+  shipmentMethodPolicy: z.object({
+    version: z.number().int().positive(),
+    destinationCountries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1),
+    tiers: z.record(z.string().min(1), GelatoShipmentMethodRuleSchema),
+  }).strict(),
+}).strict().superRefine((print, context) => {
+  if (print.expectedPdfPageCount !== print.innerPageCount + 3) {
+    context.addIssue({ code: 'custom', path: ['expectedPdfPageCount'], message: 'Gelato PDF requires cover spread and two blanks in addition to inner pages' });
+  }
+  const geometry = print.printGeometryMm;
+  if (geometry.interiorCanvas.w !== geometry.trim.w + geometry.bleed * 2 ||
+      geometry.interiorCanvas.h !== geometry.trim.h + geometry.bleed * 2) {
+    context.addIssue({ code: 'custom', path: ['printGeometryMm'], message: 'Gelato interior canvas must equal trim plus bleed on all sides' });
+  }
+  if (geometry.backPanel.x + geometry.backPanel.w !== geometry.spine.x ||
+      geometry.spine.x + geometry.spine.w !== geometry.frontPanel.x ||
+      geometry.backPanel.y !== geometry.spine.y || geometry.frontPanel.y !== geometry.spine.y ||
+      geometry.backPanel.h !== geometry.spine.h || geometry.frontPanel.h !== geometry.spine.h ||
+      geometry.frontPanel.x + geometry.frontPanel.w + geometry.bleed !== geometry.coverCanvas.w ||
+      geometry.backPanel.y + geometry.backPanel.h + geometry.bleed !== geometry.coverCanvas.h) {
+    context.addIssue({ code: 'custom', path: ['printGeometryMm'], message: 'Gelato cover panels do not align with the configured bleed canvas' });
+  }
+});
+
+export const BookPrintConfigSchema = z.discriminatedUnion('provider', [
+  LuluPrintConfigSchema,
+  GelatoPrintConfigSchema,
+]);
+
+export type BookPrintConfig = z.infer<typeof BookPrintConfigSchema>;
+
 export const BookFormatConfigSchema = z.object({
   formatId: z.string().min(1),
   channels: z.array(z.string().min(1)).min(1),
@@ -78,15 +145,7 @@ export const BookFormatConfigSchema = z.object({
     pdfMonkeyInteriorTemplateId: z.string().min(1),
     pdfMonkeyCoverTemplateId: z.string().min(1),
   }),
-  print: z.object({
-    provider: z.literal('lulu'),
-    podPackageId: z.string().min(1),
-    color: z.string().min(1),
-    stock: z.string().min(1),
-    binding: z.string().min(1),
-    coverFinish: z.string().min(1),
-    defaultQuantity: z.number().int().positive(),
-  }),
+  print: BookPrintConfigSchema,
 });
 
 export const BookQaConfigSchema = z.object({
@@ -227,15 +286,7 @@ export const ResolvedBookPlanSchema = z.object({
     pdfMonkeyInteriorTemplateId: z.string().min(1),
     pdfMonkeyCoverTemplateId: z.string().min(1),
   }),
-  print: z.object({
-    provider: z.literal('lulu'),
-    podPackageId: z.string().min(1),
-    color: z.string().min(1),
-    stock: z.string().min(1),
-    binding: z.string().min(1),
-    coverFinish: z.string().min(1),
-    defaultQuantity: z.number().int().positive(),
-  }),
+  print: BookPrintConfigSchema,
   qaPolicy: BookQaConfigSchema,
 });
 

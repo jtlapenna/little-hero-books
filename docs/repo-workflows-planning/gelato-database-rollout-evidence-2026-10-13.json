@@ -1,0 +1,535 @@
+{
+  "recordedAt": "2026-10-13 19:16:12 UTC",
+  "projectId": "mdnthwpcnphjnnblbvxk",
+  "projectName": "Little Hero Labs",
+  "migration": {
+    "version": "20261013191407",
+    "name": "gelato_print_provider_foundation",
+    "sourceFile": "database/migration-print-provider-fields.sql",
+    "sourceSha256": "8adaac1b30fd5a073672ce00b399354d1ef51d91a4c0308ec3920812fcbfcd7f",
+    "boundedPayloadSha256": "f312cc69f89702e6cd8b103fd3409cd40bf0fa83860fa8a34325d84ae84959f1",
+    "lockTimeout": "5s",
+    "statementTimeout": "60s",
+    "result": "success"
+  },
+  "verification": {
+    "gate": [
+      {
+        "enabled": false,
+        "provider": "gelato"
+      }
+    ],
+    "jobs": [
+      {
+        "count": 12,
+        "stage": "2a",
+        "status": "queued"
+      },
+      {
+        "count": 1,
+        "stage": "2a",
+        "status": "running"
+      }
+    ],
+    "orders": {
+      "done": 9,
+      "lulu": 9,
+      "count": 9,
+      "gelato": 0,
+      "processing": 0,
+      "unassigned": 0,
+      "w4_eligible": 0,
+      "submission_links": 0,
+      "known_legacy_unassigned": 0
+    },
+    "tables": [
+      {
+        "rls": true,
+        "table": "print_provider_dispatch_gates",
+        "anon_any": false,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_any": false
+      },
+      {
+        "rls": true,
+        "table": "print_provider_submission_items",
+        "anon_any": false,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_any": false
+      },
+      {
+        "rls": true,
+        "table": "print_provider_submission_notifications",
+        "anon_any": false,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_any": false
+      },
+      {
+        "rls": true,
+        "table": "print_provider_submission_orders",
+        "anon_any": false,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_any": false
+      },
+      {
+        "rls": true,
+        "table": "print_provider_submissions",
+        "anon_any": false,
+        "service_delete": true,
+        "service_insert": true,
+        "service_select": true,
+        "service_update": true,
+        "authenticated_any": false
+      }
+    ],
+    "columns": [
+      "print_provider",
+      "print_config_version",
+      "print_product_uid",
+      "print_inner_page_count",
+      "print_api_page_count",
+      "print_expected_pdf_page_count",
+      "print_book_id",
+      "print_format_id",
+      "print_manifest_key",
+      "print_submission_id",
+      "print_claim_token",
+      "gelato_status",
+      "gelato_order_id",
+      "gelato_order_type",
+      "gelato_action_reason",
+      "gelato_tracking",
+      "gelato_updated_at"
+    ],
+    "old_rpc": [
+      {
+        "md5": "522022c08de7edc58ffece1fd46c45e9",
+        "name": "upsert_from_manifest_2a"
+      },
+      {
+        "md5": "f960ba7c04d2c715fd8e8020b73e081a",
+        "name": "upsert_from_manifest_2b"
+      }
+    ],
+    "sequence": {
+      "anon_any": false,
+      "service_usage": true,
+      "authenticated_any": false
+    },
+    "triggers": [
+      "guard_gelato_owned_order",
+      "guard_gelato_print_membership",
+      "guard_print_provider_assignment"
+    ],
+    "empty_state": {
+      "items": 0,
+      "submissions": 0,
+      "notifications": 0,
+      "provider_orders": 0
+    },
+    "private_functions": [
+      {
+        "signature": "apply_gelato_provider_snapshots(uuid,jsonb,jsonb,jsonb,jsonb)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "authorize_gelato_notification(uuid,uuid)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "authorize_gelato_print_send(uuid,uuid,text,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "begin_gelato_print_submission(uuid,uuid,text,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "begin_gelato_reconciliation(uuid,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "claim_gelato_notification(uuid)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "claim_gelato_print_submission(jsonb,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "fence_gelato_print_submission(uuid,uuid)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "finish_gelato_notification(uuid,uuid,boolean,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "finish_gelato_reconciliation_hold(uuid,uuid,text,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "gelato_notification_eligible(uuid)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "hold_gelato_provider_refresh(uuid,jsonb,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "list_gelato_poll_candidates(integer)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "lock_gelato_submission_root(uuid)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "persist_gelato_draft_result(uuid,uuid,text,jsonb)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "persist_gelato_print_result(uuid,uuid,text,jsonb)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "record_gelato_accepted_root(uuid,uuid,text,text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "record_gelato_print_quote(uuid,uuid,text,text,integer,timestamp with time zone,text[],text)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "record_gelato_quote_snapshot(uuid,uuid,text,text,integer,timestamp with time zone,text[],text,jsonb)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "register_gelato_print_artifact(uuid,uuid,bigint,text,text,integer)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "release_gelato_notification(uuid,uuid,boolean)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      },
+      {
+        "signature": "renew_gelato_print_submission(uuid,uuid,text,integer)",
+        "search_path": [
+          "search_path=public, pg_temp"
+        ],
+        "anon_execute": false,
+        "service_execute": true,
+        "security_definer": false,
+        "authenticated_execute": false
+      }
+    ]
+  },
+  "serviceRest": {
+    "status": 200,
+    "allFiveProviderTablesReadable": true,
+    "providerStateTablesEmpty": true,
+    "gateEnabled": false,
+    "orderCount": 9,
+    "allOrdersLulu": true
+  },
+  "securityAdvisors": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "count": 16,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "objects": [
+        "archived_orders",
+        "book_configs",
+        "customer_feedback",
+        "idempotency_keys",
+        "lulu_webhook_log",
+        "notification_logs",
+        "preview_tokens",
+        "print_provider_dispatch_gates",
+        "print_provider_submission_items",
+        "print_provider_submission_notifications",
+        "print_provider_submission_orders",
+        "print_provider_submissions",
+        "workflow_alerts",
+        "workflow_job_attempts",
+        "workflow_job_events",
+        "workflow_jobs"
+      ]
+    },
+    {
+      "name": "function_search_path_mutable",
+      "level": "WARN",
+      "count": 4,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+      "objects": [
+        "upsert_from_manifest_2a",
+        "upsert_from_manifest_2b",
+        "get_orphaned_orders",
+        "update_updated_at_column"
+      ]
+    },
+    {
+      "name": "extension_in_public",
+      "level": "WARN",
+      "count": 1,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public",
+      "objects": [
+        "vector"
+      ]
+    },
+    {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "count": 2,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "objects": [
+        "upsert_from_manifest_2a",
+        "upsert_from_manifest_2b"
+      ]
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "count": 2,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "objects": [
+        "upsert_from_manifest_2a",
+        "upsert_from_manifest_2b"
+      ]
+    }
+  ],
+  "advisorComparison": "No new warning. Five new RLS-enabled private backend tables intentionally have no public policies. Existing manifest RPC/search_path/vector warnings are unchanged.",
+  "checks": [
+    "Actual-default sequence failure reproduced before revoke, then passed after revoke.",
+    "Disposable PostgreSQL double replay, claim/send atomicity, snapshot CAS, recovery, immutable outbox, retry, archive and concurrency passed.",
+    "Independent SQL reviewer passed production integer/timestamp, default grants and old W0/2A/Lulu writes.",
+    "Main W0 legacy/freeze, intake replay, workflow-copy and secret scanner tests passed."
+  ],
+  "reviewers": [
+    {
+      "name": "gelato_cp1_sql_review",
+      "result": "CHECKPOINT CLEAR",
+      "slice": "SQL, grants, compatibility, production-shaped disposable tests"
+    },
+    {
+      "name": "consensus_config_router",
+      "result": "CHECKPOINT CLEAR",
+      "slice": "Old callers, schema-only active-intake rollout and independent sequence repair"
+    }
+  ],
+  "limits": [
+    "Application deployment and live n8n W4/Gelato execution not performed.",
+    "Fresh reviewer sessions were unavailable; existing independent sessions reused.",
+    "Old W0 records arriving after migration cutoff require inventory/reconciliation before backend cutover.",
+    "Existing orders updated_at changes through existing trigger during provider backfill; fulfillment status unchanged."
+  ],
+  "actions": {
+    "databaseMigrationApplied": true,
+    "existingIntakeKeptActive": true,
+    "gelatoDispatchEnabled": false,
+    "appDeployed": false,
+    "workflowImported": false,
+    "providerOrderCreated": false,
+    "paidPrinting": false,
+    "customerCommunications": false,
+    "gitCommitPushMerge": false
+  },
+  "preReleaseInventory": {
+    "checkedAt": "2026-10-13T19:22:52.275161+00:00",
+    "orders": 9,
+    "done": 9,
+    "lulu": 9,
+    "unassigned": 0,
+    "processing": 0,
+    "w4Eligible": 0,
+    "postCutoffOldW0Rows": 0,
+    "dispatchEnabled": false
+  },
+  "runtimeConfiguration": {
+    "project": "little-hero-labs-admin",
+    "canonicalDomainVerified": true,
+    "gelatoKeyPresent": false,
+    "luluFlagPresent": true,
+    "gelatoFlags": {
+      "GELATO_DRAFT_SUBMISSION_ENABLED": {
+        "present": false,
+        "enabled": false
+      },
+      "GELATO_STATUS_POLLING_ENABLED": {
+        "present": false,
+        "enabled": false
+      },
+      "GELATO_NOTIFICATIONS_ENABLED": {
+        "present": false,
+        "enabled": false
+      },
+      "GELATO_CANCEL_ENABLED": {
+        "present": false,
+        "enabled": false
+      },
+      "GELATO_STATUS_RELAY_ENABLED": {
+        "present": false,
+        "enabled": false
+      }
+    },
+    "verifiedBy": "Authenticated project API read. Missing flags are false under exact true checks. No runtime setting changed."
+  },
+  "existingAppReadChecks": {
+    "checkoutCorsOptions": 204,
+    "nonexistentPreviewStatus": 404,
+    "orderCreationPerformed": false,
+    "healthProof": "These are route availability checks, not a full application health test."
+  },
+  "evidenceReuse": {
+    "priorReceipt": "worktree Git metadata release-safety/previous-review-before-schema-checkpoint.json",
+    "trackedBinaryDiffSha256": "eff523d7533bcb1e61ff880295e94ae5e65a3c8dc10a8e4faa078c7253c9cfa7",
+    "trackedDiffUnchanged": true,
+    "changedFormerUntracked": [
+      "back-end/scripts/test-gelato-print-submissions.sh",
+      "back-end/scripts/test-gelato-print-submissions.sql",
+      "database/migration-print-provider-fields.sql",
+      "docs/repo-workflows-planning/w4-gelato-copies-execution-status.md",
+      "docs/repo-workflows-planning/w4-gelato-copies-implementation-plan.md"
+    ],
+    "reusedEvidence": "Unchanged app/workflow code and inputs retain prior full behavior, build, lint and visual proofs. SQL/default-permission proofs rerun on corrected content."
+  }
+}

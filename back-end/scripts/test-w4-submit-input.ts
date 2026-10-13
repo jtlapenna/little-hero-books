@@ -61,6 +61,7 @@ function createReadyProductionOrder(orderId: string): JsonRecord {
     workflow_step: 'print_fulfillment',
     execution_status: 'processing',
     status: 'pending_print',
+    print_provider: 'lulu',
     next_workflow: '4',
     customer_approval_required: true,
     customer_approval_status: 'approved',
@@ -106,6 +107,7 @@ async function testSandboxSubmitShape(): Promise<void> {
   const response = await buildW4SubmitInputResponse(createBaseInput(), {
     loadOrder: async () => ({
       orderId: 'W4-SANDBOX-PROOF-001',
+      print_provider: 'lulu',
       lulu_job_id: null,
       lulu_status: null,
       print_submitted_at: null,
@@ -165,7 +167,8 @@ async function testDirectPdfUrlModeBypassesR2Signing(): Promise<void> {
     {
       loadOrder: async () => ({
         orderId,
-        lulu_job_id: null,
+        print_provider: 'lulu',
+      lulu_job_id: null,
         lulu_status: null,
         print_submitted_at: null,
       }),
@@ -692,6 +695,7 @@ async function testExistingJobSkipsLulu(): Promise<void> {
   const response = await buildW4SubmitInputResponse(createBaseInput(), {
     loadOrder: async () => ({
       orderId: 'W4-SANDBOX-PROOF-001',
+      print_provider: 'lulu',
       lulu_job_id: 'prod-job-existing-123',
       lulu_status: 'SUBMITTED',
       print_submitted_at: '2026-03-27T09:15:00.000Z',
@@ -724,7 +728,8 @@ async function testDryRunMarkersDoNotBlockLaterProductionPilot(): Promise<void> 
       {
         loadOrder: async () => ({
           ...createReadyProductionOrder(orderId),
-          lulu_job_id: 'SKIPPED',
+          print_provider: 'lulu',
+      lulu_job_id: 'SKIPPED',
           lulu_status: 'DRY_RUN',
           print_submitted_at: null,
         }),
@@ -756,7 +761,8 @@ async function testTestModeSkipsLulu(): Promise<void> {
     {
       loadOrder: async () => ({
         orderId: 'W4-SANDBOX-PROOF-001',
-        lulu_job_id: null,
+        print_provider: 'lulu',
+      lulu_job_id: null,
         lulu_status: null,
         print_submitted_at: null,
       }),
@@ -788,7 +794,8 @@ async function testSandboxFallbackPhonePreventsProofFailure(): Promise<void> {
     {
       loadOrder: async () => ({
         orderId: 'W4-SANDBOX-PROOF-001',
-        lulu_job_id: null,
+        print_provider: 'lulu',
+      lulu_job_id: null,
         lulu_status: null,
         print_submitted_at: null,
       }),

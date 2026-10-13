@@ -4,7 +4,8 @@
   "options": {
     "schemaVersion": "v3",
     "bookId": "book-mvp-simple-adventure",
-    "formatId": "amazon"
+    "formatId": "amazon",
+    "configVersion": 1
   },
   "expected": {
     "bookId": "book-mvp-simple-adventure",

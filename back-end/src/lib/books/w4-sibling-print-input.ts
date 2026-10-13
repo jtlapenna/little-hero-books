@@ -2,6 +2,9 @@ import { buildW4PrintInput, type BuildW4PrintInputResult } from '@/lib/books/w4-
 import type { LoadManifestForW4, LoadOrderForW4 } from '@/lib/books/w4-print-input';
 import { getBucketFromKey } from '@/lib/r2-utils';
 import { verifyW41ProductionApprovalToken } from '@/lib/w41-production-approval';
+import { assertLuluPrintOwnershipForOrder, assertNoNonLuluPrintOwnership } from './lulu-print-ownership';
+import type { BuildW4PrintInputOptions } from './w4-print-input';
+import { assertW4GelatoPrintInput } from './w4-gelato-print-input';
 
 type JsonRecord = Record<string, unknown>;
 const SANDBOX_LULU_API_BASE = 'https://api.sandbox.lulu.com';
@@ -105,6 +108,7 @@ export interface BuildW4SiblingPrintInputOptions {
   loadManifest: LoadManifestForW4;
   loadOrder?: LoadOrderForW4;
   defaultBackendUrl?: string;
+  expectedProvider?: BuildW4PrintInputOptions['expectedProvider'];
 }
 
 export interface BuildW4SiblingSubmitInputOptions {
@@ -975,6 +979,20 @@ export async function buildW4SiblingPrintInput(
     ),
   );
 
+  if (options.expectedProvider === 'gelato') {
+    const validated = builtSiblings.map(assertW4GelatoPrintInput);
+    const first = validated[0]?.providerPrintConfig;
+    if (!first) throw new Error('Gelato sibling print input requires at least one item');
+    const firstVersion = validated[0]?.bookConfigVersion;
+    for (const item of validated.slice(1)) {
+      const print = item.providerPrintConfig;
+      if (item.bookConfigVersion !== firstVersion || print.productUid !== first.productUid || print.apiPageCount !== first.apiPageCount ||
+          print.innerPageCount !== first.innerPageCount || print.expectedPdfPageCount !== first.expectedPdfPageCount) {
+        throw new Error('Gelato sibling print input has incompatible frozen print assignments');
+      }
+    }
+  }
+
   const sortedSiblings = sortSiblingRecords(
     builtSiblings.map((sibling) => ({
       ...sibling,
@@ -1296,6 +1314,10 @@ export async function buildW4SiblingSubmitInput(
   options: BuildW4SiblingSubmitInputOptions,
 ): Promise<BuildW4SiblingSubmitInputResult> {
   const parsed = parseSiblingSubmitInput(input);
+  assertNoNonLuluPrintOwnership(parsed.requestInput, ...parsed.siblings);
+  if (!options.loadOrder) throw new Error('W4.1 submit requires a verifiable print provider assignment');
+  const rows = await Promise.all(parsed.siblings.map((sibling) => options.loadOrder!(sibling.orderId)));
+  rows.forEach((row, index) => assertLuluPrintOwnershipForOrder(parsed.siblings[index].orderId, row));
   validateSiblingGroupSize(parsed.siblings.map((sibling) => sibling.orderId));
   const CONFIG = withSandboxConfig(parsed.config);
   const useDirectPdfUrlsForDryRun = toBoolean(

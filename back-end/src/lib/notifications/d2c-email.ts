@@ -101,6 +101,8 @@ async function sendViaResendHttp(params: {
   subject: string;
   text: string;
   html: string;
+  idempotencyKey?: string;
+  signal?: AbortSignal;
 }): Promise<{ id?: string; error?: string }> {
   // Purpose: avoid SDK runtime incompatibilities in Cloudflare Workers by using fetch directly.
   const res = await fetch('https://api.resend.com/emails', {
@@ -108,6 +110,7 @@ async function sendViaResendHttp(params: {
     headers: {
       Authorization: `Bearer ${params.apiKey}`,
       'Content-Type': 'application/json',
+      ...(params.idempotencyKey ? { 'Idempotency-Key': params.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from: params.from,
@@ -116,6 +119,7 @@ async function sendViaResendHttp(params: {
       text: params.text,
       html: params.html,
     }),
+    signal: params.signal,
   });
 
   const text = await res.text();
@@ -126,6 +130,18 @@ async function sendViaResendHttp(params: {
   } catch {
     return { id: undefined };
   }
+}
+
+export async function sendD2CImmutableEmail(params: {
+  from: string; to: string; subject: string; text: string; html: string; idempotencyKey: string; signal?: AbortSignal;
+}): Promise<D2CEmailResult> {
+  if (!isD2CEmailEnabled()) return { success: false, error: 'D2C email notifications are disabled' };
+  const apiKey = getResendApiKey();
+  if (!apiKey) return { success: false, error: 'RESEND_API_KEY is not set' };
+  try {
+    const result = await sendViaResendHttp({ ...params, apiKey });
+    return result.id && !result.error ? { success: true, messageId: result.id } : { success: false, error: 'Email delivery was not confirmed' };
+  } catch { return { success: false, error: 'Email delivery was not confirmed' }; }
 }
 
 /**

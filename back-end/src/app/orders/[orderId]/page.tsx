@@ -11,6 +11,7 @@ import { formatDate, getInitials } from '@/lib/utils';
 import { PreBriaStage } from '@/components/stages/pre-bria-stage';
 import { PostBriaStage } from '@/components/stages/post-bria-stage';
 import { PostPdfStage } from '@/components/stages/post-pdf-stage';
+import { GelatoStage } from '@/components/stages/gelato-stage';
 import { LuluStage } from '@/components/stages/lulu-stage';
 import { getStageFlaggedCount, getOrderFlagSummary } from '@/lib/review-state';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
@@ -186,6 +187,15 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
+  const activeStageTab = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (activeStage === ('lulu' as unknown as ReviewStage)) activeStageTab.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeStage, order?.orderId]);
+  useEffect(() => {
+    if (order?.printProvider === 'gelato' && new URLSearchParams(window.location.search).get('stage') === 'print-status') {
+      setActiveStage('lulu' as unknown as ReviewStage);
+    }
+  }, [order?.orderId, order?.printProvider]);
   const [flagCounts, setFlagCounts] = useStateReact({ preBria: 0, postBria: 0, postPdf: 0 });
   const [finalApprovalResult, setFinalApprovalResult] = useState<FinalApprovalResult | null>(null);
   const [finalApprovalError, setFinalApprovalError] = useState<string | null>(null);
@@ -345,6 +355,7 @@ export default function OrderDetailPage() {
       if (!order) {
         throw new Error('Order is not loaded');
       }
+      if (order.printProvider === 'gelato' && order.printSubmissionId) throw new Error('Inspect the existing Gelato submission before creating another draft');
 
       const response = await fetch(`/api/orders/${order.orderId}/print`, {
         method: 'POST',
@@ -565,7 +576,7 @@ export default function OrderDetailPage() {
     {
       key: 'lulu' as unknown as ReviewStage,
       label: 'Print Status',
-      description: 'Lulu print job status and tracking',
+      description: 'Print provider status and tracking',
       stageKey: 'lulu'
     }
   ];
@@ -722,7 +733,7 @@ export default function OrderDetailPage() {
       order.rootOrderId !== order.orderId &&
       String(order.lifecycle_status || '').toLowerCase() !== 'recently_delivered';
     const confirmed = window.confirm(
-      groupedSiblingPrint
+      order.printProvider === 'gelato' ? 'Create a held Gelato draft for review? Printing will not start.' : groupedSiblingPrint
         ? `Send all ${siblingCount} sibling books to print now? This will queue the full group together and further changes may not be possible.`
         : 'Send this order to print now? This will start production and further changes may not be possible.'
     );
@@ -1134,7 +1145,7 @@ export default function OrderDetailPage() {
                 </span>
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
               {/* Show total flagged count across all stages */}
               {order.reviewStages && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-700">
@@ -1183,7 +1194,7 @@ export default function OrderDetailPage() {
               )}
               <button
                 type="button"
-                onClick={handleManualSendToPrint}
+                onClick={() => order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId) ? (() => { setActiveStage('lulu' as unknown as ReviewStage); requestAnimationFrame(() => activeStageTab.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })); })() : handleManualSendToPrint()}
                 disabled={manualPrintLoading}
                 className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
               >
@@ -1195,7 +1206,7 @@ export default function OrderDetailPage() {
                 ) : (
                   <>
                     <Printer className="h-4 w-4 mr-2" />
-                    Send to Print
+                    {order.printProvider === 'gelato' ? order.printSubmissionId || order.gelatoOrderId ? 'View Print Status' : 'Create Gelato Draft' : 'Send to Print'}
                   </>
                 )}
               </button>
@@ -1591,6 +1602,7 @@ export default function OrderDetailPage() {
                 </button>
                 <button
                   onClick={async () => {
+                    if (order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId)) return;
                     if (!confirm('This will clear 4 (Print Fulfillment) status and regenerate. Continue?')) return;
                     try {
                       const isReprint =
@@ -1627,7 +1639,9 @@ export default function OrderDetailPage() {
                       alert(`Error: ${error.message}`);
                     }
                   }}
-                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  disabled={order.printProvider === 'gelato' && Boolean(order.printSubmissionId || order.gelatoOrderId)}
+                  title={order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId) ? 'Use Print Status to inspect or recover the existing Gelato submission.' : undefined}
+                  className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Regenerate 4
                 </button>
@@ -1855,16 +1869,17 @@ export default function OrderDetailPage() {
 
             {/* Stage Tabs */}
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
+              <nav className="flex space-x-8 overflow-x-auto whitespace-nowrap px-6">
                 {stages.map((stage) => {
                   // Only show Lulu tab if order has been submitted to Lulu
-                  if (stage.stageKey === 'lulu' && !order.luluJobId) {
+                  if (stage.stageKey === 'lulu' && order.printProvider !== 'gelato' && !order.luluJobId) {
                     return null;
                   }
                   
                   return (
                     <button
                       key={stage.key as unknown as string}
+                      ref={activeStage === stage.key ? activeStageTab : undefined}
                       onClick={() => setActiveStage(stage.key)}
                       className={`py-4 px-1 border-b-2 font-medium text-sm ${
                         activeStage === stage.key
@@ -2002,10 +2017,11 @@ export default function OrderDetailPage() {
                   finalApprovalError={finalApprovalError}
                   finalApprovalLoading={finalApprovalLoading}
                   onSendToPrint={() => handleSendToPrint('post-pdf-stage')}
+                  onViewPrintStatus={() => setActiveStage('lulu' as unknown as ReviewStage)}
                 />
               )}
 
-              {activeStage === ('lulu' as unknown as ReviewStage) && (
+              {activeStage === ('lulu' as unknown as ReviewStage) && (order.printProvider === 'gelato' ? <GelatoStage order={order} onRefresh={handleRefreshOrder} /> :
                 <LuluStage
                   orderId={order.orderId}
                   order={order}

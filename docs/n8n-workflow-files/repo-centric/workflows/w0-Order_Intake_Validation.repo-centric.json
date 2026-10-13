@@ -62,26 +62,36 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "bucketName": "little-hero-orders",
-        "fileName": "={{ $json.r2Key }}",
-        "additionalFields": {}
+        "method": "POST",
+        "url": "={{ String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '') + '/api/internal/w0/publish-manifest' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.BACKEND_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $(\"Prepare Build 1 Manifest Body\").first().json.requestBody }}",
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "4f3a597b-3deb-4ebd-950e-8170a722abb4",
       "name": "Upload 1-manifest.json to R2",
-      "type": "n8n-nodes-base.s3",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         5664,
         -576
-      ],
-      "credentials": {
-        "s3": {
-          "id": "7tJOX9QjL1jqyEjf",
-          "name": "S3 account"
-        }
-      },
-      "onError": "continueErrorOutput"
+      ]
     },
     {
       "parameters": {
@@ -98,20 +108,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build fallback (no upload): keep the canonical manifest payload from the repo-owned build step.\nconst input = $input.first().json || {};\nconst buildNode = $item(0).$node[\"Build 1‑manifest.json\"]?.json || {};\nconst manifest = input.manifest || buildNode.manifest;\nconst manifestKey = input.r2Key || input.manifestKey || input.orderUpsert?.one_manifest_url || buildNode.r2Key || buildNode.manifestKey || buildNode.orderUpsert?.one_manifest_url || manifest?.artifacts?.manifestKey || null;\n\nif (!manifestKey) {\n  throw new Error('Missing manifest key for W0 fallback path');\n}\n\nreturn [{\n  json: {\n    r2Key: manifestKey,\n    manifestKey,\n    orderId: input.orderId || input.orderUpsert?.orderId || input.orderUpsert?.order_id || buildNode.orderId || buildNode.orderUpsert?.orderId || buildNode.orderUpsert?.order_id || null,\n    manifest,\n    orderUpsert: input.orderUpsert || buildNode.orderUpsert || null,\n    _config: input._config || $item(0).$node[\"Normalize Payload\"]?.json?._config || {},\n  },\n}];"
-      },
-      "id": "59001b92-ebc4-4237-989a-f7855a361089",
-      "name": "Fallback (Skip Upload)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        6128,
-        -384
-      ],
-      "notes": "Use this path temporarily if signed PUT or S3 creds are not ready."
-    },
-    {
-      "parameters": {
         "jsCode": "\n// Extract & sanitize dedication from normalized shape\nconst norm = $input.first().json || {};\n\nfunction fromItem(it){\n  const fields = it.customizations || it.customizationFields || it.options || [];\n  for (const f of (fields||[])){\n    const name = (f.name||f.label||f.type||'').toLowerCase();\n    if (name.includes('dedication') || name.includes('message') || name.includes('note')){\n      const v = (f.value||f.text||f.stringValue||'')+'';\n      if (v.trim()) return v;\n    }\n  }\n  return null;\n}\n\n// Check multiple possible locations for dedication\nlet found = '';\nconst rawBody = norm._raw?.body || {};\n\n// 1. Check top-level in normalized object\nif (!found && norm.dedication) found = String(norm.dedication);\n\n// 2. Check _raw.body.dedication (direct field)\nif (!found && rawBody.dedication) found = String(rawBody.dedication);\nif (!found && rawBody.Dedication) found = String(rawBody.Dedication);\n\n// 3. Check characterSpecs variations in _raw.body\nif (!found && rawBody.characterSpecs?.dedication) found = String(rawBody.characterSpecs.dedication);\nif (!found && rawBody.character_specs?.dedication) found = String(rawBody.character_specs.dedication);\nif (!found && rawBody.CharacterSpecs?.dedication) found = String(rawBody.CharacterSpecs.dedication);\n\n// 4. Check normalized characterSpecs (if it exists after normalization)\nif (!found && norm.characterSpecs?.dedication) found = String(norm.characterSpecs.dedication);\n\n// 5. Check items array for customizations\nif (!found && Array.isArray(norm.items)) {\n  for (const li of norm.items){\n    const maybe = fromItem(li);\n    if (maybe){ found = maybe; break; }\n  }\n}\n\n// 6. Fallback: check _raw.dedication (old location)\nif (!found && norm._raw?.dedication) found = String(norm._raw.dedication);\n\n// sanitize\nconst MAX_CHARS = 500, MAX_LINES = 6;\nlet t = (found || '')\n  .replace(/[\\u0000-\\u0008\\u000B-\\u001F\\u007F]/g,'')\n  .replace(/\\r\\n?/g,'\\n').replace(/[ \\t]{2,}/g,' ');\nt = t.split('\\n').map(l => l.trimEnd()).join('\\n').trim();\nif (t.length > MAX_CHARS) t = t.slice(0, MAX_CHARS).trim();\nt = t.split('\\n').slice(0, MAX_LINES).join('\\n');\nconst esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nreturn [{\n  json: {\n    ...norm,\n    dedication: { raw: found || '', text: t, htmlSafe: esc(t) }\n  }\n}];\n"
       },
       "id": "a820f54b-00e0-47e8-8578-9b23ff4babe2",
@@ -125,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Accepts many shapes (Amazon Custom / backend forwarder / mock)\n// Normalize core fields and optional specs. Dedication is handled in the next node.\n// Gets CONFIG from earlier node execution (CONFIG runs before Mock Order)\nconst raw = $input.first().json || {};\nconst config = $item(0).$node[\"CONFIG (PRODUCTION)\"]?.json || {};\n\nfunction safe(o){ return (o && typeof o === 'object') ? o : {}; }\nfunction coerceStr(v){ return (v==null) ? undefined : String(v); }\nfunction num(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }\nfunction extractItems(r){ return Array.isArray(r.items) ? r.items : (Array.isArray(r.lineItems) ? r.lineItems : []); }\n// orderId (per-book synthetic ID) MUST take precedence over amazonOrderId (group root).\n// If amazonOrderId comes first, a sibling payload with both fields set would derive\n// orderId = root group ID, making isSiblingOrder = false and bypassing all sibling logic.\nfunction extractOrderId(r){ return r.orderId || r.id || r.amazonOrderId || 'UNKNOWN-ORDER'; }\n// Sibling orders have synthetic ID: <rootOrderId>-item-<itemId>. Derive root for group queries.\nfunction deriveRootOrderId(oid){\n  const m = String(oid || '').match(/^(.+)-item-[^-]+$/);\n  return m ? m[1] : oid;\n}\n\n// Map pronouns/gender to clothing style\nfunction mapClothingStyle(pronouns, explicitClothing) {\n  // If clothing style is explicitly provided, use it\n  if (explicitClothing && String(explicitClothing).trim()) {\n    return String(explicitClothing).trim();\n  }\n  \n  // Map from pronouns if no explicit clothing\n  if (!pronouns) return 'tee-shorts'; // default\n  \n  const p = String(pronouns).toLowerCase().trim();\n  \n  // girl or she/her → dress\n  if (p.includes('girl') || p.includes('she')) {\n    return 'dress';\n  }\n  \n  // boy, he/him, they/them → tee-shorts\n  if (p.includes('boy') || p.includes('he') || p.includes('they')) {\n    return 'tee-shorts';\n  }\n  \n  // default\n  return 'tee-shorts';\n}\n\nconst orderId = extractOrderId(raw);\nconst rootOrderId = deriveRootOrderId(orderId);\nconst isSiblingOrder = rootOrderId !== orderId;\nconst items = extractItems(raw);\n\n// Optional specs\nconst cs = safe(raw.characterSpecs);\nconst bs = safe(raw.bookSpecs);\nconst od = safe(raw.orderDetails);\nconst shipping = safe(od.shippingAddress);\n\nconst characterSpecs = {\n  childName: coerceStr(cs.childName),\n  skinTone: coerceStr(cs.skinTone),\n  hairColor: coerceStr(cs.hairColor),\n  hairStyle: coerceStr(cs.hairStyle),\n  age: num(cs.age),\n  pronouns: coerceStr(cs.pronouns),\n  favoriteColor: coerceStr(cs.favoriteColor),\n  animalGuide: coerceStr(cs.animalGuide),\n  clothingStyle: mapClothingStyle(cs.pronouns, cs.clothingStyle), // Map from pronouns if not provided\n  hometown: coerceStr(cs.hometown || cs.homeTown || cs.home_town),\n};\n\nconst bookSpecs = {\n  title: coerceStr(bs.title),\n  totalPages: num(bs.totalPages),\n  format: coerceStr(bs.format),\n  bookType: coerceStr(bs.bookType),\n};\n\n// D2C/checkout uses address_line1, postal_code; Amazon uses address, zip. Resolve both.\nconst addr = coerceStr(shipping.address || shipping.address_line1 || shipping.address_line_1 || shipping.addressLine1);\nconst zipVal = coerceStr(shipping.zip || shipping.postal_code || shipping.postalCode);\nconst orderDetails = {\n  quantity: num(od.quantity) || 1,\n  shippingAddress: {\n    name: coerceStr(shipping.name),\n    address: addr,\n    address_line_1: addr,\n    city: coerceStr(shipping.city),\n    state: coerceStr(shipping.state),\n    state_code: coerceStr(shipping.state_code || shipping.state),\n    zip: zipVal,\n    postal_code: zipVal,\n    phone: coerceStr(shipping.phone || shipping.phoneNumber || shipping.phone_number),\n    phone_number: coerceStr(shipping.phone_number || shipping.phone || shipping.phoneNumber),\n    country: coerceStr(shipping.country) || 'US',\n  }\n};\n\nreturn [{\n  json: {\n    _raw: raw,\n    _config: config, // Merge config into flow for downstream nodes\n    orderId,\n    amazonOrderId: raw.amazonOrderId || null,\n    marketplaceId: raw.marketplaceId || null,\n    rootOrderId,\n    isSiblingOrder,\n    // legacy fields for compatibility\n    buyer: raw.buyer || {},\n    purchaseDate: raw.purchaseDate || raw.createdAt || null,\n    // normalized fields\n    status: coerceStr(raw.status) || 'queued_for_processing',\n    orderDate: coerceStr(raw.orderDate) || new Date().toISOString(),\n    customerEmail: coerceStr(raw.customerEmail),\n    items,\n    characterSpecs,\n    bookSpecs,\n    orderDetails\n  }\n}];\n"
+        "jsCode": "\n// Accepts many shapes (Amazon Custom / backend forwarder / mock)\n// Normalize core fields and optional specs. Dedication is handled in the next node.\n// Gets CONFIG from earlier node execution (CONFIG runs before Mock Order)\nconst raw = $input.first().json || {};\nconst config = $item(0).$node[\"CONFIG (PRODUCTION)\"]?.json || {};\n\nfunction safe(o){ return (o && typeof o === 'object') ? o : {}; }\nfunction coerceStr(v){ return (v==null) ? undefined : String(v); }\nfunction num(v){ const n = Number(v); return Number.isFinite(n) ? n : undefined; }\nfunction extractItems(r){ return Array.isArray(r.items) ? r.items : (Array.isArray(r.lineItems) ? r.lineItems : []); }\n// orderId (per-book synthetic ID) MUST take precedence over amazonOrderId (group root).\n// If amazonOrderId comes first, a sibling payload with both fields set would derive\n// orderId = root group ID, making isSiblingOrder = false and bypassing all sibling logic.\nfunction extractOrderId(r){ return r.orderId || r.id || r.amazonOrderId || 'UNKNOWN-ORDER'; }\n// Sibling orders have synthetic ID: <rootOrderId>-item-<itemId>. Derive root for group queries.\nfunction deriveRootOrderId(oid){\n  const m = String(oid || '').match(/^(.+)-item-[^-]+$/);\n  return m ? m[1] : oid;\n}\n\n// Map pronouns/gender to clothing style\nfunction mapClothingStyle(pronouns, explicitClothing) {\n  // If clothing style is explicitly provided, use it\n  if (explicitClothing && String(explicitClothing).trim()) {\n    return String(explicitClothing).trim();\n  }\n  \n  // Map from pronouns if no explicit clothing\n  if (!pronouns) return 'tee-shorts'; // default\n  \n  const p = String(pronouns).toLowerCase().trim();\n  \n  // girl or she/her → dress\n  if (p.includes('girl') || p.includes('she')) {\n    return 'dress';\n  }\n  \n  // boy, he/him, they/them → tee-shorts\n  if (p.includes('boy') || p.includes('he') || p.includes('they')) {\n    return 'tee-shorts';\n  }\n  \n  // default\n  return 'tee-shorts';\n}\n\nconst orderId = extractOrderId(raw);\nconst rootOrderId = deriveRootOrderId(orderId);\nconst isSiblingOrder = rootOrderId !== orderId;\nconst items = extractItems(raw);\n\n// Optional specs\nconst cs = safe(raw.characterSpecs);\nconst bs = safe(raw.bookSpecs);\nconst od = safe(raw.orderDetails);\nconst shipping = safe(od.shippingAddress);\n\nconst characterSpecs = {\n  childName: coerceStr(cs.childName),\n  skinTone: coerceStr(cs.skinTone),\n  hairColor: coerceStr(cs.hairColor),\n  hairStyle: coerceStr(cs.hairStyle),\n  age: num(cs.age),\n  pronouns: coerceStr(cs.pronouns),\n  favoriteColor: coerceStr(cs.favoriteColor),\n  animalGuide: coerceStr(cs.animalGuide),\n  clothingStyle: mapClothingStyle(cs.pronouns, cs.clothingStyle), // Map from pronouns if not provided\n  hometown: coerceStr(cs.hometown || cs.homeTown || cs.home_town),\n};\n\nconst bookSpecs = {\n  testMode: bs.testMode,\n  bookId: bs.bookId,\n  configVersion: bs.configVersion,\n  formatId: bs.formatId,\n  title: coerceStr(bs.title),\n  totalPages: num(bs.totalPages),\n  format: coerceStr(bs.format),\n  bookType: coerceStr(bs.bookType),\n};\n\n// D2C/checkout uses address_line1, postal_code; Amazon uses address, zip. Resolve both.\nconst addr = coerceStr(shipping.address || shipping.address_line1 || shipping.address_line_1 || shipping.addressLine1);\nconst zipVal = coerceStr(shipping.zip || shipping.postal_code || shipping.postalCode);\nconst orderDetails = {\n  quantity: num(od.quantity) || 1,\n  shippingAddress: {\n    name: coerceStr(shipping.name),\n    address: addr,\n    address_line_1: addr,\n    city: coerceStr(shipping.city),\n    state: coerceStr(shipping.state),\n    state_code: coerceStr(shipping.state_code || shipping.state),\n    zip: zipVal,\n    postal_code: zipVal,\n    phone: coerceStr(shipping.phone || shipping.phoneNumber || shipping.phone_number),\n    phone_number: coerceStr(shipping.phone_number || shipping.phone || shipping.phoneNumber),\n    country: coerceStr(shipping.country) || 'US',\n  }\n};\n\nreturn [{\n  json: {\n    _raw: raw,\n    bookId: raw.bookId,\n    configVersion: raw.configVersion,\n    formatId: raw.formatId,\n    configSource: raw.configSource,\n    schemaVersion: raw.schemaVersion,\n    _config: config, // Merge config into flow for downstream nodes\n    orderId,\n    amazonOrderId: raw.amazonOrderId || null,\n    marketplaceId: raw.marketplaceId || null,\n    rootOrderId,\n    isSiblingOrder,\n    // legacy fields for compatibility\n    buyer: raw.buyer || {},\n    purchaseDate: raw.purchaseDate || raw.createdAt || null,\n    // normalized fields\n    status: coerceStr(raw.status) || 'queued_for_processing',\n    orderDate: coerceStr(raw.orderDate) || new Date().toISOString(),\n    customerEmail: coerceStr(raw.customerEmail),\n    items,\n    characterSpecs,\n    bookSpecs,\n    orderDetails\n  }\n}];\n"
       },
       "id": "4c706fd7-d992-403c-a4ff-8bcca1a1b105",
       "name": "Normalize Payload",
@@ -138,7 +134,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Central config (fill tokens/keys after import)\n// n8n webhook wraps POST data in .body — extract it so order fields are at top level\nconst input = $input.first().json || {};\nconst orderData = input.body || input;\nreturn [{ json: {\n  ...orderData,\n  supabase: {\n    url: \"https://mdnthwpcnphjnnblbvxk.supabase.co\",\n    serviceKey: \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs\"\n  },\n  r2: {\n    bucket: \"little-hero-orders\",\n    signedUrlEndpoint: \"https://admin.littleherolabs.com/api/r2/signed-url\",\n    apiToken: \"e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646\",\n    expiresIn: 600,\n    keyPrefix: \"book-mvp-simple-adventure/orders\",\n    useBackendSignedUpload: true\n  },\n  s3: {\n    endpoint: \"https://3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com\",\n    accessKeyId: \"b0a481f17d8641a232e0aae8a3efeb7a\",\n    secretAccessKey: \"745ade64f37a8def63e44ae9bfb2fb286c23a500b437c722461a33c7820d43cd\",\n    accountId: \"3daae940fcb6fc5b8bbd9bb8fcc62854\"\n  }\n} }];"
+        "jsCode": "const input = $input.first().json || {};\nconst orderData = input.body || input;\nconst backendBase = String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '');\nreturn [{ json: {\n  ...orderData,\n  supabase: { url: $env.SUPABASE_URL, serviceKey: $env.SUPABASE_SERVICE_ROLE_KEY },\n  r2: {\n    bucket: $env.R2_ORDERS_BUCKET || 'little-hero-orders',\n    signedUrlEndpoint: backendBase + '/api/r2/signed-url',\n    apiToken: $env.BACKEND_API_TOKEN,\n    expiresIn: 600,\n    keyPrefix: 'book-mvp-simple-adventure/orders',\n    useBackendSignedUpload: true,\n  },\n  s3: {\n    endpoint: $env.R2_ENDPOINT,\n    accessKeyId: $env.R2_ACCESS_KEY_ID || $env.CLOUDFLARE_R2_ACCESS_KEY_ID,\n    secretAccessKey: $env.R2_SECRET_ACCESS_KEY || $env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,\n    accountId: $env.R2_ACCOUNT_ID || $env.CLOUDFLARE_ACCOUNT_ID,\n  },\n} }];"
       },
       "id": "ce4915eb-c99d-472e-a1a3-704f63dcb881",
       "name": "CONFIG (PRODUCTION)",
@@ -164,37 +160,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w0/upsert-order",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + ($item(0).$node[\"CONFIG (PRODUCTION)\"].json.r2?.apiToken || '') }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{$json.requestBody}}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 90000
-        }
+        "jsCode": "const published = $('Upload 1-manifest.json to R2').first().json;\nif (published.success !== true || published.published !== true) throw new Error('W0 publication was not confirmed');\nreturn [{ json: { ...published, ...published.orderUpsert, id: published.orderDbId } }];"
       },
       "id": "d1460a7e-2e06-4808-adeb-bab11389ecad",
       "name": "Supabase Upsert (orders)2",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         6704,
         -688
@@ -242,7 +213,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    requestBody: JSON.stringify({\n      payload: $json,\n      schemaVersion: 'v3',\n      configSource: 'published-first',\n      bookId: 'book-mvp-simple-adventure',\n    }),\n  },\n}];\n"
+        "jsCode": "function select(field, fallback) {\n  const values = [$json[field], $json.bookSpecs?.[field]].filter(value => value !== undefined);\n  if (values.some(value => value !== values[0])) throw new Error('Conflicting W0 selection: ' + field);\n  return values.length ? values[0] : fallback;\n}\nreturn [{ json: { requestBody: JSON.stringify({\n  payload: $json,\n  schemaVersion: 'v3',\n  configSource: 'published',\n  configVersion: select('configVersion', 1),\n  formatId: select('formatId', $json.marketplaceId || $json.amazonOrderId ? 'amazon' : 'standard'),\n  bookId: select('bookId', 'book-mvp-simple-adventure'),\n}) } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -255,7 +226,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const built = $item(0).$node[\"Create Binary (manifest.json)\"]?.json || {};\n\nconst manifestKey =\n  built.r2Key ||\n  built.manifestKey ||\n  built.orderUpsert?.one_manifest_url ||\n  null;\n\nconst orderId =\n  built.orderId ||\n  built.orderUpsert?.orderId ||\n  built.orderUpsert?.order_id ||\n  null;\n\nconst orderUpsert = {\n  ...(built.orderUpsert || {}),\n  orderId:\n    (built.orderUpsert && built.orderUpsert.orderId) ||\n    (built.orderUpsert && built.orderUpsert.order_id) ||\n    orderId,\n  one_manifest_url:\n    (built.orderUpsert && built.orderUpsert.one_manifest_url) ||\n    manifestKey,\n};\n\nreturn [{\n  json: {\n    requestBody: JSON.stringify({\n      payload: {\n        orderUpsert,\n        r2Key: manifestKey,\n        manifestKey,\n      },\n    }),\n  },\n}];\n"
+        "jsCode": "const published = $('Upload 1-manifest.json to R2').first().json;\nif (published.success !== true || published.published !== true) throw new Error('W0 publication was not confirmed');\nreturn [{ json: published }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -275,13 +246,6 @@
             "node": "Merge",
             "type": "main",
             "index": 1
-          }
-        ],
-        [
-          {
-            "node": "Fallback (Skip Upload)",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -308,17 +272,6 @@
         ]
       ]
     },
-    "Fallback (Skip Upload)": {
-      "main": [
-        [
-          {
-            "node": "Supabase Upsert (orders)2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Extract & Validate Dedication": {
       "main": [
         [
@@ -329,11 +282,6 @@
           },
           {
             "node": "Prepare Build 1 Manifest Body",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Build 1‑manifest.json",
             "type": "main",
             "index": 0
           }

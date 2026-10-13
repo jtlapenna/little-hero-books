@@ -87,6 +87,7 @@ interface PostPdfStageProps {
   finalApprovalError?: string | null;
   finalApprovalLoading?: boolean;
   onSendToPrint?: () => Promise<{ message?: string } | void> | { message?: string } | void;
+  onViewPrintStatus?: () => void;
   onOrderUpdate?: (updates: Partial<Order>) => void;
 }
 
@@ -219,6 +220,7 @@ export function PostPdfStage({
   finalApprovalLoading,
   onSendToPrint,
   onOrderUpdate,
+  onViewPrintStatus,
 }: PostPdfStageProps) {
   const [approveStageConfirmed, setApproveStageConfirmed] = useState(!!isApproved);
   
@@ -319,7 +321,8 @@ export function PostPdfStage({
   // Production handoff should follow explicit customer approval, not revision count.
   // A clean first-pass approval still needs a visible Send to Print action.
   const showPrintAction = isApproved && customerApprovedPreview;
-  const actionCardTitle = showPrintAction ? 'Send to Print' : 'Send for Customer Approval';
+  const existingGelato = order.printProvider === 'gelato' && Boolean(order.printSubmissionId);
+  const actionCardTitle = existingGelato ? 'Review Gelato Submission' : showPrintAction ? (order?.printProvider === 'gelato' ? 'Create Held Gelato Draft' : 'Send to Print') : 'Send for Customer Approval';
   const reviewPageContext = resolveReviewPageContext({
     bookId: order.bookContext?.bookId ?? order.project ?? null,
     formatId: order.bookContext?.formatId ?? null,
@@ -2781,8 +2784,8 @@ export function PostPdfStage({
           <div>
             <h4 className="text-lg font-medium text-gray-900">{actionCardTitle}</h4>
             <p className="text-sm text-gray-600 mt-1">
-              {showPrintAction
-                ? 'The customer approved the preview. Queue this order for print production.'
+              {existingGelato ? 'This book has a saved Gelato submission. Check its status before taking further action.' : showPrintAction
+                ? (order?.printProvider === 'gelato' ? 'The customer approved the preview. Create a held draft for review before printing.' : 'The customer approved the preview. Queue this order for print production.')
                 : isApproved && notificationWasSent
                 ? 'Customer preview was sent. Wait for customer approval before printing.'
                 : isApproved && hasExistingPreview
@@ -2807,7 +2810,7 @@ export function PostPdfStage({
           </div>
           
           <div className="flex space-x-3 ml-8">
-            {isApproved ? (
+            {existingGelato ? (onViewPrintStatus ? <button onClick={onViewPrintStatus} className="rounded-md bg-blue-600 px-4 py-2 text-white">View Print Status</button> : null) : isApproved ? (
               showPrintAction ? (
                 <button
                   onClick={handleSendToPrintClick}
@@ -2823,7 +2826,7 @@ export function PostPdfStage({
                   ) : (
                     <Printer className="h-4 w-4 mr-2" />
                   )}
-                  {sendingToPrint ? 'Sending...' : 'Send to Print'}
+                  {sendingToPrint ? 'Sending...' : order?.printProvider === 'gelato' ? 'Create Held Gelato Draft' : 'Send to Print'}
                 </button>
               ) : (
               <button

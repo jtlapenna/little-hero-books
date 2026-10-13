@@ -1,3 +1,4 @@
+import { gelatoCustomerStatusMessage } from '@/lib/books/gelato-consumer-status';
 /**
  * API Route: Get Order Status
  * 
@@ -36,9 +37,9 @@ async function resolveOrderId(inputId: string): Promise<string | null> {
         .limit(1)
         .single();
 
-      return fallbackData?.orderId ?? fallbackData?.order_id ?? null;
+      return fallbackData?.orderId ?? null;
     }
-    return data.orderId ?? data.order_id ?? null;
+    return data.orderId ?? null;
   }
   
   // Already a full UUID
@@ -166,10 +167,10 @@ function getCustomerStatusMessage(luluStatus: string | null, orderStatus: string
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId: inputOrderId } = params;
+    const { orderId: inputOrderId } = await params;
 
     if (!inputOrderId) {
       return NextResponse.json(
@@ -224,13 +225,16 @@ export async function GET(
     // Check both camelCase and snake_case for luluStatus
     const luluStatus = order.luluStatus || orderRecord.lulu_status || null;
     const orderStatus = order.status || null;
-    const statusInfo = getCustomerStatusMessage(luluStatus, orderStatus);
+    const isGelato = orderRecord.print_provider === 'gelato';
+    const statusInfo = isGelato ? gelatoCustomerStatusMessage(typeof orderRecord.gelato_status === 'string' ? orderRecord.gelato_status : null, typeof orderRecord.gelato_order_type === 'string' ? orderRecord.gelato_order_type : null, typeof orderRecord.gelato_action_reason === 'string' ? orderRecord.gelato_action_reason : null) : getCustomerStatusMessage(luluStatus, orderStatus);
+    const packages = isGelato && Array.isArray(orderRecord.gelato_tracking) ? orderRecord.gelato_tracking : [];
+    const scalarPackage = packages.length === 1 ? packages[0] : null;
 
     // Extract tracking info from order data
     // Check multiple possible field names (database might use snake_case or camelCase)
-    const trackingNumber = orderRecord.trackingNumber || orderRecord.tracking_number || null;
-    const trackingUrl = orderRecord.trackingUrl || orderRecord.tracking_url || null;
-    const carrierName = orderRecord.carrierName || orderRecord.carrier || null;
+    const trackingNumber = isGelato ? scalarPackage?.trackingNumber ?? null : orderRecord.trackingNumber || orderRecord.tracking_number || null;
+    const trackingUrl = isGelato ? scalarPackage?.trackingUrl ?? null : orderRecord.trackingUrl || orderRecord.tracking_url || null;
+    const carrierName = isGelato ? scalarPackage?.carrier ?? null : orderRecord.carrierName || orderRecord.carrier || null;
     
     // If trackingUrl is a string, convert to array for consistency
     const trackingUrls = trackingUrl 
@@ -244,7 +248,10 @@ export async function GET(
       statusLong: statusInfo.long,
       statusIcon: statusInfo.icon,
       statusColor: statusInfo.color,
-      luluStatus: order.luluStatus || orderRecord.lulu_status || null,
+      printProvider: isGelato ? 'gelato' : 'lulu',
+      packages,
+      gelatoStatus: isGelato ? orderRecord.gelato_status : null,
+      luluStatus: isGelato ? null : order.luluStatus || orderRecord.lulu_status || null,
       orderStatus: order.status || null,
       trackingNumber: trackingNumber,
       trackingUrls: trackingUrls,

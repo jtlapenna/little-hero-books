@@ -29,6 +29,11 @@ export interface AnalyticsReportingRow {
   amazon_order_id: string | null;
   customer_name: string | null;
   customer_email: string | null;
+  print_provider?: string | null;
+  gelato_status?: string | null;
+  gelato_action_reason?: string | null;
+  gelato_order_type?: string | null;
+  gelato_order_id?: string | null;
   lulu_job_id: string | null;
   lulu_status: string | null;
   print_submitted_at: string | null;
@@ -148,6 +153,11 @@ function normalizeReportingRecord(
     amazon_order_id: toStringOrNull(record.amazon_order_id),
     customer_name: toStringOrNull(record.customer_name),
     customer_email: toStringOrNull(record.customer_email),
+    print_provider: toStringOrNull(record.print_provider),
+    gelato_status: toStringOrNull(record.gelato_status),
+    gelato_action_reason: toStringOrNull(record.gelato_action_reason),
+    gelato_order_type: toStringOrNull(record.gelato_order_type),
+    gelato_order_id: toStringOrNull(record.gelato_order_id),
     lulu_job_id: toStringOrNull(record.lulu_job_id),
     lulu_status: toStringOrNull(record.lulu_status),
     print_submitted_at: toStringOrNull(record.print_submitted_at),

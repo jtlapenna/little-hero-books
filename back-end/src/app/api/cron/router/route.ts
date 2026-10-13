@@ -171,6 +171,9 @@ export async function GET(request: NextRequest) {
       remindersSummary = { processed: 0, sent: 0, skipped: 0, errors: 1, debug: { error: reminderError.message } };
     }
 
+    const { pollGelatoPrintProvider } = await import('@/lib/books/gelato-polling');
+    const gelatoPollSummary = await pollGelatoPrintProvider(supabase).catch(() => ({ errors: 1 }));
+
     // 0c. Process order lifecycle (auto-delivered, auto-archive)
     const lifecycleStart = Date.now();
     let lifecycleSummary: { markedDelivered: number; archived: number; errors: number } | null = null;
@@ -202,6 +205,7 @@ export async function GET(request: NextRequest) {
         .from('orders')
         .select('id,orderId,amazon_order_id,lulu_job_id,lulu_status,platform,product_info,error_type,shipped_at,delivered_at,customer_email,character_specs')
         .not('lulu_job_id', 'is', null)
+        .or('print_provider.is.null,print_provider.eq.lulu')
         .in('lulu_status', ['IN_PRODUCTION', 'SHIPPED'])
         .is('shipped_at', null)
         .is('tracking_number', null)
@@ -281,7 +285,7 @@ export async function GET(request: NextRequest) {
               }
 
               if (name === 'SHIPPED' && (o.platform ?? 'amazon') === 'd2c' && o.customer_email?.trim()) {
-                const orderIdForLog = o.order_id ?? o.orderId ?? String(o.id);
+                const orderIdForLog = o.orderId ?? String(o.id);
                 const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
                 const childName = o.character_specs?.childName ?? o.character_specs?.child_name ?? undefined;
                 await sendD2CShippedEmail({
@@ -363,6 +367,7 @@ export async function GET(request: NextRequest) {
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
         luluPoll: luluPollSummary,
+        gelatoPoll: gelatoPollSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -640,6 +645,7 @@ export async function GET(request: NextRequest) {
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
         luluPoll: luluPollSummary,
+        gelatoPoll: gelatoPollSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -720,6 +726,7 @@ export async function GET(request: NextRequest) {
         reminders: remindersSummary,
         lifecycle: lifecycleSummary,
         luluPoll: luluPollSummary,
+        gelatoPoll: gelatoPollSummary,
         metrics,
         timestamp: new Date().toISOString()
       });
@@ -835,6 +842,7 @@ export async function GET(request: NextRequest) {
       reminders: remindersSummary,
       lifecycle: lifecycleSummary,
       luluPoll: luluPollSummary,
+        gelatoPoll: gelatoPollSummary,
       metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),

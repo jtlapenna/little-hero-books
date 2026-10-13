@@ -1,3 +1,4 @@
+import { gelatoOrderStatus } from './books/gelato-consumer-status';
 import { getOrderFromSupabase, updateOrderInSupabase } from './supabase-client';
 import { OrderStatus, LuluStatus } from '@/constants/statuses';
 
@@ -53,8 +54,12 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
     }
   }
   
+  if (order.print_provider === 'gelato') {
+    const status = gelatoOrderStatus(order.gelato_status, order.gelato_order_type, order.gelato_action_reason);
+    if (status) return status;
+  }
   // 2. Check production status (lulu_status field)
-  if (order.lulu_status) {
+  if (order.print_provider !== 'gelato' && order.lulu_status) {
     return mapLuluStatusToOrderStatus(order.lulu_status);
   }
   

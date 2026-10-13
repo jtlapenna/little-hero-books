@@ -50,18 +50,19 @@ Use the authenticated Gelato template when available. The current working target
 
 | Asset | Final pixel size | Notes |
 | --- | ---: | --- |
-| Single interior page | `2457 x 2457 px` | 208 x 208 mm full bleed at 300 DPI. |
-| Spiral spread master | `4914 x 2457 px` | Split into two `2457 x 2457 px` pages. |
-| Cover spread | `4838 x 2457 px` | Current inferred/sample path; confirm against Gelato template before production. |
+| Single interior page | `2434 x 2434 px` | Minimum whole-pixel size for 206 x 206 mm full bleed at 300 DPI. |
+| Spiral spread master | `4868 x 2434 px` | Split into two `2434 x 2434 px` pages if a spread asset is used. |
+| Cover spread | `4832 x 2434 px` | Minimum whole-pixel size for 409.03 x 206 mm at 300 DPI. |
 
 Geometry notes:
 
 - Interior trim: 200 x 200 mm.
-- Bleed: 4 mm on every side.
-- Full bleed page: 208 x 208 mm.
+- Bleed: 3 mm on every side.
+- Full bleed page: 206 x 206 mm.
 - 300 DPI conversion: `300 / 25.4 = 11.811 px per mm`.
-- 4 mm bleed: about `47 px`.
-- Extra-safe important-art margin: about `94 px` from the full-bleed edge.
+- 3 mm bleed: about `35 px`.
+- The template's dashed safe-area guide sits 13 mm from the canvas edge, or 10 mm inside trim. Treat that as template guidance, not an API-defined safe-area value.
+- Keep the earlier 208 mm / 4 mm bleed values only as historical notes. They do not match the selected Gelato product.
 
 Do not submit oversized final pages. Source masters may be larger, but final Gelato assets should land at the exact 300 DPI target. Gelato recommends 300 DPI at actual print size for best quality.
 

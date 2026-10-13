@@ -49,9 +49,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { data: owned, error: ownershipError } = await supabase.from('orders').select('id')
+      .eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
+    if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
+    const providerOwnedIds = new Set((owned ?? []).map((order) => order.id));
     // Filter by minimum minutes if specified
     const filtered = (data || []).filter((order: any) => 
-      (order.minutes_orphaned || 0) >= minMinutes
+      !providerOwnedIds.has(order.id) && (order.minutes_orphaned || 0) >= minMinutes
     );
 
     return NextResponse.json({
@@ -115,6 +119,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const { data: owned, error: ownershipError } = await supabase.from('orders').select('id')
+      .in('id', orderIds).eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
+    if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
+    if (owned?.length) return NextResponse.json({ error: 'Gelato print claims require provider recovery' }, { status: 409 });
     let updateData: any = {};
 
     switch (action) {
@@ -141,10 +149,8 @@ export async function POST(request: NextRequest) {
         })) || [];
         
         for (const update of updates) {
-          await supabase
-            .from('orders')
-            .update({ ...updateData, retry_count: update.retry_count })
-            .eq('id', update.id);
+          const { error } = await supabase.from('orders').update({ ...updateData, retry_count: update.retry_count }).eq('id', update.id);
+          if (error) throw new Error(error.message);
         }
         break;
 
@@ -155,10 +161,10 @@ export async function POST(request: NextRequest) {
           error_message: 'Orphaned order recovered - requires manual intervention',
           error_type: 'orphaned_order'
         };
-        await supabase
-          .from('orders')
-          .update(updateData)
-          .in('id', orderIds);
+        {
+          const { error } = await supabase.from('orders').update(updateData).in('id', orderIds);
+          if (error) throw new Error(error.message);
+        }
         break;
 
       case 'reset_processing':
@@ -172,10 +178,10 @@ export async function POST(request: NextRequest) {
           current_workflow: null,
           started_at: null
         };
-        await supabase
-          .from('orders')
-          .update(updateData)
-          .in('id', orderIds);
+        {
+          const { error } = await supabase.from('orders').update(updateData).in('id', orderIds);
+          if (error) throw new Error(error.message);
+        }
         break;
     }
 

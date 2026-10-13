@@ -1,3 +1,4 @@
+import type { GelatoTracking } from '@/lib/books/gelato-consumer-status';
 export interface Customer {
   firstName: string;
   lastName: string;
@@ -114,6 +115,14 @@ export interface Order {
   workflowStep?: string;
   nextWorkflow?: string; // next_workflow from Supabase (2A, 2B, 3, etc.)
   currentWorkflow?: string; // current_workflow from Supabase (2A, 2B, 3, etc.)
+  printProvider?: 'lulu' | 'gelato';
+  printSubmissionId?: string;
+  gelatoStatus?: string;
+  gelatoOrderType?: string;
+  gelatoOrderId?: string;
+  gelatoActionReason?: string;
+  gelatoUpdatedAt?: string;
+  gelatoTracking?: GelatoTracking[];
   luluStatus?: string;
   luluJobId?: string; // Lulu job ID from lulu_job_id
   luluCost?: number; // Print job cost

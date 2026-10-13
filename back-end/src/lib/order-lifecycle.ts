@@ -133,12 +133,31 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
   const now = new Date();
   const result: LifecycleResult = { markedDelivered: 0, archived: 0, errors: [] };
 
+  try {
+    const { data: gelatoOrders, error } = await supabase.from('orders').select('*').eq('print_provider', 'gelato').in('gelato_status', ['delivered', 'canceled']);
+    if (error) result.errors.push('Gelato lifecycle lookup failed');
+    else for (const order of gelatoOrders ?? []) {
+      if (order.gelato_order_type !== 'order' || order.gelato_action_reason || !order.gelato_updated_at) continue;
+      const acceptedAt = new Date(order.gelato_updated_at);
+      if (!Number.isFinite(acceptedAt.getTime())) continue;
+      if (order.gelato_status === 'delivered' && order.lifecycle_status !== 'recently_delivered') {
+        const { error: updateError } = await supabase.from('orders').update({ lifecycle_status: 'recently_delivered', assumed_delivered_at: acceptedAt.toISOString() }).eq('id', order.id).eq('gelato_status', 'delivered');
+        if (updateError) result.errors.push('Gelato delivered projection failed'); else result.markedDelivered++;
+      }
+      const retention = order.gelato_status === 'delivered' ? RECENTLY_DELIVERED_RETENTION_DAYS : CANCELLED_ARCHIVE_DAYS;
+      if (now >= addDays(acceptedAt, retention)) {
+        try { await archiveOrder(supabase, order, order.gelato_status === 'delivered' ? 'auto_delivered' : 'auto_cancelled'); result.archived++; }
+        catch { result.errors.push('Gelato archive requires resolved group and notifications'); }
+      }
+    }
+  } catch { result.errors.push('Gelato lifecycle processing failed'); }
+
   // 1a. DELIVERED orders without shipped_at — Lulu says delivered but webhook never set shipped_at.
   //     Transition immediately; use updated_at as best-guess delivery date.
   try {
     const { data: deliveredNoShip, error: deliveredNoShipErr } = await supabase
       .from('orders')
-      .select('orderId, updated_at')
+      .select('orderId, updated_at, print_provider')
       .eq('lulu_status', 'DELIVERED')
       .or('lifecycle_status.eq.active,lifecycle_status.is.null')
       .is('shipped_at', null);
@@ -147,6 +166,7 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
       result.errors.push(`Fetch delivered-no-shipped: ${deliveredNoShipErr.message}`);
     } else if (deliveredNoShip) {
       for (const order of deliveredNoShip) {
+        if (order.print_provider === 'gelato') continue;
         const deliveredAt = order.updated_at || now.toISOString();
         const { error: updateError } = await supabase
           .from('orders')
@@ -171,7 +191,7 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
   try {
     const { data: shippedOrders, error: shippedError } = await supabase
       .from('orders')
-      .select('orderId, lulu_status, delivered_at, shipped_at, print_submitted_at, print_fulfillment_started_at, shipping_tier, shipping_tier_resolved, amazon_shipment_service_level, updated_at')
+      .select('orderId, print_provider, lulu_status, delivered_at, shipped_at, print_submitted_at, print_fulfillment_started_at, shipping_tier, shipping_tier_resolved, amazon_shipment_service_level, updated_at')
       .in('lulu_status', ['SHIPPED', 'DELIVERED'])
       .or('lifecycle_status.eq.active,lifecycle_status.is.null')
       .or('shipped_at.not.is.null,print_submitted_at.not.is.null,print_fulfillment_started_at.not.is.null,delivered_at.not.is.null');
@@ -180,6 +200,7 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
       result.errors.push(`Fetch shipped orders: ${shippedError.message}`);
     } else if (shippedOrders) {
       for (const order of shippedOrders) {
+        if (order.print_provider === 'gelato') continue;
         // Purpose: if we have any explicit delivery signal, move immediately.
         if (order.lulu_status === 'DELIVERED' || order.delivered_at) {
           const deliveredAt = order.delivered_at || order.updated_at || now.toISOString();
@@ -237,6 +258,7 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
       result.errors.push(`Fetch delivered orders: ${deliveredError.message}`);
     } else if (deliveredOrders) {
       for (const order of deliveredOrders) {
+        if (order.print_provider === 'gelato') continue;
         try {
           await archiveOrder(supabase, order, 'auto_delivered');
           result.archived++;
@@ -263,6 +285,7 @@ export async function processOrderLifecycle(supabase: SupabaseClient): Promise<L
       result.errors.push(`Fetch cancelled orders: ${cancelledError.message}`);
     } else if (cancelledOrders) {
       for (const order of cancelledOrders) {
+        if (order.print_provider === 'gelato') continue;
         try {
           await archiveOrder(supabase, order, 'auto_cancelled');
           result.archived++;
@@ -295,8 +318,8 @@ export async function archiveOrder(
   const platform = order.platform || 'amazon';
   const customerEmail = order.customer_email || order.customerEmail;
   
-  if (!orderId && !amazonOrderId) {
-    throw new Error('Order missing orderId and amazon_order_id');
+  if (!orderId && order.id == null) {
+    throw new Error('Order missing canonical row ID and per-book order ID');
   }
 
   // Prepare archived order record with JSONB storage
@@ -311,37 +334,21 @@ export async function archiveOrder(
     archived_by: archivedBy ?? null,
   };
 
-  // 1. Insert into archived_orders
-  const { error: insertError } = await supabase
-    .from('archived_orders')
-    .insert(archivedOrder);
-
-  if (insertError) {
-    throw new Error(`Insert into archived_orders failed: ${insertError.message}`);
+  const { data: inserted, error: insertError } = await supabase
+    .from('archived_orders').insert(archivedOrder).select('id').single();
+  if (insertError || !inserted?.id) {
+    throw new Error(`Insert into archived_orders failed: ${insertError?.message ?? 'Archive row ID missing'}`);
   }
 
-  // 2. Delete from orders - try amazon_order_id first
-  let deleteError = null;
-  if (amazonOrderId) {
-    const { error } = await supabase
-      .from('orders')
-      .delete()
-      .eq('amazon_order_id', amazonOrderId);
-    deleteError = error;
-  }
-  
-  // If that failed or no amazon_order_id, try orderId
-  if (deleteError || !amazonOrderId) {
-    const { error } = await supabase
-      .from('orders')
-      .delete()
-      .eq('orderId', orderId);
-    
-    if (error && deleteError) {
-      // Both failed, rollback
-      await supabase.from('archived_orders').delete().eq('order_id', orderId);
-      throw new Error(`Delete from orders failed: ${error.message}`);
-    }
+  // Delete one canonical row. An Amazon root can contain several child books.
+  let deletion = supabase.from('orders').delete();
+  if (order.id != null) deletion = deletion.eq('id', order.id);
+  else deletion = deletion.eq('orderId', orderId);
+  const { data: deleted, error: deleteError } = await deletion.select('id');
+  if (deleteError || deleted?.length !== 1) {
+    const { error: rollbackError } = await supabase.from('archived_orders').delete().eq('id', inserted.id);
+    if (rollbackError) throw new Error(`Archive delete failed; compensation failed: ${rollbackError.message}`);
+    throw new Error(`Delete from orders failed: ${deleteError?.message ?? 'Expected one deleted row'}`);
   }
 
   console.log(`[Order Lifecycle] Archived ${amazonOrderId || orderId}: ${reason}`);

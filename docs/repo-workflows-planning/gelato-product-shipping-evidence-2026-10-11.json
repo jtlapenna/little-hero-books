@@ -1,0 +1,693 @@
+{
+  "timestamp": "2026-10-11T21:17:16.597Z",
+  "runId": "e98b9377-565b-4a57-985f-b847ce76ed44",
+  "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+  "artifact": {
+    "key": "book-finding-our-inner-voice/orders/TEST-GELATO-COUNTPROBE-e98b9377-565b-4a57-985f-b847ce76ed44/gelato/35-page-synthetic.pdf",
+    "pdfPageCount": 35,
+    "sha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+    "bytes": 784477,
+    "synthetic": true,
+    "dimensionsMm": {
+      "cover": [
+        409.03,
+        206
+      ],
+      "interior": [
+        206,
+        206
+      ]
+    }
+  },
+  "coverDimensions": [
+    {
+      "requestPageCount": 32,
+      "status": 200,
+      "response": {
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "pagesCount": 36,
+        "measureUnit": "mm",
+        "bleedSize": {
+          "width": 409.03,
+          "height": 206,
+          "left": 0,
+          "top": 0,
+          "thickness": 3
+        },
+        "contentBackSize": {
+          "width": 200,
+          "height": 200,
+          "left": 3,
+          "top": 3
+        },
+        "spineSize": {
+          "width": 3.03,
+          "height": 200,
+          "left": 203,
+          "top": 3
+        },
+        "contentFrontSize": {
+          "width": 200,
+          "height": 200,
+          "left": 206.03,
+          "top": 3
+        }
+      }
+    },
+    {
+      "requestPageCount": 35,
+      "status": 200,
+      "response": {
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "pagesCount": 39,
+        "measureUnit": "mm",
+        "bleedSize": {
+          "width": 409.27,
+          "height": 206,
+          "left": 0,
+          "top": 0,
+          "thickness": 3
+        },
+        "contentBackSize": {
+          "width": 200,
+          "height": 200,
+          "left": 3,
+          "top": 3
+        },
+        "spineSize": {
+          "width": 3.27,
+          "height": 200,
+          "left": 203,
+          "top": 3
+        },
+        "contentFrontSize": {
+          "width": 200,
+          "height": 200,
+          "left": 206.27,
+          "top": 3
+        }
+      }
+    },
+    {
+      "requestPageCount": 36,
+      "status": 200,
+      "response": {
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "pagesCount": 40,
+        "measureUnit": "mm",
+        "bleedSize": {
+          "width": 409.34,
+          "height": 206,
+          "left": 0,
+          "top": 0,
+          "thickness": 3
+        },
+        "contentBackSize": {
+          "width": 200,
+          "height": 200,
+          "left": 3,
+          "top": 3
+        },
+        "spineSize": {
+          "width": 3.34,
+          "height": 200,
+          "left": 203,
+          "top": 3
+        },
+        "contentFrontSize": {
+          "width": 200,
+          "height": 200,
+          "left": 206.34,
+          "top": 3
+        }
+      }
+    }
+  ],
+  "quotes": [
+    {
+      "destination": "NY-public-docs-sample",
+      "country": "US",
+      "state": "NY",
+      "requestPageCount": 32,
+      "itemCount": 1,
+      "status": 200,
+      "orderReferenceId": "LHL-QUOTE-e98b9377-NY-32-1",
+      "quotes": [
+        {
+          "id": "a41ab379-9db3-4426-a4bf-f7a7787dfea7",
+          "itemReferenceIds": [
+            "synthetic-item-1"
+          ],
+          "fulfillmentCountry": "US",
+          "products": [
+            {
+              "itemReferenceId": "synthetic-item-1",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            }
+          ],
+          "shipmentMethods": [
+            {
+              "name": "USPS Ground Advantage",
+              "shipmentMethodUid": "usps_ground_advantage",
+              "type": "normal",
+              "price": 3.81,
+              "currency": "USD",
+              "minDeliveryDays": 11,
+              "maxDeliveryDays": 15,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Surepost",
+              "shipmentMethodUid": "ups_surepost",
+              "type": "normal",
+              "price": 11.08,
+              "currency": "USD",
+              "minDeliveryDays": 15,
+              "maxDeliveryDays": 17,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Standard",
+              "shipmentMethodUid": "usps_priority_mail_standard",
+              "type": "express",
+              "price": 12.55,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Residential",
+              "shipmentMethodUid": "ups_ground_residential",
+              "type": "normal",
+              "price": 15.25,
+              "currency": "USD",
+              "minDeliveryDays": 10,
+              "maxDeliveryDays": 12,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 3 Day Select",
+              "shipmentMethodUid": "ups_3_day_select",
+              "type": "normal",
+              "price": 24.14,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 2 Day",
+              "shipmentMethodUid": "ups_2_day",
+              "type": "express",
+              "price": 25.71,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Express",
+              "shipmentMethodUid": "usps_priority_mail_express",
+              "type": "express",
+              "price": 43.44,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "destination": "NY-public-docs-sample",
+      "country": "US",
+      "state": "NY",
+      "requestPageCount": 32,
+      "itemCount": 2,
+      "status": 200,
+      "orderReferenceId": "LHL-QUOTE-e98b9377-NY-32-2",
+      "quotes": [
+        {
+          "id": "bcb3c5e1-a694-4b77-adeb-0b3861b6532f",
+          "itemReferenceIds": [
+            "synthetic-item-1",
+            "synthetic-item-2"
+          ],
+          "fulfillmentCountry": "US",
+          "products": [
+            {
+              "itemReferenceId": "synthetic-item-1",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            },
+            {
+              "itemReferenceId": "synthetic-item-2",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            }
+          ],
+          "shipmentMethods": [
+            {
+              "name": "USPS Ground Advantage",
+              "shipmentMethodUid": "usps_ground_advantage",
+              "type": "normal",
+              "price": 5.32,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 10,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Surepost",
+              "shipmentMethodUid": "ups_surepost",
+              "type": "normal",
+              "price": 11.08,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Standard",
+              "shipmentMethodUid": "usps_priority_mail_standard",
+              "type": "express",
+              "price": 11.31,
+              "currency": "USD",
+              "minDeliveryDays": 4,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Commercial",
+              "shipmentMethodUid": "ups_ground_commercial",
+              "type": "normal",
+              "price": 11.39,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Residential",
+              "shipmentMethodUid": "ups_ground_residential",
+              "type": "normal",
+              "price": 15.25,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 2 Day",
+              "shipmentMethodUid": "ups_2_day",
+              "type": "express",
+              "price": 25.71,
+              "currency": "USD",
+              "minDeliveryDays": 4,
+              "maxDeliveryDays": 4,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Express",
+              "shipmentMethodUid": "usps_priority_mail_express",
+              "type": "express",
+              "price": 38.08,
+              "currency": "USD",
+              "minDeliveryDays": 4,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "destination": "NY-public-docs-sample",
+      "country": "US",
+      "state": "NY",
+      "requestPageCount": 35,
+      "itemCount": 1,
+      "status": 400,
+      "error": {
+        "code": "BAD_REQUEST",
+        "message": "There are errors in submitted data"
+      }
+    },
+    {
+      "destination": "NY-public-docs-sample",
+      "country": "US",
+      "state": "NY",
+      "requestPageCount": 36,
+      "itemCount": 1,
+      "status": 200,
+      "orderReferenceId": "LHL-QUOTE-e98b9377-NY-36-1",
+      "quotes": [
+        {
+          "id": "f6ef47f0-cc1b-4fcb-8191-43c23cda98ca",
+          "itemReferenceIds": [
+            "synthetic-item-1"
+          ],
+          "fulfillmentCountry": "US",
+          "products": [
+            {
+              "itemReferenceId": "synthetic-item-1",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 36,
+              "quantity": 1,
+              "price": 12.88,
+              "currency": "USD"
+            }
+          ],
+          "shipmentMethods": [
+            {
+              "name": "USPS Ground Advantage",
+              "shipmentMethodUid": "usps_ground_advantage",
+              "type": "normal",
+              "price": 3.81,
+              "currency": "USD",
+              "minDeliveryDays": 11,
+              "maxDeliveryDays": 15,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Surepost",
+              "shipmentMethodUid": "ups_surepost",
+              "type": "normal",
+              "price": 11.08,
+              "currency": "USD",
+              "minDeliveryDays": 15,
+              "maxDeliveryDays": 17,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Standard",
+              "shipmentMethodUid": "usps_priority_mail_standard",
+              "type": "express",
+              "price": 12.55,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Residential",
+              "shipmentMethodUid": "ups_ground_residential",
+              "type": "normal",
+              "price": 15.25,
+              "currency": "USD",
+              "minDeliveryDays": 10,
+              "maxDeliveryDays": 12,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 3 Day Select",
+              "shipmentMethodUid": "ups_3_day_select",
+              "type": "normal",
+              "price": 24.14,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 2 Day",
+              "shipmentMethodUid": "ups_2_day",
+              "type": "express",
+              "price": 25.71,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Express",
+              "shipmentMethodUid": "usps_priority_mail_express",
+              "type": "express",
+              "price": 43.44,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "destination": "CA-public-business-sample",
+      "country": "US",
+      "state": "CA",
+      "requestPageCount": 32,
+      "itemCount": 1,
+      "status": 200,
+      "orderReferenceId": "LHL-QUOTE-e98b9377-CA-32-1",
+      "quotes": [
+        {
+          "id": "6d44a2c1-f118-417e-824c-3bb31e79c504",
+          "itemReferenceIds": [
+            "synthetic-item-1"
+          ],
+          "fulfillmentCountry": "US",
+          "products": [
+            {
+              "itemReferenceId": "synthetic-item-1",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            }
+          ],
+          "shipmentMethods": [
+            {
+              "name": "USPS Ground Advantage",
+              "shipmentMethodUid": "usps_ground_advantage",
+              "type": "normal",
+              "price": 3.81,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 10,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Standard",
+              "shipmentMethodUid": "usps_priority_mail_standard",
+              "type": "express",
+              "price": 9.22,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Surepost",
+              "shipmentMethodUid": "ups_surepost",
+              "type": "normal",
+              "price": 11.08,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Residential",
+              "shipmentMethodUid": "ups_ground_residential",
+              "type": "normal",
+              "price": 15.25,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 3 Day Select",
+              "shipmentMethodUid": "ups_3_day_select",
+              "type": "normal",
+              "price": 21.96,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 2 Day",
+              "shipmentMethodUid": "ups_2_day",
+              "type": "express",
+              "price": 25.71,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Express",
+              "shipmentMethodUid": "usps_priority_mail_express",
+              "type": "express",
+              "price": 29.12,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "destination": "CA-public-business-sample",
+      "country": "US",
+      "state": "CA",
+      "requestPageCount": 32,
+      "itemCount": 2,
+      "status": 200,
+      "orderReferenceId": "LHL-QUOTE-e98b9377-CA-32-2",
+      "quotes": [
+        {
+          "id": "aea64b6a-fa0c-4bbd-a0c0-11c011948060",
+          "itemReferenceIds": [
+            "synthetic-item-1",
+            "synthetic-item-2"
+          ],
+          "fulfillmentCountry": "US",
+          "products": [
+            {
+              "itemReferenceId": "synthetic-item-1",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            },
+            {
+              "itemReferenceId": "synthetic-item-2",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "pageCount": 32,
+              "quantity": 1,
+              "price": 12.18,
+              "currency": "USD"
+            }
+          ],
+          "shipmentMethods": [
+            {
+              "name": "USPS Ground Advantage",
+              "shipmentMethodUid": "usps_ground_advantage",
+              "type": "normal",
+              "price": 5.32,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 10,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Standard",
+              "shipmentMethodUid": "usps_priority_mail_standard",
+              "type": "express",
+              "price": 9.22,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Surepost",
+              "shipmentMethodUid": "ups_surepost",
+              "type": "normal",
+              "price": 11.08,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 9,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS Ground Residential",
+              "shipmentMethodUid": "ups_ground_residential",
+              "type": "normal",
+              "price": 15.25,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 3 Day Select",
+              "shipmentMethodUid": "ups_3_day_select",
+              "type": "normal",
+              "price": 21.96,
+              "currency": "USD",
+              "minDeliveryDays": 8,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "UPS 2 Day",
+              "shipmentMethodUid": "ups_2_day",
+              "type": "express",
+              "price": 25.71,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 5,
+              "isPrivate": true,
+              "isBusiness": true
+            },
+            {
+              "name": "USPS Priority Mail Express",
+              "shipmentMethodUid": "usps_priority_mail_express",
+              "type": "express",
+              "price": 29.12,
+              "currency": "USD",
+              "minDeliveryDays": 5,
+              "maxDeliveryDays": 8,
+              "isPrivate": true,
+              "isBusiness": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

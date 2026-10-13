@@ -181,7 +181,7 @@ interface AccessTokenCache { token: string; expiresAt: number; }
 
 let accessTokenCache: AccessTokenCache | null = null;
 
-export async function getAccessToken(config: AmazonSpApiConfig): Promise<string> {
+export async function getAccessToken(config: AmazonSpApiConfig, options: { signal?: AbortSignal; safeLogging?: boolean } = {}): Promise<string> {
   if (accessTokenCache && Date.now() < accessTokenCache.expiresAt - 60_000) {
     return accessTokenCache.token;
   }
@@ -193,7 +193,7 @@ export async function getAccessToken(config: AmazonSpApiConfig): Promise<string>
     client_secret: config.lwaClientSecret,
   });
 
-  console.log('[LWA Token] Requesting access token:', {
+  if (!options.safeLogging) console.log('[LWA Token] Requesting access token:', {
     endpoint: ACCESS_TOKEN_ENDPOINT,
     clientId: config.lwaClientId.substring(0, 20) + '...',
     refreshTokenPreview: config.lwaRefreshToken.substring(0, 20) + '...',
@@ -203,6 +203,7 @@ export async function getAccessToken(config: AmazonSpApiConfig): Promise<string>
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString(),
+    signal: options.signal,
   });
 
   const responseText = await response.text();
@@ -210,7 +211,7 @@ export async function getAccessToken(config: AmazonSpApiConfig): Promise<string>
 
   if (!response.ok) {
     const errorMessage = data.error_description || data.error || responseText || 'Unknown error';
-    console.error('[LWA Token] Failed to get access token:', { status: response.status, error: errorMessage });
+    if (!options.safeLogging) console.error('[LWA Token] Failed to get access token:', { status: response.status, error: errorMessage });
     throw new AmazonSpApiError(`Failed to obtain Amazon LWA access token: ${errorMessage}`, {
       retryable: response.status >= 500,
       status: response.status,
@@ -238,6 +239,8 @@ export interface CallSpApiOptions {
   accessToken: string;
   config: AmazonSpApiConfig;
   body?: unknown;
+  signal?: AbortSignal;
+  safeLogging?: boolean;
   query?: Record<string, string | number | string[] | undefined>;
 }
 
@@ -304,7 +307,7 @@ export async function callSellingPartnerApi(options: CallSpApiOptions) {
     api: 'Selling Partner API', operation: options.path,
   };
 
-  const response = await fetch(url.toString(), { method, headers: requestHeaders, body: bodyString || undefined });
+  const response = await fetch(url.toString(), { method, headers: requestHeaders, body: bodyString || undefined, signal: options.signal });
 
   const responseStatus = response.status;
   const responseOk = response.ok;
@@ -322,7 +325,7 @@ export async function callSellingPartnerApi(options: CallSpApiOptions) {
     api: 'Selling Partner API', operation: options.path, timestamp: amzDate, requestId,
   };
 
-  console.log('[Amazon SP-API] Full Request/Response Details for Support:', JSON.stringify({
+  if (!options.safeLogging) console.log('[Amazon SP-API] Full Request/Response Details for Support:', JSON.stringify({
     applicationId: apiCallDetails.applicationId, operation: apiCallDetails.operation,
     timestamp: apiCallDetails.timestamp, requestId: apiCallDetails.requestId,
     fullRequest: { method, url: url.toString(), path: options.path },
@@ -333,7 +336,7 @@ export async function callSellingPartnerApi(options: CallSpApiOptions) {
   if (responseStatus === 401) accessTokenCache = null;
 
   if (!responseOk) {
-    console.error('[Amazon SP-API] Request failed:', JSON.stringify({
+    if (!options.safeLogging) console.error('[Amazon SP-API] Request failed:', JSON.stringify({
       status: responseStatus, url: url.toString(), path: options.path,
       errors: data.errors, rawResponse: text.substring(0, 1000),
     }, null, 2));

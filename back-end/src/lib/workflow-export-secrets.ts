@@ -109,6 +109,22 @@ function toLineNumber(text: string, matchIndex: number): number {
   return text.slice(0, matchIndex).split("\n").length;
 }
 
+function scanCredentialCode(code: string, filePath: string, line: number): WorkflowExportSecretFinding[] {
+  const findings: WorkflowExportSecretFinding[] = [];
+  const pattern = /(?:["']?)(\b(?:serviceKey|serviceRoleKey|apiToken|backendApiToken|accessKeyId|secretAccessKey|clientSecret|internalToken))(?:["']?)\s*:\s*(["'`])((?:\\.|(?!\2)[^\\])*)\2/gu;
+  const seen = new Set<string>();
+  for (const match of code.matchAll(pattern)) {
+    const key = match[1];
+    const literal = match[3];
+    if (!literal || literal.startsWith('REDACTED_') ||
+        (match[2] === '`' && /^\$\{\s*\$env\.[A-Za-z_][A-Za-z0-9_]*\s*\}$/u.test(literal))) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    findings.push({ ruleId: `code-credential-${key}`, message: `Found a literal credential in code-node field ${key}.`, filePath, line });
+  }
+  return findings;
+}
+
 export function isWorkflowExportPath(filePath: string): boolean {
   const normalized = normalizePath(filePath);
   return normalized.includes("/docs/n8n-workflow-files/") && normalized.endsWith(".json");
@@ -144,6 +160,10 @@ export function scanWorkflowExportText(
       if (!value || typeof value !== "object") return;
       if (Array.isArray(value)) { value.forEach(visit); return; }
       const record = value as Record<string, unknown>;
+      if (typeof record.jsCode === "string") {
+        findings.push(...scanCredentialCode(record.jsCode, filePath,
+          toLineNumber(text, Math.max(0, text.indexOf(JSON.stringify(record.jsCode))))));
+      }
       if (typeof record.name === "string" && record.name.toLowerCase() === "api_token" && typeof record.value === "string") {
         const header = record.value.trim();
         const safe = !header || header === "=" || /^=?REDACTED_[A-Z0-9_]+$/u.test(header) || /^=\{\{\s*\$(?:env|vars)(?:\.[A-Za-z_][A-Za-z0-9_]*|\[['"][A-Za-z_][A-Za-z0-9_]*['"]\])\s*\}\}$/u.test(header);
@@ -156,6 +176,7 @@ export function scanWorkflowExportText(
     visit(JSON.parse(text));
   } catch {
     // Existing text rules also cover non-JSON source snippets.
+    findings.push(...scanCredentialCode(text, filePath, 1));
   }
 
   for (const rule of CONTENT_RULES) {

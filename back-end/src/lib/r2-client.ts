@@ -238,7 +238,7 @@ function encodeS3Key(key: string): string {
   return key.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
-export async function getObject(bucket: string, key: string): Promise<Response> {
+export async function getObject(bucket: string, key: string, options: { allowNotFound?: boolean; allowErrorResponse?: boolean; signal?: AbortSignal; redirect?: RequestRedirect } = {}): Promise<Response> {
   if (!ACCOUNT_ID) {
     throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
   }
@@ -249,9 +249,9 @@ export async function getObject(bucket: string, key: string): Promise<Response> 
     url,
     method: 'GET',
   });
-  const response = await fetch(signedRequest);
+  const response = await fetch(signedRequest, { signal: options.signal, redirect: options.redirect });
 
-  if (!response.ok) {
+  if (!response.ok && !options.allowErrorResponse && !(options.allowNotFound && response.status === 404)) {
     const errorText = await response.text();
     throw new Error(`R2 getObject failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
@@ -283,7 +283,8 @@ export async function putObject(
   bucket: string,
   key: string,
   body: Blob | ArrayBuffer | ReadableStream | Uint8Array | string,
-  contentType?: string
+  contentType?: string,
+  conditions?: { ifNoneMatch: '*' },
 ): Promise<Response> {
   if (!ACCOUNT_ID) {
     throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
@@ -296,6 +297,7 @@ export async function putObject(
   if (contentType) {
     headers['Content-Type'] = contentType;
   }
+  if (conditions) headers['If-None-Match'] = conditions.ifNoneMatch;
 
   let requestBody: BodyInit;
   if (typeof body === 'string') {
@@ -318,6 +320,7 @@ export async function putObject(
   });
   const response = await fetch(signedRequest);
 
+  if (conditions && response.status === 412) return response;
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`R2 putObject failed: ${response.status} ${response.statusText} - ${errorText}`);

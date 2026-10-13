@@ -93,6 +93,7 @@ const apiBase =
               <button id="status-indicator-wrapper" class="status-indicator-wrapper" aria-label="View order status details">
                 <!-- Status Icon with colored circle background (matches success message icon) -->
                 <div id="header-status-icon-wrapper" class="header-status-icon-wrapper status-icon-success">
+                  <span id="header-status-icon-gelato" class="gelato-status-icon" aria-hidden="true" style="display: none;"></span>
                   <!-- Success Icon (Checkmark) -->
                   <svg id="header-status-icon-check" class="header-status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -237,6 +238,7 @@ const apiBase =
           <div class="success-message-content">
             <!-- Dynamic Status Icon (Green check, Yellow exclamation, Red X) -->
             <div id="status-icon-wrapper" class="status-icon-wrapper status-icon-success">
+              <span id="status-icon-gelato" class="gelato-status-icon" aria-hidden="true" style="display: none;"></span>
               <!-- Success Icon (Checkmark) -->
               <svg id="status-icon-check" class="status-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -314,6 +316,8 @@ const apiBase =
   ];
 
   let orderData = null;
+  let previewReady = false;
+  let previewApprovalAllowed = false;
   let correctionUsed = false;
 
   const loadingState = document.getElementById('loading-state');
@@ -384,6 +388,8 @@ const apiBase =
       });
 
       const data = await response.json();
+      previewApprovalAllowed = data.valid === true && Boolean(data.order) &&
+        getCustomerApprovalStatus(data.order) !== 'approved';
 
       // Backend now returns order data even when token is used/expired
       // If we have order data, use it regardless of validation status
@@ -414,7 +420,7 @@ const apiBase =
         } else {
           // Token is invalid (used or expired) but we have order data
           // If token is used, it means customer already approved, so show approved state
-          // If token is expired, check customer_approval_status to determine state
+          // Expired links retain the server's approval state.
           if (data.used) {
             console.log('[PREVIEW] Token already used - customer has approved, showing approved state');
             showApprovedState(orderData);
@@ -422,9 +428,9 @@ const apiBase =
           } else if (data.expired) {
             // Token expired - check if customer approved before expiration
             console.log('[PREVIEW] Token expired - checking approval status', 
-              'customer_approval_status:', orderData.customer_approval_status
+              'customerApprovalStatus:', getCustomerApprovalStatus(orderData)
             );
-            if (orderData.customer_approval_status === 'approved') {
+            if (getCustomerApprovalStatus(orderData) === 'approved') {
               showApprovedState(orderData);
               checkOrderStatus(orderData); // Same link: keep polling for shipping/tracking updates
             } else {
@@ -462,6 +468,29 @@ const apiBase =
   let currentInitialSpread = 0;
   const BOOK_VIEWER_EVENT = 'lhb:book-spreads';
   const bookViewerWrapper = document.getElementById('book-viewer-wrapper');
+  let previewPagesLoaded = false;
+  let bookViewerReady = false;
+  window.addEventListener(`${BOOK_VIEWER_EVENT}:ready`, () => {
+    bookViewerReady = true;
+    syncReactViewer(spreads);
+    updatePreviewReadiness();
+  });
+  window.addEventListener(`${BOOK_VIEWER_EVENT}:not-ready`, () => {
+    bookViewerReady = false;
+    updatePreviewReadiness();
+  });
+
+  function updatePreviewReadiness() {
+    previewReady = previewPagesLoaded && bookViewerReady;
+    if (approveBtn) approveBtn.disabled = !previewReady || !previewApprovalAllowed;
+    bookViewerWrapper?.setAttribute('data-viewer-ready', String(bookViewerReady));
+  }
+
+  function getCustomerApprovalStatus(order) {
+    return Object.prototype.hasOwnProperty.call(order, 'customerApprovalStatus')
+      ? order.customerApprovalStatus
+      : order.customer_approval_status;
+  }
 
   function computeInitialSpreadIndex(spreadsList) {
     // Always start at the front cover (index 0)
@@ -489,7 +518,7 @@ const apiBase =
     );
 
     if (bookViewerWrapper) {
-      bookViewerWrapper.setAttribute('data-viewer-ready', 'true');
+      bookViewerWrapper.setAttribute('data-viewer-ready', String(bookViewerReady));
     }
   }
 
@@ -630,8 +659,15 @@ const apiBase =
 
   // Load pages from manifest
   async function loadPages(orderId) {
+    // Older backends omit this field. An explicit invalid key must not select another book.
+    const manifest3Key = Object.prototype.hasOwnProperty.call(orderData, 'manifest3Key')
+      ? orderData.manifest3Key
+      : `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
+    if (typeof manifest3Key !== 'string' ||
+        !/^[A-Za-z0-9_-]+\/orders\/[A-Za-z0-9_-]+\/manifests\/3-manifest\.json$/.test(manifest3Key)) {
+      throw new Error('Invalid book preview manifest key');
+    }
     try {
-      const manifest3Key = `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
       const manifest3Url = `${API_BASE}/api/manifests/${manifest3Key}?v=${Date.now()}`;
       
       const response = await fetch(manifest3Url, { cache: 'no-store' });
@@ -862,7 +898,9 @@ const apiBase =
     updateCorrectionState(order);
 
     if (approveBtn) {
-      approveBtn.disabled = false;
+      previewPagesLoaded = false;
+      previewReady = false;
+      approveBtn.disabled = true;
     }
     
     // Load and display PDF pages
@@ -927,6 +965,8 @@ const apiBase =
       
       // Dispatch spreads to the React viewer
       syncReactViewer(spreads);
+      previewPagesLoaded = true;
+      updatePreviewReadiness();
       
       // Hide loading state now that preview is ready (after spreads are synced)
       if (loadingState) loadingState.style.display = 'none';
@@ -1198,10 +1238,7 @@ const apiBase =
   }
 
   function checkOrderStatus(order) {
-    // ONLY check customer_approval_status to determine if customer has approved
-    // Do NOT check execution_status or next_workflow as these can be set for many reasons
-    // (e.g., order ready for workflow 2A, 2B, or 3, not just customer approval)
-    const isApproved = order.customer_approval_status === 'approved';
+    const isApproved = getCustomerApprovalStatus(order) === 'approved';
     
     if (isApproved) {
       console.log('[STATUS] Order is already approved by customer, showing success message and hiding actions');
@@ -1218,8 +1255,9 @@ const apiBase =
     
     // If we have full order data passed in, use it directly
     if (orderDataFromResponse && orderDataFromResponse.customerName && orderDataFromResponse.characterSpecs) {
+      const needsDisplay = orderData !== orderDataFromResponse;
       orderData = orderDataFromResponse;
-      displayOrder(orderData);
+      if (needsDisplay) displayOrder(orderData);
     } else {
       // Try to extract order info from token if no order data provided
       let extractedOrderId = null;
@@ -1332,15 +1370,18 @@ const apiBase =
       headerStatusText.textContent = statusData.status;
     }
 
-    // Get status configuration based on Lulu status
+    // Gelato supplies canonical customer copy and status color from the API.
     const luluStatus = statusData.luluStatus || '';
-    const statusConfig = getStatusConfig(luluStatus, statusData.status);
+    const isGelato = statusData.printProvider === 'gelato';
+    const statusConfig = isGelato
+      ? getGelatoStatusConfig(statusData)
+      : getStatusConfig(luluStatus, statusData.status);
 
     // Update header status icon to match main status icon
-    updateHeaderStatusIcon(statusConfig.iconType);
+    updateHeaderStatusIcon(statusConfig.iconType, statusConfig.icon);
 
     // Update status icon
-    updateStatusIcon(statusConfig.iconType);
+    updateStatusIcon(statusConfig.iconType, statusConfig.icon);
 
     // Update title and message
     const statusTitle = document.getElementById('status-title');
@@ -1354,34 +1395,72 @@ const apiBase =
       statusMessage.textContent = statusConfig.message;
     }
 
-    // Show tracking info if shipped
-    if (statusData.trackingNumber || statusData.trackingUrls) {
-      const trackingInfo = document.getElementById('tracking-info');
-      const trackingDetails = document.getElementById('tracking-details');
-      
-      if (trackingInfo && trackingDetails) {
-        trackingInfo.style.display = 'block';
-        trackingDetails.innerHTML = '';
-        
+    const gelatoPackages = isGelato && Array.isArray(statusData.packages)
+      ? statusData.packages.map((parcel) => ({
+          trackingNumber: typeof parcel?.trackingNumber === 'string' ? parcel.trackingNumber.trim() : '',
+          carrier: typeof parcel?.carrier === 'string' ? parcel.carrier.trim() : '',
+          trackingUrl: getSafeTrackingUrl(parcel?.trackingUrl),
+        })).filter((parcel) => parcel.trackingNumber || parcel.carrier || parcel.trackingUrl)
+      : [];
+    const hasTracking = isGelato
+      ? gelatoPackages.length > 0
+      : Boolean(statusData.trackingNumber || statusData.trackingUrls);
+    const trackingInfo = document.getElementById('tracking-info');
+    const trackingDetails = document.getElementById('tracking-details');
+
+    if (trackingInfo && trackingDetails) {
+      trackingInfo.style.display = hasTracking ? 'block' : 'none';
+      trackingDetails.replaceChildren();
+
+      if (isGelato) {
+        gelatoPackages.forEach((parcel, index) => {
+          const packageDetails = document.createElement('div');
+          packageDetails.className = 'tracking-package';
+          if (gelatoPackages.length > 1) {
+            const packageLabel = document.createElement('strong');
+            packageLabel.textContent = `Package ${index + 1}`;
+            packageDetails.appendChild(packageLabel);
+          }
+          if (parcel.carrier) {
+            const carrier = document.createElement('div');
+            carrier.textContent = `Carrier: ${parcel.carrier}`;
+            packageDetails.appendChild(carrier);
+          }
+          if (parcel.trackingNumber) {
+            const trackingNumber = document.createElement('div');
+            trackingNumber.textContent = `Tracking Number: ${parcel.trackingNumber}`;
+            packageDetails.appendChild(trackingNumber);
+          }
+          if (parcel.trackingUrl) {
+            const link = document.createElement('a');
+            link.href = parcel.trackingUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'tracking-link';
+            link.textContent = 'Track Your Package';
+            packageDetails.appendChild(link);
+          }
+          trackingDetails.appendChild(packageDetails);
+        });
+      } else {
         if (statusData.trackingNumber) {
           const trackingNum = document.createElement('div');
           trackingNum.textContent = `Tracking Number: ${statusData.trackingNumber}`;
           trackingDetails.appendChild(trackingNum);
         }
-        
+
         if (statusData.trackingUrls && statusData.trackingUrls.length > 0) {
-          statusData.trackingUrls.forEach(url => {
+          statusData.trackingUrls.forEach((url) => {
             const link = document.createElement('a');
             link.href = url;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             link.className = 'tracking-link';
-            link.textContent = 'Track Your Package';
             link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> Track Your Package`;
             trackingDetails.appendChild(link);
           });
         }
-        
+
         if (statusData.carrierName) {
           const carrier = document.createElement('div');
           carrier.textContent = `Carrier: ${statusData.carrierName}`;
@@ -1392,6 +1471,34 @@ const apiBase =
         }
       }
     }
+  }
+
+  function getSafeTrackingUrl(value) {
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    try {
+      const url = new URL(value.trim());
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getGelatoStatusConfig(statusData) {
+    const iconTypeByColor = {
+      green: 'success',
+      blue: 'info',
+      orange: 'warning',
+      gray: 'neutral',
+    };
+    const iconType = Object.hasOwn(iconTypeByColor, statusData.statusColor)
+      ? iconTypeByColor[statusData.statusColor]
+      : 'neutral';
+    return {
+      iconType,
+      icon: typeof statusData.statusIcon === 'string' ? statusData.statusIcon : '',
+      title: typeof statusData.status === 'string' ? statusData.status : 'Order status',
+      message: typeof statusData.statusLong === 'string' ? statusData.statusLong : '',
+    };
   }
 
   /**
@@ -1454,21 +1561,38 @@ const apiBase =
   /**
    * Update status icon based on type (success, warning, error)
    */
-  function updateStatusIcon(iconType) {
+  function updateStatusIcon(iconType, providerIcon = '') {
     const iconWrapper = document.getElementById('status-icon-wrapper');
     const iconCheck = document.getElementById('status-icon-check');
     const iconExclamation = document.getElementById('status-icon-exclamation');
     const iconX = document.getElementById('status-icon-x');
+    const gelatoIcon = document.getElementById('status-icon-gelato');
     
     if (!iconWrapper) return;
     
     // Remove all icon type classes
-    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error');
+    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error', 'status-icon-neutral', 'status-icon-info');
     
     // Hide all icons
     if (iconCheck) iconCheck.style.display = 'none';
     if (iconExclamation) iconExclamation.style.display = 'none';
     if (iconX) iconX.style.display = 'none';
+    if (gelatoIcon) {
+      gelatoIcon.textContent = '';
+      gelatoIcon.style.display = 'none';
+    }
+
+    if (iconType === 'neutral') iconWrapper.classList.add('status-icon-neutral');
+    if (iconType === 'info') iconWrapper.classList.add('status-icon-info');
+    if (iconType === 'success') iconWrapper.classList.add('status-icon-success');
+    if (iconType === 'warning') iconWrapper.classList.add('status-icon-warning');
+    if (iconType === 'error') iconWrapper.classList.add('status-icon-error');
+
+    if (providerIcon && gelatoIcon) {
+      gelatoIcon.textContent = providerIcon;
+      gelatoIcon.style.display = 'block';
+      return;
+    }
     
     // Show appropriate icon based on type
     if (iconType === 'success') {
@@ -1509,21 +1633,38 @@ const apiBase =
   /**
    * Update header status icon to match main status icon
    */
-  function updateHeaderStatusIcon(iconType) {
+  function updateHeaderStatusIcon(iconType, providerIcon = '') {
     const iconWrapper = document.getElementById('header-status-icon-wrapper');
     const iconCheck = document.getElementById('header-status-icon-check');
     const iconExclamation = document.getElementById('header-status-icon-exclamation');
     const iconX = document.getElementById('header-status-icon-x');
+    const gelatoIcon = document.getElementById('header-status-icon-gelato');
     
     if (!iconWrapper) return;
     
     // Remove all icon type classes
-    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error');
+    iconWrapper.classList.remove('status-icon-success', 'status-icon-warning', 'status-icon-error', 'status-icon-neutral', 'status-icon-info');
     
     // Hide all icons
     if (iconCheck) iconCheck.style.display = 'none';
     if (iconExclamation) iconExclamation.style.display = 'none';
     if (iconX) iconX.style.display = 'none';
+    if (gelatoIcon) {
+      gelatoIcon.textContent = '';
+      gelatoIcon.style.display = 'none';
+    }
+
+    if (iconType === 'neutral') iconWrapper.classList.add('status-icon-neutral');
+    if (iconType === 'info') iconWrapper.classList.add('status-icon-info');
+    if (iconType === 'success') iconWrapper.classList.add('status-icon-success');
+    if (iconType === 'warning') iconWrapper.classList.add('status-icon-warning');
+    if (iconType === 'error') iconWrapper.classList.add('status-icon-error');
+
+    if (providerIcon && gelatoIcon) {
+      gelatoIcon.textContent = providerIcon;
+      gelatoIcon.style.display = 'block';
+      return;
+    }
     
     // Show appropriate icon based on type
     if (iconType === 'success') {
@@ -1539,7 +1680,7 @@ const apiBase =
   }
 
   async function handleApprove() {
-    if (!orderData || !token) return;
+    if (!orderData || !token || !previewReady || !previewApprovalAllowed) return;
 
     if (correctionUsed && !acknowledgeCheckbox.checked) {
       alert('Please confirm you are ready to send your book to print.');
@@ -3375,6 +3516,21 @@ const apiBase =
     color: #ef4444;
   }
 
+  .status-icon-wrapper.status-icon-neutral {
+    background: #e5e7eb;
+    color: #4b5563;
+  }
+
+  .status-icon-wrapper.status-icon-info {
+    background: #dbeafe;
+    color: #2563eb;
+  }
+
+  .gelato-status-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+  }
+
   .status-icon {
     width: 24px;
     height: 24px;
@@ -3489,6 +3645,16 @@ const apiBase =
     color: #ef4444;
   }
 
+  .header-status-icon-wrapper.status-icon-neutral {
+    background: #e5e7eb;
+    color: #4b5563;
+  }
+
+  .header-status-icon-wrapper.status-icon-info {
+    background: #dbeafe;
+    color: #2563eb;
+  }
+
   .header-status-icon {
     width: 24px;
     height: 24px;
@@ -3535,21 +3701,22 @@ const apiBase =
   }
 
   .tracking-details {
+    font-family: var(--font-body, system-ui, sans-serif);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
   }
 
-  .tracking-link {
+  .tracking-details :global(.tracking-link) {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-xs);
-    color: #3b82f6;
-    text-decoration: none;
+    color: #1d4ed8;
+    text-decoration: underline;
     font-weight: 500;
   }
 
-  .tracking-link:hover {
+  .tracking-details :global(.tracking-link:hover) {
     text-decoration: underline;
   }
 
@@ -3583,5 +3750,9 @@ const apiBase =
     .success-message-title {
       font-size: 1.5rem;
     }
+  }
+  .tracking-details :global(.tracking-link:focus-visible) {
+    outline: 2px solid #1d4ed8;
+    outline-offset: 3px;
   }
 </style>

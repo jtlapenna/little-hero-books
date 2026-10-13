@@ -116,6 +116,11 @@ export async function GET(request: NextRequest) {
   console.log(`[Cron Health Monitor] [${executionId}] Starting execution at ${new Date().toISOString()}`);
 
   try {
+    // Gelato claims require provider recovery, including after lease expiry.
+    const { data: owned, error: ownershipError } = await supabase.from('orders').select('id')
+      .eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
+    if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
+    const providerOwnedIds = new Set((owned ?? []).map((order) => order.id));
     // 1. Check for stuck orders (processing > 30 minutes)
     const stuckQueryStart = Date.now();
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
@@ -130,7 +135,7 @@ export async function GET(request: NextRequest) {
     const {
       included: stuckOrders,
       excluded: excludedStuckOrders,
-    } = splitCronExcludedOrders((stuckOrdersRaw as StuckOrderRow[] | null) || []);
+    } = splitCronExcludedOrders(((stuckOrdersRaw as StuckOrderRow[] | null) || []).filter((order) => !providerOwnedIds.has(order.id)));
     logExcludedTestOrders('stuck_order_scan', excludedStuckOrders);
 
     if (stuckError) {
@@ -169,7 +174,7 @@ export async function GET(request: NextRequest) {
     const {
       included: retryOrders,
       excluded: excludedRetryOrders,
-    } = splitCronExcludedOrders((retryOrdersRaw as RetryOrderRow[] | null) || []);
+    } = splitCronExcludedOrders(((retryOrdersRaw as RetryOrderRow[] | null) || []).filter((order) => !providerOwnedIds.has(order.id)));
     logExcludedTestOrders('retry_order_scan', excludedRetryOrders);
 
     if (retryError) {
@@ -206,7 +211,7 @@ export async function GET(request: NextRequest) {
     const orphanedOrdersFiltered = ((orphanedOrdersRpc as OrphanedOrderRow[] | null) || []).filter((o) => {
       // Exclude processing orders that are already in stuck query
       // (orphaned query catches processing orders > 1 hour, but stuck query catches > 30 minutes)
-      if (o.execution_status === 'processing' && stuckOrderIds.has(o.id)) {
+      if (providerOwnedIds.has(o.id) || (o.execution_status === 'processing' && stuckOrderIds.has(o.id))) {
         return false; // Already being processed as stuck
       }
       return true; // Include all other orphaned orders

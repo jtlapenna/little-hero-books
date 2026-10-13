@@ -220,6 +220,8 @@ function buildDisposableInput(): {
       book_id: 'book-mvp-simple-adventure',
       project: 'book-mvp-simple-adventure',
       formatId: 'amazon',
+      configVersion: 1,
+      configSource: 'published',
       format_id: 'amazon',
       marketplaceId: 'ATVPDKIKX0DER',
       orderDate: now,
