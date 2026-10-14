@@ -1,5 +1,7 @@
 # Gelato non-printing rollout
 
+Current next-phase milestones: [Gelato workflow proof, finished book and controlled launch](gelato-next-phase-plan.md). The implementation sections below retain the build history.
+
 User asked to proceed with Gelato and test on production before final book artwork. The prior draft-only implementation is merged in PR6 at c812d056a7f76ff8515e31bc25b86033dee77cbf. Production database is installed. The production Gelato key is stored and all five runtime gates plus DB dispatch remain off. Two earlier synthetic direct API orders remain draft in order, financial and fulfillment status. No Lulu submission occurred; the two existing Lulu jobs date from February.
 
 ## Current obstacle
