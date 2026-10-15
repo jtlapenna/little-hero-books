@@ -21,7 +21,7 @@ export function gelatoSubmissionRuntime(sources: RuntimeSources = {}): GelatoSub
   const loadManifest = sources.loadManifest ?? downloadManifest;
   return {
     store: gelatoSubmissionStore, backendUrl,
-    verifyStoredFile: createGelatoStoredFileVerifier({ loadArtifact: (key, signal) => getObject(R2_ORDERS_BUCKET, key, { signal, redirect: 'error', allowErrorResponse: true }) }),
+    verifyStoredFile: createGelatoStoredFileVerifier({ loadArtifact: (key, signal) => getObject(R2_ORDERS_BUCKET, key, { signal, redirect: 'manual', allowErrorResponse: true }) }),
     loadOrder,
     loadPrintInput: async (orderId) => {
       const row = await loadOrder(orderId);
