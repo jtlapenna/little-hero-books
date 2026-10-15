@@ -88,6 +88,38 @@ async function main() {
         assert.equal(holds.length, 0); assert.equal(intents.length, 1);
         assert.equal(intents[0].payload.kind === 'amazon-shipped' && intents[0].payload.shipDate, intent.payload.kind === 'amazon-shipped' && intent.payload.shipDate, 'late operational confirmation preserves saved shipment timestamp');
       }
+      // Use the quote -> real lifecycle normalization -> outbox producer path.
+      // One synthetic member suppresses an entire mixed parcel, even with flags ON.
+      for (const marker of ['member', 'root', 'book-spec'] as const) {
+        const engineering = structuredClone(context);
+        const engineeringRows = structuredClone(rows) as Array<Record<string, unknown>>;
+        if (marker === 'member') { engineering.members[0].child_order_key = 'test-gelato-notification-fixture'; engineeringRows[0].orderId = engineering.members[0].child_order_key; }
+        if (marker === 'root') engineering.submission.root_order_id = 'TEST-GELATO-ROOT';
+        if (marker === 'book-spec') engineeringRows[0].book_specs = {testMode:true};
+        const suppressed = { intents: [] as GelatoNotificationIntent[], holds: [] as Array<{childOrderId:number;reason:string}> };
+        const engineeringStore = {load:async () => engineering, transition:async (name:string, parameters:Record<string,unknown>) => {
+          if (name === 'apply_gelato_provider_snapshots') {
+            suppressed.intents = parameters.p_notifications as GelatoNotificationIntent[];
+            suppressed.holds = parameters.p_notification_holds as typeof suppressed.holds;
+          }
+          return {};
+        }};
+        await refreshGelatoSubmission(identity.submissionId, {store:engineeringStore,get:async () => shipped,
+          loadOrder:async key => engineeringRows.find(row => row.orderId === key) ?? null});
+        assert.equal(suppressed.intents.length,0,marker+' test cohort must never create customer intents');
+        assert.equal(suppressed.holds.length,0,'suppression does not invent provider/recipient failure holds');
+      }
+      let engineeringSendCalls = 0, engineeringAuthorizeCalls = 0, engineeringHeld = false;
+      const queuedPayload = {...intent.payload, childOrderKeys:['ordinary-child','TEST-GELATO-QUEUED-CHILD']};
+      const blocked = await deliverGelatoNotification(identity.submissionId, {enabled:true,
+        store:{transition:async (name:string, parameters:Record<string,unknown>) => {
+          if (name === 'claim_gelato_notification') return {claimed:true,attemptToken:identity.claimToken,payload:queuedPayload,idempotencyKey:'synthetic-key'};
+          if (name === 'authorize_gelato_notification') { engineeringAuthorizeCalls++; return {send:true}; }
+          if (name === 'release_gelato_notification') engineeringHeld = parameters.p_hold === true;
+          return {};
+        }}, send:async () => {engineeringSendCalls++; return {success:true};}});
+      assert.equal(blocked.held,true); assert.equal(engineeringHeld,true);
+      assert.equal(engineeringAuthorizeCalls,0); assert.equal(engineeringSendCalls,0,'queued engineering payload blocked even when enabled');
       const wireBodies: string[] = [];
       const keys: string[] = [];
       globalThis.fetch = async (input, init) => {

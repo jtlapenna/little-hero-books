@@ -21,3 +21,8 @@ export function gelatoNotificationTarget(row: Record<string, unknown>, orderKey:
     customerEmail: text(row.customer_email) || null, childName: text(gelatoObject(row.character_specs).childName),
     amazonOrderId: /^\d{3}-\d{7}-\d{7}$/.test(amazonOrderId) ? amazonOrderId : null, amazonOrderItemId: exactGelatoAmazonItemId(row) });
 }
+
+/** Persisted engineering identities must never become customer delivery targets. */
+export function isGelatoEngineeringOrderKey(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().toUpperCase().startsWith('TEST-GELATO-');
+}

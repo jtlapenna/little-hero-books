@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-15T21:29:10.226Z",
+  "project": "little-hero-labs-admin",
+  "canonicalDeployment": "9cb69113-0d9b-452c-9948-28f37e6170b5",
+  "source": "e5ab870341842206ca04f933341aab0e66f3da0c",
+  "projectFlags": {
+    "GELATO_DRAFT_SUBMISSION_ENABLED": false,
+    "GELATO_CANCEL_ENABLED": false,
+    "GELATO_STATUS_RELAY_ENABLED": false,
+    "GELATO_STATUS_POLLING_ENABLED": false,
+    "GELATO_NOTIFICATIONS_ENABLED": false
+  },
+  "servingFlags": {
+    "GELATO_DRAFT_SUBMISSION_ENABLED": false,
+    "GELATO_CANCEL_ENABLED": false,
+    "GELATO_STATUS_RELAY_ENABLED": false,
+    "GELATO_STATUS_POLLING_ENABLED": false,
+    "GELATO_NOTIFICATIONS_ENABLED": false
+  },
+  "databaseDispatch": false,
+  "workflows": [
+    {
+      "id": "8ZqgZ7ksY0Fj8Acx",
+      "active": false,
+      "versionId": "cfc4ecfc-c059-4d9e-87aa-49ac539b3683",
+      "graphSha256": "3843abce014fb9284af6e326f461affe6863d4b442cb53bb702b20bc87063741"
+    },
+    {
+      "id": "d7wi1rS0CxGVdRVb",
+      "active": false,
+      "versionId": "5592f6a2-2a2b-4852-96cf-f0109c4f8820",
+      "graphSha256": "2d983901312d091febee392f0a86d1b65c002c49ffa02e04493e43c94a48eeef"
+    }
+  ],
+  "runtime": {
+    "contextAvailable": true,
+    "cloudflare": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "globalProcess": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "nodeProcess": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "draftsEnabled": false,
+    "buildTimestampMs": 1792039148918
+  },
+  "runtimeCacheControl": "private, no-store",
+  "serviceRequests": 5,
+  "liveWrites": 0,
+  "allControlsOff": true
+}

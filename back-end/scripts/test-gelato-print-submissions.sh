@@ -31,12 +31,47 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon,authentica
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon,authenticated,service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon,authenticated,service_role;
 SQL
+task_schema_sql=${GELATO_TEST_PRINT_SCHEMA:-"$task_root/database/migration-print-provider-fields.sql"}
 for task_iteration in 1 2; do
-  if ! "${task_psql[@]}" -f "$task_root/database/migration-print-provider-fields.sql" >"$task_pg_dir/migration.log" 2>&1; then
+  if ! "${task_psql[@]}" -f "$task_schema_sql" >"$task_pg_dir/migration.log" 2>&1; then
     tail -15 "$task_pg_dir/migration.log"; exit 1
   fi
 done
+# Exercise forward migration idempotence as well as the fresh schema.
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-notification-suppression.sql" >"$task_pg_dir/engineering-migration.log" 2>&1
+done
 "${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-print-submissions.sql"
+# Force a started engineering sender and prove the forward migration refuses it.
+"${task_psql[@]}" >"$task_pg_dir/engineering-flight-setup.log" 2>&1 <<'SQL'
+UPDATE public.print_provider_submission_notifications SET delivery_state='delivering',attempt_started_at=clock_timestamp(),attempt_token=gen_random_uuid()
+ WHERE id=(SELECT n.id FROM public.print_provider_submission_notifications n WHERE public.gelato_submission_is_engineering_test(n.submission_id) ORDER BY n.id LIMIT 1);
+SQL
+if "${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-notification-suppression.sql" >"$task_pg_dir/engineering-flight-rejection.log" 2>&1; then
+ echo 'Suppression migration accepted a started engineering sender'; exit 1
+fi
+rg -q 'Engineering notification send in flight' "$task_pg_dir/engineering-flight-rejection.log"
+"${task_psql[@]}" >"$task_pg_dir/engineering-backfill-setup.log" 2>&1 <<'SQL'
+-- No external sender exists in this disposable database; reconcile the simulated attempt.
+UPDATE public.print_provider_submission_notifications SET delivery_state='pending',attempt_started_at=NULL
+ WHERE public.gelato_submission_is_engineering_test(submission_id);
+UPDATE public.print_provider_submission_notifications SET delivery_state='delivered',attempt_result='synthetic-delivered-receipt'
+ WHERE id=(SELECT n.id FROM public.print_provider_submission_notifications n WHERE public.gelato_submission_is_engineering_test(n.submission_id) ORDER BY n.id LIMIT 1);
+CREATE TABLE public.test_delivered_engineering_receipt AS
+ SELECT id,to_jsonb(n) AS receipt FROM public.print_provider_submission_notifications n WHERE n.delivery_state='delivered' AND public.gelato_submission_is_engineering_test(n.submission_id);
+SQL
+"${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-notification-suppression.sql" >"$task_pg_dir/engineering-backfill.log" 2>&1
+"${task_psql[@]}" >"$task_pg_dir/engineering-backfill-check.log" 2>&1 <<'SQL'
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM public.print_provider_submission_notifications n WHERE public.gelato_submission_is_engineering_test(n.submission_id) AND n.delivery_state NOT IN ('suppressed','delivered')) THEN
+  RAISE EXCEPTION 'Legacy engineering intent not quarantined';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.test_delivered_engineering_receipt saved LEFT JOIN public.print_provider_submission_notifications n ON n.id=saved.id WHERE saved.receipt IS DISTINCT FROM to_jsonb(n)) THEN
+  RAISE EXCEPTION 'Forward migration changed delivered evidence';
+ END IF;
+END $$;
+SQL
+
 
 "${task_psql[@]}" >"$task_pg_dir/concurrent-setup.log" 2>&1 <<'SQL'
 INSERT INTO public.orders(id,"orderId",root_order_id,execution_status,next_workflow,shipping_address)

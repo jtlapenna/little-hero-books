@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-15T22:15:13.065927+00:00",
+  "scope": "Local application and disposable PostgreSQL only; hosted migration and application deployment not performed",
+  "applicationNotificationSuite": "passed including quote-to-lifecycle-to-outbox, mixed cohort, root/book-spec suppression, queued payload block with delivery enabled, ordinary Amazon/D2C idempotent retry",
+  "databaseFreshSchemaSuite": "passed",
+  "databaseUpgradeSuite": {
+    "fromCommit": "e5ab870341842206ca04f933341aab0e66f3da0c",
+    "forwardMigration": "migration-gelato-engineering-notification-suppression.sql",
+    "result": "passed"
+  },
+  "databaseBranches": [
+    "repeated migration application",
+    "coherent member/root/case-insensitive test identity",
+    "mixed sibling cohort",
+    "book_specs.testMode current-state guard",
+    "ordinary printing notification remains eligible",
+    "direct insert suppression",
+    "legacy queued reset rejected at authorization",
+    "known started engineering sender aborts migration transaction",
+    "legacy pending backfill",
+    "delivered receipt whole-row JSON preserved",
+    "existing ownership/CAS/recovery/concurrency and frozen-identity races"
+  ],
+  "independentReviews": [
+    "TypeScript checkpoint clear",
+    "SQL checkpoint clear for retained TEST-GELATO identities",
+    "CI/rollout source slice clear for in-progress branch publication"
+  ],
+  "limits": [
+    "Durable suppression relies on retained TEST-GELATO root/member identifiers; testMode alone is mutable and is extra current-state suppression",
+    "Root-only/book-spec-only legacy payloads need hosted SQL eligibility guard; TypeScript alone is insufficient",
+    "Ubuntu hosted job has not run before publication",
+    "Production deployment workflow does not wait for safety job or install SQL; merge/deployment must be coordinated",
+    "No provider regular submission, conversion, payment, customer send or hosted SQL in this check"
+  ],
+  "fullTypecheck": {
+    "passed": false,
+    "existingDiagnostics": 361,
+    "diagnosticsInChangedOrNewFiles": 0
+  }
+}
