@@ -19,6 +19,7 @@ export function createGelatoStoredFileVerifier(dependencies: {
   const digests = new Map<string, Promise<string>>();
 
   async function digest(response: Response, signal: AbortSignal) {
+    // Workers supports manual redirects; every 3xx must fail without following Location.
     if (!response.ok || !response.body) {
       if (response.body) void response.body.cancel().catch(() => undefined);
       throw new Error('Gelato file verification could not load bytes');
@@ -75,7 +76,7 @@ export function createGelatoStoredFileVerifier(dependencies: {
     if (!digests.has(expectedCacheKey)) digests.set(expectedCacheKey, dependencies.loadArtifact(key!, signal).then((response) => digest(response, signal)));
     const expected = await digests.get(expectedCacheKey)!;
     if (!digests.has(providerUrl)) {
-      digests.set(providerUrl, (dependencies.fetcher ?? fetch)(url, { redirect: 'error', signal }).then((response) => digest(response, signal)));
+      digests.set(providerUrl, (dependencies.fetcher ?? fetch)(url, { redirect: 'manual', signal }).then((response) => digest(response, signal)));
     }
     return expected === await digests.get(providerUrl)!;
   };

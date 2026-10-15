@@ -15,7 +15,7 @@ const order = GelatoProviderOrderSchema.parse({ ...request, id: 'provider-1', up
 async function main() {
   let loads = 0;
   let fetches = 0;
-  const verifier = createGelatoStoredFileVerifier({ loadArtifact: async (actualKey, signal) => { loads++; assert.equal(actualKey, key); assert.equal(signal.aborted, false); return new Response(bytes); }, fetcher: async (url, options) => { fetches++; assert.equal(String(url), providerUrl); assert.equal(options?.redirect, 'error'); assert.ok(options?.signal); return new Response(bytes); } });
+  const verifier = createGelatoStoredFileVerifier({ loadArtifact: async (actualKey, signal) => { loads++; assert.equal(actualKey, key); assert.equal(signal.aborted, false); return new Response(bytes); }, fetcher: async (url, options) => { fetches++; assert.equal(String(url), providerUrl); assert.equal(options?.redirect, 'manual'); assert.ok(options?.signal); return new Response(bytes); } });
   const normalized = await validateGelatoConnectedOrdersWithFiles([order], request, (reference, actualUrl, expected) => { assert.equal(reference, 'item-1'); return verifier(member, actualUrl, expected); }, true);
   assert.equal(normalized[0].items[0].files[0].url, expectedUrl);
   assert.equal(order.items[0].files[0].url, providerUrl, 'source provider graph is not mutated');

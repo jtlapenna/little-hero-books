@@ -32,7 +32,7 @@ async function main() {
     assert.equal(request.method, 'GET', 'poll must never create another provider order');
     if (url.hostname === 'order.gelatoapis.com') return Response.json(provider);
     assert.equal(url.hostname, 'little-hero-orders.synthetic-poll.r2.cloudflarestorage.com');
-    assert.equal(init?.redirect, 'error'); assert.ok(init?.signal);
+    assert.equal(init?.redirect, 'manual'); assert.ok(init?.signal);
     artifactReads++;
     return new Response(new ReadableStream({ pull: () => new Promise(() => undefined), cancel() { streamCanceled = true; } }));
   };
