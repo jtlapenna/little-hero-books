@@ -1,0 +1,210 @@
+diff --git a/back-end/scripts/test-gelato-print-submissions.sql b/back-end/scripts/test-gelato-print-submissions.sql
+index f1d74342545a5fa153f6aaa7f5889ab23ddf0cad..e87cb1856f8e57a45acc717168cdbb8f40a3db79 100644
+--- a/back-end/scripts/test-gelato-print-submissions.sql
++++ b/back-end/scripts/test-gelato-print-submissions.sql
+@@ -214,7 +214,15 @@ BEGIN
+  IF NOT (result->>'recover')::boolean OR (SELECT request_state FROM public.print_provider_submissions WHERE id=s)<>'outcome_unknown' THEN RAISE EXCEPTION 'Ambiguous recovery sent or released work'; END IF;
+  result:=public.begin_gelato_reconciliation(s,'second-recovery');
+  IF (result->>'recover')::boolean THEN RAISE EXCEPTION 'Two recovery owners'; END IF;
+- PERFORM public.finish_gelato_reconciliation_hold(s,token,'ambiguous-recovery','provider_outcome_requires_review');
++ IF (SELECT lease_expires_at FROM public.print_provider_submissions WHERE id=s)<clock_timestamp()+interval '14 minutes' THEN RAISE EXCEPTION 'Aborted recovery did not retain a 15 minute lease'; END IF;
++ -- Simulate an owner disappearing after begin, before it can finish its hold.
++ UPDATE public.print_provider_submissions SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=s;
++ result:=public.begin_gelato_reconciliation(s,'after-aborted-recovery');
++ IF NOT (result->>'recover')::boolean OR (result->>'claimToken')::uuid=token THEN RAISE EXCEPTION 'Expired recovery did not rotate ownership'; END IF;
++ PERFORM pg_temp.expect_error(format('SELECT public.finish_gelato_reconciliation_hold(%L,%L,%L,%L)',s,token,'ambiguous-recovery','provider_outcome_requires_review'),'Stale Gelato reconciliation owner');
++ token:=(result->>'claimToken')::uuid;
++ IF (SELECT send_started_at FROM public.print_provider_submissions WHERE id=s) IS NULL THEN RAISE EXCEPTION 'Aborted recovery reset consumed send evidence'; END IF;
++ PERFORM public.finish_gelato_reconciliation_hold(s,token,'after-aborted-recovery','provider_outcome_requires_review');
+  IF (SELECT request_snapshot FROM public.print_provider_submissions WHERE id=s) IS NULL THEN RAISE EXCEPTION 'Recovery destroyed send evidence'; END IF;
+ END $$;
+ SELECT 'Gelato snapshot CAS and pre-send/ambiguous recovery: ok' AS result;
+diff --git a/back-end/scripts/test-gelato-submission-recovery.ts b/back-end/scripts/test-gelato-submission-recovery.ts
+new file mode 100644
+index 0000000..56a1560
+--- /dev/null
++++ b/back-end/scripts/test-gelato-submission-recovery.ts
+@@ -0,0 +1,183 @@
++import assert from 'node:assert/strict';
++import { randomUUID } from 'node:crypto';
++import configFile from '../src/lib/books/configs/book-finding-our-inner-voice/v2.json';
++import { GelatoPrintConfigSchema } from '../src/lib/books/types';
++import { createGelatoDraft, getGelatoOrder, requestGelatoQuote, searchGelatoOrders } from '../src/lib/books/gelato-api-client';
++import { quoteGelatoSubmission, submitGelatoDraft, type GelatoSubmissionDependencies } from '../src/lib/books/gelato-submission';
++import { recoverGelatoSubmission } from '../src/lib/books/gelato-lifecycle';
++import { createGelatoStoredFileVerifier, GELATO_STORED_FILE_HOST } from '../src/lib/books/gelato-stored-file';
++import type { GelatoDraftOrderRequest } from '../src/lib/books/gelato-api-contract';
++import type { GelatoSubmissionContext, GelatoSubmissionStore } from '../src/lib/books/gelato-submission-store';
++import { GelatoProviderOrderSchema } from '../src/lib/books/gelato-provider-snapshot';
++import type { W4GelatoPrintInput } from '../src/lib/books/w4-gelato-print-input';
++
++type Failure = 'response-lost' | 'malformed-response' | 'root-write' | 'mapping-write' |
++  'incomplete-graph' | 'file-mismatch' | 'file-download' | 'empty-search' | 'recovery-load';
++const jsonCopy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
++const bytes = '%PDF-1.7\nsynthetic immutable test artifact\n%%EOF';
++
++async function scenario(failure: Failure) {
++  const config = GelatoPrintConfigSchema.parse(configFile.formats.amazon.print);
++  const identity = { submissionId: randomUUID(), claimToken: randomUUID(), executionId: `synthetic-${failure}`, mode: 'siblings' as const };
++  let now = Date.parse('2026-10-13T12:00:00Z');
++  const context: GelatoSubmissionContext = { providerOrders: [], members: [1, 2].map(id => ({
++    submission_id: identity.submissionId, child_order_id: id, child_order_key: `TEST-RECOVERY-${id}`, item_reference_id: `lhb-item-${id}`,
++    artifact_key: `book/orders/TEST-RECOVERY-${id}/gelato/print/v2/${'a'.repeat(24)}.pdf`, artifact_fingerprint: 'a'.repeat(24),
++    artifact_claim_token: identity.claimToken, pdf_page_count: config.expectedPdfPageCount, provider_order_id: null, provider_item_id: null, status: null,
++  })), submission: { id: identity.submissionId, provider: 'gelato', root_order_id: 'TEST-RECOVERY', order_reference_id: `lhb-gelato-${failure}`,
++    workflow_job_idempotency_key: `synthetic-${failure}`, claim_token: identity.claimToken, lease_expires_at: new Date(now + 900_000).toISOString(),
++    request_state: 'claimed', owning_execution_id: null, send_started_at: null, accepted_root_order_id: null,
++    quote_snapshot: null, request_snapshot: null, quote_id: null, shipment_method_uid: null, shipment_policy_version: null, quoted_at: null, quote_request_fingerprint: null,
++  } };
++  let creates = 0;
++  let fault = true;
++  let loadFails = false;
++  let request: GelatoDraftOrderRequest | undefined;
++  const transitions: string[] = [];
++  const requests: string[] = [];
++  const store: GelatoSubmissionStore = {
++    load: async id => { assert.equal(id, identity.submissionId); if (loadFails) throw new Error('synthetic interrupted load'); return jsonCopy(context); },
++    transition: async (name, parameters) => {
++      transitions.push(name);
++      const s = context.submission;
++      assert.equal(parameters.p_submission_id, s.id);
++      if (name === 'record_gelato_quote_snapshot') {
++        Object.assign(s, { quote_snapshot: jsonCopy(parameters.p_snapshot), quote_id: parameters.p_quote_id,
++          shipment_method_uid: parameters.p_shipment_method_uid, shipment_policy_version: parameters.p_policy_version,
++          quoted_at: parameters.p_quoted_at, quote_request_fingerprint: parameters.p_request_fingerprint });
++      } else if (name === 'begin_gelato_print_submission') {
++        assert.equal(s.request_state, 'claimed'); assert.equal(parameters.p_token, s.claim_token);
++        s.request_state = 'submitting'; s.owning_execution_id = String(parameters.p_execution_id); s.request_snapshot = jsonCopy(s.quote_snapshot);
++      } else if (name === 'authorize_gelato_print_send') {
++        assert.equal(s.send_started_at, null); s.send_started_at = new Date(now).toISOString();
++      } else if (name === 'record_gelato_accepted_root') {
++        if (fault && failure === 'root-write') throw new Error('synthetic root persistence failure');
++        assert.equal(parameters.p_token, s.claim_token); assert.equal(parameters.p_execution_id, s.owning_execution_id);
++        s.accepted_root_order_id = String(parameters.p_root_id);
++      } else if (name === 'fence_gelato_print_submission') {
++        assert.ok(s.send_started_at); s.request_state = 'outcome_unknown'; s.lease_expires_at = new Date(now).toISOString();
++      } else if (name === 'begin_gelato_reconciliation') {
++        if (s.request_state === 'submitted' || Date.parse(s.lease_expires_at) > now) return { recover: false };
++        assert.equal(s.request_state, 'outcome_unknown'); assert.ok(s.send_started_at); assert.ok(s.request_snapshot);
++        s.claim_token = randomUUID(); s.owning_execution_id = String(parameters.p_execution_id); s.lease_expires_at = new Date(now + 900_000).toISOString();
++        return { recover: true, claimToken: s.claim_token };
++      } else if (name === 'finish_gelato_reconciliation_hold') {
++        assert.equal(parameters.p_token, s.claim_token); assert.equal(parameters.p_execution_id, s.owning_execution_id);
++        s.lease_expires_at = new Date(now).toISOString();
++      } else if (name === 'persist_gelato_draft_result' || name === 'persist_gelato_print_result') {
++        assert.equal(parameters.p_token, s.claim_token); assert.equal(parameters.p_execution_id, s.owning_execution_id);
++        if (fault && failure === 'mapping-write') throw new Error('synthetic atomic mapping failure');
++        const graph = (parameters.p_orders as unknown[]).map(order => GelatoProviderOrderSchema.parse(order));
++        assert.equal(graph.length, 2);
++        for (const member of context.members) {
++          const order = graph.find(order => order.items.some(item => item.itemReferenceId === member.item_reference_id));
++          assert.ok(order); const item = order.items.find(item => item.itemReferenceId === member.item_reference_id)!;
++          member.provider_order_id = order.id; member.provider_item_id = item.id; member.status = item.fulfillmentStatus;
++        }
++        s.request_state = 'submitted';
++      } else throw new Error(`Unexpected transition ${name}`);
++      return {};
++    },
++  };
++  // Real clients use this fixed synthetic account for every operation. No default key or fetch is used.
++  const fetcher: typeof fetch = async (input, init) => {
++    const url = new URL(String(input));
++    assert.equal(url.origin, 'https://order.gelatoapis.com');
++    assert.equal(new Headers(init?.headers).get('X-API-KEY'), 'synthetic-isolated-key');
++    requests.push(`${init?.method ?? 'GET'} ${url.pathname}`);
++    const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
++    if (url.pathname === '/v4/orders:quote') {
++      assert.equal(init?.method, 'POST');
++      const quote = JSON.parse(String(init?.body));
++      return response({ orderReferenceId: quote.orderReferenceId, quotes: [{ id: 'quote-1', products: quote.products,
++        itemReferenceIds: quote.products.map((item: { itemReferenceId: string }) => item.itemReferenceId),
++        shipmentMethods: [{ shipmentMethodUid: 'usps_ground_advantage', type: 'normal' }] }] });
++    }
++    if (url.pathname === '/v4/orders' && init?.method === 'POST') {
++      creates++; assert.equal(creates, 1, 'Never create a second order after uncertain acceptance');
++      request = JSON.parse(String(init.body)) as GelatoDraftOrderRequest;
++      assert.equal(request.orderType, 'draft'); assert.equal(request.items.length, 2);
++      if (failure === 'response-lost' || failure === 'empty-search' || failure === 'recovery-load') throw new Error('synthetic response lost after acceptance');
++      if (failure === 'malformed-response') return response({ id: 'provider-1', orderReferenceId: request.orderReferenceId });
++      return response({ ...request, id: 'provider-1', items: [request.items[0]], connectedOrderIds: ['provider-2'] });
++    }
++    assert.ok(request, 'Provider accepted the original create before reconciliation');
++    if (url.pathname === '/v4/orders:search') {
++      assert.equal(init?.method, 'POST');
++      const search = JSON.parse(String(init?.body));
++      assert.equal(search.orderReferenceId, request.orderReferenceId);
++      return response({ orders: fault && failure === 'empty-search' ? [] : [{ id: 'provider-1', orderReferenceId: request.orderReferenceId }] });
++    }
++    assert.equal(init?.method, undefined);
++    assert.ok(['/v4/orders/provider-1', '/v4/orders/provider-2'].includes(url.pathname));
++    if (fault && failure === 'incomplete-graph' && url.pathname.endsWith('provider-2')) return response({}, 503);
++    const index = url.pathname.endsWith('provider-1') ? 0 : 1;
++    return response({ ...request, id: `provider-${index + 1}`, financialStatus: 'draft', fulfillmentStatus: 'draft', updatedAt: new Date(now).toISOString(),
++      connectedOrderIds: ['provider-1', 'provider-2'], items: [{ ...request.items[index], id: `provider-item-${index + 1}`, fulfillmentStatus: 'draft',
++        files: [{ type: 'default', url: `https://${GELATO_STORED_FILE_HOST}/synthetic-${index + 1}.pdf` }] }] });
++  };
++  const client = { apiKey: 'synthetic-isolated-key', fetcher };
++  const makeVerifier = () => createGelatoStoredFileVerifier({
++    loadArtifact: async key => { assert.ok(context.members.some(member => member.artifact_key === key)); return new Response(bytes); },
++    fetcher: async input => {
++      assert.equal(new URL(String(input)).hostname, GELATO_STORED_FILE_HOST);
++      if (fault && failure === 'file-download') return new Response(null, { status: 503 });
++      return new Response(fault && failure === 'file-mismatch' ? 'changed provider bytes' : bytes);
++    },
++  });
++  const submission: GelatoSubmissionDependencies = {
++    store, draftsEnabled: true, backendUrl: 'https://files.example.test', now: () => new Date(now), artifactExists: async () => true,
++    quote: body => requestGelatoQuote(body, client), create: body => createGelatoDraft(body, client), get: id => getGelatoOrder(id, client),
++    verifyStoredFile: makeVerifier(),
++    loadOrder: async key => ({ id: Number(key.slice(-1)), orderId: key, platform: 'amazon', print_provider: 'gelato',
++      print_submission_id: identity.submissionId, print_claim_token: identity.claimToken, quantity: 1, shipping_tier: 'standard',
++      customer_email: 'test@example.com', shipping_address: { name: 'Taylor Example', address: '1 Main St', city: 'Seattle', state: 'WA', zip: '98101', country: 'US' } }),
++    loadPrintInput: async key => ({ orderId: key, orderDbId: Number(key.slice(-1)), orderPrefix: `book/orders/${key}`,
++      bookConfigVersion: 2, rootOrderId: context.submission.root_order_id, providerPrintConfig: config } as unknown as W4GelatoPrintInput),
++  };
++  const lifecycle = () => ({ store, get: submission.get, search: (reference: string) => searchGelatoOrders(reference, client), verifyStoredFile: makeVerifier() });
++  await quoteGelatoSubmission(identity, submission);
++  await assert.rejects(submitGelatoDraft(identity, submission), /inspect the submission/);
++  assert.equal(creates, 1); assert.equal(context.submission.request_state, 'outcome_unknown');
++  assert.equal(context.members.every(member => member.provider_order_id === null), true);
++  const sentAt = context.submission.send_started_at; const savedRequest = jsonCopy(context.submission.request_snapshot);
++  if (failure === 'malformed-response') assert.equal(context.submission.accepted_root_order_id, 'provider-1', 'Preserve matching accepted root from malformed response');
++  if (['response-lost', 'root-write', 'empty-search', 'recovery-load'].includes(failure)) assert.equal(context.submission.accepted_root_order_id, null);
++  await assert.rejects(submitGelatoDraft(identity, submission), /stale/);
++  if (failure === 'recovery-load') {
++    loadFails = true;
++    await assert.rejects(recoverGelatoSubmission(identity.submissionId, lifecycle()), /interrupted load/);
++    loadFails = false;
++    assert.equal(Date.parse(context.submission.lease_expires_at) - now, 900_000);
++    assert.equal((await recoverGelatoSubmission(identity.submissionId, lifecycle())).recovered, false, 'Interrupted recovery keeps its lease');
++    now += 900_001;
++  } else if (['incomplete-graph', 'file-mismatch', 'file-download', 'empty-search', 'mapping-write', 'root-write'].includes(failure)) {
++    await assert.rejects(recoverGelatoSubmission(identity.submissionId, lifecycle()), /held; do not create/);
++    assert.equal(context.members.every(member => member.provider_order_id === null), true);
++    assert.equal(context.submission.request_state, 'outcome_unknown');
++  }
++  fault = false;
++  const recovered = await recoverGelatoSubmission(identity.submissionId, lifecycle());
++  assert.equal(recovered.recovered, true, failure);
++  assert.deepEqual(recovered.providerOrderIds, ['provider-1', 'provider-2']);
++  assert.equal(context.submission.accepted_root_order_id, 'provider-1');
++  assert.deepEqual(context.members.map(member => [member.provider_order_id, member.provider_item_id]), [['provider-1', 'provider-item-1'], ['provider-2', 'provider-item-2']]);
++  assert.equal(context.submission.send_started_at, sentAt); assert.deepEqual(context.submission.request_snapshot, savedRequest);
++  assert.equal((await recoverGelatoSubmission(identity.submissionId, lifecycle())).recovered, false);
++  await assert.rejects(submitGelatoDraft(identity, submission), /stale/);
++  assert.equal(creates, 1); assert.equal(requests.filter(call => call === 'POST /v4/orders').length, 1);
++  assert.ok(requests.includes('POST /v4/orders:search'));
++  assert.equal(transitions.some(name => name.includes('notification')), false, 'Recovery creates no delivery intent');
++}
++
++async function main() {
++  const originalFetch = globalThis.fetch;
++  let unexpectedFetches = 0;
++  globalThis.fetch = async () => { unexpectedFetches++; throw new Error('Unexpected external request'); };
++  try {
++    for (const failure of ['response-lost', 'malformed-response', 'root-write', 'mapping-write', 'incomplete-graph', 'file-mismatch', 'file-download', 'empty-search', 'recovery-load'] as const) await scenario(failure);
++    assert.equal(unexpectedFetches, 0);
++  } finally { globalThis.fetch = originalFetch; }
++  console.log('Gelato real-client submit/recover failure matrix passed (9 scenarios; no external calls)');
++}
++void main().catch(error => { console.error(error); process.exitCode = 1; });
