@@ -37,7 +37,53 @@ assert.equal(canCancelGelatoOrder('draft', ['created']), false);
 assert.equal(canCancelGelatoOrder('order', ['in_production']), false);
 assert.equal(canCancelGelatoOrder('order', ['pending_approval']), true);
 
+const draft = GelatoProviderOrderSchema.parse({ ...before, orderType: 'draft', fulfillmentStatus: 'draft', items: [{ ...item, fulfillmentStatus: 'created' }] });
+const converted = GelatoProviderOrderSchema.parse({ ...draft, orderType: 'order', fulfillmentStatus: 'created' });
+const draftContext: GelatoSubmissionContext = { ...context,
+  providerOrders: [{ ...context.providerOrders[0], status: 'draft', order_type: 'draft', last_event_at: draft.updatedAt, snapshot: draft, snapshot_digest: gelatoSnapshotDigest(draft) }],
+  members: [{ ...context.members[0], status: 'created' }] };
+const convertedResult = buildGelatoLifecycleResults(draftContext, [converted])[0];
+assert.equal(convertedResult.accepted, true, 'Authoritative unchanged-time draft conversion must reconcile');
+assert.equal(convertedResult.orderType, 'order');
+assert.equal(convertedResult.status, 'created');
+assert.equal(convertedResult.actionReason, null);
+assert.equal(convertedResult.items[0].orderType, 'order');
+const reconciledContext: GelatoSubmissionContext = { ...draftContext,
+  providerOrders: [{ ...draftContext.providerOrders[0], status: 'created', order_type: 'order', snapshot: converted, snapshot_digest: gelatoSnapshotDigest(converted) }] };
+assert.equal(buildGelatoLifecycleResults(reconciledContext, [converted])[0].accepted, true, 'Identical post-conversion refresh remains idempotent');
+assert.equal(buildGelatoLifecycleResults(reconciledContext, [draft])[0].accepted, false, 'Old equal-time draft cannot undo conversion');
+for (const conflict of [
+  { ...converted, fulfillmentStatus: 'in_production' },
+  { ...converted, updatedAt: '2026-10-11T11:00:00Z' },
+  { ...converted, items: [{ ...converted.items[0], fulfillmentStatus: 'in_production' }] },
+  { ...converted, items: [{ ...converted.items[0], quantity: 2 }] },
+  { ...converted, items: [{ ...converted.items[0], processedFileUrl: 'https://files.example.test/changed.pdf' }] },
+  { ...converted, shippingAddress: { ...converted.shippingAddress, city: 'Elsewhere' } },
+]) assert.equal(buildGelatoLifecycleResults(draftContext, [conflict])[0].accepted, false, 'Unchanged-time conversion cannot accept other changes');
+
 async function main() {
+  for (const children of [1, 2]) {
+    const items = Array.from({ length: children }, (_, index) => ({ ...draft.items[0], id: `conversion-item-${index + 1}`, itemReferenceId: `conversion-ref-${index + 1}`,
+      files: [{ type: 'default', url: `https://files.example.test/child-${index + 1}.pdf` }] }));
+    const savedDraft = GelatoProviderOrderSchema.parse({ ...draft, items });
+    const acceptedOrder = GelatoProviderOrderSchema.parse({ ...savedDraft, orderType: 'order', fulfillmentStatus: 'created' });
+    const cohort: GelatoSubmissionContext = { ...draftContext,
+      submission: { ...draftContext.submission, request_snapshot: { ...snapshot, request: { ...snapshot.request, items } } },
+      providerOrders: [{ ...draftContext.providerOrders[0], snapshot: savedDraft, snapshot_digest: gelatoSnapshotDigest(savedDraft) }],
+      members: items.map((entry, index) => ({ ...draftContext.members[0], child_order_id: index + 1, item_reference_id: entry.itemReferenceId, provider_item_id: entry.id })) };
+    let persisted: ReturnType<typeof buildGelatoLifecycleResults> = [];
+    const store = { load: async () => cohort, transition: async (name: string, parameters: Record<string, unknown>) => {
+      assert.equal(name, 'apply_gelato_provider_snapshots'); persisted = parameters.p_results as typeof persisted; return {};
+    } };
+    assert.equal((await refreshGelatoSubmission(cohort.submission.id, { store, get: async () => acceptedOrder })).needsAttention, false);
+    assert.equal(persisted[0].items.length, children);
+    assert(persisted[0].items.every(entry => entry.orderType === 'order' && entry.status === 'created' && entry.actionReason === null));
+    const storedOrder = { ...acceptedOrder, items: acceptedOrder.items.map(entry => ({ ...entry, files: [{ type: 'default', url: `https://gelato-api-live.s3.eu-west-1.amazonaws.com/${entry.id}.pdf` }] })) };
+    let verifiedFiles = 0;
+    assert.equal((await refreshGelatoSubmission(cohort.submission.id, { store, get: async () => storedOrder, verifyStoredFile: async () => { verifiedFiles++; return true; } })).needsAttention, false);
+    assert.equal(verifiedFiles, children, 'Conversion still verifies every provider-stored file');
+    await assert.rejects(refreshGelatoSubmission(cohort.submission.id, { store: { ...store, transition: async (name: string) => { assert.equal(name, 'hold_gelato_provider_refresh'); return {}; } }, get: async () => storedOrder, verifyStoredFile: async () => false }), /valid provider snapshot/);
+  }
   let persist = 0;
   const store = { load: async () => context, transition: async (name: string) => {
     if (name === 'begin_gelato_reconciliation') return { recover: true, claimToken: '22222222-2222-4222-8222-222222222222' };
