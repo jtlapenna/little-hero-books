@@ -28,6 +28,9 @@ INSERT INTO public.orders(id,"orderId",book_id,book_specs,one_manifest_url,execu
 (3,'LEGACY-URL',NULL,NULL,'https://synthetic.r2.dev/book-mvp-simple-adventure/orders/LEGACY-URL/manifests/1-manifest.json','ready_for_processing','4'),
 (4,'LEGACY-CONFLICT','book-finding-our-inner-voice','{"bookId":"other-book"}',NULL,'ready_for_processing','4');
 SELECT setval('public.orders_id_seq',100);
+-- Existing hosted service clients already read orders; this pre-created fixture
+-- predates the default privileges below, so mirror that existing privilege.
+GRANT SELECT ON public.orders TO service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon,authenticated,service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon,authenticated,service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon,authenticated,service_role;
@@ -44,6 +47,9 @@ for task_iteration in 1 2; do
 done
 for task_iteration in 1 2; do
   "${task_psql[@]}" -f "${GELATO_TEST_ENGINEERING_SCHEMA:-$task_root/database/migration-gelato-scoped-engineering-windows.sql}" >"$task_pg_dir/scoped-migration.log" 2>&1
+done
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-conversions.sql" >"$task_pg_dir/conversion-migration.log" 2>&1
 done
 "${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-print-submissions.sql"
 # Force a started engineering sender and prove the forward migration refuses it.
@@ -209,3 +215,77 @@ DO $$ BEGIN
 END $$;
 SQL
 echo 'Scoped engineering expiry after blocking root locks: begin and send denied; no send marked started'
+
+# Conversion ownership and send authorization each serialize competing callers.
+"${task_psql[@]}" -q -c "UPDATE public.test_conversion_cases SET authorization_id=public.test_create_conversion_authorization(submission_id) WHERE kind='race'" >/dev/null
+for task_boundary in begin send; do
+  if [[ "$task_boundary" == begin ]]; then
+    task_conversion_query="SELECT public.begin_gelato_engineering_conversion(authorization_id,repeat('a',64)) FROM public.test_conversion_cases WHERE kind='race'"
+  else
+    task_conversion_query="SELECT public.authorize_gelato_engineering_conversion_send(a.id,a.owner_token,repeat('a',64),repeat('e',64)) FROM public.gelato_engineering_conversions a JOIN public.test_conversion_cases c ON c.authorization_id=a.id WHERE c.kind='race'"
+  fi
+  "${task_psql[@]}" -At >"$task_pg_dir/conversion-owner-$task_boundary.log" 2>&1 <<SQL &
+BEGIN;
+$task_conversion_query;
+\! touch '$task_pg_dir/conversion-$task_boundary-locked'
+SELECT pg_sleep(3);
+COMMIT;
+SQL
+  task_conversion_owner=$!
+  for task_probe in {1..50}; do [[ -f "$task_pg_dir/conversion-$task_boundary-locked" ]] && break;sleep 0.05;done
+  [[ -f "$task_pg_dir/conversion-$task_boundary-locked" ]] || { echo 'Conversion owner lock not observed';exit 1; }
+  PGAPPNAME="lhl-conversion-race-$task_boundary" "${task_psql[@]}" -At -c "$task_conversion_query" >"$task_pg_dir/conversion-race-$task_boundary.log" 2>&1 &
+  task_conversion_waiter=$!
+  task_conversion_blocked=false
+  for task_probe in {1..30}; do
+    if [[ $("${task_psql[@]}" -At -c "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name='lhl-conversion-race-$task_boundary' AND wait_event_type='Lock')") == t ]]; then task_conversion_blocked=true;break;fi
+    sleep 0.05
+  done
+  [[ "$task_conversion_blocked" == true ]] || { echo 'Competing conversion caller was not observed blocked';exit 1; }
+  if wait "$task_conversion_waiter"; then echo 'Conversion was authorized twice';exit 1;fi
+  wait "$task_conversion_owner"
+  rg -q 'not authorized' "$task_pg_dir/conversion-race-$task_boundary.log"
+done
+"${task_psql[@]}" -q -c "SELECT public.close_gelato_engineering_conversion(authorization_id) FROM public.test_conversion_cases WHERE kind='race'" >/dev/null
+
+# Recheck wall-clock expiry after waiting on the canonical root, at both boundaries.
+for task_boundary in begin send; do
+  "${task_psql[@]}" -q -c "UPDATE public.test_conversion_cases SET authorization_id=public.test_create_conversion_authorization(submission_id,interval '3 seconds') WHERE kind='expiry-$task_boundary'" >/dev/null
+  if [[ "$task_boundary" == send ]]; then
+    "${task_psql[@]}" -q -c "SELECT public.begin_gelato_engineering_conversion(authorization_id,repeat('a',64)) FROM public.test_conversion_cases WHERE kind='expiry-send'" >/dev/null
+  fi
+  "${task_psql[@]}" -At >"$task_pg_dir/conversion-expiry-holder-$task_boundary.log" 2>&1 <<SQL &
+BEGIN;
+SELECT public.lock_gelato_submission_root(submission_id) FROM public.test_conversion_cases WHERE kind='expiry-$task_boundary';
+\! touch '$task_pg_dir/conversion-expiry-$task_boundary-locked'
+SELECT pg_sleep(6);
+COMMIT;
+SQL
+  task_holder_pid=$!
+  for task_probe in {1..50}; do [[ -f "$task_pg_dir/conversion-expiry-$task_boundary-locked" ]] && break;sleep 0.05;done
+  [[ -f "$task_pg_dir/conversion-expiry-$task_boundary-locked" ]] || { echo 'Conversion expiry holder missing';exit 1; }
+  if [[ "$task_boundary" == begin ]]; then
+    task_conversion_query="SELECT public.begin_gelato_engineering_conversion(authorization_id,repeat('a',64)) FROM public.test_conversion_cases WHERE kind='expiry-begin'"
+  else
+    task_conversion_query="SELECT public.authorize_gelato_engineering_conversion_send(a.id,a.owner_token,repeat('a',64),repeat('e',64)) FROM public.gelato_engineering_conversions a JOIN public.test_conversion_cases c ON c.authorization_id=a.id WHERE c.kind='expiry-send'"
+  fi
+  PGAPPNAME="lhl-conversion-expiry-$task_boundary" "${task_psql[@]}" -At -c "$task_conversion_query" >"$task_pg_dir/conversion-expiry-waiter-$task_boundary.log" 2>&1 &
+  task_waiter_pid=$!
+  task_waiting_before_expiry=false
+  for task_probe in {1..30}; do
+    if [[ $("${task_psql[@]}" -At -c "SELECT EXISTS(SELECT 1 FROM pg_stat_activity p CROSS JOIN public.gelato_engineering_conversions a JOIN public.test_conversion_cases c ON c.authorization_id=a.id WHERE c.kind='expiry-$task_boundary' AND a.expires_at>clock_timestamp() AND p.application_name='lhl-conversion-expiry-$task_boundary' AND p.wait_event_type='Lock' AND p.wait_event='advisory')") == t ]]; then task_waiting_before_expiry=true;break;fi
+    sleep 0.05
+  done
+  [[ "$task_waiting_before_expiry" == true ]] || { echo 'Conversion expiry waiter not observed before deadline';exit 1; }
+  if wait "$task_waiter_pid"; then echo 'Expired conversion passed after lock wait';exit 1;fi
+  wait "$task_holder_pid"
+  rg -q 'not authorized' "$task_pg_dir/conversion-expiry-waiter-$task_boundary.log"
+done
+"${task_psql[@]}" -q >/dev/null <<'SQL'
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM public.gelato_engineering_conversions a JOIN public.test_conversion_cases c ON c.authorization_id=a.id WHERE c.kind LIKE 'expiry-%' AND a.send_started_at IS NOT NULL) THEN RAISE EXCEPTION 'Expired conversion marked send'; END IF;
+ IF (SELECT enabled FROM public.print_provider_dispatch_gates WHERE provider='gelato') THEN RAISE EXCEPTION 'Conversion changed normal dispatch'; END IF;
+END $$;
+SELECT public.close_gelato_engineering_conversion(authorization_id) FROM public.test_conversion_cases WHERE kind LIKE 'expiry-%';
+SQL
+echo 'Conversion concurrent begin/send and expiry after blocked roots: one authorization, expired send never marked, normal gate OFF'

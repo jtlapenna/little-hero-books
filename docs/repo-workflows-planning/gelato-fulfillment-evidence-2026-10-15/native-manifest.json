@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-16T01:58:58.548073+00:00",
+  "files": [
+    {
+      "file": "native-runner-reference/native-client.ts.txt",
+      "sha256": "9d9b57a7dda5cbeabd1d32a390472275273870d80a01332940b83e5f8b96578f",
+      "privateOriginalSha256": "8f9281601d3c303151d53d46d60def5a4cad75cb5a3bdb8952526f0f21abe5bc",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/native-ops.ts.txt",
+      "sha256": "8f3ef01f043eef5d4739e90ad9bb7a72fedc016a5cd5ff634216b5e1983e7d62",
+      "privateOriginalSha256": "390d601110b93da3b7cc9f27ac75a7afa8a7a7a623b73a8002f702f193e0abef",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/close-native-unpaid.cjs.txt",
+      "sha256": "6f3ab9226ed27a98046956688a1cc860935795e313a18ce32617fb622bc7d023",
+      "privateOriginalSha256": "957c0d6befa3a556a982ac1140f683c0ca30b42dbded71ec3a829d5159e1c044",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/test-native.ts.txt",
+      "sha256": "df544ed18c079882029fd37d20a2e51034e0f857963fbb967b4076932616b8dc",
+      "privateOriginalSha256": "5c15f805272be3291350b1343569ed3d51282b7c833bbf9b52c3eae050ac1f0f",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/fixtures-with-tiers.ts.txt",
+      "sha256": "96b84c7c7d650011389cfc19f76e637485c9f44d93e3bcf7463bb8854c9fa41c",
+      "privateOriginalSha256": "70199a58a2f35a244a71524a980c8bb163c89a38d94e7c9b76109d11684ee72b",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/rasters.py.txt",
+      "sha256": "fb6320b61851518f5402eaf9ba0497e8e920aa2c7f72145947757eb3d0208d93",
+      "privateOriginalSha256": "fb6320b61851518f5402eaf9ba0497e8e920aa2c7f72145947757eb3d0208d93",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-runner-reference/pdfs.ts.txt",
+      "sha256": "9f251fe8cb73550780e4573063c06d1fc2d874e87c3545687892efb5790a3b84",
+      "privateOriginalSha256": "bcc4c919b92b6c7c37ec6029b00ea5e5ad3633ea1f4707894057ae363b3482f7",
+      "redaction": "Local checkout/home paths only; private env, recipient, fixture inputs, source images/PDFs, claims and raw HTTP journals are not included."
+    },
+    {
+      "file": "native-unpaid-drafts-2026-10-16.json",
+      "sha256": "49114e12a1c00b1dde666c2c4a215df4d4095c13a40c326d201869ebbe70db52"
+    },
+    {
+      "file": "native-website-provider-draft.jpg",
+      "sha256": "7e7d205209afc706e3fa2e5aa836ea134f63b823672846708bd55d2ed0dfe578"
+    },
+    {
+      "file": "native-reproduction.md",
+      "sha256": "c3785d3270172637a83d1b7d63c3edde19cfb7f77a8f69891d77ac58146a2c84"
+    },
+    {
+      "file": "native-runner-reference/README.md",
+      "sha256": "abd5df6bfad71824cc1bcbb3638ebb839a17de09f40f8f4c11365e1e38b478f5"
+    },
+    {
+      "file": "verify-native-unpaid-drafts.mjs",
+      "sha256": "07406b286b1e6897c7275689cb468d1d9b4776034d3d0806bddfdd408e26f3d0"
+    }
+  ]
+}

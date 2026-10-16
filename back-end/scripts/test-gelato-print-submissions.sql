@@ -483,3 +483,5 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 SELECT 'Actual service_role insert/terminal-close privileges and anon denial: ok' AS result;
+
+\ir test-gelato-engineering-conversion.sql
