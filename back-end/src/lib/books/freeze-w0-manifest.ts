@@ -90,6 +90,10 @@ export async function prepareFrozenW0Manifest(
     if (!storage.persistOrder) throw new Error('W0 order persistence is unavailable');
     const persisted = await storage.persistOrder(orderUpsert);
     if (persisted.error || !persisted.data) throw persisted.error ?? new Error('W0 order persistence was not confirmed');
+    assertRow(persisted.data);
+    if (extractManifestKey(typeof persisted.data.one_manifest_url === 'string' ? persisted.data.one_manifest_url : null) !== candidate.manifestKey) {
+      throw new Error('Persisted canonical W0 manifest reference was not confirmed');
+    }
     orderDbId = typeof persisted.data.id === 'number' ? persisted.data.id : null;
   }
   return { ...selected, orderUpsert, orderDbId, published: publish, created, reused: stored != null };
