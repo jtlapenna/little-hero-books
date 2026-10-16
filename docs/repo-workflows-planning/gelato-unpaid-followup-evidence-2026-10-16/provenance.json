@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "intake": {
+    "pr": 20,
+    "commit": "f27838b77baa6c209268a780098ad51fe98909a6",
+    "mergedSource": "9f2cec69363a6dd6d1a90c3bdf1414871f5675f2",
+    "productionRun": 38866339700,
+    "safetyRun": 38866339741
+  },
+  "automation": {
+    "pr": 21,
+    "commit": "003cec0466cd0be630bfec40468345f1e6792203",
+    "mergedSource": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+    "productionRun": 38874080881,
+    "safetyRun": 38874081112
+  },
+  "privatePackets": {
+    "native-automation-A": {
+      "planOrFixtureSha256": "e729b523c20066c6a2e0bcdea2991fcd1e8398c1c0bbcb33171768a931f04ffa",
+      "sealSha256": "c3a85b9e6d1e2ff9a0514624c67712ac6bca2050acaf4b237b6f079e3588653d",
+      "journalSha256": "31b0fe089a2a911558398d87020d06f95e089bb8ed2c906607624b2497936fa7"
+    },
+    "status-automation-A": {
+      "planOrFixtureSha256": "512d9412542d486eccefbf5ca28e5df9191537afb9569c0f3b03206a69d897f9",
+      "sealSha256": "cbc28d55acd306d49daeffc85a2c6c6a567c5ad1681f02e96b65f79f90c688bb",
+      "journalSha256": "3594720602ca3accd81f8a111301d2cae9666b6def9f55a0e443f2a7381955dc"
+    },
+    "timed-status-A": {
+      "planOrFixtureSha256": "da2a2bc15764038512a4e2f7d4ce582c496fa12040dd0260d6fc970b3bb3d23c",
+      "sealSha256": "2eaf337106cfda791039fd4287de3f9487d0e548917e73a36d0c4bd72c50d5d6",
+      "journalSha256": "e123a31329c68872fa8d91d8cc89504e7682b743cc33a6f6f53afe49c3141dae"
+    },
+    "timed-status-B": {
+      "planOrFixtureSha256": "40b9a3a4f2c25cc45abe33cd8aa2174c7ef60fcdba5c15285e6603c76d3f8b1e",
+      "sealSha256": "a200df420b5f28ff1dc1fc24c30c0f6d344fd38a70c5b586c4631d2a7990a1a8",
+      "journalSha256": "6180d06b7e18d3fd80920101940c597517a65ed1e80a5e507ded0259f9511d21"
+    },
+    "timed-status-C": {
+      "planOrFixtureSha256": "cf6558f7fa2ed8c4d23b9d762736699031470e36597504a334c5983514c90bd3",
+      "sealSha256": "4178e186f87f7bbb5c3772d85fe224c7e5c9dd7ec7e9bb7c19d73f89ef78d44a",
+      "journalSha256": "0628a75eb8ac899e00c8ff9c1a4fc2d2441b414c9b5e69c775442fba06c4c997"
+    },
+    "queue-automation-B": {
+      "planOrFixtureSha256": "314729f7c489d4ab5fd245873a6f92d1570a1f9aaa00531b36b138182a4ed34e",
+      "sealSha256": "fb018b5231956d3bc6de9154bc0e0bc5404ee412cd1164ad20814d42b9821935",
+      "journalSha256": "c967cba6613f5f24026cb58c77332ec2091a17d28c730312b3796afd40379b6b"
+    },
+    "timed-status-D": {
+      "planOrFixtureSha256": "6ab3bdb74a0b5f418a82c5dc99a0781edc235f13f816e4b4138c46cf12fbd43b",
+      "sealSha256": "609bd237402ee90c46669b3c1afc08d30c5ef707ec2078abeb6344096ddea897",
+      "journalSha256": "4c4f39b58ad33fb70941fa3dda925858c05c3cb026be8fd32b08d8c7dafa2dda"
+    }
+  },
+  "freshQueue": {
+    "executed": true,
+    "approvalPending": false,
+    "authorityCreated": true,
+    "maximumSpend": 0,
+    "initialQueueHTTP": 409,
+    "initialSiblingOutcome": "outcome_unknown",
+    "recoveredBy": "observe-only provider GET/file verification and owned SQL record; zero conversion replays",
+    "finalAllThreeClosedConverted": true
+  },
+  "limitations": [
+    "No actual external provider webhook delivery",
+    "No processed print files or provider prepress result yet",
+    "No charged invoice, printing, tracking, shipment, delivery or physical inspection",
+    "No normal production scheduler enabled",
+    "No finished creative-generation/preview/approval proof in this phase",
+    "Original workflow quote monetary body not retained; diagnostic reprices are separately labeled",
+    "Full typecheck retains 361 existing diagnostics; no changed-path diagnostics",
+    "General admin Format/Pages metadata remains a separate display limitation; dedicated print inspection mappings passed"
+  ],
+  "privateRecovery": {
+    "queue-reconciliation-A": {
+      "sealSha256": "28e5ecb94c30a8728879eab244ce6a515d3770fc14a299d66f5cc29d8d13331e",
+      "receiptSha256": "f72e8230050e249b65ce10c60dbb8ee02e88b4ad2d98b4780fd2376dd15f0eab"
+    },
+    "queue-observation-A": {
+      "sealSha256": "4a3fa2bda6e356143f58add3ec060d89a472958e455191446a1a4e80959a843a",
+      "receiptSha256": "de527775de9d80512de257a8d0310ea375e8c057073f738150b5aada0cdbc4bb"
+    }
+  },
+  "scheduledStatus": {
+    "initialExecution": "54705",
+    "initialOutcome": "triggered/backend401",
+    "replacementCredentialFollowup": "54706",
+    "followupPassed": true,
+    "normalSchedulerEnabled": false
+  }
+}

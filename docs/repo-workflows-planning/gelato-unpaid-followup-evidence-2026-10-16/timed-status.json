@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "workerSource": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+  "privateJournalSha256": "0628a75eb8ac899e00c8ff9c1a4fc2d2441b414c9b5e69c775442fba06c4c997",
+  "plannedTickAt": "2026-10-16T09:16:00.000Z",
+  "failedExecutions": [
+    {
+      "executionId": "54705",
+      "workflowId": "rf0LSHKMPBMoP4zG",
+      "mode": "trigger",
+      "status": "error",
+      "startedAt": "2026-10-16T09:16:00.075Z",
+      "lastNodeExecuted": "Poll Existing Unpaid Order",
+      "httpCode": "401",
+      "privateReceiptSha256": "62551d59f184283013b9a10b52bc847fbcfe8da1f65b17190f623866c4ae6c78"
+    }
+  ],
+  "finalOff": {
+    "at": "2026-10-16T09:54:00.614Z",
+    "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+    "deployment": "89bd9108-f88d-4266-bef2-7e8dd7142a25",
+    "normalFlagsOff": true,
+    "normalDispatch": false,
+    "pinnedWorkflowCopiesInactive": true,
+    "customerIntents": 0,
+    "openConversionAuthorizations": 0
+  },
+  "proofs": [],
+  "closures": [
+    {
+      "at": "2026-10-16T09:16:04.638Z",
+      "closed": true,
+      "workflowId": "rf0LSHKMPBMoP4zG",
+      "inactive": true,
+      "normalControlsWritten": false,
+      "providerWrites": 0
+    },
+    {
+      "at": "2026-10-16T09:16:05.392Z",
+      "closed": true,
+      "workflowId": "rf0LSHKMPBMoP4zG",
+      "inactive": true,
+      "normalControlsWritten": false,
+      "providerWrites": 0
+    }
+  ],
+  "failedAttemptFinalOff": {
+    "at": "2026-10-16T09:21:01.428Z",
+    "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+    "deployment": "89bd9108-f88d-4266-bef2-7e8dd7142a25",
+    "normalFlagsOff": true,
+    "normalDispatch": false,
+    "pinnedWorkflowCopiesInactive": true,
+    "customerIntents": 0,
+    "openConversionAuthorizations": 0
+  },
+  "successfulFollowup": {
+    "privateJournalSha256": "4c4f39b58ad33fb70941fa3dda925858c05c3cb026be8fd32b08d8c7dafa2dda",
+    "privatePacketSha256": "609bd237402ee90c46669b3c1afc08d30c5ef707ec2078abeb6344096ddea897",
+    "credentialReceiptSha256": "9adab7caf0fffe1abe418a6cb71ba9055f2910b693474d2166f491b9cd87bc69",
+    "isolatedReplacementCredential": true,
+    "baselineFailedExecutionId": "54705",
+    "proofs": [
+      {
+        "recordedAt": "2026-10-16T09:53:17.847Z",
+        "executionId": "54706",
+        "workflowId": "rf0LSHKMPBMoP4zG",
+        "workflowVersionId": "01722e6f-eddc-4ccb-80f5-90da78ecc703",
+        "mode": "trigger",
+        "plannedTickAt": "2026-10-16T09:53:00.000Z",
+        "actualStartedAt": "2026-10-16T09:53:00.107Z",
+        "graphSha256": "dbd9738749366630d8d5905ec8cdc1bb78716f3a8e2421e190ad39fc227e6979",
+        "providerWrites": 0,
+        "customerMessages": false,
+        "sharedExecutor": {
+          "action": "poll",
+          "completed": true,
+          "requiresReview": false,
+          "checked": 1,
+          "refreshed": 1,
+          "errors": 0,
+          "delivered": 0,
+          "accepted": null,
+          "customerMessages": false,
+          "normalControlsEnabled": false
+        },
+        "provider": {
+          "providerOrderId": "c76f3ee9-4b5a-4953-b789-17305b7429d1",
+          "orderType": "order",
+          "fulfillmentStatus": "created",
+          "financialStatus": "pending",
+          "itemStatus": "created"
+        },
+        "normalControls": {
+          "at": "2026-10-16T09:53:17.847Z",
+          "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+          "deployment": "89bd9108-f88d-4266-bef2-7e8dd7142a25",
+          "normalFlagsOff": true,
+          "normalDispatch": false,
+          "pinnedWorkflowCopiesInactive": true,
+          "customerIntents": 0,
+          "openConversionAuthorizations": 0
+        }
+      }
+    ],
+    "closures": [
+      {
+        "at": "2026-10-16T09:53:10.780Z",
+        "closed": true,
+        "workflowId": "rf0LSHKMPBMoP4zG",
+        "inactive": true,
+        "normalControlsWritten": false,
+        "providerWrites": 0
+      },
+      {
+        "at": "2026-10-16T09:53:18.586Z",
+        "closed": true,
+        "workflowId": "rf0LSHKMPBMoP4zG",
+        "inactive": true,
+        "normalControlsWritten": false,
+        "providerWrites": 0
+      }
+    ]
+  }
+}
