@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createGelatoStoredFileVerifier } from './gelato-stored-file';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
@@ -34,6 +35,15 @@ export function gelatoSubmissionRuntime(sources: RuntimeSources = {}): GelatoSub
     },
     artifactExists: async (key) => (await headObject(R2_ORDERS_BUCKET, key)).ok,
     draftsEnabled: process.env.GELATO_DRAFT_SUBMISSION_ENABLED === 'true',
+    engineeringDraftsAllowed: async (identity) => {
+      const key = process.env.GELATO_API_KEY;
+      if (!key?.trim()) return false;
+      const allowed = await gelatoSubmissionStore.transition('gelato_engineering_submission_allowed', {
+        p_submission_id: identity.submissionId, p_token: identity.claimToken,
+        p_key_sha256: createHash('sha256').update(key).digest('hex'),
+      });
+      return allowed === true;
+    },
     merchantEmail: process.env.GELATO_MERCHANT_CONTACT_EMAIL,
   };
 }

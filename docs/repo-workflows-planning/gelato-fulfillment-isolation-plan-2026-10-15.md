@@ -1,6 +1,6 @@
 # Isolated unpaid Gelato fulfillment lane
 
-Status: proposed engineering design; no production deployment, hosted migration, account key, payment method or routing has changed. Notification suppression is implemented and verified locally on the review branch. The user selected the existing LHL account, now verified as the account used by prior draft tests. Dashboard payment/wallet/plan/invoice observations and explicit owner confirmation establish the current no-payment boundary. Fresh regular-order tests still require reviewed cohort, conversion and notification safeguards; no regular operation has run.
+Status: engineering design with notification safeguard now installed and deployed from PR #14. Its SQL body/ACL/trigger and rollback-only suppression checks passed live; three retained-draft refreshes created zero intents. The proposed scoped-window and conversion changes below remain uninstalled/undeployed unless a later receipt states otherwise. No account key, payment method or normal routing was changed. The user selected the existing LHL account, now verified as the account used by prior draft tests. Dashboard payment/wallet/plan/invoice observations and explicit owner confirmation establish the current no-payment boundary. Fresh regular-order tests still require reviewed cohort, conversion and notification safeguards; no regular operation has run.
 
 ## Confirmed implementation gaps
 
@@ -14,7 +14,7 @@ Status: proposed engineering design; no production deployment, hosted migration,
 
 ## Selected same-account setup
 
-Reuse the existing protected synthetic-only native lane with the privately pinned existing account/key. No global secret replacement or new hosting is required solely for account isolation. Bind each window to fresh TEST-GELATO identities, immutable file hashes and exact provider roots. Inventory competing eligible work before any global dispatch window; add a server-enforced allowlist if that inventory cannot prove containment. Keep ordinary scheduling closed. Canonical direct-claim/native workflow proof must not be presented as W1.1 scheduler proof.
+Adapt the existing synthetic native lane with the privately pinned existing account/key. The historical runner reopens global flags and must not be executed under the new normal-controls-OFF requirement. Use the separately reviewed expiring exact-cohort window and new dedicated workflow copies described in the scoped-window plan. No global secret replacement or new hosting is required solely for account isolation. Bind each window to fresh TEST-GELATO identities, immutable file hashes and exact provider roots. Inventory competing eligible work before any global dispatch window; add a server-enforced allowlist if that inventory cannot prove containment. Keep ordinary scheduling closed. Canonical direct-claim/native workflow proof must not be presented as W1.1 scheduler proof.
 
 Do not enable the broad poller for an individual case. Exercise exact scoped lifecycle targets. Before any regular-state test, implement durable synthetic-test suppression both when notification intents are created and when they become eligible for delivery; OFF alone cannot prevent later release. Review the explicit one-time conversion operation separately. No unrelated draft may be converted or released.
 

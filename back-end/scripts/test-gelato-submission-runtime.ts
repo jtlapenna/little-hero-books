@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { gelatoSubmissionStore } from '../src/lib/books/gelato-submission-store';
 import { NextRequest } from 'next/server';
 import * as draftRoute from '../src/app/api/internal/w4/submit-gelato-draft/route';
 import { gelatoSubmissionRuntime } from '../src/lib/books/gelato-submission-runtime';
@@ -77,6 +79,36 @@ async function diagnosticChecks() {
     if (originalTimestamp === undefined) delete globals.__BUILD_TIMESTAMP_MS__; else globals.__BUILD_TIMESTAMP_MS__ = originalTimestamp;
     if (originalToken === undefined) delete process.env.BACKEND_API_TOKEN; else process.env.BACKEND_API_TOKEN = originalToken;
     if (originalFlag === undefined) delete process.env.GELATO_DRAFT_SUBMISSION_ENABLED; else process.env.GELATO_DRAFT_SUBMISSION_ENABLED = originalFlag;
+  }
+}
+
+
+async function engineeringAuthorityChecks() {
+  const oldKey=process.env.GELATO_API_KEY;
+  const oldFlag=process.env.GELATO_DRAFT_SUBMISSION_ENABLED;
+  const oldTransition=gelatoSubmissionStore.transition;
+  const identity={submissionId,claimToken:token,executionId:'engineering-authority-test',mode:'single' as const};
+  let calls=0; let reply:unknown=false; let fail=false;
+  try {
+    process.env.GELATO_DRAFT_SUBMISSION_ENABLED='false';
+    gelatoSubmissionStore.transition=async (name,parameters) => {
+      calls++; assert.equal(name,'gelato_engineering_submission_allowed');
+      assert.deepEqual(parameters,{p_submission_id:submissionId,p_token:token,p_key_sha256:createHash('sha256').update('synthetic-engineering-key').digest('hex')});
+      if(fail)throw new Error('Authority unavailable');return reply;
+    };
+    delete process.env.GELATO_API_KEY;
+    const runtime=gelatoSubmissionRuntime(); assert.equal(runtime.draftsEnabled,false);
+    assert.equal(await runtime.engineeringDraftsAllowed!(identity),false);assert.equal(calls,0);
+    process.env.GELATO_API_KEY='synthetic-engineering-key';
+    for(reply of [false,'true',1,null,{},true]) {
+      assert.equal(await runtime.engineeringDraftsAllowed!(identity),reply===true);
+    }
+    fail=true;await assert.rejects(runtime.engineeringDraftsAllowed!(identity),/Authority unavailable/);
+    assert.equal(calls,7);
+  }finally{
+    gelatoSubmissionStore.transition=oldTransition;
+    if(oldKey===undefined)delete process.env.GELATO_API_KEY;else process.env.GELATO_API_KEY=oldKey;
+    if(oldFlag===undefined)delete process.env.GELATO_DRAFT_SUBMISSION_ENABLED;else process.env.GELATO_DRAFT_SUBMISSION_ENABLED=oldFlag;
   }
 }
 
@@ -193,4 +225,4 @@ async function scenario(mode: 'single' | 'siblings') {
   assert.equal(quoteCalls, 1); assert.equal(transitions, 1);
 }
 
-void diagnosticChecks().then(() => scenario('single')).then(() => scenario('siblings')).then(() => console.log('Gelato runtime diagnostic, canonical lookup and quote checks passed')).catch(error => { console.error(error); process.exitCode = 1; });
+void diagnosticChecks().then(engineeringAuthorityChecks).then(() => scenario('single')).then(() => scenario('siblings')).then(() => console.log('Gelato runtime diagnostic, canonical lookup and quote checks passed')).catch(error => { console.error(error); process.exitCode = 1; });

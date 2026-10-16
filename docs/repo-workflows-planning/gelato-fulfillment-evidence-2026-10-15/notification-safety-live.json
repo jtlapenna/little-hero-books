@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "scope": "Live notification safeguard rollout; retained draft refresh only; fresh native submissions remain untested",
+  "migration": {
+    "sha256": "0bd17a7e63e3874a24ed9ea816747f805f76e6f0a9b643c0cb60426a6c4bf011",
+    "verifiedAt": "2026-10-16T00:02:28.863228Z",
+    "functionBodiesMatchReviewedSource": true,
+    "triggerEnabled": true,
+    "securityInvoker": true,
+    "serviceRoleExecute": true,
+    "anonymousOrAuthenticatedExecute": false,
+    "guardedSubmissions": 6,
+    "notificationCount": 0,
+    "rollbackOnlyInsertSuppressed": true,
+    "suppressedClaimDenied": true,
+    "legacyResetAuthorizationDenied": true,
+    "testTransactionRolledBack": true
+  },
+  "application": {
+    "pr": 14,
+    "source": "ecd81d6fc6d54d3d307455efd263d5bbff1082e2",
+    "deployment": "e20e422e-241e-426a-a8a3-efc62f987e3f",
+    "deploymentRun": 38827305625,
+    "safetyRun": 38827305654,
+    "bothRuns": "success"
+  },
+  "retainedDraftRefresh": {
+    "at": "2026-10-16T00:16:36.093Z",
+    "cases": [
+      "website-single",
+      "amazon-single",
+      "amazon-siblings"
+    ],
+    "existingWorkflowExecutions": [
+      "54673",
+      "54675",
+      "54676"
+    ],
+    "scopedRefreshes": 3,
+    "notificationIntents": 0,
+    "ordinaryRowsObservedUnchanged": true,
+    "freshWorkflowProof": false,
+    "regularStateSuppressionProviderProof": false
+  },
+  "controls": {
+    "at": "2026-10-16T00:09:10.410Z",
+    "allFiveProjectAndServingFlagsFalse": true,
+    "normalDatabaseDispatch": false,
+    "runtimeFactoryDraftsEnabled": false,
+    "normalCopiesActive": [
+      false,
+      false
+    ]
+  },
+  "externalEffects": {
+    "providerCreates": 0,
+    "conversions": 0,
+    "payments": 0,
+    "customerMessages": 0
+  },
+  "limits": [
+    "Retained drafts do not expose actual production-state provider notifications; regular-state suppression remains locally tested",
+    "Function installation used authorized dashboard SQL; management connector OAuth was unchanged",
+    "No new source rasters, claims, native runs or order conversion executed during this rollout"
+  ]
+}
