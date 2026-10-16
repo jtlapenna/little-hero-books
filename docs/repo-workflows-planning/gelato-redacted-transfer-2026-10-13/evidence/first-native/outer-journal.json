@@ -1,0 +1,93 @@
+{
+  "startedAt": "2026-10-13T21:34:04.417Z",
+  "error": "Command failed: /opt/homebrew/Cellar/node@22/22.23.2_1/bin/node <PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/window.mjs positive\nTerminal workflow failed; inspect journal before any retry\n\n'error' !== 'success'\n\n",
+  "cleanupErrors": [],
+  "enabledDeploymentSettled": true,
+  "steps": [
+    {
+      "name": "Enable draft-only project flag with dispatch closed",
+      "startedAt": "2026-10-13T21:34:04.419Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:34:07.341Z"
+    },
+    {
+      "name": "Deploy reviewed commit and wait for full smoke job",
+      "startedAt": "2026-10-13T21:34:07.342Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:38:55.792Z"
+    },
+    {
+      "name": "Verify active draft binding and authenticated rejection",
+      "startedAt": "2026-10-13T21:38:55.794Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:38:58.056Z"
+    },
+    {
+      "name": "Run single and sibling held-draft proofs",
+      "startedAt": "2026-10-13T21:38:58.057Z"
+    },
+    {
+      "name": "Independently close dispatch and deactivate both test copies",
+      "startedAt": "2026-10-13T21:39:44.820Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:39:46.473Z"
+    },
+    {
+      "name": "Close dispatch and disable project draft flag",
+      "startedAt": "2026-10-13T21:39:46.474Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:39:48.249Z"
+    },
+    {
+      "name": "Reconcile or stop any earlier enabled deployment",
+      "startedAt": "2026-10-13T21:39:48.258Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:39:56.566Z"
+    },
+    {
+      "name": "Redeploy disabled settings and wait for full smoke job",
+      "startedAt": "2026-10-13T21:39:56.567Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:44:10.414Z"
+    },
+    {
+      "name": "Verify active disabled binding and saved-submission rejection",
+      "startedAt": "2026-10-13T21:44:10.416Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T21:44:12.919Z"
+    }
+  ],
+  "deploymentIntents": [
+    {
+      "label": "enabled",
+      "at": "2026-10-13T21:34:08.835Z",
+      "runId": 38471606413,
+      "status": "completed",
+      "conclusion": "success",
+      "baseline_deployment_count": 465,
+      "excluded_historical_pending_count": 1,
+      "settlement": [
+        {
+          "id": "<REDACTED_ID_007>",
+          "createdAt": "2026-10-13T21:38:23.060498Z",
+          "stage": "deploy",
+          "status": "success",
+          "commit": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+          "bindingsKnown": true,
+          "draftFlagPresent": true,
+          "draftFlag": "true",
+          "draftFlagType": "plain_text"
+        }
+      ]
+    },
+    {
+      "label": "disabled",
+      "at": "2026-10-13T21:39:58.126Z",
+      "runId": 38472340308,
+      "status": "completed",
+      "baseline_deployment_count": 466,
+      "excluded_historical_pending_count": 1,
+      "settlement": []
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "status": "Selected for now by Jeff; installed in local editor; final size and placement pending",
+  "tool": "built-in image_gen",
+  "page": 28,
+  "bookId": "book-finding-our-inner-voice",
+  "baseAsset": {
+    "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-28-you-go-first-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "c6a9083263b23be5b5c939eba9399868e187c2f28e5be996267f737e64c6c37f",
+    "visibleAlphaBoundsThreshold32": [
+      321,
+      116,
+      884,
+      1176
+    ]
+  },
+  "personalizedPreview": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/page-28-you-go-first-personalized-preview-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "e629a7f06c8fd050e2056be4d3bd524cec72470e565850969aa1687ecf76f8f2",
+    "visibleAlphaBoundsThreshold32": [
+      325,
+      112,
+      887,
+      1185
+    ]
+  },
+  "previousVisiblePlacement2625": {
+    "left": 1304.725137955854,
+    "top": 1081.7301937989218,
+    "width": 405.1472286374133,
+    "height": 1076.25,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "candidateVisiblePlacement2625": {
+    "left": 1225.4476339148216,
+    "top": 1081.7301937989218,
+    "width": 563.7022367194782,
+    "height": 1076.25,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "candidateFullImagePlacement2625": {
+    "left": 899.4632443528458,
+    "top": 969.3909580114102,
+    "width": 1257.7982292637464,
+    "height": 1257.7982292637464,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "sourcePlacementSavedAt": "2026-10-16T02:40:52.418Z",
+  "sourceSnapshot": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/source-snapshot.json",
+  "limits": [
+    "Hero pose selected for now. Both figures final size and placement pending.",
+    "Waiting child remains an unfinished placeholder.",
+    "Gaze points right but slightly upward. Final eye contact needs review after both figures are positioned.",
+    "1254 x 1254 native outputs. Final 2K preparation pending.",
+    "Source alpha preserved unchanged; faint edge pixels remain."
+  ],
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/generation-prompts.json",
+  "referenceSets": {
+    "base": [
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-28-calm-speaking-v1.png",
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-07-slide-look-up-v1.png",
+      "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_28.png"
+    ],
+    "personalizedPreview": [
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-28-you-go-first-v1.png",
+      "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png"
+    ]
+  },
+  "visualReview": {
+    "status": "Selected for now by Jeff",
+    "checks": [
+      "Both complete figures remain visible on the platform.",
+      "Hero head faces right toward waiting child; open palm extends left toward slide.",
+      "Standing pose has relaxed shoulders and small smile.",
+      "Existing background, waiting-child layer and story wording preserved in comparison.",
+      "Gray reference and colored preview have genuine alpha and matching gesture."
+    ],
+    "limits": [
+      "Hero pose selected for now. Both figures final size and placement pending.",
+      "Waiting child remains an unfinished placeholder.",
+      "Gaze points right but slightly upward. Final eye contact needs review after both figures are positioned.",
+      "1254 x 1254 native outputs. Final 2K preparation pending.",
+      "Source alpha preserved unchanged; faint edge pixels remain."
+    ]
+  },
+  "approval": {
+    "pose": "Selected for now by Jeff",
+    "placement": "Both figures size and position remain open. Waiting child should be taller for eye contact.",
+    "userInstruction": "the other child might need to be taller, otherwise the pose is looking above its head. i think that's a good idea, anyway. so i would keep this pose for now, but we can adjust the size of the second kid. let's save this and go to the next ask",
+    "dateLocal": "2026-10-15",
+    "baseAssetSha256": "c6a9083263b23be5b5c939eba9399868e187c2f28e5be996267f737e64c6c37f",
+    "personalizedPreviewSha256": "e629a7f06c8fd050e2056be4d3bd524cec72470e565850969aa1687ecf76f8f2"
+  },
+  "editorMigrationReceipt": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/page28-pose-migration.json",
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 28,
+            "role": "hero"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-hero-page-28-you-go-first-personalized-preview-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "bb621be92ac9f74c3e7cecc1f6544b84429f182084f9a1693fcb7e748c0bc3b2"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      },
+      {
+        "uses": [
+          {
+            "page": 28,
+            "role": "gray-pose-reference"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-gray-pose-reference-pose-page-28-you-go-first-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "921aeab87b708c5a8112a8dde094498ea41311615570ab673cba4bb754180950"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}

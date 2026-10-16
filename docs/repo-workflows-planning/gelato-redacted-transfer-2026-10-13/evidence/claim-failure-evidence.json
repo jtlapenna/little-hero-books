@@ -1,0 +1,10 @@
+{
+  "attempt": 4,
+  "status": 409,
+  "backendLookupStatus": 522,
+  "lookupCount": 2,
+  "lookupMillis": 19736,
+  "claimRPCObserved": false,
+  "webhookConsumed": false,
+  "sourceChangeNeeded": false
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T19:13:56.650856+00:00",
+  "rationale": "Additive production schema step passes default ACL, legacy writer and concurrency checks; Gelato dispatch remains closed. Full release readiness not judged.",
+  "branch": "codex/w4-gelato-copies",
+  "checks": [
+    {
+      "name": "SQL default-ACL negative reproduction",
+      "result": "Failed before revoke, passed after revoke."
+    },
+    {
+      "name": "Disposable PostgreSQL",
+      "result": "2x replay; integer/timestamp compatibility; atomicity/CAS/recovery/outbox/concurrency pass."
+    },
+    {
+      "name": "Legacy producer tests",
+      "result": "W0 legacy rollout/freeze, intake replay, workflow copies and export scan tests pass."
+    },
+    {
+      "name": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "skips": [
+    "Fresh reviewer sessions unavailable; independent existing sessions reused.",
+    "Second reviewer did not re-fetch live n8n; main saved inventory and exports checked.",
+    "Full Git release/index/app deployment not assessed at this checkpoint."
+  ],
+  "findings": []
+}

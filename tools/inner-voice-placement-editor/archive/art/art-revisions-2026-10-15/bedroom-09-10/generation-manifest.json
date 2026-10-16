@@ -1,0 +1,140 @@
+{
+  "status": "Selected for now by Jeff; final preparation pending",
+  "tool": "built-in image_gen",
+  "bookId": "book-finding-our-inner-voice",
+  "pages": [
+    {
+      "page": 9,
+      "original": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_09.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "1389eed71087b6902d3475b0f8ffebd1c6dec29fe5ead527a90d23b4a10b214f"
+      },
+      "candidate": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-09-bedroom-owl-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "7874bb6aaf733107ae192dad951aa5d7e77d435c083affb057f1fb44dbae6cce"
+      }
+    },
+    {
+      "page": 10,
+      "original": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_10.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "677d3b310344bdc876ee6fbb8510adcadc44fdebc79e29444634a00b1268ac64"
+      },
+      "candidate": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-10-bedroom-owl-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "1bf2106f0284fd4cfd566b32e01a7c40042373048d5168b6f1375cfcad8d774b"
+      }
+    }
+  ],
+  "referencePortrait": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-portrait.png",
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "sha256": "b295ce1c89a95ffef1476fdae6f06bd8a9671d28403a2db97dacdf686e4b0ea4"
+  },
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/generation-prompts.json",
+  "sourceSnapshot": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/source-snapshot.json",
+  "preservedReviewLayers": "Current page 9 hero placement and story lines on both pages. Omit separate portrait and paper matte only in candidate composition because portrait is painted into background.",
+  "limits": [
+    "1254 x 1254 native candidates; final 2K preparation pending.",
+    "Single Owl pilot. Other guide variants and clean master selection remain future work.",
+    "Final color, character contact, lettering and print proof pending.",
+    "Generated camera views are a visual continuity study, not exact geometric reprojections."
+  ],
+  "visualReview": {
+    "status": "Draft pair ready for Jeff review",
+    "inspected": [
+      "Both raw backgrounds at native output size.",
+      "Paired backgrounds and paired current-copy/character composites.",
+      "Bed/headboard shape, ball finials, pillow, blanket, frame landscape orientation, owl, window trim, night sky and relative object locations.",
+      "Page 10 clear wall, bookshelf, rug and continuous glowing trail.",
+      "Page 9 seated figure on bed at current saved coordinates."
+    ],
+    "remaining": [
+      "Camera-relative proportions differ slightly between generated views.",
+      "Page 10 current copy overlaps plant at lower right of text block. Page 9 final text sits near bottom edge. Existing lettering layout remains provisional.",
+      "Character contact, final saturation, 2K masters and all other animal variants remain pending."
+    ],
+    "sourcePixelEdits": "None. Native generated files preserved."
+  },
+  "approval": {
+    "status": "Selected for now by Jeff",
+    "userInstruction": "these work for now, and we can save them and move to the next task",
+    "scope": "Both Owl bedroom backgrounds. Final color, lettering, character placement, 2K preparation and publication remain pending.",
+    "assets": [
+      {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-09-bedroom-owl-v1.png",
+        "sha256": "7874bb6aaf733107ae192dad951aa5d7e77d435c083affb057f1fb44dbae6cce"
+      },
+      {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-10-bedroom-owl-v1.png",
+        "sha256": "1bf2106f0284fd4cfd566b32e01a7c40042373048d5168b6f1375cfcad8d774b"
+      }
+    ]
+  },
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 9,
+            "role": "background"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-09-background-page-09-bedroom-owl-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGB",
+          "sha256": "0259fa1d2a4c9d77235455183284aaa918c5f90c202525c900612711dbe20aa6"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      },
+      {
+        "uses": [
+          {
+            "page": 10,
+            "role": "background"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-10-background-page-10-bedroom-owl-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGB",
+          "sha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}

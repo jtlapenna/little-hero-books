@@ -1,0 +1,85 @@
+{
+  "status": "Selected for trial by Jeff; may need refinement",
+  "tool": "built-in image_gen",
+  "page": 19,
+  "original": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_19.png",
+    "size": [
+      2048,
+      2048
+    ],
+    "mode": "RGB",
+    "sha256": "ad76d13e385ccdf7f698cd6c6191c9eafbcd5338e8a0e649909b164942144ba8"
+  },
+  "selectedTrial": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/page-19-depth-stronger-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGB",
+    "sha256": "d2fb976cf59f300f69fa77cf505b012793e5338ed9981f91cb70024c77b2fcf2"
+  },
+  "approval": {
+    "status": "Selected for trial by Jeff; may need refinement",
+    "userInstruction": "great, let's save this and give it a try. we may need to refine later. please save this and go to the next task",
+    "asset": {
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/page-19-depth-stronger-v1.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGB",
+      "sha256": "d2fb976cf59f300f69fa77cf505b012793e5338ed9981f91cb70024c77b2fcf2"
+    }
+  },
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/generation-prompts.json",
+  "migrationReceipt": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/backgrounds-09-10-19-migration.json",
+  "limits": [
+    "1254 x 1254 trial; final 2K preparation pending.",
+    "Generated selective focus includes small texture and lighting changes.",
+    "Child lighting, contact and placement remain open.",
+    "Installed in local editor only. Production publication pending."
+  ],
+  "visualReview": {
+    "status": "Local editor trial inspected",
+    "checks": [
+      "Page 9 matching bedroom has one painted Owl portrait and separate seated child.",
+      "Page 10 matching wider bedroom and trail render.",
+      "Page 19 softened background renders with crisp separate child and text.",
+      "All retained source identities and saved character coordinates preserved by migration.",
+      "Headless walkthrough at 1480 x 950 and 900 x 800; resize, undo, text toggle and export checked.",
+      "32 pages and 18 movable layers exported; browser review did not write live state."
+    ],
+    "limits": [
+      "Character floor contact, lighting and final positions remain open.",
+      "Page 10 copy still crosses plant; final lettering pass pending.",
+      "New trial backgrounds are native 1254 x 1254. Final 2K preparation pending."
+    ],
+    "evidence": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/editor-visual-review.json"
+  },
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 19,
+            "role": "background"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-19-background-page-19-depth-stronger-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGB",
+          "sha256": "b06c8d55dba31163df73266d502d39f6a12a1e53f0bacde72762fc7839d0dfe5"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}

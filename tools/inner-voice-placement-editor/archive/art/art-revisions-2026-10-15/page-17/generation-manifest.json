@@ -1,0 +1,148 @@
+{
+  "status": "Selected trial pose by Jeff; placement remains open; not published",
+  "tool": "built-in image_gen",
+  "bookId": "book-finding-our-inner-voice",
+  "page": 17,
+  "poseIdCandidate": "uphill-climb",
+  "baseAsset": {
+    "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-17-uphill-climb-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "02ff9be2e619bc2cba33ac5998671e41395b86498c4b02b3210ee7c10c29d06f",
+    "visibleAlphaBoundsThreshold32": [
+      356,
+      124,
+      932,
+      1158
+    ]
+  },
+  "personalizedPreview": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "89ab7dbe9f0e097b7640d88f95cb77d382ed24d1ba3132a5476257ec77f90b15",
+    "visibleAlphaBoundsThreshold32": [
+      362,
+      132,
+      943,
+      1167
+    ]
+  },
+  "sourcePlacementSavedAt": "2026-10-16T01:52:37.476Z",
+  "previousVisiblePlacement2625": {
+    "left": 1599.3113216466043,
+    "top": 743.5023430742647,
+    "width": 526.5052114340903,
+    "height": 1160.6123876728338,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "candidateVisiblePlacement2625": {
+    "left": 1536.8075035772163,
+    "top": 743.5023430742647,
+    "width": 651.5128475728662,
+    "height": 1160.6123876728338,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "candidateFullImagePlacement2625": {
+    "left": 1130.873509048167,
+    "top": 595.482212472512,
+    "width": 1406.191240716651,
+    "height": 1406.191240716651,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "sourceResolution": "Both generated files are 1254 x 1254. Drafts, not confirmed 2K masters.",
+  "reviewBrief": "Full body, three-quarter rear/side facing right, climbing uphill toward the cave, higher leading foot and lower trailing foot, balanced arm movement. Gray reusable bodysuit with eyebrows, no hair, genuine alpha; colored identity preview derived separately.",
+  "limits": [
+    "Both files contain very faint alpha pixels outside the visible silhouette; no source pixel edits applied.",
+    "Final 2K source and pose-generation workflow proof remain finishing steps."
+  ],
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-17/generation-prompts.json",
+  "referenceSets": {
+    "base": [
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose02.png",
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-07-slide-look-up-v1.png",
+      "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_17.png"
+    ],
+    "personalizedPreview": [
+      "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-17-uphill-climb-v1.png",
+      "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png"
+    ]
+  },
+  "visualReview": {
+    "status": "Selected trial by Jeff; position and size remain open",
+    "checks": [
+      "Three-quarter rear/side view faces cave.",
+      "Leading foot higher than trailing foot.",
+      "Full head, hands and both shoes contained.",
+      "Gray reference and colored preview share climbing action.",
+      "Colored preview uses approved page 7 sample identity.",
+      "Comparison inspected on the actual path at saved visible height."
+    ],
+    "limits": [
+      "Placement is provisional and can be adjusted.",
+      "Native 1254 x 1254 outputs; final 2K preparation pending.",
+      "Installed in local editor only. Final art approval and production publication pending."
+    ]
+  },
+  "approval": {
+    "pose": "selected for trial",
+    "placement": "pending repositioning by Jeff",
+    "userInstruction": "sure, we can try this. please save it. note i will also want to change the positioning of this one",
+    "dateLocal": "2026-10-15"
+  },
+  "editor": {
+    "status": "Installed as selected trial in local editor. Placement open.",
+    "migrationReceipt": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/page17-pose-migration.json"
+  },
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 17,
+            "role": "hero"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-hero-page-17-uphill-personalized-preview-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "0d6b0953ba69d3d96ec023816f2b64a71601734676ec6008da1ec174ecb80db1"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      },
+      {
+        "uses": [
+          {
+            "page": 17,
+            "role": "gray-pose-reference"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-gray-pose-reference-pose-page-17-uphill-climb-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "ff8c7ac352b40969992b773f4b496e90b34af61b92c8bc72a1c8f0c280fc27ab"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-13T23:01:07.062Z",
+  "execution": {
+    "id": "54657",
+    "status": "error",
+    "failed_stage": "Create Held Gelato Draft",
+    "http_status": 409
+  },
+  "submission": {
+    "provider": "gelato",
+    "request_state": "claimed",
+    "shipment_method_uid": "usps_ground_advantage",
+    "shipment_policy_version": 2,
+    "quoted_at": "2026-10-13T23:00:27.536+00:00",
+    "quote_request_fingerprint": "37f18dd00659a3494325c7825287b00879e0b08986eefb9b4ab755b08a6591df",
+    "owning_execution_id": null,
+    "send_started_at": null,
+    "accepted_root_order_id": null,
+    "action_reason": null,
+    "quote_present": true,
+    "quote_id_present": true,
+    "request_snapshot_present": false
+  },
+  "items": [
+    {
+      "item_reference_id": "lhb-item-1073",
+      "status": null,
+      "artifact_fingerprint": "e33884a0024741caa72d941f",
+      "pdf_page_count": 35,
+      "provider_order_id": null,
+      "provider_item_id": null,
+      "action_reason": null,
+      "progress_status": null
+    }
+  ],
+  "mapping_count": 0,
+  "graph_count": 0,
+  "artifact": {}
+}

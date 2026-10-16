@@ -1,0 +1,49 @@
+{
+  "layers": [
+    {
+      "page": 7,
+      "id": "hero",
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+      "initial": {
+        "left": 808.3371736431687,
+        "top": 1306.7012570859847,
+        "width": 221.04368699479372,
+        "height": 549.4812407842278,
+        "flipX": false,
+        "zIndex": 10
+      },
+      "poseApproval": "Approved by Jeff; position and size remain open.",
+      "pageNote": "New looking-up pose approved. Adjust its size and position here. Final 2K asset preparation remains pending."
+    },
+    {
+      "page": 17,
+      "id": "hero",
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+      "initial": {
+        "left": 1536.8075035772163,
+        "top": 743.5023430742647,
+        "width": 651.5128475728662,
+        "height": 1160.6123876728338,
+        "flipX": false,
+        "zIndex": 10
+      },
+      "poseApproval": "Selected for trial by Jeff; position and size remain open.",
+      "pageNote": "New uphill pose selected for trial. Adjust its size and position here. Final art approval and 2K preparation remain pending."
+    },
+    {
+      "page": 28,
+      "id": "hero",
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/page-28-you-go-first-personalized-preview-v1.png",
+      "initial": {
+        "left": 1225.4476339148216,
+        "top": 1081.7301937989218,
+        "width": 563.7022367194782,
+        "height": 1076.25,
+        "flipX": false,
+        "zIndex": 10
+      },
+      "poseApproval": "Selected for now by Jeff. Size and position remain open.",
+      "pageNote": "New inviting pose selected. Waiting child starts 20% taller for eye contact; adjust both figures here. Waiting-child artwork and final placement remain unfinished. Final 2K preparation pending."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "scope": "Local transfer only; no archived runner executed and no external requests made.",
+  "credential_jwt_email_uuid_scan": "passed",
+  "recipient_literal_scan": "passed",
+  "source_and_transfer_hashes": "passed",
+  "json_parse": "passed",
+  "reference_files": 47,
+  "evidence_files": 26,
+  "historical_review_summaries": 26,
+  "receipt_reuse": "Historical summaries are not reusable release receipts."
+}

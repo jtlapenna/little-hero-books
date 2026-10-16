@@ -1,0 +1,74 @@
+{
+  "status": "Requested page 13 draft installed locally; artwork approval pending",
+  "tool": "built-in image_gen",
+  "page": 13,
+  "userInstruction": "need to remake page 13 to show the bush with a sneeze coming out of it. i saved the new locations/sizes",
+  "original": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_13.png",
+    "size": [
+      2048,
+      2048
+    ],
+    "mode": "RGB",
+    "sha256": "b3485b66a378d598ad619223d5b509c266e5c26b77c05fa6cf955d9ad63b266f"
+  },
+  "candidate": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/page-13-sneeze/page-13-bush-sneeze-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGB",
+    "sha256": "d787fd8bcc606f4f359fbc929ce2f5ba54cb6e69465757c21a52af87a6fe622d"
+  },
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/page-13-sneeze/generation-prompts.json",
+  "sourceState": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-16/before-page13-sneeze/placements.json",
+  "migrationReceipt": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-16/page13-sneeze-migration.json",
+  "sourcePixelEdits": "None. Native generated file retained.",
+  "limits": [
+    "Native 1254 x 1254 draft. Final 2K preparation pending.",
+    "Exact sneeze treatment and final art approval pending.",
+    "Child placement and story copy preserved as separate layers."
+  ],
+  "visualReview": {
+    "status": "Draft ready for Jeff review in editor",
+    "inspected": [
+      "Native generated background.",
+      "Composite with saved page 13 child position, scale and horizontal flip.",
+      "Separate story text and complete scene at desktop and compact widths.",
+      "Sneeze starts inside bush and extends left/up without covering child. Leaves and rustle strokes communicate movement.",
+      "Hidden animal remains unrevealed. No extra clue objects or baked lettering.",
+      "No runtime errors; flip and undo preserve starting placement. Browser review did not write live state."
+    ],
+    "limits": [
+      "Existing story text crosses some stars; lettering pass remains pending.",
+      "Native source is 1254 x 1254. Final 2K preparation pending.",
+      "New artwork is a draft awaiting Jeff review."
+    ],
+    "evidence": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/page-13-sneeze/editor-visual-review.json"
+  },
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 13,
+            "role": "background"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-13-bush-sneeze-matched-2k-upscaled-v1.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGB",
+          "sha256": "9faf1e53b4fd998e902103d30c332ecd49b0d6054a373e32d53098adcaf6d73f"
+        },
+        "method": "Original matching 2048 square background with enlarged generated sneeze effect. Preserve original gutter."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}

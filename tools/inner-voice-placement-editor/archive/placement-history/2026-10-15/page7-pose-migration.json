@@ -1,0 +1,10 @@
+{
+  "change": "Install approved page 7 pose for local repositioning",
+  "previousBaseline": "2103b59d6bb97358eaf3daf17322042cdf8e22bc7ab17256c8a309c0e23c13b5",
+  "newBaseline": "ee4e59817f74c464704a53fd53ab1d98821738066c2bdfeeb65346619c9043e4",
+  "allOtherPagePlacementsAndNotesPreserved": true,
+  "backup": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/before-approved-page7-pose",
+  "poseApproval": "approved",
+  "placementApproval": "pending",
+  "savedAt": "2026-10-16T02:30:34.559Z"
+}

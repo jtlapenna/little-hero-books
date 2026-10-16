@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-13T22:10:43.444085+00:00",
+  "branchCommit": "2d2c83e7c5ea5aab032012dc4349675a7010f65b",
+  "pr": "https://github.com/jtlapenna/little-hero-books/pull/7",
+  "mergedMain": "c0136e8890e4ed2fb56c712183e574ba26431747",
+  "previousMain": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "userAuthorized": [
+    "commit",
+    "push",
+    "merge",
+    "non-printing tests"
+  ],
+  "prContractCI": 38475293800,
+  "mainContractCI": 38475608301,
+  "productionDeploy": 38475608417,
+  "deploymentStatus": "pending"
+}

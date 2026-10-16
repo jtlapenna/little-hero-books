@@ -1,0 +1,23 @@
+{
+  "errors": [],
+  "assetStatus": {
+    "asset": "asset-47",
+    "status": 200,
+    "note": "New inviting pose selected. Waiting child starts 20% taller for eye contact; adjust both figures here. Waiting-child artwork and final placement remain unfinished. Final 2K preparation pending."
+  },
+  "resized": 1102.5,
+  "flipped": true,
+  "undoRestored": true,
+  "savedStateUnchanged": true,
+  "viewports": [
+    [
+      1480,
+      950
+    ],
+    [
+      900,
+      800
+    ]
+  ],
+  "scope": "Selected page 28 source, taller waiting child, separate resizing, flip, undo and spread view. State writes intercepted."
+}

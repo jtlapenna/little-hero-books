@@ -1,5 +1,12 @@
 # Finding Our Inner Voice: Expanded Page-Count Planning
 
+## Current review snapshot, October 16, 2026
+
+Use [story-copy-decisions-2026-10-13.md](story-copy-decisions-2026-10-13.md) for selected words and [art-review-notes-2026-10-15.md](art-review-notes-2026-10-15.md) for subsequent art decisions. Earlier beat maps and image packets below remain planning history.
+
+The [portable placement editor](../../../tools/inner-voice-placement-editor/README.md) packages 32 interior slots, current 2K minimum working images, submitted placements and historical proof PDFs. New smaller images are upscaled copies, not new native detail. Creative and print approvals remain pending.
+
+
 This folder is for brainstorming and planning the expanded version of *Finding Our Inner Voice* after the printer change that requires a longer interior page count.
 
 Current working structure: 31 pages. If production requires an even page count, the likely adjustment is a 32nd blank/copyright page rather than compressing the story.

@@ -1,0 +1,11 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const fresh=JSON.parse(fs.readFileSync(directory+'/attempt-3/fresh-seed-journal.json'));
+const old=JSON.parse(fs.readFileSync(directory+'/seed-journal.json'));
+assert.equal(fresh.seeded,true);assert.equal(fresh.orders.length,1);assert.equal(old.seeded,true);assert.equal(old.orders.length,3);
+assert.equal(fresh.orders[0].formatId,'standard');assert.ok(fresh.orders[0].orderDbId>1055);assert.deepEqual(old.orders.slice(1).map(order=>order.orderDbId),[1054,1055]);
+const path=directory+'/attempt-3/seed-journal.json';assert.equal(fs.existsSync(path),false);
+const seed={...fresh,orders:[fresh.orders[0],...old.orders.slice(1)],baseline:old.baseline,retainedExcludedOrderDbId:1053,priorProofId:old.proofId};
+fs.writeFileSync(path,JSON.stringify(seed,null,2),{mode:0o600});console.log(JSON.stringify({composed:true,eligibleOrders:3,retainedExcludedOrder:1053}));

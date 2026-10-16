@@ -1,0 +1,101 @@
+{
+  "status": "Deferred by Jeff. Animal clue scenes will be made separately.",
+  "tool": "built-in image_gen",
+  "bookId": "book-finding-our-inner-voice",
+  "guideId": "owl",
+  "pages": [
+    {
+      "page": 12,
+      "original": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_12.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "335202752da25b169087e398fc599f69d39bf1f1e0992ce47c6062d9eef2051c"
+      },
+      "candidate": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/owl-clues-12-24/page-12-owl-feather-painted-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "122607b5924ec99cd6611af89d997a7dcef07f25fcb5824b97bf8f0e2e80e190"
+      },
+      "replacesLayerWhenSelected": "guide-clues"
+    },
+    {
+      "page": 24,
+      "original": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_24.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "c85ae114813462ecbc0bdcfd2947baf9ccefc1550646286e5e53d234bc18f4f4"
+      },
+      "candidate": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/owl-clues-12-24/page-24-owl-trail-painted-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "55068b6b5faad808f0132d453ed8e602da74fb13f15a7487f8bc6cd2b48484fd"
+      },
+      "replacesLayerWhenSelected": "guide-clues"
+    }
+  ],
+  "references": [
+    {
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-clues.png",
+      "size": [
+        2550,
+        2550
+      ],
+      "mode": "RGBA",
+      "sha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde"
+    }
+  ],
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/owl-clues-12-24/generation-prompts.json",
+  "sourceSnapshot": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/owl-clues-12-24/source-snapshot.json",
+  "sourcePixelsEditedAfterGeneration": false,
+  "integration": {
+    "status": "Art pilot only. Editor and production config unchanged.",
+    "selection": "Select immutable background variant by book and guide settings. Remove guide-clues only for pages with an integrated clue variant. Preserve separate character and story layers.",
+    "otherGuides": "Pending. Preserve clean backgrounds as masters for each guide variant."
+  },
+  "limits": [
+    "Native 1254 x 1254 drafts; 2K preparation pending.",
+    "Page 12 feather is larger than the prompt requested. Size awaits Jeff review.",
+    "Feather size, trail spacing, final color and lettering remain open.",
+    "Owl reveal and flying scenes remain to be reviewed separately."
+  ],
+  "visualReview": {
+    "status": "Candidates ready for Jeff review",
+    "inspected": [
+      "Generated page 12 background and page 24 background at native size.",
+      "Paired new backgrounds, current-copy composites and old-overlay compositions.",
+      "Page 12 contains one brown-and-cream feather resting on path with soft contact shadow.",
+      "Page 24 feathers follow path and shrink toward clearing; forest and path remain recognizable.",
+      "No child, owl reveal or lettering painted into either background.",
+      "Existing story lines preserved separately in review."
+    ],
+    "limits": [
+      "Page 12 feather and foreground trail feathers are prominent; final scale awaits Jeff review.",
+      "Page 24 current lettering crosses trail and textured foliage. Move lettering during composition work.",
+      "Final color and 2K sources remain pending."
+    ],
+    "reviewRender": {
+      "errors": [],
+      "panels": 6
+    }
+  },
+  "deferral": {
+    "userInstruction": "i will want to make the animal clue scenes separately, so let's skip those for the moment",
+    "drafts": "Retain as unselected options. Do not install or publish."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "errors": [],
+  "undoRestored": true,
+  "liveStateUnchanged": true,
+  "viewports": [
+    [
+      1480,
+      950
+    ],
+    [
+      900,
+      800
+    ]
+  ],
+  "page13": {
+    "page": 13,
+    "pageId": "page-13",
+    "reviewed": false,
+    "notes": "",
+    "layers": [
+      {
+        "id": "hero",
+        "assetSha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7",
+        "visible": {
+          "left": 637.8616130924041,
+          "top": 1104.0532327092992,
+          "width": 455.49035628635175,
+          "height": 958.4276246858652,
+          "flipX": true,
+          "zIndex": 10
+        }
+      }
+    ]
+  },
+  "scope": "New sneeze background, saved figure position/size/flip, crisp separate copy, figure selection and undo. Writes intercepted."
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T21:11:45.200080+00:00",
+  "branch": "codex/gelato-sandbox-rollout",
+  "base_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "head_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "checks": [
+    "Nativegraph/6credentialbindingsmatchsource;copiesinactive",
+    "Seedv2inactive +3completecanonical labelledsyntheticfixtures;9originalrowhashesunchanged",
+    "Negative54653/54654 ownershipguard409;zeroR2andreceiptdifference;DBfalse+copiesinactivecleanup",
+    "Currentunitnative/service/API/PDF/storedfile/cron/scanner/lintchecks pass",
+    "Independentfailuremocks:unknown/timeout stopsnextsend;DBfirst+bothcopiesindependentcleanup;CFreadoutagecannotpreventDBclose;percleanupstepattempts;submittedunknown-n8nstateclosedreplay",
+    "GHandproviderdeploymentsettlement beforedisableddeploy;fullsmokejobpass+activefalsebinding required",
+    "HistoricalMarchactiveproviderbindingknownmissingdraftflag andkey;recordedexclusioncannotreopenliteraltrueflag;unknownbindingsfailclosedmatrix"
+  ]
+}

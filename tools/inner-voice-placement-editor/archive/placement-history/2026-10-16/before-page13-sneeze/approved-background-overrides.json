@@ -1,0 +1,30 @@
+{
+  "pages": [
+    {
+      "page": 9,
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-09-bedroom-owl-v1.png",
+      "omitLayers": [
+        "guide-portrait"
+      ],
+      "omitPaper": true,
+      "approval": "Selected for now by Jeff. Final preparation pending.",
+      "pageNote": "Matching bedroom selected. Owl is painted into frame. Adjust seated child and bed contact; final lettering and 2K preparation remain open."
+    },
+    {
+      "page": 10,
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-10-bedroom-owl-v1.png",
+      "omitLayers": [],
+      "omitPaper": false,
+      "approval": "Selected for now by Jeff. Final preparation pending.",
+      "pageNote": "Matching wider bedroom selected. Final lettering must clear plant and preserve light trail. Final 2K preparation pending."
+    },
+    {
+      "page": 19,
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/page-19-depth-stronger-v1.png",
+      "omitLayers": [],
+      "omitPaper": false,
+      "approval": "Selected for trial by Jeff. May need refinement.",
+      "pageNote": "Depth-of-field background selected for trial. Child and copy remain separate and sharp. Refine character placement and lighting later; final 2K preparation pending."
+    }
+  ]
+}

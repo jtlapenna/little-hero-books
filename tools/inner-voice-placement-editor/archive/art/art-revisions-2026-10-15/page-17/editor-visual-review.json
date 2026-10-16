@@ -1,0 +1,62 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "action": "leftInput",
+      "valueAfter": 1443.7500000000002,
+      "undoRestored": true
+    },
+    {
+      "action": "heightInput",
+      "valueAfter": 1050,
+      "undoRestored": true
+    },
+    {
+      "action": "flip",
+      "flipped": true
+    },
+    {
+      "action": "drag",
+      "moved": true,
+      "undoRestored": true
+    },
+    {
+      "action": "spread",
+      "pages": 2
+    }
+  ],
+  "exportPages": 32,
+  "exportHero": {
+    "id": "hero",
+    "assetSha256": "89ab7dbe9f0e097b7640d88f95cb77d382ed24d1ba3132a5476257ec77f90b15",
+    "visible": {
+      "left": 1536.8075035772163,
+      "top": 743.5023430742647,
+      "width": 651.5128475728662,
+      "height": 1160.6123876728338,
+      "flipX": false,
+      "zIndex": 10
+    },
+    "placement": {
+      "left": 1130.873509048167,
+      "top": 595.482212472512,
+      "width": 1406.191240716651,
+      "height": 1406.191240716651,
+      "flipX": false,
+      "zIndex": 10
+    },
+    "sourcePath": "output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+    "crop": null
+  },
+  "stateWrites": "Intercepted in isolated browser context; live saved state unchanged.",
+  "viewports": [
+    [
+      1480,
+      900
+    ],
+    [
+      900,
+      800
+    ]
+  ]
+}

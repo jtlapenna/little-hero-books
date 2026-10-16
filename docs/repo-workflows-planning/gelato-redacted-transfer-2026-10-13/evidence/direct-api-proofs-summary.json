@@ -1,0 +1,47 @@
+{
+  "scope": "Synthetic direct API proof, not deployed W4/W4.1 execution",
+  "cases": [
+    {
+      "timestamp": "2026-10-12T03:31:03.753Z",
+      "itemCount": 1,
+      "shipmentMethodUid": "usps_ground_advantage",
+      "apiPageCount": 32,
+      "pdfPageCount": 35,
+      "artifactSha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+      "canonicalGraphValidated": true,
+      "synthetic": true,
+      "paidConversion": false,
+      "graph": [
+        {
+          "orderType": "draft",
+          "financialStatus": "draft",
+          "fulfillmentStatus": "draft"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-10-12T03:31:10.260Z",
+      "itemCount": 2,
+      "shipmentMethodUid": "usps_ground_advantage",
+      "apiPageCount": 32,
+      "pdfPageCount": 35,
+      "artifactSha256": "dfdf9832523c6868f423e3ba28d64a7ea457056570222558a511e2ac49d6c4e7",
+      "canonicalGraphValidated": true,
+      "synthetic": true,
+      "paidConversion": false,
+      "graph": [
+        {
+          "orderType": "draft",
+          "financialStatus": "draft",
+          "fulfillmentStatus": "draft"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Drafts remain unconverted.",
+    "Provider processedFileUrl is absent; preview metadata exists.",
+    "Stored files match submitted PDF; physical quality is unproved.",
+    "The repaired validator accepts ingested copies only after byte verification; production artifact receipts remain unexercised by this direct API probe."
+  ]
+}
