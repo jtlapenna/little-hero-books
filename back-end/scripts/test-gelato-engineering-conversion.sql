@@ -86,7 +86,7 @@ DO $$ DECLARE sid uuid; aid uuid; begun jsonb; owner uuid; BEGIN
  IF EXISTS(SELECT 1 FROM public.print_provider_submission_notifications WHERE submission_id=sid) THEN RAISE EXCEPTION 'Conversion test generated message intents'; END IF;
 END $$;
 SET ROLE service_role;
-DO $$ DECLARE sid uuid; aid uuid; begun jsonb; BEGIN
+DO $$ DECLARE sid uuid; aid uuid; begun jsonb; owner uuid; affected integer; BEGIN
  SELECT submission_id INTO sid FROM public.test_conversion_cases WHERE kind='siblings';
  BEGIN
   aid:=public.test_create_conversion_authorization(sid,interval '10 minutes',true);
@@ -96,8 +96,26 @@ DO $$ DECLARE sid uuid; aid uuid; begun jsonb; BEGIN
   RAISE EXCEPTION 'rollback_partial_probe';
  EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'rollback_partial_probe' THEN RAISE; END IF; END;
  aid:=public.test_create_conversion_authorization(sid);UPDATE public.test_conversion_cases SET authorization_id=aid WHERE kind='siblings';
- begun:=public.begin_gelato_engineering_conversion(aid,repeat('a',64));
- PERFORM public.authorize_gelato_engineering_conversion_send(aid,(begun->>'owner_token')::uuid,repeat('a',64),repeat('e',64));
+ begun:=public.begin_gelato_engineering_conversion(aid,repeat('a',64));owner:=(begun->>'owner_token')::uuid;
+ -- Actual service-role privileges and trigger semantics used by the REST owner CAS.
+ UPDATE public.gelato_engineering_conversions SET closed_at=clock_timestamp() WHERE id=aid AND owner_token=gen_random_uuid() AND closed_at IS NULL;
+ GET DIAGNOSTICS affected=ROW_COUNT;
+ IF affected<>0 OR EXISTS(SELECT 1 FROM public.gelato_engineering_conversions WHERE id=aid AND closed_at IS NOT NULL) THEN RAISE EXCEPTION 'Losing owner closed winner';END IF;
+ BEGIN
+  BEGIN UPDATE public.gelato_engineering_conversions SET closed_at=clock_timestamp()+interval '10 seconds' WHERE id=aid AND owner_token=owner AND closed_at IS NULL;
+   RAISE EXCEPTION 'future closure accepted';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'Engineering conversion closure is terminal' THEN RAISE;END IF;END;
+  UPDATE public.gelato_engineering_conversions SET closed_at=clock_timestamp() WHERE id=aid AND owner_token=owner AND closed_at IS NULL;
+  GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 OR NOT EXISTS(SELECT 1 FROM public.gelato_engineering_conversions WHERE id=aid AND owner_token=owner AND closed_at IS NOT NULL AND state='preparing') THEN RAISE EXCEPTION 'Preparing owner closure unconfirmed';END IF;
+  RAISE EXCEPTION 'rollback_owner_closure_probe';
+ EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'rollback_owner_closure_probe' THEN RAISE;END IF;END;
+ PERFORM public.authorize_gelato_engineering_conversion_send(aid,owner,repeat('a',64),repeat('e',64));
+ UPDATE public.gelato_engineering_conversions SET closed_at=clock_timestamp() WHERE id=aid AND owner_token=owner AND closed_at IS NULL;
+ GET DIAGNOSTICS affected=ROW_COUNT;
+ IF affected<>1 OR NOT EXISTS(SELECT 1 FROM public.gelato_engineering_conversions WHERE id=aid AND owner_token=owner AND closed_at IS NOT NULL AND state='sending') THEN RAISE EXCEPTION 'Sending owner closure unconfirmed';END IF;
+ UPDATE public.gelato_engineering_conversions SET closed_at=clock_timestamp() WHERE id=aid AND owner_token=owner AND closed_at IS NULL;
+ GET DIAGNOSTICS affected=ROW_COUNT;IF affected<>0 THEN RAISE EXCEPTION 'Already closed CAS rewrote evidence';END IF;
  PERFORM public.finish_gelato_engineering_conversion(aid,(begun->>'owner_token')::uuid,'rejected','{"patchHttpStatus":400}');
  PERFORM public.close_gelato_engineering_conversion(aid);
  BEGIN UPDATE public.gelato_engineering_conversions SET funding_receipt_sha256=repeat('a',64) WHERE id=aid;RAISE EXCEPTION 'Role changed funding';EXCEPTION WHEN insufficient_privilege THEN NULL;END;

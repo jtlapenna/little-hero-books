@@ -39,7 +39,7 @@ async function scenario(mode:Mode='ok',count=1){
   shippingAddress:{...saved.request.shippingAddress,...(mode==='foreign-recipient'?{postCode:'00000'}:{})},paymentMethodId:null,prepaymentTransactionId:null,
   billingEntity:{secretMarker:'PRIVATE-BILLING-MARKER'},processingStatus:null,receipts:[{currency:'USD',isCalculated:true,total:0,billingTag:'PRIVATE-BILLING-MARKER'}],
   items:saved.request.items.map((item,i)=>({...item,id:'provider-item-'+i,fulfillmentStatus:mode==='unsafe'?'in_production':'created',...(mode==='changed-file'?{files:[{type:'default',url:'https://gelato-api-live.s3.eu-west-1.amazonaws.com/synthetic.pdf'}]}:{}),processedFileUrl:null})),shipment:{shipmentMethodUid:saved.request.shipmentMethodUid,packages:[]}});
- const d:EngineeringConversionDependencies={apiKey:'explicit-engineering-key',normalControlsOff:true,providerBudgetMs:mode==='patch-body-stalls'?15:30000,now:()=>new Date('2026-10-15T12:00:00Z'),authorization:async()=>a(),context:async()=>context,
+ const d:EngineeringConversionDependencies={closeOwned:async(a,t)=>{assert.equal(a,authorizationId);assert.equal(t,owner);calls.push('close-owned');if(mode==='close-fails')throw Error('closure unavailable');closed=true;return true;},apiKey:'explicit-engineering-key',normalControlsOff:true,providerBudgetMs:mode==='patch-body-stalls'?15:30000,now:()=>new Date('2026-10-15T12:00:00Z'),authorization:async()=>a(),context:async()=>context,
   artifact:async key=>mode==='artifact-fetch-stall'?readEngineeringArtifact(async()=>new Promise<Response>(()=>{}),15):mode==='artifact-body-stall'?readEngineeringArtifact(async()=>new Response(new ReadableStream({pull:()=>new Promise<void>(()=>{})})),15):mode==='bad-artifact'?Buffer.from('changed'):blobs.get(key)!,verifyFile:async()=>mode!=='changed-file',
   transition:async(name,p)=>{calls.push(name);if(name==='begin_gelato_engineering_conversion'){beginCalls++;assert.equal(p.p_key_sha256,hash(d.apiKey));assert.equal(state,'ready','Consumed authorization');state='preparing';if(mode==='begin-lost')throw Error('committed begin; lost response');return a();}
    if(name==='authorize_gelato_engineering_conversion_send'){assert.equal(state,'preparing');assert(!closed);assert.equal(p.p_token,owner);state='sending';if(mode==='authorize-lost')throw Error('committed send authorization; lost response');return null;}
@@ -52,7 +52,7 @@ async function scenario(mode:Mode='ok',count=1){
  };
  if(mode==='normal-on')d.normalControlsOff=false;if(mode==='no-key')d.apiKey='';
  if(mode==='bad-saved-url')saved.request.items[0].files[0].url='https://attacker.invalid/file.pdf';
- if(['begin-lost','wrong-account','normal-on','no-key'].includes(mode)){await assert.rejects(runEngineeringConversion(authorizationId,'convert',d));assert(closed);assert.equal(patches,0);return;}
+ if(['begin-lost','wrong-account','normal-on','no-key'].includes(mode)){await assert.rejects(runEngineeringConversion(authorizationId,'convert',d));assert.equal(closed,false,'Unowned/ambiguous begin requires independent close');assert.equal(patches,0);return;}
  const result=await runEngineeringConversion(authorizationId,'convert',d);
  assert.equal(result.closureConfirmed,mode!=='close-fails');assert(!JSON.stringify(result.observation).includes('PRIVATE-BILLING-MARKER'));
  if(['artifact-fetch-stall','artifact-body-stall','bad-artifact','bad-saved-url','unsafe','changed-file','foreign-recipient','connected-root'].includes(mode)){assert.equal(result.state,'preflight_failed');assert.equal(patches,0);return;}
@@ -63,7 +63,7 @@ async function scenario(mode:Mode='ok',count=1){
  else if(mode==='finish-lost'){assert.equal(result.state,'outcome_unknown');assert.equal(result.persistenceConfirmed,false);assert.equal(state,'converted');assert(result.privateEvidence.some(e=>e.method==='PATCH'));}
  else {assert.equal(result.state,'converted');assert.equal(patches,1);assert.equal(result.observation.unsafeFundingOrProductionObserved,false);}
  const before=patches;await assert.rejects(runEngineeringConversion(authorizationId,'convert',d));assert.equal(patches,before);assert.equal(beginCalls,2);
- assert(calls.includes('close_gelato_engineering_conversion'));assert(result.privateEvidence.length>0);
+ assert(calls.includes('close-owned'));assert(result.privateEvidence.length>0);
 }
 async function main(){
  globalThis.fetch=async()=>{throw Error('Unit test forbids real network');};
@@ -76,7 +76,7 @@ async function main(){
   const invoke=(authorized:boolean,body:unknown)=>engineeringPost(new NextRequest('https://admin.littleherolabs.com/api/internal/w4/engineering-conversion',{method:'POST',headers:{'Content-Type':'application/json',...(authorized?{authorization:'Bearer synthetic-engineering-bearer'}:{})},body:JSON.stringify(body)}));
   const unauthorized=await invoke(false,{authorizationId,action:'convert'});assert.equal(unauthorized.status,401);assert.equal(unauthorized.headers.get('cache-control'),'private, no-store');assert.equal(closes.length,0);
   assert.equal((await invoke(true,{authorizationId,action:'convert',providerId:'foreign'})).status,400);assert.equal(closes.length,0);
-  const missing=await invoke(true,{authorizationId,action:'convert'});assert.equal(missing.status,409);assert.equal(missing.headers.get('cache-control'),'private, no-store');assert.deepEqual(closes,[{p_id:authorizationId}]);assert(!('privateEvidence' in await missing.json()));
+  const missing=await invoke(true,{authorizationId,action:'convert'});assert.equal(missing.status,409);assert.equal(missing.headers.get('cache-control'),'private, no-store');assert.deepEqual(closes,[],'Runtime setup failure must not close an unowned authorization');assert(!('privateEvidence' in await missing.json()));
  }finally{gelatoSubmissionStore.transition=oldTransition;if(oldToken===undefined)delete process.env.BACKEND_API_TOKEN;else process.env.BACKEND_API_TOKEN=oldToken;if(oldKey===undefined)delete process.env.GELATO_API_KEY;else process.env.GELATO_API_KEY=oldKey;}
  console.log('test-gelato-engineering-conversion: canonical quote producer, exact artifacts/account, one PATCH, ambiguity/recovery/independent closure/privacy: ok');
 }

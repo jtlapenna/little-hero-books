@@ -7,6 +7,20 @@ import { deliverGelatoNotification, type GelatoNotificationDeliveryDependencies 
 import { gelatoNotificationRuntime } from './gelato-notification-runtime';
 
 const Candidates = z.array(z.object({ id: z.string().uuid(), request_state: z.string() })).max(3);
+// Shared scheduled candidate executor. Selection and notification delivery stay with callers.
+export async function pollGelatoCandidates(candidates: unknown, lifecycle: GelatoLifecycleDependencies,
+  {signal,deadline}: {signal: AbortSignal; deadline: number}) {
+  const summary={checked:0,recovered:0,refreshed:0,errors:0,needsAttention:0};
+  for (const candidate of Candidates.parse(candidates)) {
+    if (Date.now() >= deadline || signal.aborted) break;
+    summary.checked++;
+    try {
+      if (candidate.request_state === 'submitted') { const result=await refreshGelatoSubmission(candidate.id, lifecycle); summary.refreshed++; if(result.needsAttention)summary.needsAttention++; }
+      else { const recovered = await recoverGelatoSubmission(candidate.id, lifecycle); if (recovered.recovered || recovered.released) summary.recovered++; }
+    } catch { summary.errors++; }
+  }
+  return summary;
+}
 export async function pollGelatoPrintProvider(database: SupabaseClient, options: {
   enabled?: boolean; budgetMs?: number; lifecycle?: GelatoLifecycleDependencies; delivery?: GelatoNotificationDeliveryDependencies;
 } = {}) {
@@ -18,14 +32,8 @@ export async function pollGelatoPrintProvider(database: SupabaseClient, options:
   const lifecycle = options.lifecycle ?? { ...gelatoLifecycleRuntime(signal, database), get: (id: string) => getGelatoOrder(id, { signal }), search: (reference: string) => searchGelatoOrders(reference, { signal }) };
   const { data, error } = await database.rpc('list_gelato_poll_candidates', { p_limit: 3 }).abortSignal(signal);
   if (error) return { ...summary, errors: 1 };
-  for (const candidate of Candidates.parse(data)) {
-    if (Date.now() >= deadline || signal.aborted) break;
-    summary.checked++;
-    try {
-      if (candidate.request_state === 'submitted') { await refreshGelatoSubmission(candidate.id, lifecycle); summary.refreshed++; }
-      else { const recovered = await recoverGelatoSubmission(candidate.id, lifecycle); if (recovered.recovered || recovered.released) summary.recovered++; }
-    } catch { summary.errors++; }
-  }
+  const {checked,recovered,refreshed,errors}=await pollGelatoCandidates(data,lifecycle,{signal,deadline});
+  Object.assign(summary,{checked,recovered,refreshed,errors});
   const delivery = options.delivery ?? gelatoNotificationRuntime(signal, database);
   if (Date.now() < deadline && delivery.enabled) {
     const { data: pending, error: pendingError } = await database.from('print_provider_submission_notifications').select('id')

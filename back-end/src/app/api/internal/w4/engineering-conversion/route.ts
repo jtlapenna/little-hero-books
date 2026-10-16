@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { runEngineeringConversion } from '@/lib/books/gelato-engineering-conversion';
-import { gelatoSubmissionStore } from '@/lib/books/gelato-submission-store';
 import { gelatoEngineeringConversionRuntime } from '@/lib/books/gelato-engineering-conversion-runtime';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +17,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({success:result.persistenceConfirmed&&result.closureConfirmed,...result},{headers});
   } catch {
     return NextResponse.json({error:'Engineering conversion was not confirmed. Close its authorization independently and observe; never retry conversion.'},{status:409,headers});
-  } finally {
-    await gelatoSubmissionStore.transition('close_gelato_engineering_conversion',{p_id:parsed.data.authorizationId}).catch(()=>undefined);
   }
 }
