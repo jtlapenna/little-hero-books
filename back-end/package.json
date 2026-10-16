@@ -113,7 +113,8 @@
     "test:approval-gelato-status-consumer": "tsx scripts/test-approval-gelato-status-consumer.ts",
     "test:gelato-worker-files": "tsx scripts/test-gelato-runtime-file-fetch.ts && tsx scripts/test-gelato-stored-file-worker.ts",
     "test:gelato-engineering-conversion": "tsx scripts/test-gelato-engineering-conversion.ts",
-    "test:gelato-engineering-conversion-worker": "tsx scripts/test-gelato-engineering-conversion-worker.ts"
+    "test:gelato-engineering-conversion-worker": "tsx scripts/test-gelato-engineering-conversion-worker.ts",
+    "test:w0-publication": "tsx scripts/test-w0-build-readonly.ts && tsx scripts/test-w0-publication-worker.ts && tsx scripts/test-w0-manifest-freeze.ts && tsx scripts/test-w0-legacy-rollout.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
