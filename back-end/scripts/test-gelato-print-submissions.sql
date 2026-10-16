@@ -194,6 +194,20 @@ DO $$ DECLARE s uuid; expected jsonb; results jsonb; result jsonb; token uuid;
 BEGIN
  SELECT id,claim_token INTO s,token FROM public.print_provider_submissions WHERE workflow_job_idempotency_key='cp1-key';
  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+ -- Authoritative draft conversion may keep the provider timestamp unchanged.
+ UPDATE public.print_provider_submission_items SET status='created' WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('d',64),'status','created','orderType','order','accepted',true,'actionReason',NULL,
+   'snapshot',jsonb_set(jsonb_set(snapshot,'{orderType}','"order"'),'{fulfillmentStatus}','"created"'),
+   'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','created','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))
+     FROM public.print_provider_submission_items i WHERE i.submission_id=s AND i.provider_order_id=po.provider_order_id))) INTO results FROM public.print_provider_submission_orders po WHERE submission_id=s;
+ PERFORM public.apply_gelato_provider_snapshots(s,expected,results);
+ IF (SELECT count(*) FROM public.orders WHERE id IN (80,81) AND gelato_status='created' AND gelato_order_type='order' AND gelato_action_reason IS NULL)<>2 OR
+   EXISTS(SELECT 1 FROM public.print_provider_submission_orders po JOIN LATERAL jsonb_array_elements(expected) e ON e->>'providerOrderId'=po.provider_order_id
+     WHERE po.submission_id=s AND (po.last_event_at IS DISTINCT FROM (e->>'eventAt')::timestamptz OR po.snapshot_digest<>repeat('d',64))) THEN
+   RAISE EXCEPTION 'Equal-time conversion did not project atomically with unchanged provider time'; END IF;
+ IF EXISTS(SELECT 1 FROM public.print_provider_submission_notifications WHERE submission_id=s) THEN RAISE EXCEPTION 'Created conversion emitted customer intent'; END IF;
+ PERFORM pg_temp.expect_error(format('SELECT public.apply_gelato_provider_snapshots(%L,%L,%L)',s,expected,results),'changed concurrently');
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('c',64),'status','in_production','orderType','order','accepted',true,'actionReason',NULL,
    'snapshot',jsonb_set(jsonb_set(jsonb_set(snapshot,'{updatedAt}',to_jsonb(clock_timestamp()+interval '1 minute')),'{orderType}','"order"'),'{fulfillmentStatus}','"in_production"'),
    'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','in_production','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))

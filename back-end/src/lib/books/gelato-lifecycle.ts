@@ -30,6 +30,15 @@ export function gelatoPackagesForItem(order: GelatoProviderOrder, itemId: string
   return { tracking: packages.map((parcel) => ({ providerOrderId: order.id, packageId: parcel.id, providerItemIds: parcel.orderItemIds,
     trackingNumber: parcel.trackingCode, trackingUrl: parcel.trackingUrl, carrier: order.shipment?.shipmentMethodUid?.startsWith('usps_') ? 'USPS' : order.shipment?.shipmentMethodUid?.startsWith('ups_') ? 'UPS' : '', quantity })), reason: null };
 }
+// Gelato may retain updatedAt when converting a draft. Accept only the exact
+// draft -> created type change; every other normalized field must stay equal.
+function unchangedTimeDraftConversion(previous: GelatoSubmissionContext['providerOrders'][number], order: GelatoProviderOrder): boolean {
+  if (previous.order_type !== 'draft' || previous.status !== 'draft' || order.orderType !== 'order' ||
+      order.fulfillmentStatus !== 'created' || !order.items.length || order.items.some(item => item.fulfillmentStatus !== 'created')) return false;
+  const prior = GelatoProviderOrderSchema.safeParse(previous.snapshot);
+  return prior.success && prior.data.orderType === 'draft' && prior.data.fulfillmentStatus === 'draft' &&
+    canonical(prior.data) === canonical({ ...order, orderType: 'draft', fulfillmentStatus: 'draft' });
+}
 export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, graph: GelatoProviderOrder[]) {
   return graph.map((order) => {
     const previous = context.providerOrders.find((entry) => entry.provider_order_id === order.id);
@@ -38,7 +47,7 @@ export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, gr
     const time = Date.parse(order.updatedAt);
     const before = previous.last_event_at ? Date.parse(previous.last_event_at) : NaN;
     let reason = !Number.isFinite(time) || !Number.isFinite(before) ? 'provider_timestamp_missing' : time < before ? 'older_provider_snapshot' :
-      time === before && digest !== gelatoSnapshotDigest(GelatoProviderOrderSchema.parse(previous.snapshot)) ? 'conflicting_provider_snapshot' :
+      time === before && digest !== gelatoSnapshotDigest(GelatoProviderOrderSchema.parse(previous.snapshot)) && !unchangedTimeDraftConversion(previous, order) ? 'conflicting_provider_snapshot' :
       gelatoTransitionReason(previous.status, order.fulfillmentStatus, previous.order_type, order.orderType, previous.progress_status);
     const accepted = !reason;
     const items = order.items.map((item) => {
