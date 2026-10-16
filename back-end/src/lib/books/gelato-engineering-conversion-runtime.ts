@@ -31,6 +31,15 @@ export function gelatoEngineeringConversionRuntime(sources: Sources = {}): Engin
   const verify = createGelatoStoredFileVerifier({ loadArtifact: (key,signal) => getObject(R2_ORDERS_BUCKET,key,{signal,redirect:'manual',allowErrorResponse:true}) });
   return { apiKey, normalControlsOff: controlNames.every(name => environment[name] === 'false'), fetcher: sources.fetcher,
     transition: (name,params) => store.transition(name,params), context: id => store.load(id),
+    closeOwned: async (id,ownerToken) => {
+      const {error}=await database.from('gelato_engineering_conversions').update({closed_at:new Date().toISOString()})
+        .eq('id',id).eq('owner_token',ownerToken).is('closed_at',null).abortSignal(AbortSignal.timeout(10_000));
+      if(error)throw new Error('Engineering owner closure was not confirmed');
+      const {data,error:readError}=await database.from('gelato_engineering_conversions').select('closed_at')
+        .eq('id',id).eq('owner_token',ownerToken).abortSignal(AbortSignal.timeout(10_000)).maybeSingle();
+      if(readError)throw new Error('Engineering closure readback failed');
+      return typeof data?.closed_at==='string'&&Number.isFinite(Date.parse(data.closed_at));
+    },
     authorization: async id => { const {data,error}=await database.from('gelato_engineering_conversions').select('*').eq('id',id).single();
       if(error||!data)throw new Error('Engineering authorization lookup failed');return data; },
     artifact: key => readEngineeringArtifact(signal=>getObject(R2_ORDERS_BUCKET,key,{signal,redirect:'manual',allowErrorResponse:true})),

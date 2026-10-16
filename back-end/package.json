@@ -112,8 +112,9 @@
     "test:preview-book-contract": "tsx scripts/test-preview-book-contract.ts",
     "test:approval-gelato-status-consumer": "tsx scripts/test-approval-gelato-status-consumer.ts",
     "test:gelato-worker-files": "tsx scripts/test-gelato-runtime-file-fetch.ts && tsx scripts/test-gelato-stored-file-worker.ts",
-    "test:gelato-engineering-conversion": "tsx scripts/test-gelato-engineering-conversion.ts",
+    "test:gelato-engineering-conversion": "tsx scripts/test-gelato-engineering-conversion.ts && tsx scripts/test-gelato-engineering-ownership.ts",
     "test:gelato-engineering-conversion-worker": "tsx scripts/test-gelato-engineering-conversion-worker.ts",
+    "test:gelato-engineering-automation": "tsx scripts/test-gelato-engineering-automation.ts && tsx scripts/test-gelato-engineering-automation-runtime.ts",
     "test:w0-publication": "tsx scripts/test-w0-build-readonly.ts && tsx scripts/test-w0-publication-worker.ts && tsx scripts/test-w0-manifest-freeze.ts && tsx scripts/test-w0-legacy-rollout.ts"
   },
   "dependencies": {

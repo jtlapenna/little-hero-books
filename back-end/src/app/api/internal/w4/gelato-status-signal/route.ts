@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-client';
 import { GelatoIdSchema } from '@/lib/books/gelato-provider-snapshot';
-import { refreshGelatoSubmission } from '@/lib/books/gelato-lifecycle';
+import { refreshGelatoStatusSignal } from '@/lib/books/gelato-status-signal';
 
 export const dynamic = 'force-dynamic';
 const Signal = z.object({ orderId: GelatoIdSchema }).strict();
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: 'Gelato signal lookup failed' }, { status: 503 });
   if (!data) return NextResponse.json({ accepted: false }, { status: 404 });
   try {
-    await refreshGelatoSubmission(data.submission_id, gelatoLifecycleRuntime());
+    await refreshGelatoStatusSignal(body.data.orderId,{resolve:async()=>data.submission_id,lifecycle:gelatoLifecycleRuntime()});
     return NextResponse.json({ accepted: true });
   } catch {
     return NextResponse.json({ error: 'Gelato status refresh requires review' }, { status: 409 });
