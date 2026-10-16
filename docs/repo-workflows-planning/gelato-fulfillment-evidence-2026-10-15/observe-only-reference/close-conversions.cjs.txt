@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const primary='<ORIGINATING_CHECKOUT>';
+const directory=primary+'/.gelato-testing/fulfillment-2026-10-15/conversion-20261016-D';
+const native=primary+'/.gelato-testing/fulfillment-2026-10-15/native-20261016-C';
+function read(p){const s=fs.lstatSync(p);assert(s.isFile()&&!s.isSymbolicLink()&&s.uid===process.getuid()&&(s.mode&0o077)===0);return fs.readFileSync(p,'utf8');}
+async function closeConversions(env,targets,fetcher=fetch){
+ assert.equal(env.SUPABASE_URL,'https://mdnthwpcnphjnnblbvxk.supabase.co');assert.equal(targets.authorizationIds.length,3);assert.equal(new Set(targets.authorizationIds).size,3);assert(targets.authorizationIds.every(id=>/^[a-f0-9-]{36}$/.test(id)));
+ const results=[];const headers={apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json',Prefer:'return=representation'};
+ for(const id of targets.authorizationIds){try{const url=env.SUPABASE_URL+'/rest/v1/gelato_engineering_conversions?id=eq.'+id;const patch=await fetcher(url+'&closed_at=is.null',{method:'PATCH',headers,body:JSON.stringify({closed_at:new Date().toISOString()}),redirect:'error',signal:AbortSignal.timeout(30_000)});await patch.text();assert(patch.ok);const response=await fetcher(url+'&select=id,closed_at',{headers,redirect:'error',signal:AbortSignal.timeout(30_000)});const rows=await response.json();assert(response.ok&&Array.isArray(rows)&&rows.length<=1&&rows.every(r=>r.closed_at));results.push({id,closed:true});}catch{results.push({id,closed:false});}}
+ let nativeReceipt;try{assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(native+'/source/close-native-unpaid.cjs')).digest('hex'),'c22120b01827c6497ed45711abb95b8360387fd37925e271099b56cffb6b32b5','Reviewed native closure dependency changed');const {closeTargets}=require(native+'/source/close-native-unpaid.cjs');const receipts=[];for(const group of [targets.native,...targets.previousNative]){try{receipts.push(await closeTargets(env,group,fetcher));}catch{receipts.push({closed:false});}}nativeReceipt={closed:receipts.every(r=>r.closed),receipts};}catch{nativeReceipt={closed:false};}
+ return {at:new Date().toISOString(),closed:results.every(r=>r.closed)&&nativeReceipt.closed,conversions:results,native:nativeReceipt,normalControlsWritten:false,paidPrinting:false,customerMessages:false};
+}
+module.exports={closeConversions};
+if(require.main===module)(async()=>{const env=require(primary+'/back-end/node_modules/dotenv').parse(read(primary+'/.gelato-testing/.env.local'));const targets=JSON.parse(read(directory+'/closure-targets.json'));const result=await closeConversions(env,targets);const path=directory+'/independent-closure-'+Date.now()+'.json';fs.writeFileSync(path,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});console.log(JSON.stringify(result));if(!result.closed)process.exitCode=1;})().catch(()=>{console.error('Independent conversion closure incomplete; all targets attempted, no normal controls enabled');process.exitCode=1;});

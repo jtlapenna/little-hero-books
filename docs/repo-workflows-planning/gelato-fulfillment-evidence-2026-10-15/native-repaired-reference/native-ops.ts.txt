@@ -1,0 +1,189 @@
+import fs from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import {isDeepStrictEqual} from 'node:util';
+import {spawnSync} from 'node:child_process';
+import {Live,Ledger,directory,checkout,normalWorkflowIds,sha,privateRead,privateSave,projectLock,book,boundedBytes} from './native-client';
+import {normalizeW0Manifest} from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/normalize-w0-manifest';
+import {buildW3Manifest} from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/w3-manifest';
+
+export const graph=(w:any)=>({nodes:w.nodes,connections:w.connections,settings:w.settings});
+export function copyTemplate(template:any,proofId:string,index:number){
+ assert(index===0||index===1);
+ const canonical=JSON.parse(readFileSync(checkout+'/docs/n8n-workflow-files/repo-centric/workflows/'+(index?'w4.1-GELATO-Sibling-Aggregation.repo-centric.json':'w4-GELATO-Print_Fulfillment.repo-centric.json'),'utf8'));
+ const producer=template.nodes.find((n:any)=>n.name==='Prepare Gelato Request');
+ assert.equal(producer?.parameters.jsCode,canonical.nodes.find((n:any)=>n.name==='Prepare Gelato Request').parameters.jsCode,'Workflow destination producer differs');
+ const urls=new Map(canonical.nodes.filter((n:any)=>n.type==='n8n-nodes-base.httpRequest').map((n:any)=>[n.name,n.parameters.url]));
+ const copy=structuredClone(graph(template));let webhooks=0;
+ for(const n of copy.nodes){
+  if(n.type==='n8n-nodes-base.webhook'){webhooks++;n.parameters.path=`gelato-unpaid-${proofId}-${index?'siblings':'single'}`;n.webhookId=index?proofId.slice(0,-1)+(parseInt(proofId.at(-1)!,16)^1).toString(16):proofId;}
+  if(n.type==='n8n-nodes-base.httpRequest')assert(urls.has(n.name)&&n.parameters.url===urls.get(n.name),'Workflow has unreviewed external destination');
+  else assert(['n8n-nodes-base.webhook','n8n-nodes-base.respondToWebhook','n8n-nodes-base.code'].includes(n.type),'Workflow has unexpected node type');
+ }
+ assert.equal(webhooks,1);return {name:`TEST-GELATO-UNPAID-${proofId}-${index?'siblings':'single'}`,...copy};
+}
+export function executionGraph(execution:any,template:any){
+ const actual=structuredClone(graph(execution)),expected=graph(template);
+ assert.equal(actual.nodes.length,expected.nodes.length);
+ const defaults:Record<string,Record<string,unknown>>={
+  'n8n-nodes-base.webhook':{multipleMethods:false,authentication:'none',webhookNotice:''},
+  'n8n-nodes-base.respondToWebhook':{enableResponseOutput:false,generalNotice:'',webhookNotice:''},
+  'n8n-nodes-base.code':{mode:'runOnceForAllItems',language:'javaScript',notice:''},
+  'n8n-nodes-base.httpRequest':{preBuiltAgentsCalloutHttpRequest:'',curlImport:'',provideSslCertificates:false,sendQuery:false,sendHeaders:false,contentType:'json',infoMessage:''},
+ };
+ for(let i=0;i<actual.nodes.length;i++){const n=actual.nodes[i],e=expected.nodes[i];assert.equal(n.id,e.id);assert.equal(n.type,e.type);
+  for(const [key,value] of Object.entries(defaults[n.type]??{}))if(!(key in e.parameters)&&key in n.parameters){assert(isDeepStrictEqual(n.parameters[key],value),'Execution default differs: '+key);delete n.parameters[key];}
+  if(n.type==='n8n-nodes-base.httpRequest'&&!('fullResponse' in (e.parameters.options?.response?.response??{}))&&'fullResponse' in (n.parameters.options?.response?.response??{})){assert.equal(n.parameters.options.response.response.fullResponse,false);delete n.parameters.options.response.response.fullResponse;}
+ }
+ assert(isDeepStrictEqual(actual,expected),'Execution graph differs beyond exact reviewed n8n defaults');return structuredClone(expected);
+}
+function tableKey(table:string){return table==='print_provider_submission_items'?'child_order_id':table==='print_provider_submission_orders'?'provider_order_id':'id';}
+const preservedTables=['orders','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications'];
+async function inventory(live:Live){return Object.fromEntries(await Promise.all(preservedTables.map(async t=>[t,await live.db(t,'select=*',tableKey(t))])));}
+export function ordinaryProjection(all:Record<string,any[]>,fixture:any){
+ const orders=fixture.cases.flatMap((c:any)=>c.orders),keys=new Set(orders.map((o:any)=>o.orderId)),roots=new Set(orders.map((o:any)=>o.rootOrderId));
+ const owned=all.print_provider_submissions.filter(s=>roots.has(s.root_order_id));
+ for(const s of owned){const c=fixture.cases.find((c:any)=>c.orders[0].rootOrderId===s.root_order_id);assert.equal(s.workflow_job_idempotency_key,`unpaid:${fixture.proofId}:${c.kind}`);const members=all.print_provider_submission_items.filter(i=>i.submission_id===s.id);assert.deepEqual(members.map(i=>i.child_order_key).sort(),c.orders.map((o:any)=>o.orderId).sort(),'Owned submission membership differs');}
+ assert.equal(new Set(owned.map(s=>s.root_order_id)).size,owned.length,'Duplicate owned root submissions');const ids=new Set(owned.map(s=>s.id));
+ return Object.fromEntries(preservedTables.map(t=>[t,t==='orders'?all[t].filter(o=>!keys.has(o.orderId)):t==='print_provider_submissions'?all[t].filter(s=>!ids.has(s.id)):all[t].filter(i=>!ids.has(i.submission_id))]));
+}
+async function preserve(live:Live){const expected=JSON.parse(await privateRead(directory+'/ordinary-baseline.json'));const current=ordinaryProjection(await inventory(live),live.fixture);for(const t of preservedTables)assert.equal(sha(current[t]),expected[t].sha256,'Ordinary data changed: '+t);assert.equal((await live.db('print_provider_submission_notifications')).length,0,'Customer intent created');}
+async function row(live:Live,key:string){const xs=await live.db('orders','select=*&orderId=eq.'+key);assert.equal(xs.length,1);return xs[0];}
+export function assertFixtureRow(order:any,actual:any,held:boolean){
+ assert.equal(actual.orderId,order.orderId);assert.equal(actual.root_order_id,order.rootOrderId);assert.equal(actual.platform,order.formatId==='amazon'?'amazon':'d2c');
+ for(const name of ['print_provider','print_config_version','print_format_id','print_product_uid','print_inner_page_count','print_api_page_count','print_expected_pdf_page_count','print_book_id','print_manifest_key','one_manifest_url','shipping_address','customer_email','customer_name','product_info','shipping_tier','book_specs','character_specs'])assert(isDeepStrictEqual(actual[name]??null,order.upsert[name]??null),'Fixture row differs: '+name);
+ assert.equal(actual.book_specs.testMode,true);if(held){assert.equal(actual.execution_status,'done');assert.equal(actual.next_workflow,null);assert.equal(actual.print_submission_id,null);assert.equal(actual.print_claim_token,null);}
+}
+async function seed(live:Live){
+ const {ledger}=live;await live.assertOff();
+ if(!ledger.find('baseline','ordinary')){const all=await inventory(live);assert(!all.orders.some(o=>live.ownedKeys.has(o.orderId)),'Fresh identity already exists');const baseline=Object.fromEntries(preservedTables.map(t=>[t,{count:all[t].length,sha256:sha(all[t])}]));await privateSave(directory+'/ordinary-baseline.json',baseline);await ledger.record('baseline','ordinary',{baselineSha256:sha(baseline),fixtureSha256:live.pins.fixtureSha256,rastersSha256:live.pins.rastersSha256});}
+ await preserve(live);
+ for(const [childIndex,order] of live.fixture.cases.filter((c:any)=>c.kind==='website-single').flatMap((c:any)=>c.orders).entries()){
+  await live.assertOff();
+  const payload={...order.upsert,execution_status:'done',next_workflow:null,platform:order.formatId==='amazon'?'amazon':'d2c'};
+  const held=await ledger.once('held:'+order.orderId,payload,async()=>{assert.equal((await live.db('orders','select=id&orderId=eq.'+order.orderId)).length,0);return live.request('db','POST','orders',payload);},async()=>{const r=await row(live,order.orderId);assertFixtureRow(order,r,true);return {id:r.id,orderId:r.orderId};});live.ownedDbIds.add(held.id);
+  const envelope={schemaVersion:'v3',bookId:book,formatId:order.formatId,configVersion:2,configSource:'published',payload:order.input};
+  await ledger.once('w0:'+order.orderId,envelope,async()=>{assert.equal(await live.object(order.oneKey),null);return live.request('backend','POST','/api/internal/w0/publish-manifest',envelope);},async()=>{const r=await row(live,order.orderId);assertFixtureRow(order,r,true);const bytes=await live.object(order.oneKey);assert(bytes,'Frozen W0 missing after consumed publication');const m=normalizeW0Manifest(JSON.parse(bytes.toString()));assert.equal(m.orderId,order.orderId);assert.equal(m.rootOrderId,order.rootOrderId);assert.equal(m.formatId,order.formatId);assert.equal(m.configVersion,2);assert.equal(m.bookSpecs.testMode,true);assert(isDeepStrictEqual(m.renderSnapshot?.bookConfig,normalizeW0Manifest(order.one).renderSnapshot?.bookConfig),'Frozen config differs semantically');return {id:r.id,orderId:r.orderId,manifestSha256:sha(bytes)};});
+  const one=JSON.parse((await live.object(order.oneKey))!.toString());const intake=normalizeW0Manifest(one);const prefix=`${book}/orders/${order.orderId}`;
+  const source=buildW3Manifest({orderId:order.orderId,rootOrderId:order.rootOrderId,...(order.formatId==='amazon'?{amazonOrderId:order.rootOrderId}:{}),bookId:book,formatId:order.formatId,configVersion:2,renderSnapshot:intake.renderSnapshot,orderR2BaseKey:prefix,oneManifestKey:order.oneKey,backendUrl:'https://admin.littleherolabs.com',pagePreviewImages:intake.pagePlan.map(p=>({pageNumber:p.index,r2Key:prefix+'/preview-images/'+p.label+'.png'})),coverPngR2Key:prefix+'/preview-images/cover-spread.png'},{intake});
+  const genuine={...source.manifest,generatedAt:live.fixture.at,runStamp:live.fixture.at};assert.equal((genuine.summary as any).readyForBook,false);assert.equal(genuine.testOnly,true);
+  const three={...genuine,summary:{...(genuine.summary as any),readyForBook:true},testOnly:true,syntheticProof:{kind:'W4 integration source fixture',artworkApproved:false,realW3Ready:false}};
+  const rasterChild=live.rasters.caseChildren[childIndex];assert.equal(rasterChild.orderId,order.orderId);
+  const uploads=await Promise.all(rasterChild.assets.map(async(a:any,i:number)=>({key:i===32?prefix+'/preview-images/cover-spread.png':prefix+'/preview-images/'+intake.pagePlan[i].label+'.png',bytes:await fs.readFile(directory+'/rasters/'+a.filename),type:'image/png',sha256:a.pngSha256})));
+  const threeBytes=Buffer.from(JSON.stringify(three));uploads.push({key:order.threeKey,bytes:threeBytes,type:'application/json',sha256:sha(threeBytes)});
+  for(const asset of uploads){assert.equal(sha(asset.bytes),asset.sha256);await ledger.once('asset:'+asset.key,{sha256:asset.sha256},async()=>{assert.equal(await live.object(asset.key),null);return live.put(asset.key,asset.bytes,asset.type);},async()=>{const b=await live.object(asset.key);assert(b&&sha(b)===asset.sha256,'Consumed asset missing/different; do not resend');return {key:asset.key,sha256:asset.sha256,bytes:b.length};});}
+  await assertFixtureRow(order,await row(live,order.orderId),true);await preserve(live);
+ }
+ for(let index=0;index<2;index++){
+  const original=await live.request('n8n','GET','workflows/'+normalWorkflowIds[index]);assert.equal(original.active,false);assert.equal(sha(graph(original)),live.pins.normalGraphs[index]);
+  const desired=copyTemplate(original,live.fixture.proofId,index);
+  const copy=await ledger.once('copy:'+index,desired,async()=>{assert.equal((await live.workflows()).filter(w=>w.name===desired.name).length,0);return live.request('n8n','POST','workflows',desired);},async()=>{const matches=(await live.workflows()).filter(w=>w.name===desired.name);assert.equal(matches.length,1,'Workflow create uncertain; observe only');const current=await live.request('n8n','GET','workflows/'+matches[0].id);assert.equal(current.active,false);assert.deepEqual(graph(current),graph(desired));return {id:current.id,name:desired.name,graphSha256:sha(graph(desired)),webhookPath:desired.nodes.find((n:any)=>n.type==='n8n-nodes-base.webhook').parameters.path};});live.copyIds.add(copy.id);
+ }
+ await preserve(live);const controls=await live.assertOff();await ledger.record('seed-complete','native',{children:1,copies:2,controls,creativeApproval:false,realW3Generated:false});console.log(JSON.stringify({seededHeldChildren:1,sourceAssets:33,ownedWorkflowCopies:2,normalControlsOff:true,providerCreates:0,messages:0}));
+}
+async function close(live:Live){
+ const script=directory+'/source/close-native-unpaid.cjs';const result=spawnSync('/usr/local/opt/node@20/bin/node',[script],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:180000});
+ assert.equal(result.status,0,'Independent native closure did not verify');const receipt=JSON.parse(result.stdout.trim());assert.equal(receipt.closed,true);await live.ledger.record('closure','closure-'+Date.now(),receipt);return receipt;
+}
+async function prove(live:Live,c:any,claim:any,execution:any){
+ const copy=live.ledger.find('verified','copy:'+(c.kind==='amazon-siblings'?1:0))!.data;const template=await live.request('n8n','GET','workflows/'+copy.id);assert.equal(sha(graph(template)),copy.graphSha256);const normalizedGraph=executionGraph(execution.workflowData,template);const activated=live.ledger.find('verified','activate:'+c.kind)!.data;assert.equal(execution.workflowData.activeVersionId??execution.workflowData.versionId,activated.versionId);const intake=execution.data?.resultData?.runData?.['Webhook (Gelato Intake)']?.[0]?.data?.main?.[0]?.[0]?.json?.body;assert.equal(sha(intake),live.ledger.find('intent','webhook:'+c.kind)!.data.inputSha256,'Consumed claim body differs');
+ const all=await inventory(live);const submission=all.print_provider_submissions.find(s=>s.id===claim.submissionId);assert(submission);assert.equal(submission.request_state,'submitted');assert.equal(submission.claim_token,claim.claimToken);assert.equal(submission.root_order_id,c.orders[0].rootOrderId);
+ const members=all.print_provider_submission_items.filter(i=>i.submission_id===submission.id);assert.deepEqual(members.map(i=>i.child_order_key).sort(),c.orders.map((o:any)=>o.orderId).sort());
+ const snapshot=submission.request_snapshot;assert.equal(snapshot.request.orderType,'draft');assert.equal(snapshot.shippingTier,live.fixture.shippingChoices[c.kind]);assert.equal(snapshot.request.currency,'USD');assert.deepEqual(snapshot.request.shippingAddress,live.fixture.recipient);assert.deepEqual(snapshot,submission.quote_snapshot);
+ const providerRows=all.print_provider_submission_orders.filter(i=>i.submission_id===submission.id);assert(providerRows.length>0);assert.equal(new Set(providerRows.map(p=>p.provider_order_id)).size,providerRows.length);
+ const rawOrders=[];for(const p of providerRows){live.providerIds.add(p.provider_order_id);const raw=await live.request('gelato','GET','orders/'+p.provider_order_id);assert.equal(raw.id,p.provider_order_id);assert.equal(raw.orderReferenceId,submission.order_reference_id);assert.equal(raw.customerReferenceId,submission.root_order_id);assert.equal(raw.orderType,'draft');assert.equal(raw.financialStatus,'draft');assert.equal(raw.currency,'USD');assert.equal(raw.shipment.shipmentMethodUid,snapshot.request.shipmentMethodUid);rawOrders.push(raw);}
+ assert.deepEqual(rawOrders.flatMap(p=>p.items.map((i:any)=>i.itemReferenceId)).sort(),members.map(m=>m.item_reference_id).sort(),'Provider membership differs');for(const p of rawOrders){assert((p.connectedOrderIds??[]).every((id:string)=>providerRows.some(r=>r.provider_order_id===id)),'Unmapped connected provider order');for(const field of ['firstName','lastName','addressLine1','addressLine2','city','state','postCode','country','email','phone']){const normalized=(v:any)=>String(v??'').trim().replace(/\s+/g,' ').toLowerCase();assert.equal(normalized(p.shippingAddress[field]),normalized(snapshot.request.shippingAddress[field]),'Provider recipient differs');}}
+ const artifactReceipts=[];
+ for(const member of members){
+  const r=all.orders.find(o=>o.id===member.child_order_id);assert(r&&live.ownedKeys.has(r.orderId));assert.equal(r.print_submission_id,submission.id);assert.equal(r.gelato_order_type,'draft');assert.equal(r.print_provider,'gelato');
+  const requested=snapshot.request.items.find((i:any)=>i.itemReferenceId===member.item_reference_id);assert(requested);assert.equal(requested.quantity,1);assert.equal(requested.pageCount,32);assert.equal(requested.productUid,r.print_product_uid);assert.equal(member.pdf_page_count,35);assert.equal(member.artifact_claim_token,claim.artifactClaimToken??claim.claimToken);
+  const childIndex=live.fixture.cases.flatMap((x:any)=>x.orders).findIndex((o:any)=>o.orderId===r.orderId);const expected=live.pdfs.receipts[childIndex];assert.equal(expected.orderId,r.orderId);
+  const bytes=await live.object(member.artifact_key);assert(bytes&&sha(bytes)===expected.sha256&&bytes.length===expected.bytes,'Canonical native PDF differs from independent labeled local PDF');
+  const canonical=new URL(requested.files[0].url);assert.equal(canonical.origin,'https://admin.littleherolabs.com');assert.equal(canonical.pathname,'/api/pdf/'+member.artifact_key);assert.equal(canonical.search,'');const response=await fetch(canonical,{redirect:'error',signal:AbortSignal.timeout(60000)});assert(response.ok);const served=await boundedBytes(response,64_000_000);assert.equal(sha(served),expected.sha256);
+  const raw=rawOrders.find(p=>p.id===member.provider_order_id);const item=raw?.items.find((i:any)=>i.id===member.provider_item_id&&i.itemReferenceId===member.item_reference_id);assert(item);assert.equal(item.quantity,1);assert.equal(item.pageCount,32);assert.equal(item.productUid,r.print_product_uid);assert.equal(item.files.length,1);
+  const providerFile=new URL(item.files[0].url);assert.equal(providerFile.protocol,'https:');assert.equal(providerFile.hostname,'gelato-api-live.s3.eu-west-1.amazonaws.com');assert.equal(providerFile.username,'');assert.equal(providerFile.password,'');const saved=await fetch(providerFile,{redirect:'error',signal:AbortSignal.timeout(60000)});assert(saved.ok);const providerBytes=await boundedBytes(saved,64_000_000);assert.equal(sha(providerBytes),expected.sha256);assert.equal(providerBytes.length,expected.bytes);
+  assert.equal(r.gelato_order_id,member.provider_order_id);assert.equal(r.gelato_status,'draft');assert.equal(r.execution_status,'done');assert.equal(r.next_workflow,null);
+  artifactReceipts.push({childId:r.id,role:expected.role,sha256:expected.sha256,bytes:expected.bytes,physicalInnerPages:32,apiPageCount:32,uploadPages:35,sourceFingerprint:member.artifact_fingerprint,providerStoredBytesMatch:true,processedFileUrlPresent:Boolean(item.processedFileUrl)});
+ }
+ assert.equal(new Set(artifactReceipts.map(a=>a.sha256)).size,members.length);
+ const inspection=await live.request('backend','GET','/api/admin/gelato-print?orderId='+c.orders[0].orderId);assert.equal(inspection.submissionId,submission.id);assert.equal(inspection.state,'submitted');assert.equal(inspection.canRefresh,true);assert.equal(inspection.canCancel,false);assert.equal(inspection.notifications.length,0);assert.equal(inspection.items.length,members.length);for(const m of members){const i=inspection.items.find((i:any)=>i.orderId===m.child_order_key);assert(i&&i.providerOrderId===m.provider_order_id&&i.providerItemId===m.provider_item_id);}
+ await preserve(live);return {kind:c.kind,submissionId:submission.id,executionId:execution.id,workflowId:execution.workflowId,workflowVersionId:execution.workflowData?.activeVersionId??execution.workflowData?.versionId??null,workflowGraphSha256:sha(normalizedGraph),rawWorkflowGraphSha256:sha(graph(execution.workflowData)),orderReferenceId:submission.order_reference_id,providerRoots:providerRows.map(p=>p.provider_order_id),artifacts:artifactReceipts,workflowQuoteId:submission.quote_id,selectedShipmentMethod:snapshot.request.shipmentMethodUid,shippingTier:snapshot.shippingTier,rawProviderOrders:rawOrders,inspection,normalControls:await live.assertOff()};
+}
+async function reprice(live:Live,c:any,claim:any){
+ const submissions=await live.db('print_provider_submissions','select=*&id=eq.'+claim.submissionId);assert.equal(submissions.length,1);const s=submissions[0],request=s.request_snapshot.request;
+ const quote={orderReferenceId:request.orderReferenceId,customerReferenceId:request.customerReferenceId,currency:request.currency,allowMultipleQuotes:false,recipient:request.shippingAddress,products:request.items};
+ const result=await live.request('gelato','POST','orders:quote',quote);assert.equal(result.orderReferenceId,request.orderReferenceId);assert(Array.isArray(result.quotes)&&result.quotes.length>0);const options=result.quotes.flatMap((q:any)=>q.shipmentMethods??[]);assert(options.some((o:any)=>o.shipmentMethodUid===request.shipmentMethodUid));
+ await live.ledger.record('repriced',c.kind,{workflowQuoteId:s.quote_id,observedQuote:result,requestSha256:sha(quote),boundary:'Fresh same-input diagnostic reprice; original native monetary quote response is not persisted by application; no exact original quote-id monetary proof'});
+}
+async function runCase(live:Live,kind:string){
+ assert.equal(kind,'website-single','C lane may execute only the fresh website; retained Amazon proofs are reused');
+ const c=live.fixture.cases.find((c:any)=>c.kind===kind);assert(c,'Unknown case');assert(live.ledger.find('seed-complete','native'),'Seed incomplete');assert(!live.ledger.find('intent','webhook:'+kind),'Webhook consumed; use observe/reconcile, never repost');
+ const index=kind==='amazon-siblings'?1:0,copy=live.ledger.find('verified','copy:'+index)!.data;assert(live.copyIds.has(copy.id));
+ const controls=await live.assertOff();await preserve(live);
+ const currentCopy=await live.request('n8n','GET','workflows/'+copy.id);assert.equal(currentCopy.active,false);assert.equal(sha(graph(currentCopy)),copy.graphSha256);
+ const rows=[];for(const o of c.orders){const r=await row(live,o.orderId);assertFixtureRow(o,r,true);rows.push(r);}
+ const existingWindows=await live.db('gelato_engineering_submission_windows');assert(!existingWindows.some(w=>!w.closed_at&&Date.parse(w.expires_at)>Date.now()),'Another exact authorization is open');
+ await live.ledger.record('case-baseline',kind,{controls,copyId:copy.id,graphSha256:copy.graphSha256,childDbIds:rows.map(r=>r.id),normalEligibleCount:(await live.db('orders','select=id&execution_status=eq.ready_for_processing')).filter(r=>!live.ownedDbIds.has(r.id)).length});
+ let claim:any;let execution:any;
+ try{
+  const now=new Date(),window={root_order_id:c.orders[0].rootOrderId,child_order_ids:rows.map(r=>r.id).sort((a,b)=>a-b),opened_at:now.toISOString(),expires_at:new Date(now.getTime()+30*60*1000).toISOString(),account_key_sha256:live.keySha,fixture_manifest_sha256:live.pins.fixtureSha256,evidence_run_id:live.fixture.proofId};
+  await live.ledger.once('window:'+kind,window,()=>live.request('db','POST','gelato_engineering_submission_windows',window),async()=>{const ws=await live.db('gelato_engineering_submission_windows','select=*&root_order_id=eq.'+window.root_order_id,'root_order_id');assert.equal(ws.length,1);const {closed_at,...stored}=ws[0];assert.equal(closed_at,null);assert.equal(Date.parse(stored.opened_at),Date.parse(window.opened_at));assert.equal(Date.parse(stored.expires_at),Date.parse(window.expires_at));assert.deepEqual({...stored,opened_at:window.opened_at,expires_at:window.expires_at},window);return {root:window.root_order_id,expiresAt:window.expires_at,childDbIds:window.child_order_ids};});
+  for(const r of rows){const ready={execution_status:'ready_for_processing',next_workflow:index?'4-aggregate':'4'};await live.ledger.once('ready:'+r.orderId,ready,()=>live.request('db','PATCH',`orders?id=eq.${r.id}&orderId=eq.${r.orderId}&execution_status=eq.done&next_workflow=is.null&print_submission_id=is.null&print_claim_token=is.null`,ready),async()=>{const current=await row(live,r.orderId);assert.equal(current.execution_status,'ready_for_processing');assert.equal(current.next_workflow,ready.next_workflow);assert.equal(current.print_submission_id,null);return {id:r.id,orderId:r.orderId,ready:true};});}
+  const body={orderDbIds:rows.map(r=>r.id),idempotencyKey:`unpaid:${live.fixture.proofId}:${kind}`};
+  claim=await live.ledger.once('claim:'+kind,body,()=>live.request('backend','POST','/api/internal/orders/print-routing/claim',body),async()=>{const xs=await live.db('print_provider_submissions','select=*&root_order_id=eq.'+c.orders[0].rootOrderId);assert.equal(xs.length,1);const s=xs[0];assert.equal(s.request_state,'claimed');assert.equal(s.workflow_job_idempotency_key,body.idempotencyKey);assert(Date.parse(s.lease_expires_at)>Date.now());return {submissionId:s.id,claimToken:s.claim_token,orderReferenceId:s.order_reference_id};});
+  await live.ledger.once('activate:'+kind,{id:copy.id},()=>live.request('n8n','POST','workflows/'+copy.id+'/activate'),async()=>{const w=await live.request('n8n','GET','workflows/'+copy.id);assert.equal(w.active,true);assert.equal(sha(graph(w)),copy.graphSha256);return {id:copy.id,active:true,versionId:w.activeVersionId??w.versionId??null};});
+  const before=await live.executions(copy.id);assert(before.every(e=>['success','error','canceled','crashed'].includes(e.status)),'Prior unsettled execution');
+  const details=c.orders.map((o:any)=>({orderId:o.orderId,bookId:book,formatId:o.formatId}));const payload=index?{rootOrderId:c.orders[0].rootOrderId,orders:details,submissionId:claim.submissionId,claimToken:claim.claimToken}:{...details[0],submissionId:claim.submissionId,claimToken:claim.claimToken};
+  await live.ledger.record('intent','webhook:'+kind,{inputSha256:sha(payload),copyId:copy.id,before:before.map(e=>e.id),claim,after:new Date().toISOString()});try{await live.webhook(copy.webhookPath,payload);}catch{await live.ledger.record('uncertain','webhook:'+kind,{reconcileOnly:true});}
+  const deadline=Date.now()+10*60*1000;const oldIds=new Set(before.map(e=>e.id));let lastStatus='';
+  while(Date.now()<deadline){const candidates=(await live.executions(copy.id)).filter(e=>!oldIds.has(e.id));assert(candidates.length<=1,'Competing execution');if(candidates.length){execution=await live.request('n8n','GET','executions/'+candidates[0].id+'?includeData=true');assert.equal(execution.workflowId,copy.id);if(execution.status!==lastStatus){lastStatus=execution.status;console.log(JSON.stringify({kind,executionId:execution.id,status:lastStatus}));}if(['success','error','canceled','crashed'].includes(execution.status))break;}await new Promise(r=>setTimeout(r,5000));}
+  assert(execution&&['success','error','canceled','crashed'].includes(execution.status),'Execution uncertain; never resend');await live.ledger.record('execution',kind,{id:execution.id,status:execution.status,workflowId:copy.id,graphSha256:sha(graph(execution.workflowData))});assert.equal(execution.status,'success','Native workflow error; observe/recover without reposting');assert.equal(sha(executionGraph(execution.workflowData,currentCopy)),copy.graphSha256);const activated=live.ledger.find('verified','activate:'+kind)?.data;assert.equal(execution.workflowData.activeVersionId??execution.workflowData.versionId,activated.versionId);
+  const intake=execution.data?.resultData?.runData?.['Webhook (Gelato Intake)']?.[0]?.data?.main?.[0]?.[0]?.json?.body;assert.deepEqual(intake,payload,'Execution did not consume exact canonical claim');
+  await live.ledger.record('native-proof',kind,await prove(live,c,claim,execution));await reprice(live,c,claim);
+  await live.ledger.once('refresh:'+kind,{orderId:c.orders[0].orderId},()=>live.request('backend','POST','/api/admin/gelato-print',{orderId:c.orders[0].orderId,action:'refresh'}),async()=>{const proof=await prove(live,c,claim,execution);return {submissionId:proof.submissionId,providerRoots:proof.providerRoots,artifactHashes:proof.artifacts.map(a=>a.sha256),notifications:0};});
+  await live.ledger.record('case-passed',kind,{executionId:execution.id,submissionId:claim.submissionId,draftOnly:true,paidProduction:false,messages:0});
+ }finally{await close(live);await preserve(live);await live.ledger.record('case-off',kind,await live.assertOff());}
+ console.log(JSON.stringify({case:kind,nativePassed:true,normalControlsOff:true,windowClosed:true,unconvertedDraft:true,paidPrinting:false,messages:0}));
+}
+export function recoveryDisposition(s:any,now=Date.now()){
+ if(s.request_state==='submitted'||s.request_state==='failed')return 'terminal';
+ if(Date.parse(s.lease_expires_at)>now)return 'deferred-active-lease';
+ if(s.action_reason==='reconciling')return 'unresolved';
+ return 'eligible-or-held';
+}
+export function matchConsumedExecution(records:any[],event:any,known:any[]){
+ const matched=[];for(const candidate of records){assert.equal(candidate.workflowId,event.data.copyId);assert(['success','error','canceled','crashed'].includes(candidate.status),'Execution still in flight; observe later without triggering');const body=candidate.data?.resultData?.runData?.['Webhook (Gelato Intake)']?.[0]?.data?.main?.[0]?.[0]?.json?.body;const digest=sha(body);assert(known.some(e=>e.data.inputSha256===digest),'Unowned execution on dedicated copy');if(digest===event.data.inputSha256)matched.push(candidate);}
+ assert(matched.length<=1,'Multiple executions for exact consumed claim');return matched[0];
+}
+async function observe(live:Live,kind:string,recover:boolean){
+ const c=live.fixture.cases.find((c:any)=>c.kind===kind);assert(c,'Unknown case');
+ await live.assertOff();await preserve(live);
+ try{
+  // Closure is independently available even when journal reconciliation fails.
+  await close(live);
+  const matches=await live.db('print_provider_submissions','select=*&root_order_id=eq.'+c.orders[0].rootOrderId);assert(matches.length<=1,'Duplicate submission');
+  if(!matches.length){await live.ledger.record('observed',kind+'-'+Date.now(),{submission:null,safeHeld:true,noReplay:true});return;}
+  const s=matches[0];assert.equal(s.workflow_job_idempotency_key,`unpaid:${live.fixture.proofId}:${kind}`);
+  const event=live.ledger.find('intent','webhook:'+kind);let execution:any;
+  if(event){const list=(await live.executions(event.data.copyId)).filter(e=>!event.data.before.includes(e.id));const known=live.ledger.entries.filter(e=>e.kind==='intent'&&e.key.startsWith('webhook:')&&e.data.copyId===event.data.copyId);const records=[];for(const entry of list)records.push(await live.request('n8n','GET','executions/'+entry.id+'?includeData=true'));execution=matchConsumedExecution(records,event,known);if(execution){const copy=live.ledger.find('verified','copy:'+(kind==='amazon-siblings'?1:0))!.data;const template=await live.request('n8n','GET','workflows/'+copy.id);assert.equal(sha(graph(template)),copy.graphSha256);assert.equal(sha(executionGraph(execution.workflowData,template)),copy.graphSha256);}
+  }
+  const beforeProviderRows=await live.db('print_provider_submission_orders','select=*&submission_id=eq.'+s.id);
+  if(recover){assert.notEqual(recoveryDisposition(s),'deferred-active-lease','Recovery deferred: active lease; no recovery intent consumed');await live.ledger.once('recovery:'+kind+':'+Date.now(),{orderId:c.orders[0].orderId},()=>live.request('backend','POST','/api/admin/gelato-print',{orderId:c.orders[0].orderId,action:'recover'}),async()=>{const rows=await live.db('print_provider_submissions','select=*&id=eq.'+s.id);assert.equal(rows.length,1);return {submissionId:s.id,state:rows[0].request_state,disposition:recoveryDisposition(rows[0]),resolved:['submitted','failed'].includes(rows[0].request_state),providerRoots:(await live.db('print_provider_submission_orders','select=provider_order_id&submission_id=eq.'+s.id)).map(p=>p.provider_order_id).sort()};});}
+  const current=(await live.db('print_provider_submissions','select=*&id=eq.'+s.id))[0];
+  const afterProviderRows=await live.db('print_provider_submission_orders','select=*&submission_id=eq.'+s.id);
+  if(beforeProviderRows.length)assert.deepEqual(afterProviderRows.map(p=>p.provider_order_id).sort(),beforeProviderRows.map(p=>p.provider_order_id).sort(),'Recovery changed accepted roots');
+  let proof:any=null;
+  if(current.request_state==='submitted'&&execution?.status==='success'){const claim=live.ledger.find('verified','claim:'+kind)?.data;assert(claim,'Missing original claim receipt');proof=await prove(live,c,{...claim,claimToken:current.claim_token,artifactClaimToken:claim.claimToken},execution);if(!live.ledger.find('repriced',kind))await reprice(live,c,claim);await live.ledger.once('refresh:'+kind,{orderId:c.orders[0].orderId},()=>live.request('backend','POST','/api/admin/gelato-print',{orderId:c.orders[0].orderId,action:'refresh'}),async()=>{const refreshed=await prove(live,c,{...claim,claimToken:current.claim_token,artifactClaimToken:claim.claimToken},execution);return {submissionId:refreshed.submissionId,providerRoots:refreshed.providerRoots,artifactHashes:refreshed.artifacts.map(a=>a.sha256),notifications:0};});if(!live.ledger.find('case-passed',kind))await live.ledger.record('case-passed',kind,{executionId:execution.id,submissionId:s.id,draftOnly:true,paidProduction:false,messages:0,completedByObservation:true});}
+  await preserve(live);await live.ledger.record('observed',kind+'-'+Date.now(),{submissionId:s.id,state:current.request_state,executionStatus:execution?.status??null,noReplay:true,recoveryRequested:recover,recoveryResolved:['submitted','failed'].includes(current.request_state),proof});
+  console.log(JSON.stringify({kind,state:current.request_state,noWebhookReplay:true,normalControlsOff:true,recoveryRequested:recover,recoveryResolved:['submitted','failed'].includes(current.request_state),proofPassed:Boolean(proof)}));
+ }finally{await close(live);await preserve(live);await live.assertOff();}
+}
+async function main(){
+ const [mode,kind]=process.argv.slice(2);assert(['preflight','seed','run','observe','recover'].includes(mode)&&process.argv.length===(['run','observe','recover'].includes(mode)?4:3),'Unsupported operator mode; emergency closure uses the standalone helper');
+ const lock=await projectLock();const ledger=new Ledger();try{await ledger.open();const live=new Live(ledger,lock.assert);await live.initialize();
+  await fs.mkdir(directory+'/requests',{mode:0o700,recursive:true});
+  if(mode==='preflight'){const off=await live.assertOff();console.log(JSON.stringify({preflight:true,source:off.source,controlsOff:true,localFixtureHashesVerified:true,liveWrites:0}));}
+  else if(mode==='seed'){try{await seed(live);}finally{await close(live);}}else if(mode==='run')await runCase(live,kind);else await observe(live,kind,mode==='recover');
+ }finally{if(ledger.handle)await ledger.close();await lock.release();}
+}
+if(require.main===module)void main().catch(e=>{console.error('Protected unpaid native runner stopped: '+e.message+'; preserve intents and use independent close, never replay webhook');process.exitCode=1;});

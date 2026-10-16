@@ -1,0 +1,111 @@
+import fs from 'node:fs/promises';
+import type {FileHandle} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {spawn} from 'node:child_process';
+import {AwsClient} from '<ORIGINATING_CHECKOUT>/back-end/node_modules/aws4fetch';
+import {parse} from '<ORIGINATING_CHECKOUT>/back-end/node_modules/dotenv/lib/main.js';
+import assert from 'node:assert/strict';
+
+export const primary='<ORIGINATING_CHECKOUT>';
+export const directory=primary+'/.gelato-testing/fulfillment-2026-10-15/native-20261016-C';
+export const checkout='<REVIEWED_CHECKOUT>';
+export const normalWorkflowIds=['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'];
+export const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+export const book='book-finding-our-inner-voice';
+export const sha=(data:unknown)=>createHash('sha256').update(typeof data==='string'||data instanceof Uint8Array?data:JSON.stringify(data)).digest('hex');
+export async function privateRead(path:string){const s=await fs.lstat(path);assert(s.isFile()&&!s.isSymbolicLink()&&s.uid===process.getuid?.()&&(s.mode&0o077)===0,'Private input must be owned non-symlink 0600');return fs.readFile(path,'utf8');}
+export async function privateSave(path:string,value:unknown){await fs.writeFile(path,JSON.stringify(value,null,2)+'\n',{flag:'wx',mode:0o600});}
+export async function projectLock(){
+ const code="import fcntl,sys,os\nf=os.open(sys.argv[1],os.O_CREAT|os.O_RDWR,0o600)\ntry: fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\nexcept BlockingIOError: sys.exit(2)\nprint('locked',flush=True)\nsys.stdin.buffer.read()\n";
+ const child=spawn('/usr/bin/python3',['-c',code,primary+'/.git/gelato-engineering/production-runtime-diagnostic.lock'],{stdio:['pipe','pipe','ignore']});
+ let held=false;child.on('exit',()=>{held=false;});
+ await new Promise<void>((resolve,reject)=>{const timer=setTimeout(()=>{child.kill();reject(Error('Project lock unavailable'));},10000);child.once('exit',()=>{clearTimeout(timer);reject(Error('Another diagnostic owns project lock'));});child.once('error',()=>{clearTimeout(timer);reject(Error('Project lock unavailable'));});child.stdout.once('data',b=>{clearTimeout(timer);assert.equal(b.toString().trim(),'locked');held=true;resolve();});});
+ return {assert:()=>assert(held,'Project lock lost'),release:async()=>{if(child.exitCode!==null||child.signalCode!==null)return;await new Promise<void>(done=>{child.once('exit',()=>done());child.stdin.end();});}};
+}
+export type Entry={at:string;kind:string;key:string;data:any};
+export class Ledger{
+ entries:Entry[]=[];handle!:FileHandle;
+ async open(){const path=directory+'/operations.jsonl';let exists=false;try{const s=await privateRead(path);exists=true;assert(s===''||s.endsWith('\n'),'Torn journal tail');this.entries=s.trimEnd().split('\n').filter(Boolean).map(l=>JSON.parse(l));}catch(e:any){if(e.code!=='ENOENT')throw e;}this.handle=await fs.open(path,exists?'a':'ax',0o600);}
+ async record(kind:string,key:string,data:any){const row={at:new Date().toISOString(),kind,key,data};await this.handle.writeFile(JSON.stringify(row)+'\n');await this.handle.sync();const d=await fs.open(directory,'r');try{await d.sync();}finally{await d.close();}this.entries.push(row);}
+ find(kind:string,key:string){const xs=this.entries.filter(e=>e.kind===kind&&e.key===key);assert(xs.length<=1,'Duplicate journal ownership');return xs[0];}
+ async once<T>(key:string,input:unknown,perform:()=>Promise<unknown>,reconcile:()=>Promise<T>):Promise<T>{
+  const prior=this.find('intent',key);if(prior)assert.equal(prior.data.inputSha256,sha(input),'Consumed intent input changed');
+  else{await this.record('intent',key,{inputSha256:sha(input)});try{await perform();}catch{await this.record('uncertain',key,{reconcileOnly:true});}}
+  const value=await reconcile();const old=this.find('verified',key);if(old)assert.equal(sha(old.data),sha(value),'Verified immutable receipt changed');else await this.record('verified',key,value);return value;
+ }
+ async close(){await this.handle.close();}
+}
+const tables=['orders','book_configs','print_provider_dispatch_gates','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications','gelato_engineering_submission_windows'];
+export class Live{
+ env!:Record<string,string>;pins:any;fixture:any;rasters:any;pdfs:any;keySha!:string;
+ ownedKeys=new Set<string>();ownedDbIds=new Set<number>();copyIds=new Set<string>();providerIds=new Set<string>();
+ requestNo=0;aws!:AwsClient;
+ constructor(readonly ledger:Ledger,readonly assertLock:()=>void,readonly fetcher:typeof fetch=fetch,readonly saveResponse:typeof privateSave=privateSave){}
+ async initialize(){
+  this.env=parse(await privateRead(primary+'/.gelato-testing/.env.local'));
+  assert.equal(this.env.SUPABASE_URL,'https://mdnthwpcnphjnnblbvxk.supabase.co');assert.equal(this.env.N8N_BASE_URL,'https://thepeakbeyond.app.n8n.cloud');assert.equal(this.env.R2_ORDERS_BUCKET_NAME,'little-hero-orders');
+  this.keySha=sha(this.env.GELATO_API_KEY);const old=JSON.parse(await privateRead(primary+'/.gelato-testing/fulfillment-2026-10-15/retained-evidence.json'));assert.equal(this.keySha,old.apiKeyFingerprint,'Account key changed');
+  this.pins=JSON.parse(await privateRead(directory+'/approved-source.json'));
+  assert(this.pins.runnerSources&&Object.keys(this.pins.runnerSources).length>=3,'Reviewed runner source pins missing');
+  for(const [name,digest] of Object.entries(this.pins.runnerSources)){assert(/^[A-Za-z0-9-]+\.(ts|cjs)$/.test(name));assert.equal(sha(await fs.readFile(directory+'/source/'+name)),digest,'Reviewed runner source changed');}
+  for(const [name,digest] of Object.entries(this.pins.canonicalSources??{})){assert(/^back-end\/src\/lib\/[A-Za-z0-9./-]+\.ts$/.test(name)&&!name.includes('..'));assert.equal(sha(await fs.readFile(checkout+'/'+name)),digest,'Canonical source changed');}
+  for(const [name,digest] of Object.entries(this.pins.workflowSources??{})){assert(/^docs\/n8n-workflow-files\/repo-centric\/workflows\/w4[.A-Za-z0-9_-]+\.json$/.test(name),'Unreviewed workflow source path');assert.equal(sha(await fs.readFile(checkout+'/'+name)),digest,'Canonical workflow source changed');}
+  this.fixture=JSON.parse(await privateRead(directory+'/fixture-input-final.json'));this.rasters=JSON.parse(await privateRead(directory+'/rasters/rasters.json'));this.pdfs=JSON.parse(await privateRead(directory+'/rasters/pdf-receipts.json'));
+  assert.equal(sha(await privateRead(directory+'/fixture-input-final.json')),this.pins.fixtureSha256);assert.equal(sha(await privateRead(directory+'/rasters/rasters.json')),this.pins.rastersSha256);assert.equal(sha(await privateRead(directory+'/rasters/pdf-receipts.json')),this.pins.pdfReceiptSha256);
+  const orders=this.fixture.cases.flatMap((c:any)=>c.orders);assert.equal(orders.length,4);for(const o of orders){assert.match(o.orderId,/^TEST-GELATO-[A-Za-z0-9-]+$/);assert(o.orderId.length<=50);this.ownedKeys.add(o.orderId);}assert.equal(this.ownedKeys.size,4);
+  for(const [i,child] of this.rasters.caseChildren.entries()){assert.equal(child.orderId,orders[i].orderId);assert.equal(child.assets.length,33);for(const a of child.assets){assert.match(a.filename,/^(WEB-A|AMZ-A|SIB-A|SIB-B)\/[A-Za-z0-9_-]+\.png$/);assert.equal(sha(await fs.readFile(directory+'/rasters/'+a.filename)),a.pngSha256);}}
+  for(const p of this.pdfs.receipts){assert.equal(sha(await fs.readFile(directory+'/rasters/'+p.role+'.pdf')),p.sha256);assert.equal(p.uploadedPages,35);assert.equal(p.physicalInnerPages,32);assert.equal(p.apiPageCount,32);}
+  this.aws=new AwsClient({accessKeyId:this.env.CLOUDFLARE_R2_ACCESS_KEY_ID,secretAccessKey:this.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,service:'s3',region:'auto'});
+  for(const e of this.ledger.entries.filter(e=>e.kind==='verified'&&e.key.startsWith('copy:')))this.copyIds.add(e.data.id);
+  for(const e of this.ledger.entries.filter(e=>e.kind==='verified'&&e.key.startsWith('held:')))this.ownedDbIds.add(e.data.id);
+ }
+ async raw(service:'db'|'backend'|'n8n'|'gelato'|'cloud',method:string,path:string,body?:any){
+  if(method!=='GET')this.assertLock();
+  let base:string,headers:Record<string,string>={};
+  if(service==='db'){
+   base=this.env.SUPABASE_URL+'/rest/v1/';headers={apikey:this.env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+this.env.SUPABASE_SERVICE_ROLE_KEY,Prefer:method==='GET'?'count=exact':'return=representation'};
+   const table=path.split('?')[0];assert(tables.includes(table),'Database table not allowlisted');
+   if(method!=='GET'){
+    assert(['orders','gelato_engineering_submission_windows'].includes(table),'Database write not allowlisted');
+    if(table==='orders'){if(method==='POST')assert(this.ownedKeys.has(body.orderId)&&body.execution_status==='done'&&body.next_workflow===null&&body.platform===(body.amazon_order_id?'amazon':'d2c'),'Unheld/foreign fixture insert');else {const params=new URL('https://fixture.invalid/'+path).searchParams;const id=Number(params.get('id')?.replace(/^eq\./,''));const key=params.get('orderId')?.replace(/^eq\./,'');assert(method==='PATCH'&&this.ownedDbIds.has(id)&&key&&this.ownedKeys.has(key)&&params.getAll('id').length===1&&params.getAll('orderId').length===1,'Unowned row update');assert.deepEqual(Object.keys(body).sort(),['execution_status','next_workflow']);assert((body.execution_status==='done'&&body.next_workflow===null)||(body.execution_status==='ready_for_processing'&&['4','4-aggregate'].includes(body.next_workflow)),'Only owned readiness/hold transitions allowed');}}
+    else if(method==='POST')assert(this.fixture.cases.some((c:any)=>c.orders[0].rootOrderId===body.root_order_id)&&body.account_key_sha256===this.keySha,'Foreign window insert');else assert(method==='PATCH'&&this.fixture.cases.some((c:any)=>new URL('https://fixture.invalid/'+path).searchParams.get('root_order_id')==='eq.'+c.orders[0].rootOrderId)&&Object.keys(body).join(',')==='closed_at'&&body.closed_at,'Only terminal owned closure allowed');
+   }
+  }else if(service==='backend'){
+   base='https://admin.littleherolabs.com';headers={Authorization:'Bearer '+this.env.BACKEND_API_TOKEN};
+   assert(/^\/api\/(?:internal\/(?:w0\/publish-manifest|orders\/print-routing\/claim|w4\/submit-gelato-draft)|admin\/gelato-print(?:\?orderId=TEST-GELATO-[A-Za-z0-9-]+)?)$/.test(path),'Backend route not allowlisted');
+   if(method!=='GET'){assert(method==='POST');if(path.endsWith('publish-manifest'))assert(this.ownedKeys.has(body.payload.orderId),'Unowned intake');else if(path.endsWith('/claim'))assert(body.orderDbIds.length>=1&&body.orderDbIds.length<=2&&body.orderDbIds.every((id:number)=>this.ownedDbIds.has(id)),'Claim membership outside owned rows');else assert(path==='/api/admin/gelato-print'&&this.ownedKeys.has(body.orderId)&&['refresh','recover'].includes(body.action),'Only scoped lifecycle reads/recovery allowed');}
+  }else if(service==='n8n'){
+   base=this.env.N8N_BASE_URL+'/api/v1/';headers={'X-N8N-API-KEY':this.env.N8N_API_KEY};
+   assert(/^(workflows(?:\?[A-Za-z0-9%&=_-]+|\/[A-Za-z0-9]+(?:\/(?:activate|deactivate))?)?|executions(?:\?[A-Za-z0-9%&=_-]+|\/\d+\?includeData=true))$/.test(path),'n8n route not allowlisted');
+   if(method!=='GET'){assert(method==='POST');if(path==='workflows')assert(body.name.startsWith('TEST-GELATO-UNPAID-'+this.fixture.proofId),'Unowned workflow create');else assert(this.copyIds.has(path.split('/')[1])&&/\/(activate|deactivate)$/.test(path),'Only owned copy activity changes');}
+  }else if(service==='gelato'){
+   base='https://order.gelatoapis.com/v4/';headers={'X-API-KEY':this.env.GELATO_API_KEY};
+   assert((method==='GET'&&/^orders\/[A-Za-z0-9_-]+$/.test(path)&&this.providerIds.has(path.split('/')[1]))||(method==='POST'&&path==='orders:quote'),'Provider mutation is quote-only; no create/convert/cancel path');
+  }else{base='https://api.cloudflare.com/client/v4/accounts/'+this.env.CLOUDFLARE_ACCOUNT_ID+'/pages/projects/';headers={Authorization:'Bearer '+this.env.CLOUDFLARE_API_TOKEN};assert(method==='GET'&&path==='little-hero-labs-admin','Cloudflare is read-only');}
+  const r=await this.fetcher(base+path,{method,headers:{...headers,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:AbortSignal.timeout(120000)});
+  const text=await r.text();const name='request-'+String(++this.requestNo).padStart(5,'0')+'-'+service+'-'+Date.now()+'.json';
+  await this.saveResponse(directory+'/requests/'+name,{service,method,path,body,status:r.status,contentRange:r.headers.get('content-range'),responseText:text});
+  assert(r.ok,'Service response not confirmed: '+service+' HTTP '+r.status);return {body:JSON.parse(text),range:r.headers.get('content-range')};
+ }
+ async db(table:string,query:string='select=*',order=table==='gelato_engineering_submission_windows'?'root_order_id':table==='print_provider_submission_orders'?'provider_order_id':table==='print_provider_submission_items'?'child_order_id':'id'){
+  const all:any[]=[];let total:number|undefined;
+  for(let offset=0;offset<100000;offset+=1000){const r=await this.raw('db','GET',table+'?'+query+'&order='+order+'&limit=1000&offset='+offset);assert(Array.isArray(r.body));const m=r.range?.match(/\/(\d+)$/);assert(m,'Missing exact database count');if(total===undefined)total=Number(m[1]);assert.equal(Number(m[1]),total,'Database count changed while paginating');all.push(...r.body);if(all.length===total)return all;assert(r.body.length>0&&all.length<total,'Incomplete database page');}throw Error('Database pagination bound exceeded');
+ }
+ async request(service:Parameters<Live['raw']>[0],method:string,path:string,body?:any){return (await this.raw(service,method,path,body)).body;}
+ async workflows(){const all:any[]=[];let cursor:string|undefined;const seen=new Set<string>();for(let n=0;n<100;n++){const r=await this.request('n8n','GET','workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));all.push(...r.data);if(!r.nextCursor)return all;assert(!seen.has(r.nextCursor));seen.add(r.nextCursor);cursor=r.nextCursor;}throw Error('Workflow pagination incomplete');}
+ async executions(id:string){assert(this.copyIds.has(id));const all:any[]=[];let cursor:string|undefined;const seen=new Set<string>();for(let n=0;n<100;n++){const r=await this.request('n8n','GET','executions?workflowId='+id+'&limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));assert(r.data.every((e:any)=>e.workflowId===id));all.push(...r.data);if(!r.nextCursor)return all;assert(!seen.has(r.nextCursor));seen.add(r.nextCursor);cursor=r.nextCursor;}throw Error('Execution pagination incomplete');}
+ async assertOff(){
+  const project=await this.request('cloud','GET','little-hero-labs-admin');assert.equal(project.success,true);const p=project.result;
+  assert.equal(p.canonical_deployment.deployment_trigger.metadata.commit_hash,this.pins.workerSource,'Serving source changed');
+  for(const env of [p.deployment_configs.production.env_vars,p.canonical_deployment.env_vars])assert(flags.every(f=>env[f]?.value==='false'),'Normal project/serving flag not OFF');
+  assert.deepEqual(await this.db('print_provider_dispatch_gates','provider=eq.gelato&select=enabled','provider'),[{enabled:false}]);
+  const runtime=await this.request('backend','GET','/api/internal/w4/submit-gelato-draft');assert.equal(runtime.draftsEnabled,false);assert(['cloudflare','globalProcess','nodeProcess'].every(k=>runtime[k]?.isFalse===true&&runtime[k]?.isTrue===false),'Normal runtime not OFF');
+  for(let i=0;i<2;i++){const old=await this.request('n8n','GET','workflows/'+normalWorkflowIds[i]);assert.equal(old.active,false);assert.equal(sha({nodes:old.nodes,connections:old.connections,settings:old.settings}),this.pins.normalGraphs[i]);}
+  return {at:new Date().toISOString(),source:this.pins.workerSource,deployment:p.canonical_deployment.id,normalFlagsOff:true,normalDispatch:false,normalCopiesInactive:true,runtimeDraftsEnabled:false};
+ }
+ objectUrl(key:string){const prefix=book+'/orders/';assert(key.startsWith(prefix));const rest=key.slice(prefix.length),order=rest.split('/')[0];assert(this.ownedKeys.has(order));assert(new RegExp('^'+book+'/orders/'+order+'/(?:manifests/[13]-manifest\\.json|preview-images/[A-Za-z0-9-]+\\.png|gelato/print/v2/[a-f0-9]{24}\\.pdf)$').test(key),'Object outside owned fixture prefixes');return 'https://'+this.env.R2_ORDERS_BUCKET_NAME+'.'+this.env.CLOUDFLARE_ACCOUNT_ID+'.r2.cloudflarestorage.com/'+key.split('/').map(encodeURIComponent).join('/');}
+ async object(key:string){const r=await this.aws.fetch(this.objectUrl(key),{redirect:'error',signal:AbortSignal.timeout(60000)});if(r.status===404){await r.body?.cancel();return null;}assert(r.ok);return boundedBytes(r,64_000_000);}
+ async put(key:string,bytes:Buffer,type:string){this.assertLock();assert(!key.includes('/gelato/print/'),'Runner cannot write print PDFs');const signed=await this.aws.sign(this.objectUrl(key),{method:'PUT',headers:{'Content-Type':type,'If-None-Match':'*'},body:new Uint8Array(bytes).buffer,redirect:'error',signal:AbortSignal.timeout(60000)});this.assertLock();const r=await this.fetcher(signed);await r.body?.cancel();assert(r.ok,'Conditional fixture upload unconfirmed');}
+ async webhook(path:string,payload:any){this.assertLock();assert(/^gelato-unpaid-[a-f0-9-]+-(single|siblings)$/.test(path),'Unowned webhook');const r=await fetch(this.env.N8N_BASE_URL+'/webhook/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error',signal:AbortSignal.timeout(30000)});const text=await r.text();await privateSave(directory+'/requests/webhook-'+Date.now()+'.json',{path,payload,status:r.status,responseText:text});assert(r.ok,'Webhook acknowledgment unconfirmed');}
+}
+export async function boundedBytes(response:Response,maximum:number){const n=response.headers.get('content-length');assert(!n||Number(n)<=maximum);assert(response.body);const reader=response.body.getReader();const chunks:Uint8Array[]=[];let bytes=0;try{for(;;){const r=await reader.read();if(r.done)break;bytes+=r.value.length;assert(bytes<=maximum,'Body exceeds limit');chunks.push(r.value);}}catch(e){await reader.cancel().catch(()=>{});throw e;}return Buffer.concat(chunks);}

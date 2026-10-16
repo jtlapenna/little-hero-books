@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "checkpoint": "accepted unpaid regular orders and deployed GET-only status recovery",
+  "files": [
+    {
+      "file": "accepted-conversion-reference/README.md",
+      "sha256": "97e23e86659057d606900bad37c246fe10158665a79e8cddb4adb12c5e057ca5"
+    },
+    {
+      "file": "accepted-conversion-reference/close-conversions.cjs.txt",
+      "sha256": "4c91e82be1205d90f60f3e0753deab4ac5af754c18525f717238ac9ba5f10cd1"
+    },
+    {
+      "file": "accepted-conversion-reference/operator.cjs.txt",
+      "sha256": "d393795e10e7c41aa01f5177541edde546b517cdeb708cba69eab4fb7a876e90"
+    },
+    {
+      "file": "accepted-conversion-reference/prepare-plan.cjs.txt",
+      "sha256": "0363aa030df77dac0e709539aab3c6a89461f2cee527b1bdd7a6f11508fd686f"
+    },
+    {
+      "file": "accepted-conversion-reference/test-operator.cjs.txt",
+      "sha256": "88185dba34f0578f7878c86fd7f29a8fa47427943d79bedc3798b178f4713b55"
+    },
+    {
+      "file": "accepted-reproduction.md",
+      "sha256": "54a45de631179ee4e498823792d274cc7955bf458e2035e7f6a4b40ac47936ae"
+    },
+    {
+      "file": "converted-unpaid-and-recovery-2026-10-16.json",
+      "sha256": "cab12627ab17757e25ef10a234eb11a8198c6d81e90ed3c9eb15059c99688f1c"
+    },
+    {
+      "file": "native-repaired-reference/README.md",
+      "sha256": "cce88652753fc4d2f79fd1ae9d0f9f21340b5e41eeb282a64f17e88f1e25362a"
+    },
+    {
+      "file": "native-repaired-reference/close-native-unpaid.cjs.txt",
+      "sha256": "c73525b83c64931d1b72a80ac8ae40389961670f4b4926254c231469d0f3918c"
+    },
+    {
+      "file": "native-repaired-reference/fixtures-with-tiers.ts.txt",
+      "sha256": "241d68d8b47aa3af223fee95ab80680f5f39ae1439b640a04be83dc86357e0c2"
+    },
+    {
+      "file": "native-repaired-reference/native-client.ts.txt",
+      "sha256": "ee226d427fc2863eecb3002e2e2b53c01b3bc4aa66eccc6b8bd12b999ff10f0a"
+    },
+    {
+      "file": "native-repaired-reference/native-ops.ts.txt",
+      "sha256": "c6faee94dd3e66d0b907419c11ef97cd8b1b83bba0483e647f6c4a15936e4ec0"
+    },
+    {
+      "file": "native-repaired-reference/pdfs.ts.txt",
+      "sha256": "d05b3b5baf85714057bb1697349711609205ef0ee7465846281c5ec0f6520966"
+    },
+    {
+      "file": "native-repaired-reference/rasters.py.txt",
+      "sha256": "fb6320b61851518f5402eaf9ba0497e8e920aa2c7f72145947757eb3d0208d93"
+    },
+    {
+      "file": "native-repaired-reference/repair-canonical-w0.ts.txt",
+      "sha256": "4896cddd6cea679fb24f9597dcde04b5f13cf81bdbe2d5e3c9d3c9f72c70ad59"
+    },
+    {
+      "file": "native-repaired-reference/test-native.ts.txt",
+      "sha256": "cb982a567001ec589aaa28d65c65fa653e315b22e8f35fb3856ce0cb2e5b40d5"
+    },
+    {
+      "file": "native-website-repaired-2026-10-16.json",
+      "sha256": "a333bf47c9eae1a4bbd05dd3030c824722e557f7004b1b5a2509d74d9d70dfaa"
+    },
+    {
+      "file": "observe-only-reference/README.md",
+      "sha256": "0af8738ad18146c071cbd19d2dcb29d26e89cfa9d0bbb275bc876f963a171cc2"
+    },
+    {
+      "file": "observe-only-reference/close-conversions.cjs.txt",
+      "sha256": "6dfe9ea3a167290cb451de119a3519b3c3df3ad4ad380c2b85a398ed226bf221"
+    },
+    {
+      "file": "observe-only-reference/operator.cjs.txt",
+      "sha256": "954136a6b5a48ac852c793ed6a12ffd3312dca295b9b2e3b989b14311136e147"
+    },
+    {
+      "file": "observe-only-reference/prepare-observation-plan.cjs.txt",
+      "sha256": "184c6b6ebbd0fff14092f0a1f9df6480b658ef18d97fe43a258053b842dcc696"
+    },
+    {
+      "file": "observe-only-reference/test-operator.cjs.txt",
+      "sha256": "643c22ae436d52043e539c2208197140c7055bf04de4ebe10ddd7cd0479065aa"
+    },
+    {
+      "file": "verify-accepted-unpaid.mjs",
+      "sha256": "e64de51c9c0262bad998332a7546d9fe5d164bf4325d59d1aadea91e9f6fd162"
+    }
+  ]
+}

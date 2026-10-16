@@ -1,5 +1,7 @@
 # Gelato unpaid fulfillment checkpoint — October 16, 2026
 
+> Historical checkpoint: subsequent owner company-profile completion, three accepted unpaid regular orders and status recovery are recorded in [the acceptance follow-up](gelato-unpaid-accepted-results-2026-10-16.md). Do not treat the old draft-only/current-state wording below as the latest state.
+
 The notification, exact native-window and one-time conversion safeguards are installed and deployed. Three native dummy-asset cases passed through W4/W4.1 to held Gelato drafts, and a fresh website repeat passed after the Worker transport fix. The first real guarded conversion reached Gelato, which rejected it because the account's company billing profile is incomplete. No regular order, payment-required state, charge, printing, shipping or delivery has been established.
 
 Current fetched main is `d866e0541832b6f3ddaa9703aa4672b696bcd17b`. PRs #14–17 are merged; production deployment 38841693132 and safety CI 38841693149 passed for that source. PR #17 fixed Worker fetch transport and added a real-engine regression: the previous redirect option failed before a provider call. It did not change normal submission defaults or SQL. PR #13 remains useful for its earlier unconverted-draft boundary; its evidence was not reclassified as regular fulfillment proof.

@@ -1,0 +1,84 @@
+import assert from 'node:assert/strict';
+import {Live,Ledger,normalWorkflowIds,sha} from './native-client';
+import {copyTemplate,ordinaryProjection,graph,recoveryDisposition,executionGraph,matchConsumedExecution} from './native-ops';
+import fs from 'node:fs/promises';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {closeTargets}=require('./close-native-unpaid.cjs');
+
+const proof='11111111-2222-4333-8444-555555555555';
+const keys=['TEST-GELATO-UNIT-W','TEST-GELATO-UNIT-A','TEST-GELATO-UNIT-S-item-1','TEST-GELATO-UNIT-S-item-2'];
+const roots=['TEST-GELATO-UNIT-W','TEST-GELATO-UNIT-A','TEST-GELATO-UNIT-S'];
+async function main(){
+ globalThis.fetch=async()=>{throw Error('Offline native test forbids global network');};
+ const files=['w4-GELATO-Print_Fulfillment.repo-centric.json','w4.1-GELATO-Sibling-Aggregation.repo-centric.json'];
+ for(const [i,file] of files.entries()){
+  const original=JSON.parse(await fs.readFile('<REVIEWED_CHECKOUT>/docs/n8n-workflow-files/repo-centric/workflows/'+file,'utf8'));
+  const before=structuredClone(original),copy=copyTemplate(original,proof,i);assert.deepEqual(original,before);
+  const web=copy.nodes.find((n:any)=>n.type==='n8n-nodes-base.webhook');assert.equal(web.parameters.path,`gelato-unpaid-${proof}-${i?'siblings':'single'}`);
+  for(const n of copy.nodes)if(n.type==='n8n-nodes-base.webhook'){const old=original.nodes.find((x:any)=>x.id===n.id);n.parameters.path=old.parameters.path;n.webhookId=old.webhookId;}
+  assert.deepEqual(graph(copy),graph(original),'Only webhook identity may differ');
+  const expanded=structuredClone(original);for(const n of expanded.nodes){if(n.type==='n8n-nodes-base.code')Object.assign(n.parameters,{mode:'runOnceForAllItems',language:'javaScript',notice:''});if(n.type==='n8n-nodes-base.httpRequest')n.parameters.options.response.response.fullResponse=false;}assert.deepEqual(executionGraph(expanded,original),graph(original));expanded.nodes.find((n:any)=>n.type==='n8n-nodes-base.httpRequest').parameters.options.response.response.fullResponse=true;assert.throws(()=>executionGraph(expanded,original));
+  const badProducer=structuredClone(original);badProducer.nodes.find((n:any)=>n.name==='Prepare Gelato Request').parameters.jsCode+='\n// changed';assert.throws(()=>copyTemplate(badProducer,proof,i));
+  const bad=structuredClone(original);bad.nodes.find((n:any)=>n.type==='n8n-nodes-base.httpRequest').parameters.url='https://attacker.invalid';assert.throws(()=>copyTemplate(bad,proof,i));
+ }
+ let network=0,saved=0;
+ const live=new Live({} as Ledger,()=>{},async()=>{network++;return new Response('{}',{status:200});},async()=>{saved++;});
+ live.env={SUPABASE_URL:'https://mdnthwpcnphjnnblbvxk.supabase.co',N8N_BASE_URL:'https://thepeakbeyond.app.n8n.cloud',GELATO_API_KEY:'synthetic',CLOUDFLARE_ACCOUNT_ID:'synthetic'};
+ live.fixture={proofId:proof,cases:roots.map((root,i)=>({kind:String(i),orders:[{rootOrderId:root}]}))};live.keySha='synthetic-sha';keys.forEach(k=>live.ownedKeys.add(k));live.ownedDbIds.add(1);live.copyIds.add('clone1');live.providerIds.add('ownedProvider');
+ for(const f of [
+  ()=>live.raw('gelato','POST','orders',{orderType:'order'}),()=>live.raw('gelato','PATCH','orders/ownedProvider',{orderType:'order'}),()=>live.raw('gelato','POST','orders/ownedProvider:cancel'),()=>live.raw('gelato','GET','orders/foreignProvider'),
+  ()=>live.raw('db','PATCH','print_provider_dispatch_gates?provider=eq.gelato',{enabled:true}),()=>live.raw('db','POST','orders',{orderId:'CUSTOMER',execution_status:'done',next_workflow:null}),
+  ()=>live.raw('db','PATCH','orders?id=eq.999&orderId=eq.'+keys[0],{execution_status:'done',next_workflow:null}),()=>live.raw('db','POST','gelato_engineering_submission_windows',{root_order_id:'CUSTOMER',account_key_sha256:live.keySha}),
+  ()=>live.raw('n8n','POST','workflows/'+normalWorkflowIds[0]+'/activate'),()=>live.raw('n8n','DELETE','workflows/clone1'),
+  ()=>live.raw('backend','POST','/api/admin/gelato-print',{orderId:keys[0],action:'cancel'}),()=>live.raw('backend','POST','/api/internal/orders/print-routing/claim',{orderDbIds:[999]}),
+  ()=>live.raw('cloud','PATCH','little-hero-labs-admin',{}),()=>live.put('book-finding-our-inner-voice/orders/'+keys[0]+'/gelato/print/v2/'+'a'.repeat(24)+'.pdf',Buffer.from('test'),'application/pdf'),
+ ])await assert.rejects(f());
+ assert.equal(network,0);assert.equal(saved,0);
+ assert.throws(()=>live.objectUrl('book-finding-our-inner-voice/orders/CUSTOMER/preview-images/p00.png'));
+ assert.throws(()=>live.objectUrl('book-finding-our-inner-voice/orders/'+keys[0]+'/../customer.png'));
+ await live.raw('gelato','POST','orders:quote',{});assert.equal(network,1);assert.equal(saved,1);
+
+ const fixture={proofId:proof,cases:roots.map((root,i)=>({kind:'case-'+i,orders:(i===2?keys.slice(2):[keys[i]]).map(k=>({orderId:k,rootOrderId:root}))}))};
+ const all:any={orders:[{id:99,orderId:'CUSTOMER'},{id:1,orderId:keys[0]}],print_provider_submissions:[{id:'owned',root_order_id:roots[0],workflow_job_idempotency_key:`unpaid:${proof}:case-0`}],print_provider_submission_items:[{submission_id:'owned',child_order_key:keys[0]}],print_provider_submission_orders:[{submission_id:'owned',provider_order_id:'draft'}],print_provider_submission_notifications:[]};
+ const projected=ordinaryProjection(all,fixture);assert.deepEqual(projected.orders,[{id:99,orderId:'CUSTOMER'}]);assert.equal(projected.print_provider_submissions.length,0);
+ const bad=structuredClone(all);bad.print_provider_submission_items[0].child_order_key='CUSTOMER';assert.throws(()=>ordinaryProjection(bad,fixture));
+
+ assert.equal(recoveryDisposition({request_state:'claimed',lease_expires_at:new Date(Date.now()+60000).toISOString()}),'deferred-active-lease');assert.equal(recoveryDisposition({request_state:'outcome_unknown',lease_expires_at:new Date(0).toISOString(),action_reason:'provider_outcome_requires_review'}),'eligible-or-held');assert.equal(recoveryDisposition({request_state:'outcome_unknown',lease_expires_at:new Date(0).toISOString(),action_reason:'reconciling'}),'unresolved');assert.equal(recoveryDisposition({request_state:'submitted'}),'terminal');
+ const event=(body:any)=>({data:{copyId:'owned-copy',inputSha256:sha(body)}});const ex=(body:any,id:string)=>({id,workflowId:'owned-copy',status:'success',data:{resultData:{runData:{'Webhook (Gelato Intake)':[{data:{main:[[{json:{body}}]]}}]}}}});
+ const eb1={claim:'one'},eb2={claim:'two'};assert.equal(matchConsumedExecution([ex(eb1,'1'),ex(eb2,'2')],event(eb1),[event(eb1),event(eb2)]).id,'1');assert.throws(()=>matchConsumedExecution([ex(eb1,'1'),ex(eb1,'3')],event(eb1),[event(eb1)]));assert.throws(()=>matchConsumedExecution([ex(eb2,'2')],event(eb1),[event(eb1)]));
+ const ledger=new Ledger();let recordNo=0,sends=0;ledger.record=async(kind,key,data)=>{ledger.entries.push({at:'test',kind,key,data});recordNo++;};
+ const operation=async()=>{sends++;throw Error('Accepted remotely; lost acknowledgment');};
+ const reconcile=async()=>({id:'accepted'});
+ assert.deepEqual(await ledger.once('single',{body:1},operation,reconcile),{id:'accepted'});
+ assert.deepEqual(await ledger.once('single',{body:1},operation,reconcile),{id:'accepted'});assert.equal(sends,1);assert.equal(recordNo,3);
+ await assert.rejects(ledger.once('single',{body:2},operation,reconcile));assert.equal(sends,1);
+ await assert.rejects(ledger.once('single',{body:1},operation,async()=>({id:'changed'})));assert.equal(sends,1);
+
+ const env={SUPABASE_URL:'https://mdnthwpcnphjnnblbvxk.supabase.co',N8N_BASE_URL:'https://thepeakbeyond.app.n8n.cloud'};
+ const targets={proofId:proof,rootOrderIds:roots,orderKeys:keys,copyNames:[`TEST-GELATO-UNPAID-${proof}-single`,`TEST-GELATO-UNPAID-${proof}-siblings`],webhookPaths:[`gelato-unpaid-${proof}-single`,`gelato-unpaid-${proof}-siblings`]};
+ for(const fail of ['none','window','first-copy']){
+  const calls:any[]=[];const state=new Map(roots.map(k=>[k,null as string|null]));const active=new Map([['clone1',true],['clone2',true]]);
+  const fake=async(url:any,init:any)=>{
+   const u=new URL(String(url));calls.push({url:String(url),method:init.method});const json=(x:any,status=200)=>new Response(JSON.stringify(x),{status});
+   if(u.pathname.endsWith('/gelato_engineering_submission_windows')){const root=u.searchParams.get('root_order_id')!.slice(3);if(init.method==='PATCH'){if(fail==='window'&&root===roots[0])return json({},503);state.set(root,JSON.parse(init.body).closed_at);return json([]);}return json([{root_order_id:root,closed_at:state.get(root)}]);}
+   if(u.pathname.endsWith('/orders'))return json([]);
+   if(u.pathname.endsWith('/print_provider_dispatch_gates'))return json([{enabled:false}]);
+   if(u.pathname==='/api/v1/workflows')return json({data:[{id:'clone1',name:targets.copyNames[0]},{id:'clone2',name:targets.copyNames[1]}],nextCursor:null});
+   if(u.pathname.endsWith('/deactivate')){if(fail==='first-copy'&&u.pathname.includes('/clone1/'))return json({},503);active.set(u.pathname.split('/').at(-2)!,false);return json({});}
+   if(u.pathname.includes('/api/v1/workflows/')){const id=u.pathname.split('/').at(-1)!;return json({active:active.get(id)??false,nodes:[{type:'n8n-nodes-base.webhook',parameters:{path:targets.webhookPaths[id==='clone1'?0:1]}}]});}
+   if(u.pathname.includes('/client/v4/')){const vars=Object.fromEntries(['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'].map(k=>[k,{value:'false'}]));return json({success:true,result:{deployment_configs:{production:{env_vars:vars}},canonical_deployment:{env_vars:vars}}});}
+   if(u.pathname.endsWith('/submit-gelato-draft'))return json({draftsEnabled:false,...Object.fromEntries(['cloudflare','globalProcess','nodeProcess'].map(k=>[k,{isFalse:true,isTrue:false}]))});
+   throw Error('Unexpected offline closure URL');
+  };
+  const result=await closeTargets(env,targets,fake);assert.equal(result.closed,fail==='none');assert.equal(result.controls.length,15);assert.equal(active.get('clone1'),fail==='first-copy');assert.equal(active.get('clone2'),false);
+  assert(roots.every(k=>calls.some(c=>c.method==='PATCH'&&c.url.includes('root_order_id=eq.'+k))));assert(!calls.some(c=>c.method!=='GET'&&normalWorkflowIds.some(id=>c.url.includes(id))),'Normal workflow mutated');assert(!calls.some(c=>c.method!=='GET'&&c.url.includes('print_provider_dispatch_gates')),'Normal gate mutated');
+ }
+ const uploadRequests:any[]=[];let signedCalls=0,uploadLocks=0;
+ const uploadLive=new Live(new Ledger(),()=>{uploadLocks++;},async(input:any)=>{uploadRequests.push(input);assert(input instanceof Request);assert.equal(input.method,'PUT');assert.equal(input.headers.get('If-None-Match'),'*');assert.deepEqual([...new Uint8Array(await input.arrayBuffer())],[1,2,3]);return new Response(null,{status:200});});
+ uploadLive.env={R2_ORDERS_BUCKET_NAME:'unit-bucket',CLOUDFLARE_ACCOUNT_ID:'unit-account'};uploadLive.ownedKeys.add(keys[0]);uploadLive.aws={sign:async(url:any,init:any)=>{signedCalls++;return new Request(url,init);}} as any;
+ await uploadLive.put('book-finding-our-inner-voice/orders/'+keys[0]+'/preview-images/p01.png',Buffer.from([1,2,3]),'image/png');assert.equal(signedCalls,1);assert.equal(uploadRequests.length,1);assert.equal(uploadLocks,2);
+ let failedUploads=0;const failedUpload=new Live(new Ledger(),()=>{},async()=>{failedUploads++;throw Error('uncertain');});failedUpload.env=uploadLive.env;failedUpload.ownedKeys.add(keys[0]);failedUpload.aws=uploadLive.aws;await assert.rejects(failedUpload.put('book-finding-our-inner-voice/orders/'+keys[0]+'/preview-images/p01.png',Buffer.from([1,2,3]),'image/png'));assert.equal(failedUploads,1,'No upload retry after uncertain fetch');
+ console.log(JSON.stringify({offlinePassed:true,forbiddenProviderOrNormalControlEffects:14,consumedIntentNoReplay:true,ordinaryMembershipGuard:true,independentClosureSuccessAndFailure:true,realNetworkCalls:0}));
+}
+void main().catch(e=>{console.error('Offline unpaid runner test failed: '+e.message);process.exitCode=1;});

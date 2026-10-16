@@ -1,6 +1,6 @@
 # One-time unpaid conversion: design and release plan
 
-Latest outcome: [October 16 checkpoint](gelato-unpaid-checkpoint-2026-10-16.md). PR #17 subsequently deployed the Worker transport fix. Fresh website W4 54694 passed; its real conversion received HTTP 400 for incomplete company information and remained draft. Amazon conversions remain unconsumed; no no-payment processing boundary established.
+Current results: [accepted-unpaid follow-up](gelato-unpaid-accepted-results-2026-10-16.md). After owner company-profile completion, all three guarded conversions were accepted as regular/created/financial-pending. PR #19 fixed unchanged-timestamp status reconciliation; GET-only recovery passed. No payment was added, no paid production or customer messages occurred, and normal controls remain OFF. The company-profile rejection below is preserved historical context.
 
 Historical rollout status: PR #16 installed/deployed on main `9305591`; exact hosted SQL and rollback-only ownership checks passed. The first website attempt stopped before provider response/send/PATCH and closed; the provider remains draft. A Worker transport follow-up is prepared separately; no real regular conversion has yet occurred. Three native draft cases already passed (W4 54690/54691 and W4.1 54692). Normal five flags, ordinary dispatch, original workflow copies and customer delivery remain OFF. No paid production or live cancellation is authorized.
 

@@ -1,6 +1,6 @@
 # Expanded Gelato verification: unpaid diagnostic and preparation evidence
 
-This directory contains dated stages of the expanded engineering phase. Start with the [October 16 checkpoint](../gelato-unpaid-checkpoint-2026-10-16.md) and its single requirement table. Three native W4/W4.1 draft tests and a fresh website repeat passed. One real guarded conversion was rejected for incomplete company billing information; no regular order, paid printing, payment change or customer message occurred. Earlier sections and JSON receipts remain historical evidence for their stated scope.
+This directory contains dated stages of the expanded engineering phase. Start with the [accepted-unpaid results](../gelato-unpaid-accepted-results-2026-10-16.md) and its requirement table: three native W4/W4.1 cases reached regular Gelato orders in created/financial-pending state, with deployed GET-only status recovery. Normal controls remain OFF; no paid printing, payment change or customer message occurred. The [company-profile checkpoint](../gelato-unpaid-checkpoint-2026-10-16.md) and older receipts remain historical evidence, including failed/closed attempts. Acceptance is not completed file validation, billing, printing or delivery.
 
 The initial source is main `e5ab870341842206ca04f933341aab0e66f3da0c`. Earlier results PR #13 remains useful for the completed draft scope. It is not expanded fulfillment proof.
 
