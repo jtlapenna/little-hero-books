@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   // Find all orders for this root (multi-book: root-item-1, root-item-2, etc.)

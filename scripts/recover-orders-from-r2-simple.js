@@ -21,7 +21,7 @@ const DRY_RUN = args.includes('--dry-run');
 const ORDER_ID = args.find(arg => arg !== '--dry-run');
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const backendUrl = process.env.BACKEND_URL || 'https://admin.littleherolabs.com';
 const publicR2Url = process.env.R2_PUBLIC_URL || 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev';
 

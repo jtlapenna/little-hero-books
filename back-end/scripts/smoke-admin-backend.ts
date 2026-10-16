@@ -26,8 +26,7 @@ const ADMIN_BASE_URL = (process.env.ADMIN_BASE_URL?.trim() || 'https://admin.lit
 const CUSTOMER_SITE_URL = (process.env.CUSTOMER_SITE_URL?.trim() || 'https://littleherolabs.com').replace(/\/+$/, '');
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {

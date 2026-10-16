@@ -24,7 +24,7 @@ N8N_W0_WEBHOOK_URL=https://thepeakbeyond.app.n8n.cloud/webhook/order-intake
 ```bash
 CRON_SECRET=your-existing-cron-secret
 SUPABASE_URL=https://mdnthwpcnphjnnblbvxk.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs
+SUPABASE_SERVICE_ROLE_KEY=REDACTED_JWT_TOKEN
 ```
 
 ## Alternative Variable Names (Supported)

@@ -155,7 +155,7 @@ function presignKey(key,expires=3600){
   const kService=crypto.createHmac('sha256',kRegion).update(svc).digest();
   const kSigning=crypto.createHmac('sha256',kService).update('aws4_request').digest();
   const signature=crypto.createHmac('sha256',kSigning).update(stringToSign).digest('hex');
-  return `https://${endpointHost}/${bucket}/${objectKey}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+  return `REDACTED_PRIVATE_ASSET_URL`;
 }
 
 function normAddr(addr){if(!addr||typeof addr!=='object')return null;

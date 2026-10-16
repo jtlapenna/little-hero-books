@@ -11,8 +11,7 @@ dotenv.config({ path: path.join(repoRoot, '.env.local') });
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function requireEnv(value: string | undefined, name: string): string {
   if (value) {
@@ -28,7 +27,7 @@ const resolvedSupabaseUrl = requireEnv(
 );
 const resolvedSupabaseServiceKey = requireEnv(
   supabaseServiceKey,
-  'SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
 );
 
 function parseArgs() {

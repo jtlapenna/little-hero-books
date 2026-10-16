@@ -225,7 +225,7 @@ vercel logs --follow
 ### Test Endpoint
 ```bash
 curl -X GET "https://admin.littleherolabs.com/api/cron/amazon-orders?test=true" \
-  -H "Authorization: Bearer 86733775452278635717571574259589" | jq '.'
+  -H "Authorization: Bearer REDACTED_CRON_SECRET" | jq '.'
 ```
 
 ---

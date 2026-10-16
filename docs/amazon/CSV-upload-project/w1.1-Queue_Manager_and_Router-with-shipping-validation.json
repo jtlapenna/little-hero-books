@@ -31,11 +31,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "REDACTED_JWT_TOKEN"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer REDACTED_JWT_TOKEN"
             }
           ]
         },
@@ -221,11 +221,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "REDACTED_JWT_TOKEN"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer REDACTED_JWT_TOKEN"
             }
           ]
         },
@@ -273,11 +273,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "REDACTED_JWT_TOKEN"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer REDACTED_JWT_TOKEN"
             }
           ]
         },
@@ -325,11 +325,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "REDACTED_JWT_TOKEN"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer REDACTED_JWT_TOKEN"
             }
           ]
         },
@@ -349,7 +349,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 3',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const oneManifestKey = manifestUrl.startsWith('http') ? manifestUrl : manifestUrl;\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
+        "jsCode": "\n// Process Workflow 3 orders\nconst routing = $input.first().json;\nconst orders3 = routing.workflow3 || [];\n\nif (orders3.length === 0) {\n  console.log('No orders for Workflow 3');\n  return [];\n}\n\nconsole.log(`=== PROCESSING ${orders3.length} ORDERS FOR WORKFLOW 3 ===`);\n\nconst prefix = 'book-mvp-simple-adventure/orders';\nconst supabaseUrl = 'https://mdnthwpcnphjnnblbvxk.supabase.co';\nconst supabaseKey = 'REDACTED_JWT_TOKEN';\n\nconst processed = [];\nconst skipped = [];\n\nfor (const order of orders3) {\n  // Check if one_manifest_url exists\n  const manifestUrl = order.one_manifest_url || order.oneManifestUrl;\n  \n  if (!manifestUrl) {\n    console.warn(`⚠️ Order ${order.amazon_order_id} missing 1-manifest.json - marking as error`);\n    \n    // Mark order as error in Supabase\n    try {\n      await fetch(\n        `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}`,\n        {\n          method: 'PATCH',\n          headers: {\n            'apikey': supabaseKey,\n            'Authorization': `Bearer ${supabaseKey}`,\n            'Content-Type': 'application/json',\n            'Prefer': 'return=representation'\n          },\n          body: JSON.stringify({\n            execution_status: 'error',\n            error_type: 'missing_manifest',\n            error_message: 'Missing required 1-manifest.json file for Workflow 3',\n            updated_at: new Date().toISOString()\n          })\n        }\n      );\n    } catch (error) {\n      console.error(`Failed to mark order ${order.amazon_order_id} as error:`, error);\n    }\n    \n    skipped.push(order.amazon_order_id);\n    continue;\n  }\n  \n  // Use manifest URL from database, or construct from prefix if it's just a key\n  const oneManifestKey = manifestUrl.startsWith('http') ? manifestUrl : manifestUrl;\n  const finalKey = manifestUrl.includes('/manifests/1-manifest.json') ? manifestUrl : `${prefix}/${order.amazon_order_id}/manifests/1-manifest.json`;\n  \n  processed.push({\n    json: {\n      orderId: order.amazon_order_id,\n      oneManifestKey: finalKey,\n      characterHash: order.character_hash,\n      orderDbId: order.id,\n      workflow: '3',\n      dedicationText: order.dedication_text || null\n    }\n  });\n}\n\nif (skipped.length > 0) {\n  console.log(`⚠️ Skipped ${skipped.length} orders due to missing manifest: ${skipped.join(', ')}`);\n}\n\nconsole.log(`✅ Processed ${processed.length} orders for Workflow 3`);\n\nreturn processed;\n"
       },
       "id": "ef84fc5e-e774-475d-a53a-dd62971f9ca6",
       "name": "Prep Workflow 3 Orders",
@@ -472,7 +472,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded token\n// IMPORTANT: This token must match BACKEND_API_TOKEN in Vercel environment variables\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\n// Backend API token for authentication (from W0 config)\n// Update this if BACKEND_API_TOKEN changes in Vercel\nconst token = 'e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646';\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconsole.log(`[Get Signed URL] Requesting signed URL for: ${item.oneManifestKey}`);\nconsole.log(`[Get Signed URL] Endpoint: ${endpoint}`);\nconsole.log(`[Get Signed URL] Token present: ${!!token} (length: ${token.length})`);\n\ntry {\n  const res = await this.helpers.request({\n    method: 'GET',\n    uri: endpoint,\n    qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n    headers: { \n      'Authorization': `Bearer ${token}`,\n      'Content-Type': 'application/json'\n    },\n    json: true\n  });\n\n  console.log(`[Get Signed URL] Response received:`, {\n    hasUrl: !!res.url,\n    hasData: !!res.data,\n    hasJson: !!res.json,\n    hasResult: !!res.result,\n    responseKeys: Object.keys(res || {})\n  });\n\n  const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n  \n  if (!oneManifestUrl) {\n    console.error('[Get Signed URL] Response structure:', JSON.stringify(res, null, 2).substring(0, 500));\n    throw new Error('Signed URL endpoint did not return a URL. Check response structure above.');\n  }\n\n  console.log(`[Get Signed URL] ✅ Successfully obtained signed URL (length: ${oneManifestUrl.length})`);\n  return [{ json: { ...item, oneManifestUrl } }];\n} catch (error) {\n  console.error('[Get Signed URL] Request failed:', {\n    message: error.message,\n    status: error.response?.status,\n    statusText: error.response?.statusText,\n    data: error.response?.data\n  });\n  \n  if (error.response?.status === 401) {\n    throw new Error('Authentication failed (401). Check that BACKEND_API_TOKEN in n8n matches the token in Vercel environment variables.');\n  }\n  \n  throw error;\n}\n"
+        "jsCode": "\n// Fetch a signed GET URL for oneManifestKey via backend\n// NOTE: n8n Cloud doesn't allow env var access in Code nodes, so using hardcoded token\n// IMPORTANT: This token must match BACKEND_API_TOKEN in Vercel environment variables\nconst item = $input.first().json;\nconst endpoint = 'https://admin.littleherolabs.com/api/r2/signed-url';\n// Backend API token for authentication (from W0 config)\n// Update this if BACKEND_API_TOKEN changes in Vercel\nconst token = 'REDACTED_PROVIDER_CREDENTIAL';\nconst ttl = 600;\n\nif (!item.oneManifestKey) {\n  throw new Error('Missing oneManifestKey');\n}\n\nif (!token || token.trim() === '') {\n  throw new Error('BACKEND_API_TOKEN not configured. Token is required for authentication.');\n}\n\nconsole.log(`[Get Signed URL] Requesting signed URL for: ${item.oneManifestKey}`);\nconsole.log(`[Get Signed URL] Endpoint: ${endpoint}`);\nconsole.log(`[Get Signed URL] Token present: ${!!token} (length: ${token.length})`);\n\ntry {\n  const res = await this.helpers.request({\n    method: 'GET',\n    uri: endpoint,\n    qs: { key: item.oneManifestKey, bucket: 'little-hero-orders', expiresIn: ttl },\n    headers: { \n      'Authorization': `Bearer ${token}`,\n      'Content-Type': 'application/json'\n    },\n    json: true\n  });\n\n  console.log(`[Get Signed URL] Response received:`, {\n    hasUrl: !!res.url,\n    hasData: !!res.data,\n    hasJson: !!res.json,\n    hasResult: !!res.result,\n    responseKeys: Object.keys(res || {})\n  });\n\n  const oneManifestUrl = res.url || res.data?.url || res.json?.url || res.result?.url;\n  \n  if (!oneManifestUrl) {\n    console.error('[Get Signed URL] Response structure:', JSON.stringify(res, null, 2).substring(0, 500));\n    throw new Error('Signed URL endpoint did not return a URL. Check response structure above.');\n  }\n\n  console.log(`[Get Signed URL] ✅ Successfully obtained signed URL (length: ${oneManifestUrl.length})`);\n  return [{ json: { ...item, oneManifestUrl } }];\n} catch (error) {\n  console.error('[Get Signed URL] Request failed:', {\n    message: error.message,\n    status: error.response?.status,\n    statusText: error.response?.statusText,\n    data: error.response?.data\n  });\n  \n  if (error.response?.status === 401) {\n    throw new Error('Authentication failed (401). Check that BACKEND_API_TOKEN in n8n matches the token in Vercel environment variables.');\n  }\n  \n  throw error;\n}\n"
       },
       "id": "c7cdc0f3-304c-49fb-8751-46e2475255fb",
       "name": "Get Signed URL (1‑manifest)-W4",
@@ -584,11 +584,11 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "REDACTED_JWT_TOKEN"
             },
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+              "value": "Bearer REDACTED_JWT_TOKEN"
             }
           ]
         },

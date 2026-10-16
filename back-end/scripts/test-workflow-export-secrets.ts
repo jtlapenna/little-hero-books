@@ -112,7 +112,7 @@ function testRedactedContentPasses() {
 function testPresignedUrlFinding() {
   const findings = scanWorkflowExportText(
     "/repo/docs/n8n-workflow-files/repo-centric/workflows/example.json",
-    "https://example.com/file.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc123",
+    ['https://example.invalid/private.pdf', '?X-Amz-Signature=', 'a'.repeat(64)].join(''),
   );
 
   assert(
@@ -156,6 +156,10 @@ function main() {
   testAssignedServiceRoleFinding();
   testRedactedContentPasses();
   testPresignedUrlFinding();
+  const signingCode = scanWorkflowExportText('/repo/docs/n8n-workflow-files/finals/example.json',
+    "const url = base + '&X-Amz-Signature=' + signature;");
+  assert(!signingCode.some(finding => finding.ruleId === 'presigned-url-signature'),
+    'Runtime signing code must not be mistaken for an embedded signed URL');
   console.log("workflow export secret scan tests passed");
 }
 

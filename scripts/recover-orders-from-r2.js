@@ -59,7 +59,7 @@ const DRY_RUN = args.includes('--dry-run');
 const ORDER_ID = args.find(arg => arg !== '--dry-run');
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Try multiple possible env variable names (matching r2-client.ts)
 const r2AccountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;

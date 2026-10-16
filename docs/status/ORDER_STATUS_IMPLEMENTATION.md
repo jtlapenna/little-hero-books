@@ -106,8 +106,8 @@ To get real-time status updates from Lulu, we need to:
 
 ### **Test Order:**
 - Order ID: `JOHN-TEST5` (verify this order still exists in database)
-- Token: `JOHN-TEST5-fa91c26ceed89b7b`
-- URL: `https://littleherolabs.com/approve/JOHN-TEST5-fa91c26ceed89b7b`
+- Token: `REDACTED_DOCUMENTED_TOKEN`
+- URL: `https://littleherolabs.com/approve/REDACTED_DOCUMENTED_TOKEN`
 - **Note**: Test orders may be temporary - verify order exists before testing
 
 ### **Test Scenarios:**

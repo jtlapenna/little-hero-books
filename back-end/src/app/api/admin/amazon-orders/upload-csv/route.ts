@@ -28,7 +28,7 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const AMAZON_CSV_BOOK_ID = 'book-mvp-simple-adventure';
 const AMAZON_CSV_FORMAT_ID = 'amazon';
 

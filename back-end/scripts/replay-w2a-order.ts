@@ -109,7 +109,6 @@ function getN8nApiKey(env: Record<string, string>): string {
 function getSupabaseServiceRoleKey(env: Record<string, string>): string {
   return (
     env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY?.trim() ||
     ""
   );
 }

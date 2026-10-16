@@ -11,8 +11,7 @@ dotenv.config({ path: path.join(repoRoot, '.env.local') });
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAccessToken =
   process.env.SUPABASE_ACCESS_TOKEN ||
   process.env.SUPABASE_MANAGEMENT_TOKEN ||
@@ -33,7 +32,7 @@ const resolvedSupabaseUrl = requireEnv(
 );
 const resolvedSupabaseServiceKey = requireEnv(
   supabaseServiceKey,
-  'SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
 );
 
 const sqlFiles = [

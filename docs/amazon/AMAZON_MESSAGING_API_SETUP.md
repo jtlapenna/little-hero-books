@@ -192,8 +192,8 @@ curl -X POST https://admin.littleherolabs.com/api/preview/generate-token \
 ```json
 {
   "success": true,
-  "token": "abc123def456...",
-  "previewUrl": "https://littleherolabs.com/approve/abc123def456..."
+  "token": "REDACTED_DOCUMENTED_TOKEN",
+  "previewUrl": "https://littleherolabs.com/approve/REDACTED_DOCUMENTED_TOKEN"
 }
 ```
 
@@ -204,7 +204,7 @@ curl -X POST https://admin.littleherolabs.com/api/notifications/preview/amazon \
   -H "Content-Type: application/json" \
   -d '{
     "orderId": "TEST-MSG-001",
-    "token": "abc123def456...",
+    "token": "REDACTED_DOCUMENTED_TOKEN",
     "reminderType": "initial"
   }'
 ```
@@ -215,7 +215,7 @@ curl -X POST https://admin.littleherolabs.com/api/notifications/preview/amazon \
   "success": true,
   "messageId": "amzn-msg-123456",
   "documentId": "doc-789012",
-  "previewUrl": "https://littleherolabs.com/approve/abc123def456...",
+  "previewUrl": "https://littleherolabs.com/approve/REDACTED_DOCUMENTED_TOKEN",
   "reminderType": "initial"
 }
 ```

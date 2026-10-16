@@ -41,20 +41,20 @@ Since Variables require Pro plan, we'll add Amazon credentials to your existing 
 return [{ json: {
   supabase: {
     url: "https://mdnthwpcnphjnnblbvxk.supabase.co",
-    serviceKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs"
+    serviceKey: "REDACTED_JWT_TOKEN"
   },
   r2: {
     bucket: "little-hero-orders",
     signedUrlEndpoint: "https://admin.littleherolabs.com/api/r2/signed-url",
-    apiToken: "e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+    apiToken: "REDACTED_PROVIDER_CREDENTIAL",
     expiresIn: 600,
     keyPrefix: "book-mvp-simple-adventure/orders",
     useBackendSignedUpload: true
   },
   s3: {
     endpoint: "https://3daae940fcb6fc5b8bbd9bb8fcc62854.r2.cloudflarestorage.com",
-    accessKeyId: "b0a481f17d8641a232e0aae8a3efeb7a",
-    secretAccessKey: "745ade64f37a8def63e44ae9bfb2fb286c23a500b437c722461a33c7820d43cd",
+    accessKeyId: "REDACTED_ACCESSKEYID",
+    secretAccessKey: "REDACTED_PROVIDER_CREDENTIAL",
     accountId: "3daae940fcb6fc5b8bbd9bb8fcc62854"
   },
   // === Amazon SP-API Configuration ===

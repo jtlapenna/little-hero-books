@@ -1,8 +1,8 @@
+import { getSupabaseServerConfig } from './supabase-server-config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { assertPrintAssignmentCompatible, FROZEN_PRINT_FIELDS } from '@/lib/books/print-assignment';
 
 let supabaseClient: SupabaseClient | null = null;
-let initializationError: Error | null = null;
 
 function createNoopQueryBuilder() {
   const builder: any = {};
@@ -29,43 +29,7 @@ function getSupabaseClient() {
     return supabaseClient;
   }
 
-  // On client side, if we've already tried and failed, return null
-  // (don't throw, let the proxy handle it gracefully)
-  if (initializationError && typeof window !== 'undefined') {
-    return null as any;
-  }
-
-  // On server side, throw if we've already tried and failed
-  if (initializationError) {
-    throw initializationError;
-  }
-
-  // Try to get env vars (server-side only, not available on client)
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
-
-  // Check if we're on the client side (where env vars won't be available)
-  const isClient = typeof window !== 'undefined';
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    // On client side, we can't use Supabase directly - this is expected
-    // Supabase operations should happen via API routes
-    // Don't throw error, just cache it silently on client
-    if (isClient) {
-      // Client-side: Supabase not available (expected, use API routes)
-      // Return a silent error that won't be logged
-      initializationError = new Error('Supabase client is not available on the client side.');
-      return null as any; // Return null instead of throwing
-    }
-    
-    // On server side, show helpful error
-    if (process.env.NODE_ENV === 'development') {
-      initializationError = new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local file and restart the dev server.');
-      throw initializationError;
-    }
-    initializationError = new Error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
-    throw initializationError;
-  }
+  const { supabaseUrl, supabaseKey: supabaseServiceKey } = getSupabaseServerConfig();
 
   supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {

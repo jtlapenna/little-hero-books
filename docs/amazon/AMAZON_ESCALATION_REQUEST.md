@@ -100,7 +100,7 @@ We ran comprehensive diagnostics on December 19, 2025 at 14:49:02 UTC:
 
 ### Request Headers (Example from Failed Call):
 ```
-authorization: AWS4-HMAC-SHA256 Credential=AKIA5SFMXGC43V3SXDND/20251219/us-east-1/execute-api/aws4_request, SignedHeaders=content-type;host;x-amz-access-token;x-amz-date, Signature=...
+authorization: AWS4-HMAC-SHA256 Credential=REDACTED_AWS_ACCESS_KEY_ID/20251219/us-east-1/execute-api/aws4_request, SignedHeaders=content-type;host;x-amz-access-token;x-amz-date, Signature=...
 content-type: application/json
 host: sellingpartnerapi-na.amazon.com
 user-agent: LittleHeroBooks/1.0 (Language=TypeScript/Node.js; Platform=Cloudflare)

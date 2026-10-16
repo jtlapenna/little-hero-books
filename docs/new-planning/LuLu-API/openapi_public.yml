@@ -42,17 +42,17 @@ info:
     curl -X POST https://api.lulu.com/auth/realms/glasstree/protocol/openid-connect/token \
       -d 'grant_type=client_credentials' \
       -H 'Content-Type: application/x-www-form-urlencoded' \
-      -H 'Authorization: Basic ZjJjNDdmMTctOWMxZi00ZWZlLWIzYzEtMDI4YTNlZTRjM2M3OjMzOTViZGU4LTBkMjQtNGQ0Ny1hYTRjLWM4NGM3NjI0OGRiYw=='
+      -H 'Authorization: Basic REDACTED_BASIC_AUTH'
     ```
 
     The request will return a JSON response that contains an `access_token` key:
 
     ```json
     {
-        "access_token":"eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkI...",
+        "access_token":"REDACTED_PROVIDER_CREDENTIAL",
         "expires_in":3600,
         "refresh_expires_in":604800,
-        "refresh_token":"eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6...",
+        "refresh_token":"REDACTED_PROVIDER_CREDENTIAL",
         "token_type":"bearer",
         "not-before-policy":0,
         "session_state":"a856fb91-eafc-460e-8f6a-f09325062c88"

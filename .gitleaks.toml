@@ -1,0 +1,272 @@
+title = "Little Hero Labs repository secret scanning"
+[extend]
+useDefault = true
+
+[[rules]]
+id = 'supabase-server-secret'
+description = 'Supabase modern privileged server secret, including unlabelled values'
+regex = '''\b(sb_secret_[A-Za-z0-9_-]{20,})\b'''
+secretGroup = 1
+keywords = ['sb_secret_']
+
+[[allowlists]]
+description = "Explicit redaction and documentation environment placeholders, never real values"
+regexTarget = "secret"
+regexes = [
+  '^REDACTED_[A-Z0-9_]+$',
+  '^YOUR_[A-Z0-9_]+$',
+  '^your-(?:backend|cron|api|access|refresh)-(?:token|secret|key)$',
+  '^YOUR-[A-Z-]+$',
+]
+
+[[allowlists]]
+description = "Two intentionally invalid scanner fixtures; scoped by both path and exact value"
+condition = "AND"
+paths = ['(?:^|/)back-end/scripts/test-workflow-export-secrets\.ts$']
+regexTarget = "secret"
+regexes = ['^abcdef123456$', '^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.abc\.def$']
+
+[[allowlists]]
+description = "Documented filename in an explanatory comment, not an API key"
+condition = "AND"
+paths = ['(?:^|/)back-end/src/app/api/orders/\[orderId\]/replace-image/route\.ts$']
+regexTarget = "secret"
+regexes = ['^pose03_r2\.png$']
+
+[[allowlists]]
+description = "Public outreach profile label, not LinkedIn application credentials"
+condition = "AND"
+paths = ['(?:^|/)outreach-data/lhl/pipeline\.md$']
+regexTarget = "match"
+regexes = ['^LinkedIn: [a-zA-Z0-9_.-]+;$']
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-Orchestrator\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^incomingHairRefS3Key:\\ j\\.hairRefS3Key\\\\n$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key;$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-Orchestrator\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/repo\\-centric/workflows/w2A\\-Orchestrator\\.repo\\-centric\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w4\\-SANDBOX\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^pdfR2Key\\ \\ \\ \\ =\\ ctx\\.pdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/nb\\-3\\-upgrades/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/nb\\-3\\-upgrades/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefKey:\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefKey:\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefKey:\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/nb\\-3\\-upgrades/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^incomingHairRefS3Key:\\ j\\.hairRefS3Key\\\\n$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key;$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w4\\-SANDBOX\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^pdfR2Key\\ \\ \\ \\ =\\ ctx\\.pdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-SW0\\-Base_Character_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefKey:\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-Orchestrator\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^item\\.pdfR2Key\\ \\|\\|\\ item\\.interiorPdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/archive/finals\\-legacy\\-2026\\-03\\-18/w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^pdfR2Key\\ \\ \\ \\ =\\ ctx\\.pdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^item\\.pdfR2Key\\ \\|\\|\\ item\\.interiorPdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/finals/w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^pdfR2Key\\ \\ \\ \\ =\\ ctx\\.pdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^incomingHairRefS3Key:\\ j\\.hairRefS3Key\\\\n$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w2A\\-SW1\\-Pose_Generation\\.json$"]
+regexTarget = "match"
+regexes = ["^hairRefS3Key\\ =\\ j\\.hairRefS3Key;$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^item\\.pdfR2Key\\ \\|\\|\\ item\\.interiorPdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w4\\-PRODUCTION\\-Print_Fulfillment\\.json$"]
+regexTarget = "match"
+regexes = ["^pdfR2Key\\ \\ \\ \\ =\\ ctx\\.pdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w4\\.1\\-Sibling\\-Aggregation\\.json$"]
+regexTarget = "match"
+regexes = ["^item\\.pdfR2Key\\ \\|\\|\\ item\\.interiorPdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)docs/n8n\\-workflow\\-files/sibling\\-orders/sibling\\-order\\-n8n\\-workflows/SIBLING\\ \\-\\ w4\\.1\\-Sibling\\-Aggregation\\.json$"]
+regexTarget = "match"
+regexes = ["^idempotency\\-key\":\\ \"196e18e4\\-096b\\-4dde\\-9773\\-04b01273c098\\-4\\.1\"$"]
+
+[[allowlists]]
+description = "Reviewed non-secret object-key/idempotency expression"
+condition = "AND"
+paths = ["(?:^|/)scripts/submit\\-sibling\\-orders\\-to\\-lulu\\.js$"]
+regexTarget = "match"
+regexes = ["^interiorKey2\\ =\\ second\\.interiorPdfR2Key\\ $"]

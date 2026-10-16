@@ -162,7 +162,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Poll Cover Image (3A) — v2 Code (runOncePerItem)\n * Input: create response from PDFMonkey\n * Output: merges original json + { pdfMonkeyCoverDocumentId, coverImageDownloadUrl }\n */\nconst createResp = $input.item.json || {};\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc && (doc.id || doc.data?.id);\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id (cover)');\n}\n\nconst http = this.helpers.httpRequest;\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst headers = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey cover image not ready after polling (status=${status})`);\n}\n\nconst input = $input.item.json;\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyCoverDocumentId: docId,\n    coverImageDownloadUrl: downloadUrl\n  }\n};"
+        "jsCode": "/**\n * Poll Cover Image (3A) — v2 Code (runOncePerItem)\n * Input: create response from PDFMonkey\n * Output: merges original json + { pdfMonkeyCoverDocumentId, coverImageDownloadUrl }\n */\nconst createResp = $input.item.json || {};\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc && (doc.id || doc.data?.id);\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id (cover)');\n}\n\nconst http = this.helpers.httpRequest;\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst headers = { Authorization: 'Bearer REDACTED_PROVIDER_AUTH_TOKEN' };\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey cover image not ready after polling (status=${status})`);\n}\n\nconst input = $input.item.json;\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyCoverDocumentId: docId,\n    coverImageDownloadUrl: downloadUrl\n  }\n};"
       },
       "id": "5e528132-aacf-4b92-abd2-1af42a423147",
       "name": "Poll Cover Image (3A)",
@@ -189,7 +189,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+              "value": "Bearer REDACTED_PROVIDER_AUTH_TOKEN"
             }
           ]
         },
@@ -344,7 +344,7 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "language": "JavaScript",
-        "jsCode": "// Poll PDFMonkey until image is ready\n// When running \"Once for Each Item\", use $input.item instead of $input.first()\nconst createResp = $input.item.json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer 2zpxHdmsse2ECXgVVtVR' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve ALL input context from the current item\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n};"
+        "jsCode": "// Poll PDFMonkey until image is ready\n// When running \"Once for Each Item\", use $input.item instead of $input.first()\nconst createResp = $input.item.json;\nconst doc = createResp.data || createResp.document || createResp;\nconst docId = doc.id || doc.data?.id;\n\nif (!docId) {\n  throw new Error('PDFMonkey create response missing id');\n}\n\nconst apiBase = 'https://api.pdfmonkey.io/api/v1/documents/';\nconst http = this.helpers.httpRequest;\nconst AUTH_HEADER = { Authorization: 'Bearer REDACTED_PROVIDER_AUTH_TOKEN' };\n\nlet status = doc.status || 'queued';\nlet downloadUrl = doc.download_url || null;\nlet attempts = 0;\n\nasync function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }\n\nwhile (attempts < 15) {\n  if (status === 'success' && downloadUrl) break;\n  const resp = await http({ method: 'GET', url: apiBase + docId, json: true, headers: AUTH_HEADER });\n  const d = resp.data || resp.document || resp;\n  status = d.status;\n  downloadUrl = d.download_url || d.file_url || null;\n  if (status === 'success' && downloadUrl) break;\n  attempts++;\n  await sleep(2000);\n}\n\nif (status !== 'success' || !downloadUrl) {\n  throw new Error(`PDFMonkey image not ready after polling (status=${status})`);\n}\n\n// Preserve ALL input context from the current item\nconst input = $input.item.json;\n\nreturn {\n  json: {\n    ...input,\n    pdfMonkeyImageDocumentId: docId,\n    pageImageDownloadUrl: downloadUrl\n  }\n};"
       },
       "id": "8ea0bf7c-830e-49dc-bc0a-b5a496a27d3d",
       "name": "Poll PDFMonkey Image until ready",
@@ -369,7 +369,7 @@
             },
             {
               "name": "Authorization",
-              "value": "Bearer 2zpxHdmsse2ECXgVVtVR"
+              "value": "Bearer REDACTED_PROVIDER_AUTH_TOKEN"
             }
           ]
         },

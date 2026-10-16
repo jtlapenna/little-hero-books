@@ -966,7 +966,7 @@ This comprehensive guide includes:
 #### **Supabase Configuration**
 - ✅ **Status**: Fully operational and tested
 - ✅ **Project URL**: `https://mdnthwpcnphjnnblbvxk.supabase.co`
-- ✅ **Service Role Key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs`
+- ✅ **Service Role Key**: `REDACTED_JWT_TOKEN`
 - ✅ **n8n Credential**: Already configured and tested
 
 #### **n8n Supabase API Integration (Recommended)**
@@ -975,7 +975,7 @@ This comprehensive guide includes:
 1. **Add Supabase Node** to your workflow
 2. **Configure Credential**:
    - Host: `https://mdnthwpcnphjnnblbvxk.supabase.co`
-   - Service Role Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+   - Service Role Key: `REDACTED_PROVIDER_CREDENTIAL`
 3. **Set Operation**: "read"
 4. **Set Table**: "orders"
 5. **Add Filters**:
@@ -990,8 +990,8 @@ const orders = await this.helpers.request({
   method: 'GET',
   url: 'https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders',
   headers: {
-    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs',
-    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs',
+    'apikey': 'REDACTED_JWT_TOKEN',
+    'Authorization': 'Bearer REDACTED_JWT_TOKEN',
     'Content-Type': 'application/json'
   },
   qs: {
@@ -1016,8 +1016,8 @@ await this.helpers.request({
   method: 'PATCH',
   url: `https://mdnthwpcnphjnnblbvxk.supabase.co/rest/v1/orders?amazon_order_id=eq.${orderData.amazon_order_id}`,
   headers: {
-    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs',
-    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbnRod3BjbnBoam5uYmxidnhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDUwMDc4MCwiZXhwIjoyMDc2MDc2NzgwfQ.wNVQ3U2nWTGu8VsuXKasWOCxVhpca5x42wSapQDinGs',
+    'apikey': 'REDACTED_JWT_TOKEN',
+    'Authorization': 'Bearer REDACTED_JWT_TOKEN',
     'Content-Type': 'application/json',
     'Prefer': 'return=representation'
   },
@@ -1234,7 +1234,7 @@ Workflow 5 ← Workflow 6 ← Workflow 7 ← Workflow 8
 ```bash
 # Test Bria AI API directly
 curl -X POST "https://engine.prod.bria-api.com/v2/remove-background" \
-  -H "api_token: eb0fed5156c441148c462a74d3f92f00" \
+  -H "api_token: REDACTED_PROVIDER_CREDENTIAL" \
   -H "Content-Type: application/json" \
   -d '{
     "image": "base64_encoded_image_here",

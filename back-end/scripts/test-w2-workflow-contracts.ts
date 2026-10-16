@@ -1007,7 +1007,7 @@ async function main(): Promise<void> {
       w3ExtractAssemblyInputCode.includes("normalized.workflowSkipped === true") &&
       w3ExtractAssemblyInputCode.includes("return [];") &&
       w3ExtractAssemblyInputCode.includes(
-        "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+        "Bearer REDACTED_PROVIDER_CREDENTIAL",
       ) &&
       w3BuildAssemblyInputCode.includes("return $input.all();") &&
       !w3BuildAssemblyInputCode.includes("parseJsonPrefix") &&
@@ -1033,7 +1033,7 @@ async function main(): Promise<void> {
       w3PreviewPlanCode.includes("...j") &&
       w3PreviewPlanCode.includes("json: true") &&
       w3PreviewPlanCode.includes(
-        "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+        "Bearer REDACTED_PROVIDER_CREDENTIAL",
       ),
     "Repo-centric W3 preview planning should be repo-owned behind the build-preview-plan route, with the workflow only fanning that response into the legacy cover/page branches",
   );
@@ -1066,7 +1066,7 @@ async function main(): Promise<void> {
       w3GeneratePageImageCode.includes("...j") &&
       w3GeneratePageImageCode.includes("json: true") &&
       w3GeneratePageImageCode.includes(
-        "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+        "Bearer REDACTED_PROVIDER_CREDENTIAL",
       ),
     "Repo-centric W3 page preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
   );
@@ -1079,7 +1079,7 @@ async function main(): Promise<void> {
       w3GenerateCoverCode.includes("...j") &&
       w3GenerateCoverCode.includes("json: true") &&
       w3GenerateCoverCode.includes(
-        "Bearer e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646",
+        "Bearer REDACTED_PROVIDER_CREDENTIAL",
       ),
     "Repo-centric W3 cover preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
   );

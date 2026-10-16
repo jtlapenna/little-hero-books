@@ -36,7 +36,7 @@
           "parameters": [
             {
               "name": "api_token",
-              "value": "=eb0fed5156c441148c462a74d3f92f00"
+              "value": "=REDACTED_PROVIDER_CREDENTIAL"
             },
             {
               "name": "Content-Type",
@@ -103,7 +103,7 @@
           "parameters": [
             {
               "name": "api_token",
-              "value": "=eb0fed5156c441148c462a74d3f92f00"
+              "value": "=REDACTED_PROVIDER_CREDENTIAL"
             }
           ]
         },

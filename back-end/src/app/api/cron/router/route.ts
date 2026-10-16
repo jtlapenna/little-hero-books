@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const cronSecret = process.env.CRON_SECRET;
 const defaultN8nRouterWebhookUrl = 'https://thepeakbeyond.app.n8n.cloud/webhook/w1-1-router-sibtest';
 const n8nWebhookUrl = process.env.N8N_ROUTER_WEBHOOK_URL || defaultN8nRouterWebhookUrl;

@@ -106,7 +106,7 @@ To test manually, you need:
 Using bypass token (Method 1):
 ```bash
 curl -X GET "https://little-hero-books-dvvaz6omr-jeffs-projects-5810cd55.vercel.app/api/cron/amazon-orders?x-vercel-protection-bypass=bypass_xxxxxxxxxxxx" \
-  -H "Authorization: Bearer your_cron_secret_here" \
+  -H "Authorization: Bearer REDACTED_DOCUMENTED_TOKEN" \
   -H "Content-Type: application/json" \
   -s | jq .
 ```
@@ -114,7 +114,7 @@ curl -X GET "https://little-hero-books-dvvaz6omr-jeffs-projects-5810cd55.vercel.
 Using test mode (adds `?test=true`):
 ```bash
 curl -X GET "https://little-hero-books-dvvaz6omr-jeffs-projects-5810cd55.vercel.app/api/cron/amazon-orders?test=true&x-vercel-protection-bypass=bypass_xxxxxxxxxxxx" \
-  -H "Authorization: Bearer your_cron_secret_here" \
+  -H "Authorization: Bearer REDACTED_DOCUMENTED_TOKEN" \
   -H "Content-Type: application/json" \
   -s | jq .
 ```

@@ -39,7 +39,7 @@ let rootOrderId = process.argv[2]?.trim();
 const autoDetect = process.argv[2] === '--latest' || (!rootOrderId && process.argv.length === 2);
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake';
 
 if (!supabaseUrl || !supabaseKey) {

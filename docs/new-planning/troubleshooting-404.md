@@ -44,7 +44,7 @@ Run this to see what's actually deployed:
 ```bash
 # Check if route exists (should return 401 Unauthorized, not 404)
 curl -X GET "https://admin.littleherolabs.com/api/cron/amazon-orders" \
-  -H "Authorization: Bearer wrong-secret" 2>&1 | head -5
+  -H "Authorization: Bearer REDACTED_DOCUMENTED_TOKEN" 2>&1 | head -5
 ```
 
 - **401 Unauthorized** = Route exists, just wrong secret ✅

@@ -33,13 +33,13 @@ Based on your `.env` file, add these to Preview:
    - Value: `3daae940fcb6fc5b8bbd9bb8fcc62854` (from `CLOUDEFLARE_ACCOUNT_ID` in your .env)
 
 2. **R2_ACCESS_KEY_ID**
-   - Value: `320e3b8228c5ff7bd2395043886f03d3` (from `CLOUDFLARE_R2_ACCESS_KEY` in your .env)
+   - Value: `REDACTED_ACCESSKEYID` (from `CLOUDFLARE_R2_ACCESS_KEY` in your .env)
 
 3. **R2_SECRET_ACCESS_KEY**
-   - Value: `a1ba025ddbe2d8ef7032d2d6635dce3b6fbc4bdbf9c19c68d0b0bd566c989572` (from `CLOUDFLARE_R2_SECRET_ACCESS_KEY` in your .env)
+   - Value: `REDACTED_PROVIDER_CREDENTIAL` (from `CLOUDFLARE_R2_SECRET_ACCESS_KEY` in your .env)
 
 4. **BACKEND_API_TOKEN**
-   - Value: `e41d510ce6ed6e9c7f602fea860f2591cc7ec75fe63e448336a97c4b73898646` (from your .env)
+   - Value: `REDACTED_PROVIDER_CREDENTIAL` (from your .env)
 
 ### Optional (if you use them):
 - **SUPABASE_SERVICE_ROLE_KEY** (if set in Production)

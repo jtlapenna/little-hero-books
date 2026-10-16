@@ -175,3 +175,14 @@ docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
 # Contains personalized email content and recipient addresses; we have sent-log.md
 # for the durable audit trail of actual sends.
 /outreach-data/lhl/mailmeteor-batch.csv
+
+# Private incident evidence, runtime bindings and local credential files.
+.security-private/
+.gelato-testing/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/.dev.vars
+**/.dev.vars.*
+*.gitleaks-report.json

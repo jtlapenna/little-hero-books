@@ -27,7 +27,7 @@ const CONTENT_RULES: ContentRule[] = [
   {
     id: "presigned-url-signature",
     message: "Found a presigned URL signature in workflow export content.",
-    pattern: /X-Amz-Signature=/g,
+    pattern: /[?&]X-Amz-Signature=[a-f0-9]{64}(?![a-f0-9])/gi,
   },
   {
     id: "aws-access-key-id",
