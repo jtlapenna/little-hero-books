@@ -1,6 +1,6 @@
 import { GelatoProviderOrderSchema } from './gelato-provider-snapshot';
 import { GelatoSavedSnapshotSchema } from './gelato-submission';
-import { gelatoNotificationTarget } from './gelato-notification-target';
+import { gelatoNotificationTarget, isGelatoEngineeringOrderKey } from './gelato-notification-target';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { buildEmailHtml, buildParagraph } from '@/lib/notifications/email-templates';
@@ -33,6 +33,14 @@ function emailBody(row: Record<string, unknown>, kind: 'printing' | 'shipped', f
     html: buildEmailHtml({ heading: escape(subject.split(' | ')[0]), body: buildParagraph(escape(message)) + (tracking ? buildParagraph(escape(trackingText).replace(/\n/g, '<br>')) : '') }) });
 }
 export function buildGelatoNotificationIntents(context: GelatoSubmissionContext, results: ReturnType<typeof buildGelatoLifecycleResults>, rows: Record<string, unknown>[], from: string) {
+  // Suppress the complete cohort, including mixed parcels. The SQL delivery gate
+  // independently checks persisted identities if an older producer queues an intent.
+  if (isGelatoEngineeringOrderKey(context.submission.root_order_id) ||
+      context.members.some(member => isGelatoEngineeringOrderKey(member.child_order_key)) ||
+      rows.some(row => isGelatoEngineeringOrderKey(row.orderId) || isGelatoEngineeringOrderKey(row.root_order_id) ||
+        isGelatoEngineeringOrderKey(row.amazon_order_id) || object(row.book_specs).testMode === true)) {
+    return { intents: [] as GelatoNotificationIntent[], holds: [] as Array<{childOrderId:number;reason:string}> };
+  }
   const holds: Array<{ childOrderId: number; reason: string }> = [];
   const targets = GelatoSavedSnapshotSchema.parse(context.submission.request_snapshot).notificationTargets ?? [];
   const intents: GelatoNotificationIntent[] = [];

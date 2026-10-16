@@ -1,0 +1,43 @@
+{
+  "scope": "Expanded unpaid quote diagnostics and local preparation; fresh native/regular tests not started",
+  "testedSource": "e5ab870341842206ca04f933341aab0e66f3da0c",
+  "fixturePdfs": 4,
+  "independentPagesChecked": 140,
+  "distinctPdfHashes": true,
+  "visualSamplePages": 12,
+  "focusedEslint": "passed",
+  "existingRegressions": {
+    "test:gelato-print-pdf": "passed",
+    "test:gelato-api-contract": "passed",
+    "test:gelato-attention-recovery-api": "passed"
+  },
+  "fullTypecheck": {
+    "passed": false,
+    "diagnosticsOutsideNewScript": 361,
+    "newFixtureDiagnostics": 0
+  },
+  "independentFixtureReview": "CHECKPOINT CLEAR; runtime input/count and placement findings fixed before PDF execution",
+  "independentIsolationReview": "Same-account fallback conditionally clear; separate infrastructure is conditional on changing accounts. Exact cohort, notification suppression and regular-operation gates remain required.",
+  "newProviderCreates": 0,
+  "conversions": 0,
+  "paymentChanges": 0,
+  "customerMessages": 0,
+  "normalControlsChanged": false,
+  "accountFundingVerified": true,
+  "connectedSupabaseManagement": {
+    "visibleProjects": 0,
+    "visibleOrganizations": 0
+  },
+  "remaining": "Authorized Supabase access or Jeff-applied reviewed forward migration, then coordinated application deployment, guarded conversion implementation and fresh scoped native workflow/lifecycle tests; paid proof separately approved.",
+  "realQuotes": {
+    "requests": 5,
+    "http200": 5,
+    "configuredTierSelections": 15,
+    "canonicalPdfBodyReads": 4,
+    "providerDraftReads": 3,
+    "quantityAggregationVerified": true,
+    "orderEstimateInvoiceReconciliation": false
+  },
+  "normalControlsOffAfterQuotesAt": "2026-10-15T22:04:49.912Z",
+  "syntheticNotificationSafeguard": "Application and fresh/old-schema forward-migration suites passed locally; independent slices clear; NOT installed or deployed"
+}

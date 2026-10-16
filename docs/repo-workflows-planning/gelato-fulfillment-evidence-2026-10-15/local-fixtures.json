@@ -1,0 +1,789 @@
+{
+  "receipts": [
+    {
+      "role": "WEB-A",
+      "orderId": "TEST-GELATO-U-20261015-A-WEB-A",
+      "formatId": "standard",
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPages": 35,
+      "bytes": 1479887,
+      "sha256": "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d",
+      "immutableArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-20261015-A-WEB-A/gelato/print/v2/412a5639e176ab5b4c6bac43.pdf",
+      "sourceFingerprint": "412a5639e176ab5b4c6bac43",
+      "pages": [
+        {
+          "page": 1,
+          "sourceLabel": "cover",
+          "rasterVerified": true
+        },
+        {
+          "page": 2,
+          "sourceLabel": null,
+          "rasterVerified": true
+        },
+        {
+          "page": 3,
+          "sourceLabel": "p00",
+          "rasterVerified": true
+        },
+        {
+          "page": 4,
+          "sourceLabel": "p01",
+          "rasterVerified": true
+        },
+        {
+          "page": 5,
+          "sourceLabel": "p02",
+          "rasterVerified": true
+        },
+        {
+          "page": 6,
+          "sourceLabel": "p03",
+          "rasterVerified": true
+        },
+        {
+          "page": 7,
+          "sourceLabel": "p04",
+          "rasterVerified": true
+        },
+        {
+          "page": 8,
+          "sourceLabel": "p05",
+          "rasterVerified": true
+        },
+        {
+          "page": 9,
+          "sourceLabel": "p06",
+          "rasterVerified": true
+        },
+        {
+          "page": 10,
+          "sourceLabel": "p07",
+          "rasterVerified": true
+        },
+        {
+          "page": 11,
+          "sourceLabel": "p08",
+          "rasterVerified": true
+        },
+        {
+          "page": 12,
+          "sourceLabel": "p09",
+          "rasterVerified": true
+        },
+        {
+          "page": 13,
+          "sourceLabel": "p10",
+          "rasterVerified": true
+        },
+        {
+          "page": 14,
+          "sourceLabel": "p11",
+          "rasterVerified": true
+        },
+        {
+          "page": 15,
+          "sourceLabel": "p12",
+          "rasterVerified": true
+        },
+        {
+          "page": 16,
+          "sourceLabel": "p13",
+          "rasterVerified": true
+        },
+        {
+          "page": 17,
+          "sourceLabel": "p14",
+          "rasterVerified": true
+        },
+        {
+          "page": 18,
+          "sourceLabel": "p15",
+          "rasterVerified": true
+        },
+        {
+          "page": 19,
+          "sourceLabel": "p16",
+          "rasterVerified": true
+        },
+        {
+          "page": 20,
+          "sourceLabel": "p17",
+          "rasterVerified": true
+        },
+        {
+          "page": 21,
+          "sourceLabel": "p18",
+          "rasterVerified": true
+        },
+        {
+          "page": 22,
+          "sourceLabel": "p19",
+          "rasterVerified": true
+        },
+        {
+          "page": 23,
+          "sourceLabel": "p20",
+          "rasterVerified": true
+        },
+        {
+          "page": 24,
+          "sourceLabel": "p21",
+          "rasterVerified": true
+        },
+        {
+          "page": 25,
+          "sourceLabel": "p22",
+          "rasterVerified": true
+        },
+        {
+          "page": 26,
+          "sourceLabel": "p23",
+          "rasterVerified": true
+        },
+        {
+          "page": 27,
+          "sourceLabel": "p24",
+          "rasterVerified": true
+        },
+        {
+          "page": 28,
+          "sourceLabel": "p25",
+          "rasterVerified": true
+        },
+        {
+          "page": 29,
+          "sourceLabel": "p26",
+          "rasterVerified": true
+        },
+        {
+          "page": 30,
+          "sourceLabel": "p27",
+          "rasterVerified": true
+        },
+        {
+          "page": 31,
+          "sourceLabel": "p28",
+          "rasterVerified": true
+        },
+        {
+          "page": 32,
+          "sourceLabel": "p29",
+          "rasterVerified": true
+        },
+        {
+          "page": 33,
+          "sourceLabel": "p30",
+          "rasterVerified": true
+        },
+        {
+          "page": 34,
+          "sourceLabel": "p31",
+          "rasterVerified": true
+        },
+        {
+          "page": 35,
+          "sourceLabel": null,
+          "rasterVerified": true
+        }
+      ],
+      "canonicalAssembler": true,
+      "independentDecodedRasterAndGeometryVerified": true,
+      "liveWorkflowExecuted": false
+    },
+    {
+      "role": "AMZ-A",
+      "orderId": "TEST-GELATO-U-20261015-A-AMZ-A",
+      "formatId": "amazon",
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPages": 35,
+      "bytes": 1410633,
+      "sha256": "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69",
+      "immutableArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-20261015-A-AMZ-A/gelato/print/v2/6619da8bab522795b302e61b.pdf",
+      "sourceFingerprint": "6619da8bab522795b302e61b",
+      "pages": [
+        {
+          "page": 1,
+          "sourceLabel": "cover",
+          "rasterVerified": true
+        },
+        {
+          "page": 2,
+          "sourceLabel": null,
+          "rasterVerified": true
+        },
+        {
+          "page": 3,
+          "sourceLabel": "p00",
+          "rasterVerified": true
+        },
+        {
+          "page": 4,
+          "sourceLabel": "p01",
+          "rasterVerified": true
+        },
+        {
+          "page": 5,
+          "sourceLabel": "p02",
+          "rasterVerified": true
+        },
+        {
+          "page": 6,
+          "sourceLabel": "p03",
+          "rasterVerified": true
+        },
+        {
+          "page": 7,
+          "sourceLabel": "p04",
+          "rasterVerified": true
+        },
+        {
+          "page": 8,
+          "sourceLabel": "p05",
+          "rasterVerified": true
+        },
+        {
+          "page": 9,
+          "sourceLabel": "p06",
+          "rasterVerified": true
+        },
+        {
+          "page": 10,
+          "sourceLabel": "p07",
+          "rasterVerified": true
+        },
+        {
+          "page": 11,
+          "sourceLabel": "p08",
+          "rasterVerified": true
+        },
+        {
+          "page": 12,
+          "sourceLabel": "p09",
+          "rasterVerified": true
+        },
+        {
+          "page": 13,
+          "sourceLabel": "p10",
+          "rasterVerified": true
+        },
+        {
+          "page": 14,
+          "sourceLabel": "p11",
+          "rasterVerified": true
+        },
+        {
+          "page": 15,
+          "sourceLabel": "p12",
+          "rasterVerified": true
+        },
+        {
+          "page": 16,
+          "sourceLabel": "p13",
+          "rasterVerified": true
+        },
+        {
+          "page": 17,
+          "sourceLabel": "p14",
+          "rasterVerified": true
+        },
+        {
+          "page": 18,
+          "sourceLabel": "p15",
+          "rasterVerified": true
+        },
+        {
+          "page": 19,
+          "sourceLabel": "p16",
+          "rasterVerified": true
+        },
+        {
+          "page": 20,
+          "sourceLabel": "p17",
+          "rasterVerified": true
+        },
+        {
+          "page": 21,
+          "sourceLabel": "p18",
+          "rasterVerified": true
+        },
+        {
+          "page": 22,
+          "sourceLabel": "p19",
+          "rasterVerified": true
+        },
+        {
+          "page": 23,
+          "sourceLabel": "p20",
+          "rasterVerified": true
+        },
+        {
+          "page": 24,
+          "sourceLabel": "p21",
+          "rasterVerified": true
+        },
+        {
+          "page": 25,
+          "sourceLabel": "p22",
+          "rasterVerified": true
+        },
+        {
+          "page": 26,
+          "sourceLabel": "p23",
+          "rasterVerified": true
+        },
+        {
+          "page": 27,
+          "sourceLabel": "p24",
+          "rasterVerified": true
+        },
+        {
+          "page": 28,
+          "sourceLabel": "p25",
+          "rasterVerified": true
+        },
+        {
+          "page": 29,
+          "sourceLabel": "p26",
+          "rasterVerified": true
+        },
+        {
+          "page": 30,
+          "sourceLabel": "p27",
+          "rasterVerified": true
+        },
+        {
+          "page": 31,
+          "sourceLabel": "p28",
+          "rasterVerified": true
+        },
+        {
+          "page": 32,
+          "sourceLabel": "p29",
+          "rasterVerified": true
+        },
+        {
+          "page": 33,
+          "sourceLabel": "p30",
+          "rasterVerified": true
+        },
+        {
+          "page": 34,
+          "sourceLabel": "p31",
+          "rasterVerified": true
+        },
+        {
+          "page": 35,
+          "sourceLabel": null,
+          "rasterVerified": true
+        }
+      ],
+      "canonicalAssembler": true,
+      "independentDecodedRasterAndGeometryVerified": true,
+      "liveWorkflowExecuted": false
+    },
+    {
+      "role": "SIB-A",
+      "orderId": "TEST-GELATO-U-20261015-A-SIB-A",
+      "formatId": "amazon",
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPages": 35,
+      "bytes": 1428382,
+      "sha256": "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+      "immutableArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-20261015-A-SIB-A/gelato/print/v2/93c4415400e567dac5b1844b.pdf",
+      "sourceFingerprint": "93c4415400e567dac5b1844b",
+      "pages": [
+        {
+          "page": 1,
+          "sourceLabel": "cover",
+          "rasterVerified": true
+        },
+        {
+          "page": 2,
+          "sourceLabel": null,
+          "rasterVerified": true
+        },
+        {
+          "page": 3,
+          "sourceLabel": "p00",
+          "rasterVerified": true
+        },
+        {
+          "page": 4,
+          "sourceLabel": "p01",
+          "rasterVerified": true
+        },
+        {
+          "page": 5,
+          "sourceLabel": "p02",
+          "rasterVerified": true
+        },
+        {
+          "page": 6,
+          "sourceLabel": "p03",
+          "rasterVerified": true
+        },
+        {
+          "page": 7,
+          "sourceLabel": "p04",
+          "rasterVerified": true
+        },
+        {
+          "page": 8,
+          "sourceLabel": "p05",
+          "rasterVerified": true
+        },
+        {
+          "page": 9,
+          "sourceLabel": "p06",
+          "rasterVerified": true
+        },
+        {
+          "page": 10,
+          "sourceLabel": "p07",
+          "rasterVerified": true
+        },
+        {
+          "page": 11,
+          "sourceLabel": "p08",
+          "rasterVerified": true
+        },
+        {
+          "page": 12,
+          "sourceLabel": "p09",
+          "rasterVerified": true
+        },
+        {
+          "page": 13,
+          "sourceLabel": "p10",
+          "rasterVerified": true
+        },
+        {
+          "page": 14,
+          "sourceLabel": "p11",
+          "rasterVerified": true
+        },
+        {
+          "page": 15,
+          "sourceLabel": "p12",
+          "rasterVerified": true
+        },
+        {
+          "page": 16,
+          "sourceLabel": "p13",
+          "rasterVerified": true
+        },
+        {
+          "page": 17,
+          "sourceLabel": "p14",
+          "rasterVerified": true
+        },
+        {
+          "page": 18,
+          "sourceLabel": "p15",
+          "rasterVerified": true
+        },
+        {
+          "page": 19,
+          "sourceLabel": "p16",
+          "rasterVerified": true
+        },
+        {
+          "page": 20,
+          "sourceLabel": "p17",
+          "rasterVerified": true
+        },
+        {
+          "page": 21,
+          "sourceLabel": "p18",
+          "rasterVerified": true
+        },
+        {
+          "page": 22,
+          "sourceLabel": "p19",
+          "rasterVerified": true
+        },
+        {
+          "page": 23,
+          "sourceLabel": "p20",
+          "rasterVerified": true
+        },
+        {
+          "page": 24,
+          "sourceLabel": "p21",
+          "rasterVerified": true
+        },
+        {
+          "page": 25,
+          "sourceLabel": "p22",
+          "rasterVerified": true
+        },
+        {
+          "page": 26,
+          "sourceLabel": "p23",
+          "rasterVerified": true
+        },
+        {
+          "page": 27,
+          "sourceLabel": "p24",
+          "rasterVerified": true
+        },
+        {
+          "page": 28,
+          "sourceLabel": "p25",
+          "rasterVerified": true
+        },
+        {
+          "page": 29,
+          "sourceLabel": "p26",
+          "rasterVerified": true
+        },
+        {
+          "page": 30,
+          "sourceLabel": "p27",
+          "rasterVerified": true
+        },
+        {
+          "page": 31,
+          "sourceLabel": "p28",
+          "rasterVerified": true
+        },
+        {
+          "page": 32,
+          "sourceLabel": "p29",
+          "rasterVerified": true
+        },
+        {
+          "page": 33,
+          "sourceLabel": "p30",
+          "rasterVerified": true
+        },
+        {
+          "page": 34,
+          "sourceLabel": "p31",
+          "rasterVerified": true
+        },
+        {
+          "page": 35,
+          "sourceLabel": null,
+          "rasterVerified": true
+        }
+      ],
+      "canonicalAssembler": true,
+      "independentDecodedRasterAndGeometryVerified": true,
+      "liveWorkflowExecuted": false
+    },
+    {
+      "role": "SIB-B",
+      "orderId": "TEST-GELATO-U-20261015-A-SIB-B",
+      "formatId": "amazon",
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPages": 35,
+      "bytes": 1399873,
+      "sha256": "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975",
+      "immutableArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-20261015-A-SIB-B/gelato/print/v2/341c4e70d3d93a4fa2461952.pdf",
+      "sourceFingerprint": "341c4e70d3d93a4fa2461952",
+      "pages": [
+        {
+          "page": 1,
+          "sourceLabel": "cover",
+          "rasterVerified": true
+        },
+        {
+          "page": 2,
+          "sourceLabel": null,
+          "rasterVerified": true
+        },
+        {
+          "page": 3,
+          "sourceLabel": "p00",
+          "rasterVerified": true
+        },
+        {
+          "page": 4,
+          "sourceLabel": "p01",
+          "rasterVerified": true
+        },
+        {
+          "page": 5,
+          "sourceLabel": "p02",
+          "rasterVerified": true
+        },
+        {
+          "page": 6,
+          "sourceLabel": "p03",
+          "rasterVerified": true
+        },
+        {
+          "page": 7,
+          "sourceLabel": "p04",
+          "rasterVerified": true
+        },
+        {
+          "page": 8,
+          "sourceLabel": "p05",
+          "rasterVerified": true
+        },
+        {
+          "page": 9,
+          "sourceLabel": "p06",
+          "rasterVerified": true
+        },
+        {
+          "page": 10,
+          "sourceLabel": "p07",
+          "rasterVerified": true
+        },
+        {
+          "page": 11,
+          "sourceLabel": "p08",
+          "rasterVerified": true
+        },
+        {
+          "page": 12,
+          "sourceLabel": "p09",
+          "rasterVerified": true
+        },
+        {
+          "page": 13,
+          "sourceLabel": "p10",
+          "rasterVerified": true
+        },
+        {
+          "page": 14,
+          "sourceLabel": "p11",
+          "rasterVerified": true
+        },
+        {
+          "page": 15,
+          "sourceLabel": "p12",
+          "rasterVerified": true
+        },
+        {
+          "page": 16,
+          "sourceLabel": "p13",
+          "rasterVerified": true
+        },
+        {
+          "page": 17,
+          "sourceLabel": "p14",
+          "rasterVerified": true
+        },
+        {
+          "page": 18,
+          "sourceLabel": "p15",
+          "rasterVerified": true
+        },
+        {
+          "page": 19,
+          "sourceLabel": "p16",
+          "rasterVerified": true
+        },
+        {
+          "page": 20,
+          "sourceLabel": "p17",
+          "rasterVerified": true
+        },
+        {
+          "page": 21,
+          "sourceLabel": "p18",
+          "rasterVerified": true
+        },
+        {
+          "page": 22,
+          "sourceLabel": "p19",
+          "rasterVerified": true
+        },
+        {
+          "page": 23,
+          "sourceLabel": "p20",
+          "rasterVerified": true
+        },
+        {
+          "page": 24,
+          "sourceLabel": "p21",
+          "rasterVerified": true
+        },
+        {
+          "page": 25,
+          "sourceLabel": "p22",
+          "rasterVerified": true
+        },
+        {
+          "page": 26,
+          "sourceLabel": "p23",
+          "rasterVerified": true
+        },
+        {
+          "page": 27,
+          "sourceLabel": "p24",
+          "rasterVerified": true
+        },
+        {
+          "page": 28,
+          "sourceLabel": "p25",
+          "rasterVerified": true
+        },
+        {
+          "page": 29,
+          "sourceLabel": "p26",
+          "rasterVerified": true
+        },
+        {
+          "page": 30,
+          "sourceLabel": "p27",
+          "rasterVerified": true
+        },
+        {
+          "page": 31,
+          "sourceLabel": "p28",
+          "rasterVerified": true
+        },
+        {
+          "page": 32,
+          "sourceLabel": "p29",
+          "rasterVerified": true
+        },
+        {
+          "page": 33,
+          "sourceLabel": "p30",
+          "rasterVerified": true
+        },
+        {
+          "page": 34,
+          "sourceLabel": "p31",
+          "rasterVerified": true
+        },
+        {
+          "page": 35,
+          "sourceLabel": null,
+          "rasterVerified": true
+        }
+      ],
+      "canonicalAssembler": true,
+      "independentDecodedRasterAndGeometryVerified": true,
+      "liveWorkflowExecuted": false
+    }
+  ],
+  "liveRequests": 0,
+  "fontSha256": "525979822591a3447cfc49d943d6f7683508e25543407871c0ed8fed05fd2bd9",
+  "visualReview": {
+    "samplesPerChild": [
+      1,
+      3,
+      34
+    ],
+    "children": 4,
+    "passed": true,
+    "source": "Poppler full-page renders inspected; child/edition/cover/page markers legible"
+  },
+  "nativeWorkflowOrProviderProcessingPassed": false
+}

@@ -1,0 +1,28 @@
+{
+  "recordedAt": "2026-10-15T21:58:51.520470+00:00",
+  "source": "Read-only signed-in Gelato dashboard inspection and explicit owner confirmation in this conversation",
+  "accountLabel": "Existing Little Hero Labs account; same account as retained draft proofs",
+  "accountBinding": "Exact three earlier provider root IDs visible in dashboard and retrieved using the pinned stored API key",
+  "paymentMethodsShown": 0,
+  "wallets": {
+    "count": 14,
+    "allInactive": true,
+    "allZero": true,
+    "autoTopUpConfigured": false
+  },
+  "subscription": "Free",
+  "monthlyInvoicesShown": 0,
+  "prepaymentHistory": "Unverified: View control did not expose history; not inferred empty",
+  "otherFunding": "Owner explicitly confirmed no separate invoice/pay-later/credit agreement or promotional funding outside wallets",
+  "fundingBoundaryVerified": true,
+  "paymentChanges": 0,
+  "ordersInventory": {
+    "visible": 5,
+    "draft": 5,
+    "dateFilterStart": "2026-09-15",
+    "dateFilterEnd": "2026-10-15",
+    "allTimeInventoryVerified": false
+  },
+  "regularOrderExecutionAuthorizedByThisReceipt": false,
+  "remainingOperationGate": "Reviewed exact synthetic cohort, one-time conversion guard, durable notification suppression and per-window closure required before regular-order testing"
+}

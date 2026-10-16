@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Local synthetic assets only. Never reads credentials or sends requests."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+from PIL import Image, ImageDraw, ImageFont
+
+p = argparse.ArgumentParser()
+p.add_argument('--output-dir', required=True)
+p.add_argument('--run-id', required=True)
+p.add_argument('--config', required=True)
+p.add_argument('--font', required=True)
+args = p.parse_args()
+if not re.fullmatch(r'[A-Za-z0-9-]{1,40}', args.run_id):
+    raise SystemExit('Invalid run ID')
+out = Path(args.output_dir)
+out.mkdir(mode=0o700, parents=True, exist_ok=False)
+config_bytes = Path(args.config).read_bytes()
+config = json.loads(config_bytes)
+font = ImageFont.truetype(args.font, 100)
+small = ImageFont.truetype(args.font, 60)
+cases = []
+for role, edition in [('WEB-A', 'standard'), ('AMZ-A', 'amazon'), ('SIB-A', 'amazon'), ('SIB-B', 'amazon')]:
+    order = f'TEST-GELATO-U-{args.run_id}-{role}'
+    directory = out / role
+    directory.mkdir(mode=0o700)
+    plan = config['formats'][edition]['interior']['pageSequence']
+    assets = []
+    for index in range(33):
+        cover = index == 32
+        width, height = (4832, 2434) if cover else (2434, 2434)
+        image = Image.new('L', (width, height), 255)
+        draw = ImageDraw.Draw(image)
+        def panel(x, label):
+            draw.rectangle((x+85, 85, x+2335, 2349), outline=0, width=12)
+            lines = ['ENGINEERING TEST', role, 'EDITION '+edition.upper(), label]
+            for n, line in enumerate(lines):
+                draw.text((x+160, 270+n*240), line, font=font, fill=0)
+            draw.text((x+160, 1500), 'NOT CUSTOMER ARTWORK', font=small, fill=0)
+            draw.text((x+160, 1630), args.run_id, font=small, fill=0)
+        if cover:
+            panel(0, 'BACK COVER')
+            panel(2416, 'FRONT COVER')
+        else:
+            panel(0, f'INNER {index+1:02d} OF 32')
+            draw.text((160, 1780), plan[index]['label'].upper(), font=small, fill=0)
+        # Content-specific visible stripe is independently checked after PDF decoding.
+        marker = hashlib.sha256(f'{order}:{index}:{edition}'.encode()).digest()
+        for bit in range(128):
+            if marker[bit//8] & (1 << (bit%8)):
+                draw.rectangle((160+bit*15, 2000, 171+bit*15, 2110), fill=0)
+        filename = 'cover-spread.png' if cover else plan[index]['label']+'.png'
+        target = directory / filename
+        image.save(target, format='PNG', optimize=False)
+        target.chmod(0o600)
+        assets.append({'filename':role+'/'+filename, 'label':'cover' if cover else plan[index]['label'],
+                       'width':width, 'height':height, 'pngSha256':hashlib.sha256(target.read_bytes()).hexdigest(),
+                       'graySha256':hashlib.sha256(image.tobytes()).hexdigest()})
+    cases.append({'role':role, 'formatId':edition, 'orderId':order, 'assets':assets})
+manifest = {'runId':args.run_id, 'configSha256':hashlib.sha256(config_bytes).hexdigest(),
+            'bookId':'book-finding-our-inner-voice', 'caseChildren':cases, 'liveRequests':0,
+            'purpose':'Geometry and identity fixtures; no creative approval or live workflow proof'}
+(out/'rasters.json').write_text(json.dumps(manifest,indent=2)+'\n')
+(out/'rasters.json').chmod(0o600)
+print(json.dumps({'children':len(cases),'sourceRasters':132,'liveRequests':0}))

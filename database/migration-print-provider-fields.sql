@@ -819,11 +819,24 @@ END $$;
 REVOKE ALL ON FUNCTION public.hold_gelato_provider_refresh(uuid,jsonb,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.hold_gelato_provider_refresh(uuid,jsonb,text) TO service_role;
 
+CREATE OR REPLACE FUNCTION public.gelato_submission_is_engineering_test(p_submission_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SET search_path=public,pg_temp AS $$
+ SELECT EXISTS(SELECT 1 FROM public.print_provider_submissions s WHERE s.id=p_submission_id AND
+   (upper(trim(s.root_order_id)) LIKE 'TEST-GELATO-%' OR EXISTS(
+     SELECT 1 FROM public.print_provider_submission_items i LEFT JOIN public.orders o ON o.id=i.child_order_id
+     WHERE i.submission_id=s.id AND (upper(trim(i.child_order_key)) LIKE 'TEST-GELATO-%' OR
+       upper(trim(o."orderId")) LIKE 'TEST-GELATO-%' OR upper(trim(o.root_order_id)) LIKE 'TEST-GELATO-%' OR
+       upper(trim(o.amazon_order_id)) LIKE 'TEST-GELATO-%' OR o.book_specs->>'testMode'='true'))));
+$$;
+REVOKE ALL ON FUNCTION public.gelato_submission_is_engineering_test(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.gelato_submission_is_engineering_test(uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.gelato_notification_eligible(p_notification_id uuid)
 RETURNS boolean LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
 DECLARE n public.print_provider_submission_notifications%ROWTYPE; child text; i public.print_provider_submission_items%ROWTYPE; o public.orders%ROWTYPE; po public.print_provider_submission_orders%ROWTYPE; target jsonb;
 BEGIN
  SELECT * INTO STRICT n FROM public.print_provider_submission_notifications WHERE id=p_notification_id;
+ IF public.gelato_submission_is_engineering_test(n.submission_id) THEN RETURN false; END IF;
  IF n.payload IS NULL OR n.idempotency_key IS NULL OR (SELECT request_state FROM public.print_provider_submissions WHERE id=n.submission_id)<>'submitted' THEN RETURN false; END IF;
  FOR child IN SELECT value FROM jsonb_array_elements_text(n.payload->'childOrderIds') LOOP
    SELECT * INTO i FROM public.print_provider_submission_items WHERE submission_id=n.submission_id AND child_order_id=child::bigint;
@@ -931,5 +944,34 @@ RETURNS TABLE(id uuid,request_state text) LANGUAGE sql SET search_path=public,pg
 $$;
 REVOKE ALL ON FUNCTION public.list_gelato_poll_candidates(integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.list_gelato_poll_candidates(integer) TO service_role;
+
+-- Existing synthetic rows stay permanently non-deliverable when flags change.
+-- Lock notification writes while checking that no test send is already in flight.
+LOCK TABLE public.print_provider_submission_notifications IN SHARE ROW EXCLUSIVE MODE;
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM public.print_provider_submission_notifications n
+   WHERE public.gelato_submission_is_engineering_test(n.submission_id) AND
+     n.delivery_state='delivering' AND n.attempt_started_at IS NOT NULL) THEN
+   RAISE EXCEPTION 'Engineering notification send in flight; stop and reconcile before installing suppression';
+ END IF;
+END $$;
+CREATE OR REPLACE FUNCTION public.suppress_gelato_engineering_notification()
+RETURNS trigger LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
+BEGIN
+ IF public.gelato_submission_is_engineering_test(NEW.submission_id) THEN
+   NEW.delivery_state:='suppressed'; NEW.attempt_result:='engineering_test_suppressed';
+   NEW.attempt_token:=NULL; NEW.attempt_started_at:=NULL; NEW.lease_expires_at:=NULL;
+ END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.suppress_gelato_engineering_notification() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.suppress_gelato_engineering_notification() TO service_role;
+DROP TRIGGER IF EXISTS suppress_gelato_engineering_notification ON public.print_provider_submission_notifications;
+CREATE TRIGGER suppress_gelato_engineering_notification BEFORE INSERT ON public.print_provider_submission_notifications
+ FOR EACH ROW EXECUTE FUNCTION public.suppress_gelato_engineering_notification();
+UPDATE public.print_provider_submission_notifications n
+ SET delivery_state='suppressed',attempt_result='engineering_test_suppressed',attempt_token=NULL,
+     lease_expires_at=NULL,updated_at=clock_timestamp()
+ WHERE public.gelato_submission_is_engineering_test(n.submission_id) AND n.delivery_state NOT IN ('delivered','suppressed');
 
 COMMIT;

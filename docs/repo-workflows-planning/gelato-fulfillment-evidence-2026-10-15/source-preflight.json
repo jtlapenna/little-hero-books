@@ -1,0 +1,78 @@
+{
+  "personalAccountVerified": true,
+  "currentMain": "e5ab870341842206ca04f933341aab0e66f3da0c",
+  "localHeadPreserved": "5483e8acca476e4b943498ee700813a6babc917a",
+  "pullRequests": [
+    {
+      "number": 12,
+      "title": "Fix Gelato stored-file verification in Cloudflare Workers",
+      "state": "MERGED",
+      "head": "c673c3d9512cc3b74be0eb34364f85ec66c89d90",
+      "base": "5483e8acca476e4b943498ee700813a6babc917a",
+      "mergeCommit": {
+        "oid": "e5ab870341842206ca04f933341aab0e66f3da0c"
+      },
+      "mergedAt": "2026-10-15T03:46:10Z",
+      "reviewDecision": "",
+      "files": [
+        ".github/workflows/check-workflow-export-secrets.yml",
+        "back-end/package.json",
+        "back-end/scripts/test-gelato-poll-stored-file.ts",
+        "back-end/scripts/test-gelato-runtime-file-fetch.ts",
+        "back-end/scripts/test-gelato-stored-file-worker.ts",
+        "back-end/scripts/test-gelato-stored-file.ts",
+        "back-end/src/lib/books/gelato-lifecycle-runtime.ts",
+        "back-end/src/lib/books/gelato-stored-file.ts",
+        "back-end/src/lib/books/gelato-submission-runtime.ts"
+      ],
+      "checks": [
+        {
+          "name": "scan",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS"
+        },
+        {
+          "name": "Cloudflare Pages: little-hero-labs",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS"
+        },
+        {
+          "name": "Cloudflare Pages: little-hero-labs-admin",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "title": "docs: publish Gelato draft-test results and redacted evidence",
+      "state": "OPEN",
+      "head": "0d6172ac692cea042b8b3a5bbb63aba2e7324077",
+      "base": "e5ab870341842206ca04f933341aab0e66f3da0c",
+      "mergeCommit": null,
+      "mergedAt": null,
+      "reviewDecision": "",
+      "files": [
+        "docs/repo-workflows-planning/gelato-engineering-evidence-2026-10-15/README.md",
+        "docs/repo-workflows-planning/gelato-engineering-evidence-2026-10-15/evidence.json",
+        "docs/repo-workflows-planning/gelato-engineering-evidence-2026-10-15/local-recovery-tests.patch",
+        "docs/repo-workflows-planning/gelato-engineering-evidence-2026-10-15/manifest.json",
+        "docs/repo-workflows-planning/gelato-engineering-evidence-2026-10-15/verify.py",
+        "docs/repo-workflows-planning/gelato-engineering-results-2026-10-15.md"
+      ],
+      "checks": [
+        {
+          "name": "Cloudflare Pages: little-hero-labs",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS"
+        },
+        {
+          "name": "Cloudflare Pages: little-hero-labs-admin",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS"
+        }
+      ]
+    }
+  ],
+  "liveWrites": false
+}

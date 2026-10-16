@@ -309,3 +309,56 @@ BEGIN
  IF (SELECT count(*) FROM public.print_provider_submission_items WHERE submission_id=s)<>2 OR (SELECT count(*) FROM public.print_provider_submission_notifications WHERE submission_id=s)<>5 THEN RAISE EXCEPTION 'Archive deleted canonical provider records'; END IF;
 END $$;
 SELECT 'Gelato immutable outbox, single authorization, retry, suppression and archive guards: ok' AS result;
+
+-- Real migrated database: queued legacy intents cannot become deliverable later.
+INSERT INTO public.orders(id,"orderId",root_order_id,execution_status,next_workflow,shipping_address,customer_email,book_specs)
+SELECT id,CASE id WHEN 1102 THEN 'test-gelato-child' WHEN 1106 THEN 'TEST-GELATO-MIXED' ELSE 'NOTICE-'||id END,
+ CASE id WHEN 1103 THEN 'TEST-GELATO-ROOT' WHEN 1106 THEN 'NOTICE-1105' ELSE 'NOTICE-'||id END,
+ 'ready_for_processing','4','{"name":"Test","street1":"123 Test St","city":"Test City","state":"CA","zip":"90001","country":"US"}'::jsonb,
+ 'test@example.com',CASE WHEN id=1104 THEN '{"testMode":true}'::jsonb ELSE '{}'::jsonb END
+ FROM unnest(ARRAY[1101,1102,1103,1104,1105,1106]) id;
+DO $$ DECLARE case_id bigint; ids bigint[]; claim jsonb; s uuid; token uuid; request jsonb; graph jsonb; expected jsonb; results jsonb; n uuid; child bigint; should_suppress boolean;
+BEGIN
+ FOR case_id IN 1101..1105 LOOP
+  ids:=CASE WHEN case_id=1105 THEN ARRAY[1105,1106]::bigint[] ELSE ARRAY[case_id] END;
+  should_suppress:=case_id<>1101;
+  claim:=public.claim_gelato_print_submission(pg_temp.routes(ids),'notice-guard-'||case_id);
+  s:=(claim->>'submissionId')::uuid;token:=(claim->>'claimToken')::uuid;
+  PERFORM pg_temp.record_quote(s,token);
+  UPDATE public.print_provider_submissions SET quote_snapshot=jsonb_set(quote_snapshot,'{notificationTargets}',
+   (SELECT jsonb_agg(jsonb_build_object('childOrderId',o.id,'customerEmail',o.customer_email)) FROM public.orders o WHERE o.id=ANY(ids))) WHERE id=s;
+  PERFORM public.begin_gelato_print_submission(s,token,'notice-execution-'||case_id,repeat('a',64));
+  PERFORM public.authorize_gelato_print_send(s,token,'notice-execution-'||case_id,repeat('a',64));
+  PERFORM public.record_gelato_accepted_root(s,token,'notice-execution-'||case_id,'notice-provider-'||case_id);
+  SELECT request_snapshot->'request' INTO request FROM public.print_provider_submissions WHERE id=s;
+  SELECT jsonb_build_array(jsonb_build_object('id','notice-provider-'||case_id,'orderReferenceId',request->>'orderReferenceId','customerReferenceId',request->>'customerReferenceId',
+   'shippingAddress',request->'shippingAddress','currency',request->>'currency','orderType','draft','fulfillmentStatus','draft','updatedAt',clock_timestamp(),'connectedOrderIds','[]'::jsonb,
+   'items',jsonb_agg(item||jsonb_build_object('id','notice-item-'||i.child_order_id,'fulfillmentStatus','draft'))))
+   INTO graph FROM public.print_provider_submission_items i CROSS JOIN LATERAL jsonb_array_elements(request->'items') item
+   WHERE i.submission_id=s AND item->>'itemReferenceId'=i.item_reference_id;
+  PERFORM public.persist_gelato_draft_result(s,token,'notice-execution-'||case_id,graph);
+  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('c',64),'status','in_production','orderType','order','accepted',true,'actionReason',NULL,
+   'snapshot',jsonb_set(jsonb_set(jsonb_set(snapshot,'{updatedAt}',to_jsonb(clock_timestamp()+interval '1 minute')),'{orderType}','"order"'),'{fulfillmentStatus}','"in_production"'),
+   'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','in_production','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))
+   FROM public.print_provider_submission_items i WHERE i.submission_id=s))) INTO results FROM public.print_provider_submission_orders WHERE submission_id=s;
+  PERFORM public.apply_gelato_provider_snapshots(s,expected,results);
+  FOREACH child IN ARRAY ids LOOP
+   INSERT INTO public.print_provider_submission_notifications(submission_id,child_order_id,notification_type,payload,idempotency_key)
+    SELECT s,child,'d2c-printing',jsonb_build_object('kind','d2c-printing','childOrderIds',jsonb_build_array(child),'childOrderKeys',jsonb_build_array(i.child_order_key),
+     'email',jsonb_build_object('to','test@example.com')),'notice-'||child
+    FROM public.print_provider_submission_items i WHERE i.submission_id=s AND i.child_order_id=child RETURNING id INTO n;
+   IF public.gelato_submission_is_engineering_test(s) IS DISTINCT FROM should_suppress THEN RAISE EXCEPTION 'Test identity not recognized'; END IF;
+   IF should_suppress THEN
+    IF (SELECT delivery_state FROM public.print_provider_submission_notifications WHERE id=n)<>'suppressed' THEN RAISE EXCEPTION 'Engineering insert not suppressed'; END IF;
+    -- Emulate an older writer resetting a queued intent, then flip delivery ON.
+    UPDATE public.print_provider_submission_notifications SET delivery_state='pending' WHERE id=n;
+    IF public.gelato_notification_eligible(n) THEN RAISE EXCEPTION 'Engineering intent became eligible'; END IF;
+    claim:=public.claim_gelato_notification(n);token:=(claim->>'attemptToken')::uuid;
+    IF (public.authorize_gelato_notification(n,token)->>'send')::boolean THEN RAISE EXCEPTION 'Engineering notification authorized'; END IF;
+   ELSIF NOT public.gelato_notification_eligible(n) THEN RAISE EXCEPTION 'Ordinary customer printing intent was blocked';
+   END IF;
+  END LOOP;
+ END LOOP;
+END $$;
+SELECT 'Gelato engineering notification insert, queued retry, mixed cohort and ordinary control: ok' AS result;

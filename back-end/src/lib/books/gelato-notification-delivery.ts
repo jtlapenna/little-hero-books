@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isGelatoEngineeringOrderKey } from './gelato-notification-target';
 import { GelatoNotificationPayloadSchema, type GelatoNotificationPayload } from './gelato-notifications';
 import type { GelatoSubmissionStore } from './gelato-submission-store';
 
@@ -17,6 +18,10 @@ export async function deliverGelatoNotification(id: string, dependencies: Gelato
   const owner = { p_notification_id: id, p_token: claim.attemptToken };
   const parsed = GelatoNotificationPayloadSchema.safeParse(claim.payload);
   if (!parsed.success) {
+    await dependencies.store.transition('release_gelato_notification', { ...owner, p_hold: true });
+    return { delivered: false, held: true };
+  }
+  if (parsed.data.childOrderKeys.some(isGelatoEngineeringOrderKey)) {
     await dependencies.store.transition('release_gelato_notification', { ...owner, p_hold: true });
     return { delivered: false, held: true };
   }
