@@ -362,3 +362,124 @@ BEGIN
  END LOOP;
 END $$;
 SELECT 'Gelato engineering notification insert, queued retry, mixed cohort and ordinary control: ok' AS result;
+
+
+-- Canonical claim -> quote -> begin -> send authorization while ordinary gate stays OFF.
+UPDATE public.print_provider_dispatch_gates SET enabled=false WHERE provider='gelato';
+INSERT INTO public.orders(id,"orderId",root_order_id,execution_status,next_workflow,shipping_address,book_specs)
+SELECT id,CASE WHEN id=2108 THEN 'ORDINARY-2108' ELSE 'TEST-GELATO-SCOPED-'||id END,
+ CASE WHEN id=2106 THEN 'TEST-GELATO-SCOPED-2105' ELSE 'TEST-GELATO-SCOPED-'||id END,
+ 'ready_for_processing',CASE WHEN id IN(2105,2106) THEN '4-aggregate' ELSE '4' END,
+ '{"name":"Test","street1":"123 Test St","city":"Test City","state":"CA","zip":"90001","country":"US"}'::jsonb,
+ CASE WHEN id=2109 THEN '{}'::jsonb WHEN id=2111 THEN '{"testMode":"true"}'::jsonb ELSE '{"testMode":true}'::jsonb END
+FROM generate_series(2101,2111) id;
+-- Freeze exactly as the normal closed-gate path does before allowlist installation.
+DO $$ DECLARE id bigint; claim jsonb; BEGIN
+ FOR id IN SELECT generate_series(2101,2111) LOOP
+  IF id=2106 THEN CONTINUE; END IF;
+  claim:=public.claim_gelato_print_submission(pg_temp.routes(CASE WHEN id=2105 THEN ARRAY[2105,2106]::bigint[] ELSE ARRAY[id] END),'scoped-'||id);
+  IF claim->>'reason'<>'gate_closed' THEN RAISE EXCEPTION 'Unlisted root dispatched'; END IF;
+ END LOOP;
+END $$;
+INSERT INTO public.gelato_engineering_submission_windows(root_order_id,child_order_ids,opened_at,expires_at,closed_at,account_key_sha256,fixture_manifest_sha256,evidence_run_id)
+SELECT 'TEST-GELATO-SCOPED-'||id,
+ CASE WHEN id=2105 THEN ARRAY[2105,2106]::bigint[] WHEN id=2107 THEN ARRAY[2107,999999]::bigint[] ELSE ARRAY[id] END,
+ CASE WHEN id=2110 THEN clock_timestamp()+interval '1 minute' ELSE clock_timestamp()-interval '1 minute' END,
+ CASE WHEN id=2103 THEN clock_timestamp()-interval '1 second' ELSE clock_timestamp()+interval '10 minutes' END,
+ CASE WHEN id=2104 THEN clock_timestamp() ELSE NULL END,repeat('a',64),repeat('b',64),'scoped-test'
+FROM unnest(ARRAY[2101,2103,2104,2105,2107,2108,2109,2110,2111]) id;
+
+DO $$ DECLARE id bigint; ids bigint[]; c jsonb; s uuid; token uuid; later_token uuid; BEGIN
+ IF has_function_privilege('anon','public.gelato_engineering_dispatch_allowed(text,bigint[])','EXECUTE') OR
+    has_function_privilege('authenticated','public.gelato_engineering_submission_allowed(uuid,uuid,text)','EXECUTE') OR
+    has_table_privilege('anon','public.gelato_engineering_submission_windows','SELECT') OR
+    has_table_privilege('service_role','public.gelato_engineering_submission_windows','DELETE') OR
+    has_column_privilege('service_role','public.gelato_engineering_submission_windows','expires_at','UPDATE') OR
+    NOT has_column_privilege('service_role','public.gelato_engineering_submission_windows','closed_at','UPDATE') THEN RAISE EXCEPTION 'Window privileges broadened'; END IF;
+ FOR id IN SELECT unnest(ARRAY[2102,2103,2104,2107,2108,2109,2110,2111]) LOOP
+  c:=public.claim_gelato_print_submission(pg_temp.routes(ARRAY[id]),'scoped-'||id);
+  IF c->>'reason'<>'gate_closed' THEN RAISE EXCEPTION 'Outside exact live cohort dispatched: %',id; END IF;
+ END LOOP;
+ FOR id IN SELECT unnest(ARRAY[2101,2105]) LOOP
+  ids:=CASE WHEN id=2105 THEN ARRAY[2105,2106]::bigint[] ELSE ARRAY[id] END;
+  c:=public.claim_gelato_print_submission(pg_temp.routes(ids),'scoped-'||id);
+  IF (c->>'dispatch')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'Exact test cohort not dispatched'; END IF;
+  s:=(c->>'submissionId')::uuid;token:=(c->>'claimToken')::uuid;
+  IF NOT public.gelato_engineering_submission_allowed(s,token,repeat('a',64)) OR
+    public.gelato_engineering_submission_allowed(s,gen_random_uuid(),repeat('a',64)) OR
+    public.gelato_engineering_submission_allowed(s,token,repeat('c',64)) THEN RAISE EXCEPTION 'Submission token/account binding failed'; END IF;
+  PERFORM pg_temp.record_quote(s,token);
+  BEGIN
+   UPDATE public.gelato_engineering_submission_windows SET closed_at=clock_timestamp() WHERE root_order_id='TEST-GELATO-SCOPED-'||id;
+   PERFORM pg_temp.expect_error(format('SELECT public.begin_gelato_print_submission(%L,%L,%L,%L)',s,token,'scoped-exec-'||id,repeat('a',64)),'Gelato dispatch disabled');
+   RAISE EXCEPTION 'rollback_closed_begin_probe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'rollback_closed_begin_probe' THEN RAISE; END IF; END;
+  PERFORM public.begin_gelato_print_submission(s,token,'scoped-exec-'||id,repeat('a',64));
+  BEGIN
+   UPDATE public.gelato_engineering_submission_windows SET closed_at=clock_timestamp() WHERE root_order_id='TEST-GELATO-SCOPED-'||id;
+   PERFORM pg_temp.expect_error(format('SELECT public.authorize_gelato_print_send(%L,%L,%L,%L)',s,token,'scoped-exec-'||id,repeat('a',64)),'Gelato dispatch disabled');
+   RAISE EXCEPTION 'rollback_closed_send_probe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'rollback_closed_send_probe' THEN RAISE; END IF; END;
+  PERFORM public.authorize_gelato_print_send(s,token,'scoped-exec-'||id,repeat('a',64));
+  PERFORM pg_temp.expect_error(format('SELECT public.authorize_gelato_print_send(%L,%L,%L,%L)',s,token,'scoped-exec-'||id,repeat('a',64)),'already started');
+  IF (public.claim_gelato_print_submission(pg_temp.routes(ids),'scoped-'||id)->>'dispatch')::boolean THEN RAISE EXCEPTION 'Scoped retry duplicated claim'; END IF;
+  UPDATE public.gelato_engineering_submission_windows SET closed_at=clock_timestamp() WHERE root_order_id='TEST-GELATO-SCOPED-'||id;
+  IF public.gelato_engineering_submission_allowed(s,token,repeat('a',64)) THEN RAISE EXCEPTION 'Closed window remained allowed'; END IF;
+  PERFORM pg_temp.expect_error(format('UPDATE public.gelato_engineering_submission_windows SET closed_at=NULL WHERE root_order_id=%L','TEST-GELATO-SCOPED-'||id),'may only be closed once');
+  PERFORM pg_temp.expect_error(format('UPDATE public.gelato_engineering_submission_windows SET expires_at=expires_at+interval ''1 minute'' WHERE root_order_id=%L','TEST-GELATO-SCOPED-'||id),'immutable');
+ END LOOP;
+ IF (SELECT enabled FROM public.print_provider_dispatch_gates WHERE provider='gelato') THEN RAISE EXCEPTION 'Normal gate changed'; END IF;
+ PERFORM pg_temp.expect_error($q$INSERT INTO public.gelato_engineering_submission_windows(root_order_id,child_order_ids,expires_at,account_key_sha256,fixture_manifest_sha256,evidence_run_id) VALUES('ORDINARY',ARRAY[1],clock_timestamp()+interval '10 minutes',repeat('a',64),repeat('b',64),'test')$q$);
+ PERFORM pg_temp.expect_error($q$INSERT INTO public.gelato_engineering_submission_windows(root_order_id,child_order_ids,expires_at,account_key_sha256,fixture_manifest_sha256,evidence_run_id) VALUES('TEST-GELATO-TOO-LONG',ARRAY[1],clock_timestamp()+interval '1 hour',repeat('a',64),repeat('b',64),'test')$q$);
+END $$;
+SELECT 'Scoped engineering singles/siblings, expiry, key/token/membership, close and one-send guards: ok; ordinary dispatch remained OFF' AS result;
+UPDATE public.print_provider_dispatch_gates SET enabled=true WHERE provider='gelato';
+
+
+-- Prepare fresh claimed contexts; shell probes will close normal dispatch and expire
+-- exact windows while separate connections hold each root lock.
+CREATE TABLE public.test_scoped_expiry_context(kind text,submission_id uuid,claim_token uuid,root_order_id text,child_id bigint);
+INSERT INTO public.orders(id,"orderId",root_order_id,execution_status,next_workflow,shipping_address,book_specs)
+SELECT id,'TEST-GELATO-EXPIRY-'||id,'TEST-GELATO-EXPIRY-'||id,'ready_for_processing','4',
+ '{"name":"Test","street1":"123 Test St","city":"Test City","state":"CA","zip":"90001","country":"US"}'::jsonb,'{"testMode":true}'::jsonb FROM unnest(ARRAY[2121,2122]) id;
+DO $$ DECLARE id bigint; c jsonb; s uuid; token uuid; BEGIN
+ FOR id IN SELECT unnest(ARRAY[2121,2122]) LOOP
+  c:=public.claim_gelato_print_submission(pg_temp.routes(ARRAY[id]),'expiry-'||id);
+  s:=(c->>'submissionId')::uuid;token:=(c->>'claimToken')::uuid;
+  PERFORM pg_temp.record_quote(s,token);
+  IF id=2122 THEN PERFORM public.begin_gelato_print_submission(s,token,'expiry-exec',repeat('a',64)); END IF;
+  INSERT INTO public.test_scoped_expiry_context VALUES(CASE id WHEN 2121 THEN 'begin' ELSE 'send' END,s,token,'TEST-GELATO-EXPIRY-'||id,id);
+ END LOOP;
+END $$;
+
+
+-- Execute the real operator privileges, not only owner-side ACL introspection.
+SET ROLE service_role;
+INSERT INTO public.gelato_engineering_submission_windows(root_order_id,child_order_ids,expires_at,account_key_sha256,fixture_manifest_sha256,evidence_run_id)
+ VALUES('TEST-GELATO-ROLE-PROBE',ARRAY[999999]::bigint[],clock_timestamp()+interval '10 minutes',repeat('a',64),repeat('b',64),'role-proof');
+UPDATE public.gelato_engineering_submission_windows SET closed_at=clock_timestamp() WHERE root_order_id='TEST-GELATO-ROLE-PROBE';
+DO $$ BEGIN
+ IF public.gelato_engineering_dispatch_allowed('TEST-GELATO-ROLE-PROBE',ARRAY[999999]::bigint[]) THEN RAISE EXCEPTION 'Closed missing-members cohort allowed'; END IF;
+ BEGIN
+  UPDATE public.gelato_engineering_submission_windows SET closed_at=NULL WHERE root_order_id='TEST-GELATO-ROLE-PROBE';
+  RAISE EXCEPTION 'role_unexpected_reopen';
+ EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'Engineering window is immutable%' THEN RAISE; END IF; END;
+ BEGIN
+  UPDATE public.gelato_engineering_submission_windows SET expires_at=expires_at+interval '1 minute' WHERE root_order_id='TEST-GELATO-ROLE-PROBE';
+  RAISE EXCEPTION 'role_unexpected_extension';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ BEGIN
+  DELETE FROM public.gelato_engineering_submission_windows WHERE root_order_id='TEST-GELATO-ROLE-PROBE';
+  RAISE EXCEPTION 'role_unexpected_delete';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+SET ROLE anon;
+DO $$ BEGIN
+ BEGIN PERFORM public.gelato_engineering_dispatch_allowed('TEST-GELATO-ROLE-PROBE',ARRAY[999999]::bigint[]);RAISE EXCEPTION 'anon_unexpected_execute';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN PERFORM 1 FROM public.gelato_engineering_submission_windows;RAISE EXCEPTION 'anon_unexpected_read';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+END $$;
+RESET ROLE;
+SELECT 'Actual service_role insert/terminal-close privileges and anon denial: ok' AS result;

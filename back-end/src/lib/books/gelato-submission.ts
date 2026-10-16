@@ -34,6 +34,7 @@ export interface GelatoSubmissionDependencies {
   get?: (id: string) => Promise<GelatoProviderOrder>;
   now?: () => Date;
   draftsEnabled: boolean;
+  engineeringDraftsAllowed?: (identity: GelatoSubmissionIdentity) => Promise<boolean>;
   merchantEmail?: string;
 }
 function string(value: unknown) { return typeof value === 'string' ? value.trim() : ''; }
@@ -100,7 +101,7 @@ export async function quoteGelatoSubmission(identity: GelatoSubmissionIdentity, 
   return { submissionId: identity.submissionId, quoteId: selected.quoteId, shipmentMethodUid: selected.shipmentMethodUid, quotedAt: selected.quotedAt };
 }
 export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies) {
-  if (!dependencies.draftsEnabled) throw new Error('Gelato draft submission is disabled');
+  if (!dependencies.draftsEnabled && !(await dependencies.engineeringDraftsAllowed?.(identity))) throw new Error('Gelato draft submission is disabled');
   const context = await dependencies.store.load(identity.submissionId);
   assertIdentity(context, identity, (dependencies.now ?? (() => new Date()))(), false);
   if (context.submission.request_state === 'submitted') return { submissionId: identity.submissionId, outcome: 'draft', reused: true };

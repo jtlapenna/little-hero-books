@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 task_root=$(cd "$(dirname "$0")/../.." && pwd)
+node "$task_root/back-end/scripts/check-gelato-scoped-migration.mjs"
 task_pg_bin=${GELATO_TEST_PG_BIN:-/opt/homebrew/opt/postgresql@17/bin}
 if [[ ! -x "$task_pg_bin/initdb" ]]; then
   task_pg_bin=$(dirname "$(command -v initdb)")
@@ -40,6 +41,9 @@ done
 # Exercise forward migration idempotence as well as the fresh schema.
 for task_iteration in 1 2; do
   "${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-notification-suppression.sql" >"$task_pg_dir/engineering-migration.log" 2>&1
+done
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "${GELATO_TEST_ENGINEERING_SCHEMA:-$task_root/database/migration-gelato-scoped-engineering-windows.sql}" >"$task_pg_dir/scoped-migration.log" 2>&1
 done
 "${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-print-submissions.sql"
 # Force a started engineering sender and prove the forward migration refuses it.
@@ -164,3 +168,44 @@ then echo 'Cross-book frozen identity was overwritten'; exit 1; fi
 wait "$task_identity_pid"
 rg -q 'Frozen print assignment mismatch' "$task_pg_dir/freeze-second.log"
 echo 'test-gelato-print-submissions row-lock and frozen-identity races: ok'
+
+
+# A request must not authorize after waiting beyond an exact engineering window.
+"${task_psql[@]}" -q -c "UPDATE public.print_provider_dispatch_gates SET enabled=false WHERE provider='gelato'" >/dev/null
+for task_boundary in begin send; do
+  "${task_psql[@]}" -q -c "INSERT INTO public.gelato_engineering_submission_windows(root_order_id,child_order_ids,expires_at,account_key_sha256,fixture_manifest_sha256,evidence_run_id) SELECT root_order_id,ARRAY[child_id],clock_timestamp()+interval '3 seconds',repeat('a',64),repeat('b',64),'expiry-proof' FROM public.test_scoped_expiry_context WHERE kind='$task_boundary'" >/dev/null
+  "${task_psql[@]}" -At >"$task_pg_dir/expiry-holder-$task_boundary.log" 2>&1 <<SQL &
+BEGIN;
+SELECT public.lock_gelato_submission_root(submission_id) FROM public.test_scoped_expiry_context WHERE kind='$task_boundary';
+SELECT pg_sleep(6);
+COMMIT;
+SQL
+  task_holder_pid=$!
+  task_locked=false
+  for task_probe in {1..20}; do
+    if [[ $("${task_psql[@]}" -At -c "SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND granted") != 0 ]]; then task_locked=true;break;fi
+    sleep 0.05
+  done
+  [[ "$task_locked" == true ]] || { echo 'Expiry root lock not observed';exit 1; }
+  if [[ "$task_boundary" == begin ]]; then task_function=begin_gelato_print_submission;else task_function=authorize_gelato_print_send;fi
+  PGAPPNAME="lhl-scoped-expiry-waiter-$task_boundary" "${task_psql[@]}" -At -c "SELECT public.$task_function(submission_id,claim_token,'expiry-exec',repeat('a',64)) FROM public.test_scoped_expiry_context WHERE kind='$task_boundary'" >"$task_pg_dir/expiry-waiter-$task_boundary.log" 2>&1 &
+  task_waiter_pid=$!
+  task_waiting_before_expiry=false
+  for task_probe in {1..30}; do
+    if [[ $("${task_psql[@]}" -At -c "SELECT EXISTS(SELECT 1 FROM pg_stat_activity a CROSS JOIN public.gelato_engineering_submission_windows w JOIN public.test_scoped_expiry_context c USING(root_order_id) WHERE c.kind='$task_boundary' AND w.expires_at>clock_timestamp() AND a.application_name='lhl-scoped-expiry-waiter-$task_boundary' AND a.wait_event_type='Lock' AND a.wait_event='advisory')") == t ]]; then task_waiting_before_expiry=true;break;fi
+    sleep 0.05
+  done
+  [[ "$task_waiting_before_expiry" == true ]] || { echo 'Waiter was not observed blocked before expiry; proof inconclusive';exit 1; }
+  if wait "$task_waiter_pid"; then
+    echo "Expired scoped $task_boundary boundary accepted after lock wait";exit 1
+  fi
+  wait "$task_holder_pid"
+  rg -q 'Gelato dispatch disabled' "$task_pg_dir/expiry-waiter-$task_boundary.log"
+done
+"${task_psql[@]}" -q >/dev/null <<'SQL'
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM public.test_scoped_expiry_context c JOIN public.print_provider_submissions s ON s.id=c.submission_id
+   WHERE s.send_started_at IS NOT NULL OR (c.kind='begin' AND s.request_state<>'claimed')) THEN RAISE EXCEPTION 'Expired boundary mutated submission'; END IF;
+END $$;
+SQL
+echo 'Scoped engineering expiry after blocking root locks: begin and send denied; no send marked started'

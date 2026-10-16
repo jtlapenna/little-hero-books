@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import configFile from '../src/lib/books/configs/book-finding-our-inner-voice/v2.json';
 import { GelatoPrintConfigSchema } from '../src/lib/books/types';
-import { quoteGelatoSubmission, submitGelatoDraft, type GelatoSubmissionDependencies } from '../src/lib/books/gelato-submission';
+import { quoteGelatoSubmission, submitGelatoDraft, type GelatoSubmissionDependencies, type GelatoSubmissionIdentity } from '../src/lib/books/gelato-submission';
 import { GelatoProviderOrderSchema, loadGelatoConnectedOrders, validateGelatoConnectedOrders } from '../src/lib/books/gelato-provider-snapshot';
 import { handleGelatoSubmission } from '../src/lib/books/gelato-submission-endpoint';
 import type { GelatoSubmissionContext } from '../src/lib/books/gelato-submission-store';
@@ -11,7 +11,7 @@ import type { GelatoDraftOrderRequest } from '../src/lib/books/gelato-api-contra
 const config = GelatoPrintConfigSchema.parse(configFile.formats.standard.print);
 const identity = { submissionId: '11111111-1111-4111-8111-111111111111', claimToken: '22222222-2222-4222-8222-222222222222', executionId: 'execution-1', mode: 'siblings' as const };
 async function runScenario(failGet = false, storedCopy = false, changedBytes = false, optionalFields = false,
-  corruption?: 'recipient' | 'file' | 'items' | 'null') {
+  corruption?: 'recipient' | 'file' | 'items' | 'null', engineering?: 'allowed' | 'denied' | 'unavailable' | 'missing') {
   const context: GelatoSubmissionContext = { providerOrders: [], submission: {
     id: identity.submissionId, provider: 'gelato', root_order_id: 'group-1', order_reference_id: 'lhb-gelato-1',
     workflow_job_idempotency_key: 'job-1', claim_token: identity.claimToken, lease_expires_at: '2026-10-11T12:15:00Z',
@@ -25,7 +25,10 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
   const calls: string[] = [];
   const dependencies: GelatoSubmissionDependencies = {
     verifyStoredFile: async () => !changedBytes,
-    backendUrl: 'https://files.example.test', draftsEnabled: true, now: () => new Date('2026-10-11T12:00:00Z'), artifactExists: async () => true,
+    backendUrl: 'https://files.example.test', draftsEnabled: !engineering,
+    ...(engineering && engineering !== 'missing' ? { engineeringDraftsAllowed: async (actual: GelatoSubmissionIdentity) => {
+      assert.deepEqual(actual, identity); if (engineering === 'unavailable') throw new Error('Scoped authority unavailable'); return engineering === 'allowed';
+    } } : {}), now: () => new Date('2026-10-11T12:00:00Z'), artifactExists: async () => true,
     loadOrder: async (key) => ({ id: Number(key.slice(-1)), print_provider: 'gelato', print_submission_id: identity.submissionId, print_claim_token: identity.claimToken, quantity: 1, shipping_tier: 'standard', customer_email: 'test@example.com', shipping_address: { name: 'Taylor Example', address: '1 Main St', city: 'Seattle', state: 'WA', zip: '98101', country: 'US', ...(optionalFields ? { address_line_2: 'Unit 2', phone: '+12065550123' } : {}) } }),
     loadPrintInput: async (key) => ({ orderId: key, orderDbId: Number(key.slice(-1)), orderPrefix: `book/orders/${key}`, bookConfigVersion: 2, rootOrderId: 'group-1',
       providerPrintConfig: config, shippingTier: 'standard', customer: { email: 'test@example.com' },
@@ -67,6 +70,10 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     assert.equal(sends, 0); assert.equal(context.submission.request_state, 'claimed');
     return;
   }
+  if (engineering && engineering !== 'allowed') {
+    await assert.rejects(submitGelatoDraft(identity, dependencies));
+    assert.equal(sends, 0); assert.deepEqual(calls, ['record_gelato_quote_snapshot']); return;
+  }
   if (failGet || changedBytes) {
     await assert.rejects(submitGelatoDraft(identity, dependencies), /inspect/);
     assert.equal(context.submission.request_state, 'outcome_unknown');
@@ -89,6 +96,6 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     assert.equal(draft.shippingAddress.phone, '+12065550123');
   }
 }
-void Promise.all([runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true),
+void Promise.all([...(['allowed','denied','unavailable','missing'] as const).map(mode => runScenario(false,false,false,false,undefined,mode)), runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true),
   runScenario(false, false, false, true), ...(['recipient', 'file', 'items', 'null'] as const).map(corruption => runScenario(false, false, false, false, corruption)),
 ]).then(() => console.log('Gelato persisted quote-to-draft service and connected graph checks passed')).catch((error) => { console.error(error); process.exitCode = 1; });
