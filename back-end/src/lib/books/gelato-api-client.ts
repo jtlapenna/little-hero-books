@@ -105,7 +105,7 @@ export async function getGelatoOrder(id: string, dependencies: GelatoClientDepen
   let response: Response;
   try {
     response = await (dependencies.fetcher ?? fetch)(`${GELATO_API_BASE}/orders/${encodeURIComponent(safeId)}`, {
-      headers: { 'X-API-KEY': apiKey },
+      headers: { 'X-API-KEY': apiKey }, redirect: 'manual',
       signal: dependencies.signal ? AbortSignal.any([dependencies.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
   } catch { throw new Error('Gelato order lookup did not complete'); }

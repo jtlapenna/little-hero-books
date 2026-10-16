@@ -115,7 +115,8 @@
     "test:gelato-engineering-conversion": "tsx scripts/test-gelato-engineering-conversion.ts && tsx scripts/test-gelato-engineering-ownership.ts",
     "test:gelato-engineering-conversion-worker": "tsx scripts/test-gelato-engineering-conversion-worker.ts",
     "test:gelato-engineering-automation": "tsx scripts/test-gelato-engineering-automation.ts && tsx scripts/test-gelato-engineering-automation-runtime.ts",
-    "test:w0-publication": "tsx scripts/test-w0-build-readonly.ts && tsx scripts/test-w0-publication-worker.ts && tsx scripts/test-w0-manifest-freeze.ts && tsx scripts/test-w0-legacy-rollout.ts"
+    "test:w0-publication": "tsx scripts/test-w0-build-readonly.ts && tsx scripts/test-w0-publication-worker.ts && tsx scripts/test-w0-manifest-freeze.ts && tsx scripts/test-w0-legacy-rollout.ts",
+    "test:gelato-webhook-status": "tsx scripts/test-gelato-webhook-status.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

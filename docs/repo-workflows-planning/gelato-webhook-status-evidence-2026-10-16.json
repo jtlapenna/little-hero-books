@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "scope": "local/simulated new webhook and dedicated status routes; separate real read-only controls receipt",
+  "baseline": "3c2e693c1664156863c0c1046ffd4928947eecd5",
+  "tests": {
+    "newActualRoutesNodeAndWorker": "passed",
+    "coldOffWorkerIsolates": 3,
+    "ordinaryCases": [
+      "website single",
+      "Amazon single",
+      "Amazon siblings"
+    ],
+    "customerIntentsAndDelivery": "zero even with synthetic notification flag true",
+    "artifactBytes": "synthetic short buffers, not valid PDFs",
+    "casRouteError": "synthetic409 returns503 and subsequent retry succeeds",
+    "databaseConcurrency": "separate disposable PostgreSQL17 migration/CAS/authorization/concurrency suite passed",
+    "regressionScripts": 13,
+    "existingRuntimeFixtureExpiry": "initial skipped_expired; test-only relative expiry fix passed",
+    "lint": "passed",
+    "fullTypecheckDiagnostics": 361,
+    "changedPathDiagnostics": 0,
+    "workerPackaging": "focused actual-route bundle, synthetic path globals; not deployed OpenNext adapter"
+  },
+  "liveControls": {
+    "at": "2026-10-16T20:33:27.809Z",
+    "normalFlagsOff": true,
+    "normalDispatch": false,
+    "runtimeDraftsOff": true,
+    "protectedWorkflowsInactive": 11,
+    "customerNotificationIntents": 0,
+    "openNativeWindows": 0,
+    "openConversionAuthorizations": 0,
+    "servingSource": "3c2e693c1664156863c0c1046ffd4928947eecd5",
+    "servingDeployment": "1372517b-e010-4a90-92eb-425582ca433f",
+    "transport": "GET-only exact controls URLs; no order/provider access",
+    "phaseLiveMutations": 0
+  },
+  "phaseProviderRequests": 0,
+  "phaseOrderRequests": 0,
+  "phaseLiveMutations": 0,
+  "externalProviderDelivery": "not tested; dashboard management URL redirected to Home",
+  "deployment": "not performed; no secret, subscription, schedule or flag change",
+  "normalPaidConversion": "not implemented by this change",
+  "testSourceSha256": "0f2836672a6ab1fb93ca4b6012e6044a391f806fd5aff658b01d4f02ca22a59d"
+}
