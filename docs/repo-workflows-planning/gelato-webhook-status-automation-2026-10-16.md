@@ -1,5 +1,7 @@
 # Gelato webhook receiver and dedicated status scheduler
 
+**Approach revision:** Scheduled API polling is now the primary status path. Webhooks remain an optional enhancement; missing dashboard webhook access does not block remaining unpaid engineering. See the [polling-first plan](gelato-polling-first-plan-2026-10-16.md). Historical provider-delivery limitations below remain unproved, rather than being relabeled as passed. Controls remain OFF and the six pending orders must remain untouched.
+
 This change prepares normal status automation while normal ordering stays closed. It adds a provider-shaped webhook receiver and a separate status-only scheduler route. It does not add normal paid release/conversion, create a subscription, install a schedule, set a secret, enable any flag, change billing or touch the six pending provider orders. PR22 remains the historical live unpaid conversion evidence; these new route tests are local/simulated.
 
 ## Contracts and safety
