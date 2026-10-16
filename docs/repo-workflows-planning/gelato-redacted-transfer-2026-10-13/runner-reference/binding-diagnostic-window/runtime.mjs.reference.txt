@@ -1,0 +1,60 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/binding-diagnostic-window';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const reviewedSha=process.argv[2],mode=process.argv[3];assert.match(reviewedSha,/^[a-f0-9]{40}$/);
+const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+const flag=flags[0],journalPath=`${directory}/runtime-journal.json`;
+const account=e.CLOUDFLARE_ACCOUNT_ID||e.R2_ACCOUNT_ID;
+const database=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL;
+assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
+async function read(url,headers){const r=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(r.ok);return r.json();}
+const rest=path=>read(`${database}/rest/v1/${path}`,{apikey:key,Authorization:`Bearer ${key}`});
+async function controls(){
+  const [gate,...flows]=await Promise.all([rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),...['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'].map(id=>read(`https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/${id}`,{'X-N8N-API-KEY':e.N8N_API_KEY}))]);
+  assert.deepEqual(gate,[{enabled:false}]);for(const flow of flows)assert.equal(flow.active,false);
+  const baseline=JSON.parse(fs.readFileSync(`${directory}/../negative-journal.json`));
+  for(const old of baseline.oldWorkflows){const w=await read(`https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/${old.id}`,{'X-N8N-API-KEY':e.N8N_API_KEY});assert.equal(hash({active:w.active,nodes:w.nodes,connections:w.connections,settings:w.settings}),old.hash);}
+}
+async function state(){
+  const paths=['print_provider_submissions?select=*&order=id','print_provider_submission_items?select=*&order=child_order_id','print_provider_submission_orders?select=*&order=provider_order_id','print_provider_submission_notifications?select=*&order=id','orders?print_provider=eq.gelato&select=*&order=id'];
+  const rows=await Promise.all(paths.map(rest));
+  const baseline=JSON.parse(fs.readFileSync(`${directory}/../seed-journal.json`));
+  for(const old of baseline.baseline){const [row]=await rest(`orders?id=eq.${old.id}&select=*`);assert.equal(hash(row),old.hash);}
+  const artifacts=[];
+  for(const item of rows[1]){assert.ok(item.artifact_key);const r=await fetch(`https://admin.littleherolabs.com/api/pdf/${item.artifact_key}`,{redirect:'error',signal:AbortSignal.timeout(60000)});assert.ok(r.ok);artifacts.push({key:item.artifact_key,sha256:createHash('sha256').update(Buffer.from(await r.arrayBuffer())).digest('hex')});}
+  return hash({rows,artifacts});
+}
+async function cf(method='GET',body){
+  const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/little-hero-labs-admin`,{method,headers:{Authorization:`Bearer ${e.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(r.ok);const b=await r.json();assert.equal(b.success,true);return b.result;
+}
+const withoutDraft=p=>{const c=structuredClone(p.deployment_configs);delete c.production.env_vars[flag];return hash(c);};
+const save=j=>fs.writeFileSync(journalPath,JSON.stringify(j,null,2),{mode:0o600});
+async function observe(j){
+  await controls();assert.equal(await state(),j.stateHash,'Retained Gelato data changed');
+  const p=await cf();assert.equal(p.canonical_deployment.latest_stage.status,'success');assert.equal(p.canonical_deployment.deployment_trigger.metadata.commit_hash,reviewedSha);
+  assert.equal(withoutDraft(p),j.baselineConfigHash);assert.equal(p.deployment_configs.production.env_vars[flag].value,j.expectedValue);
+  assert.equal(p.canonical_deployment.env_vars[flag].value,j.expectedValue);for(const f of flags.slice(1))assert.equal(p.canonical_deployment.env_vars[f].value,'false');
+  const r=await fetch('https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft',{headers:{Authorization:`Bearer ${e.BACKEND_API_TOKEN}`},redirect:'error',signal:AbortSignal.timeout(30000)});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'private, no-store');const b=await r.json();
+  assert.deepEqual(Object.keys(b).sort(),['contextAvailable','cloudflare','globalProcess','nodeProcess','draftsEnabled','buildTimestampMs'].sort());for(const k of ['cloudflare','globalProcess','nodeProcess']){assert.deepEqual(Object.keys(b[k]).sort(),['present','isString','isTrue','isFalse'].sort());for(const v of Object.values(b[k]))assert.equal(typeof v,'boolean');}
+  assert.equal(typeof b.contextAvailable,'boolean');assert.ok(b.draftsEnabled===null||typeof b.draftsEnabled==='boolean');assert.ok(typeof b.buildTimestampMs==='number'&&Number.isFinite(b.buildTimestampMs)&&b.buildTimestampMs>0);
+  if(j.expectedValue==='false'){assert.equal(b.draftsEnabled,false);assert.equal(b.cloudflare.isTrue,false);assert.equal(b.globalProcess.isTrue,false);assert.equal(b.nodeProcess.isTrue,false);}
+  const result={at:new Date().toISOString(),setting:j.expectedValue,deploymentId:p.canonical_deployment.id,...b};j.observations??=[];j.observations.push(result);j.deploymentId=p.canonical_deployment.id;save(j);console.log(JSON.stringify(result));
+}
+if(mode==='assert-closed-controls'){await controls();if(fs.existsSync(journalPath)){const j=JSON.parse(fs.readFileSync(journalPath));assert.equal(await state(),j.stateHash);}console.log(JSON.stringify({dbDispatch:false,copiesActive:false}));}
+else if(mode==='open'){
+  assert.ok(!fs.existsSync(journalPath),'Existing diagnostic journal requires reconciliation');await controls();const p=await cf();for(const f of flags){assert.equal(p.deployment_configs.production.env_vars[f].value,'false');assert.equal(p.canonical_deployment.env_vars[f].value,'false');}assert.equal(p.canonical_deployment.latest_stage.status,'success');assert.equal(p.canonical_deployment.deployment_trigger.metadata.commit_hash,reviewedSha);
+  const j={openedAt:new Date().toISOString(),expectedValue:'false',baselineConfigHash:withoutDraft(p),stateHash:await state(),reviewedSha};save(j);await observe(j);j.expectedValue='true';save(j);
+  await cf('PATCH',{deployment_configs:{production:{env_vars:{[flag]:{type:'plain_text',value:'true'}},wrangler_config_hash:p.deployment_configs.production.wrangler_config_hash}}});const after=await cf();assert.equal(after.deployment_configs.production.env_vars[flag].value,'true');assert.equal(withoutDraft(after),j.baselineConfigHash);console.log(JSON.stringify({projectDraftFlag:true,dbDispatch:false,copiesActive:false}));
+}else if(mode==='close'){
+  const j=JSON.parse(fs.readFileSync(journalPath));const p=await cf();j.expectedValue='false';save(j);
+  await cf('PATCH',{deployment_configs:{production:{env_vars:{[flag]:{type:'plain_text',value:'false'}},wrangler_config_hash:p.deployment_configs.production.wrangler_config_hash}}});const after=await cf();assert.equal(after.deployment_configs.production.env_vars[flag].value,'false');assert.equal(withoutDraft(after),j.baselineConfigHash);j.projectClosedVerified=true;save(j);console.log(JSON.stringify({projectDraftFlag:false,deploymentRequired:true}));
+}else if(mode==='assert-project-closed'){
+  const j=JSON.parse(fs.readFileSync(journalPath));assert.equal(j.projectClosedVerified,true);const p=await cf();for(const f of flags)assert.equal(p.deployment_configs.production.env_vars[f].value,'false');assert.equal(withoutDraft(p),j.baselineConfigHash);console.log(JSON.stringify({projectFlagClosureVerified:true}));
+}else if(mode==='verify'||mode==='observe'){await observe(JSON.parse(fs.readFileSync(journalPath)));}
+else throw new Error('Unsupported diagnostic mode');

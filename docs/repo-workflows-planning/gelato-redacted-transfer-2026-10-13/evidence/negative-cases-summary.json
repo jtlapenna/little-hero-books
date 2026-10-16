@@ -1,0 +1,65 @@
+{
+  "mode": "negative",
+  "startedAt": "2026-10-13T20:59:08.924Z",
+  "cleanup": [
+    {
+      "name": "dispatch",
+      "verified": true,
+      "at": "2026-10-13T21:04:17.002Z"
+    },
+    {
+      "name": "8ZqgZ7ksY0Fj8Acx",
+      "verified": true,
+      "at": "2026-10-13T21:04:17.533Z"
+    },
+    {
+      "name": "d7wi1rS0CxGVdRVb",
+      "verified": true,
+      "at": "2026-10-13T21:04:18.067Z"
+    }
+  ],
+  "cases": [
+    {
+      "mode": "single",
+      "workflowId": "8ZqgZ7ksY0Fj8Acx",
+      "orderIds": [
+        "TEST-GELATO-SINGLE-<REDACTED_ID_005>"
+      ],
+      "webhookConsumed": true,
+      "executionId": "54653",
+      "status": "error",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request",
+        "Assemble Gelato Print PDF"
+      ],
+      "httpCode": "409",
+      "ownershipRejection": true,
+      "reconciledReadOnly": true,
+      "zeroArtifactAndReceiptWrites": true,
+      "verifiedAt": "2026-10-13T21:04:02.895Z"
+    },
+    {
+      "mode": "siblings",
+      "workflowId": "d7wi1rS0CxGVdRVb",
+      "orderIds": [
+        "TEST-GELATO-<REDACTED_ID_005>-1",
+        "TEST-GELATO-<REDACTED_ID_005>-2"
+      ],
+      "webhookConsumed": true,
+      "executionId": "54654",
+      "status": "error",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request",
+        "Assemble Gelato Print PDF"
+      ],
+      "httpCode": "409",
+      "ownershipRejection": true,
+      "zeroArtifactAndReceiptWrites": true,
+      "verifiedAt": "2026-10-13T21:04:15.675Z"
+    }
+  ]
+}

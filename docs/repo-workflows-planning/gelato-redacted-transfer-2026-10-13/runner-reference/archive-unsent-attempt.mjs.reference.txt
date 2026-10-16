@@ -1,0 +1,13 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';import fs from 'node:fs';
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const read=name=>JSON.parse(fs.readFileSync(`${dir}/${name}.json`));
+const outer=read('outer-journal'),runtime=read('runtime-journal'),positive=read('positive-journal');
+assert.equal(outer.cleanupVerified,true);assert.equal(outer.enabledDeploymentSettled,true);assert.equal(outer.disabledDeploymentFullJobSucceeded,true);
+assert.equal(runtime.expectedValue,'false');assert.equal(runtime.stage,'disabled-deployment-verified');
+assert.equal(positive.completed,undefined);assert.ok(positive.cases.every(x=>!x.webhookConsumed&&!x.executionId&&!x.submissionId&&!x.graph));
+assert.ok(positive.cleanup.every(x=>x.verified));
+const archive=`${dir}/attempt-1`;assert.ok(!fs.existsSync(archive));fs.mkdirSync(archive,{mode:0o700});
+for(const name of ['outer-journal','runtime-journal','positive-journal','outer-cleanup'])fs.renameSync(`${dir}/${name}.json`,`${archive}/${name}.json`);
+fs.writeFileSync(`${archive}/continuation.json`,JSON.stringify({at:new Date().toISOString(),reason:'Previous backend claim returned409 before any webhook/provider call. Full closed cleanup verified. Subsequent exact unused diagnostic claim will use canonical fence/reclaim.',preserved:['seed-journal','negative-journal','claim-probe-journal']},null,2),{mode:0o600});
+console.log(JSON.stringify({archived:true,priorWebhookConsumed:false,priorProviderCreate:false,cleanupVerified:true}));

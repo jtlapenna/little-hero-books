@@ -1,0 +1,46 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+async function main(){
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const id='<REDACTED_ID_001>';
+const expectedSource='4fb98c265bdad3482d6b9e31033437c8b18dce53';
+assert.equal(process.argv[2],'--authorized-remove-stale','Explicit human removal approval must precede execution');
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const account=e.CLOUDFLARE_ACCOUNT_ID||e.R2_ACCOUNT_ID;
+assert.equal(account,'3daae940fcb6fc5b8bbd9bb8fcc62854');
+const base=`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/little-hero-labs-admin`;
+const request=async(path='',method='GET')=>{
+  const r=await fetch(base+path,{method,headers:{Authorization:`Bearer ${e.CLOUDFLARE_API_TOKEN}`},redirect:'error',signal:AbortSignal.timeout(30000)});
+  const body=await r.json();return{status:r.status,success:body.success,result:body.result};
+};
+const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+async function closedProject(){const p=await request();assert.equal(p.status,200);assert.equal(p.success,true);const c=p.result.canonical_deployment;assert.notEqual(c.id,id);assert.equal(c.latest_stage.status,'success');assert.equal(c.deployment_trigger.metadata.commit_hash,expectedSource);for(const f of flags){assert.ok(p.result.deployment_configs.production.env_vars[f].value==='false','Project flags must be closed');assert.ok(c.env_vars[f].value==='false','Canonical flags must be closed');}return p.result;}
+const evidence=JSON.parse(fs.readFileSync(directory+'/delivered-false-evidence.json'));assert.equal(evidence.source,expectedSource);assert.equal(evidence.observation.draftsEnabled,false);
+const before=await closedProject();
+const db=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL;assert.equal(new URL(db).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');const key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+async function closedControls(){
+const gate=await fetch(`${db}/rest/v1/print_provider_dispatch_gates?provider=eq.gelato&select=enabled`,{headers:{apikey:key,Authorization:`Bearer ${key}`},redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(gate.ok);assert.deepEqual(await gate.json(),[{enabled:false}]);
+for(const workflow of ['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb']){const r=await fetch(`https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/${workflow}`,{headers:{'X-N8N-API-KEY':e.N8N_API_KEY},redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(r.ok);assert.equal((await r.json()).active,false);}
+}
+await closedControls();
+const target=await request(`/deployments/${id}`);assert.equal(target.status,200);assert.equal(target.success,true);
+const saved=JSON.parse(fs.readFileSync(`${directory}/stale-march-deployment-metadata.json`));
+assert.equal(target.result.id,saved.id);assert.equal(target.result.created_on,saved.createdOn);assert.equal(target.result.environment,'production');
+assert.equal(target.result.deployment_trigger.metadata.commit_hash,'17c892d4486f2ef1067945c288bf6946b718e01d');
+assert.equal(target.result.latest_stage.name,'deploy');assert.equal(target.result.latest_stage.status,'active');
+const proofResponse=await fetch('https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft',{headers:{Authorization:'Bearer '+e.BACKEND_API_TOKEN},redirect:'error',signal:AbortSignal.timeout(30000)});assert.equal(proofResponse.status,200);assert.equal(proofResponse.headers.get('cache-control'),'private, no-store');const proof=await proofResponse.json();assert.ok(proof.contextAvailable===true&&proof.draftsEnabled===false);for(const view of ['cloudflare','globalProcess','nodeProcess']){assert.ok(proof[view]?.present===true&&proof[view]?.isString===true&&proof[view]?.isTrue===false&&proof[view]?.isFalse===true);}
+const finalBefore=await closedProject();assert.equal(finalBefore.canonical_deployment.id,before.canonical_deployment.id);
+const journalPath=`${directory}/stale-march-removal-journal.json`;assert.ok(!fs.existsSync(journalPath),'Existing removal journal requires reconciliation, never blind retry');
+const journal={intentAt:new Date().toISOString(),target:id,targetSource:saved.source,canonicalBefore:before.canonical_deployment.id,method:'DELETE',force:false};
+const save=()=>fs.writeFileSync(journalPath,JSON.stringify(journal,null,2),{mode:0o600});fs.writeFileSync(journalPath,JSON.stringify(journal,null,2),{flag:'wx',mode:0o600});
+try{
+  const result=await request(`/deployments/${id}`,'DELETE');journal.deleteStatus=result.status;save();assert.equal(result.status,200);assert.equal(result.success,true);
+  const absent=await request(`/deployments/${id}`);journal.readbackStatus=absent.status;save();assert.equal(absent.status,404);
+  const after=await closedProject();journal.canonicalAfter=after.canonical_deployment.id;assert.equal(journal.canonicalAfter,journal.canonicalBefore,'Canonical deployment changed during cleanup');await closedControls();journal.closedVerified=true;journal.completedAt=new Date().toISOString();save();
+  console.log(JSON.stringify({removed:id,currentSource:expectedSource,allFlags:false,dispatch:false,copiesActive:false}));
+}catch{journal.outcomeNeedsReconciliation=true;save();throw new Error('Stale deployment removal requires read-only reconciliation; do not retry');}
+
+}
+try{await main();}catch{console.error('Stale deployment cleanup stopped. Reconcile any saved intent before retrying.');process.exitCode=1;}

@@ -1,0 +1,39 @@
+{
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T23:17:40.510Z",
+  "rationale": "Authenticated fixed-allowlist read-only diagnostic; original POST and operational gates unchanged.",
+  "branch": "codex/gelato-runtime-binding-diagnostic",
+  "checks": [
+    {
+      "name": "runtime route + canonical single/sibling quote",
+      "status": "passed",
+      "before": "GET undefined failure before implementation",
+      "after": "actual GET serializes exact allowlist, zero fetches, restored env/globals"
+    },
+    {
+      "name": "Gelato service/native/scanner suites",
+      "status": "passed"
+    },
+    {
+      "name": "focused ESLint and diff whitespace",
+      "status": "passed"
+    },
+    {
+      "name": "base merge-tree",
+      "status": "passed",
+      "tree": "6d6c51d8c6741badc949a29453186da6389c8500"
+    },
+    {
+      "name": "full backend typecheck",
+      "status": "baseline failure",
+      "diagnostics": 400,
+      "changedFileDiagnostics": 0
+    },
+    {
+      "name": "CI command trace",
+      "status": "passed",
+      "evidence": "npm ci; scanner tests; workflow checks; runtime; persisted requests; range/export scan. Both route selectors added."
+    }
+  ],
+  "findings": []
+}

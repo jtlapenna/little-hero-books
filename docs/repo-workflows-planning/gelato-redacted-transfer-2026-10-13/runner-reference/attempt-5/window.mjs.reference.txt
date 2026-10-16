@@ -1,0 +1,178 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {randomUUID, createHash} from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import {AwsClient} from '<WORKTREE>/back-end/node_modules/aws4fetch/dist/aws4fetch.esm.js';
+import {assertRetainedState} from './retained-state.mjs';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-5';
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const database=env.SUPABASE_URL||env.NEXT_PUBLIC_SUPABASE_URL;
+assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const key=env.SUPABASE_SERVICE_ROLE_KEY||env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const seed=JSON.parse(fs.readFileSync(`${directory}/seed-journal.json`));assert.equal(seed.seeded,true);
+const mode=process.argv[2];assert.ok(['negative','positive'].includes(mode));
+const path=`${directory}/${mode}-journal.json`;
+const resumeNegative=mode==='negative'&&process.argv.includes('--resume-negative');
+assert.ok(!fs.existsSync(path)||resumeNegative,'Existing window journal requires reconciliation; do not resend');
+const journal=fs.existsSync(path)?JSON.parse(fs.readFileSync(path)):{mode,startedAt:new Date().toISOString(),cases:[],cleanup:[]};
+if(resumeNegative){assert.equal(journal.mode,'negative');assert.ok(journal.cleanup.every(x=>x.verified));journal.cleanup=[];}
+const save=()=>fs.writeFileSync(path,JSON.stringify(journal,null,2),{mode:0o600});
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+async function jsonRequest(url,init={}) {
+  const r=await fetch(url,{...init,redirect:'error',signal:AbortSignal.timeout(120_000)});
+  if(!r.ok)throw new Error(`HTTP request failed (${r.status})`);
+  const text=await r.text();return text?JSON.parse(text):null;
+}
+const rest=(path,init={})=>jsonRequest(`${database}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',...init.headers}});
+const n8n=(path,init={})=>jsonRequest(`https://thepeakbeyond.app.n8n.cloud/api/v1/${path}`,{...init,headers:{'X-N8N-API-KEY':env.N8N_API_KEY,'Content-Type':'application/json',...init.headers}});
+const post=(path,body)=>jsonRequest(`https://admin.littleherolabs.com${path}`,{method:'POST',headers:{Authorization:`Bearer ${env.BACKEND_API_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+const workflows=['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'];
+const oldIds=['9E0oVs46bMoiyRIP','TDwc85g03FqPf9D6','m4qIN9PCgifUcYih','boWA0mB20qYK2g4x'];
+const oldFingerprint=w=>hash({active:w.active,nodes:w.nodes,connections:w.connections,settings:w.settings});
+const gate=enabled=>rest('print_provider_dispatch_gates?provider=eq.gelato',{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({enabled})});
+const assertGate=async enabled=>assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled}]);
+const graphGet=async id=>jsonRequest(`https://order.gelatoapis.com/v4/orders/${id}`,{headers:{'X-API-KEY':env.GELATO_API_KEY}});
+async function inventory() {
+  const aws=new AwsClient({accessKeyId:env.CLOUDFLARE_R2_ACCESS_KEY_ID||env.CLOUDFLARE_R2_ACCESS_KEY||env.R2_ACCESS_KEY_ID||env.R2_ACCESS_ID_KEY,secretAccessKey:env.CLOUDFLARE_R2_SECRET_ACCESS_KEY||env.CLOUDFLARE_R2_SECRET_KEY||env.R2_SECRET_ACCESS_KEY,service:'s3',region:'auto'});
+  const account=env.CLOUDFLARE_ACCOUNT_ID||env.R2_ACCOUNT_ID,bucket=env.R2_ORDERS_BUCKET_NAME||env.R2_ORDERS_BUCKET||'little-hero-orders';
+  const result=[];
+  for(const order of seed.orders){
+    const url=new URL(`https://${bucket}.${account}.r2.cloudflarestorage.com/`);url.searchParams.set('list-type','2');url.searchParams.set('prefix',`book-finding-our-inner-voice/orders/${order.orderId}/`);
+    const r=await aws.fetch(url,{redirect:'error',signal:AbortSignal.timeout(60_000)});assert.ok(r.ok);const xml=await r.text();assert.ok(xml.includes('<IsTruncated>false</IsTruncated>'));
+    const contents=[...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(x=>x[1]).sort();result.push({orderId:order.orderId,count:contents.length,hash:hash(contents)});
+  }
+  return result;
+}
+async function run(workflowId,payload,entry) {
+  const capture=e=>{
+    entry.executionId=String(e.id);entry.status=e.status;entry.nodes=Object.keys(e.data?.resultData?.runData||{});entry.httpCode=e.data?.resultData?.error?.httpCode||null;
+    const description=[e.data?.resultData?.error?.description,...(e.data?.resultData?.error?.messages||[])].join('\n');
+    entry.ownershipRejection=/claim is stale|does not own|current submission/.test(description);save();return e;
+  };
+  if(entry.webhookConsumed){assert.ok(resumeNegative&&entry.executionId,'Unknown outcome requires reconciliation');const old=await n8n(`executions/${entry.executionId}?includeData=true`);assert.equal(old.workflowId,workflowId);assert.equal(old.status,'error');entry.reconciledReadOnly=true;return capture(old);}
+  const previous=await n8n(`executions?workflowId=${workflowId}&limit=100`);
+  const existing=new Set(previous.data.map(x=>String(x.id)));
+  entry.intentRecordedAt=new Date().toISOString();entry.webhookConsumed=true;save();
+  const webhook=(await n8n(`workflows/${workflowId}`)).nodes.find(n=>n.type==='n8n-nodes-base.webhook').parameters.path;
+  const ack=await jsonRequest(`https://thepeakbeyond.app.n8n.cloud/webhook/${webhook}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  assert.equal(ack.status,'accepted');
+  const deadline=Date.now()+600_000;
+  while(Date.now()<deadline) {
+    const list=await n8n(`executions?workflowId=${workflowId}&limit=100`);
+    const candidates=list.data.filter(x=>!existing.has(String(x.id)));
+    assert.ok(candidates.length<=1,'Concurrent workflow execution requires reconciliation');
+    if(candidates.length) {
+      const e=await n8n(`executions/${candidates[0].id}?includeData=true`);
+      entry.executionId=String(e.id);entry.status=e.status;save();
+      if(['success','error','canceled','crashed'].includes(e.status)) {
+        return capture(e);
+      }
+    }
+    await new Promise(resolve=>setTimeout(resolve,5000));
+  }
+  throw new Error('Execution outcome unknown; do not resend');
+}
+async function verifyGraph(submission,items,entry) {
+  const pending=[submission.accepted_root_order_id],visited=new Set(),graph=[];
+  assert.ok(pending[0]);
+  while(pending.length) {
+    const id=pending.shift();if(visited.has(id))continue; assert.ok(visited.size<100);visited.add(id);
+    const raw=await graphGet(id);
+    assert.equal(raw.id,id);assert.equal(raw.orderType,'draft');assert.equal(raw.financialStatus,'draft');assert.equal(raw.fulfillmentStatus,'draft');assert.equal(raw.orderReferenceId,submission.order_reference_id);
+    graph.push({id,orderType:raw.orderType,financialStatus:raw.financialStatus,fulfillmentStatus:raw.fulfillmentStatus,items:raw.items.map(item=>({itemReferenceId:item.itemReferenceId,quantity:item.quantity,pageCount:item.pageCount}))});
+    pending.push(...(raw.connectedOrderIds||[]));
+  }
+  const actual=graph.flatMap(node=>node.items).map(x=>x.itemReferenceId).sort();
+  assert.deepEqual(actual,items.map(x=>x.item_reference_id).sort());
+  for(const item of graph.flatMap(node=>node.items)){assert.equal(item.quantity,1);assert.equal(item.pageCount,32);}
+  const persisted=await rest(`print_provider_submission_orders?submission_id=eq.${submission.id}&select=provider_order_id,order_type,status`);
+  assert.deepEqual(persisted.map(x=>x.provider_order_id).sort(),[...visited].sort()); assert.ok(persisted.every(x=>x.order_type==='draft'));
+  entry.graph=graph;entry.persistedGraphVerified=true;save();
+}
+async function main() {
+  await assertGate(false);
+  const all=await rest('orders?print_provider=eq.gelato&select=id,orderId,execution_status,print_submission_id');
+  assert.deepEqual(all.map(x=>x.id).sort((a,b)=>a-b),[1053,1066,...seed.orders.map(x=>x.orderDbId)].sort((a,b)=>a-b));
+  assert.equal(mode,'positive');
+  const retained=await assertRetainedState(rest);
+  assert.deepEqual((await rest('print_provider_submissions?select=id')).map(x=>x.id).sort(),retained.submissionIds.slice().sort());
+  const unsentResume=null;
+  assert.ok(all.filter(x=>![1053,1066].includes(x.id)).every(x=>unsentResume&&x.id===unsentResume.orderDbId?x.execution_status==='ready_for_processing'&&x.print_submission_id===unsentResume.submissionId:x.execution_status==='done'&&x.print_submission_id===null));
+  if(mode==='negative')assert.equal((await rest('print_provider_submissions?select=id')).length,0);
+  journal.approvedUnsentResume=unsentResume;save();
+  if(mode==='negative'){journal.artifactBaseline??=await inventory();journal.receiptBaseline??=await rest('print_provider_submission_items?select=submission_id,artifact_key');assert.deepEqual(journal.receiptBaseline,[]);assert.deepEqual(await inventory(),journal.artifactBaseline);}
+  if(mode==='positive') {
+    const runtime=JSON.parse(fs.readFileSync(`${directory}/runtime-journal.json`));assert.equal(runtime.stage,'enabled-deployment-verified');
+    const account=env.CLOUDFLARE_ACCOUNT_ID||env.R2_ACCOUNT_ID;
+    const project=(await jsonRequest(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/little-hero-labs-admin`,{headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`}})).result;
+    assert.equal(project.canonical_deployment.id,runtime.deploymentId);
+    assert.equal(project.canonical_deployment.env_vars.GELATO_DRAFT_SUBMISSION_ENABLED.value,'true');
+    for(const flag of ['GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'])assert.equal(project.canonical_deployment.env_vars[flag].value,'false');
+  }
+  journal.originalOrders=seed.baseline;
+  if(!journal.oldWorkflows){journal.oldWorkflows=[];for(const id of oldIds)journal.oldWorkflows.push({id,hash:oldFingerprint(await n8n(`workflows/${id}`))});}
+  for(const old of journal.oldWorkflows)assert.equal(oldFingerprint(await n8n(`workflows/${old.id}`)),old.hash);
+  for(const id of workflows){const w=await n8n(`workflows/${id}`);assert.equal(w.active,false);}
+  save();
+  try {
+    for(const id of workflows)await n8n(`workflows/${id}/activate`,{method:'POST'});
+    if(mode==='positive'){await gate(true);await assertGate(true);journal.gateOpenedAt=new Date().toISOString();save();}
+    for(const [index,orders] of [[0,seed.orders.slice(0,1)],[1,seed.orders.slice(1)]]) {
+      const caseMode=index===0?'single':'siblings';let entry=journal.cases.find(x=>x.mode===caseMode);
+      if(!entry){entry={mode:caseMode,workflowId:workflows[index],orderIds:orders.map(x=>x.orderId)};journal.cases.push(entry);}save();
+      let identity={submissionId:randomUUID(),claimToken:randomUUID()};
+      if(mode==='positive') {
+        for(const order of orders.filter(order=>order.orderDbId!==unsentResume?.orderDbId)) {
+          const changed=await rest(`orders?id=eq.${order.orderDbId}&orderId=eq.${order.orderId}&print_submission_id=is.null&execution_status=eq.done`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({execution_status:'ready_for_processing',next_workflow:index===0?'4':'4-aggregate'})}); assert.equal(changed.length,1);
+        }
+        entry.claimIntentAt=new Date().toISOString();save();
+        const result=await post('/api/internal/orders/print-routing/claim',{orderDbIds:orders.map(x=>x.orderDbId),idempotencyKey:`synthetic-proof:${seed.proofId}:${entry.mode}`});
+        assert.equal(result.success,true);assert.equal(result.provider,'gelato');assert.equal(result.claim.dispatch,true);identity=result.claim;
+        entry.submissionId=identity.submissionId;entry.orderReferenceId=identity.orderReferenceId;save();
+      }
+      const details=order=>({orderId:order.orderId,bookId:'book-finding-our-inner-voice',formatId:order.formatId});
+      const payload=index===0?{...details(orders[0]),submissionId:identity.submissionId,claimToken:identity.claimToken}:{rootOrderId:orders[0].rootOrderId,orders:orders.map(details),submissionId:identity.submissionId,claimToken:identity.claimToken};
+      const execution=await run(workflows[index],payload,entry);
+      if(mode==='negative') {
+        assert.equal(execution.status,'error');assert.equal(String(entry.httpCode),'409');assert.equal(entry.ownershipRejection,true,'Must reach ownership guard');
+        assert.ok(entry.nodes.includes('Assemble Gelato Print PDF'));assert.ok(!entry.nodes.includes('Quote Gelato Submission'));assert.ok(!entry.nodes.includes('Create Held Gelato Draft'));
+        assert.equal((await rest('print_provider_submissions?select=id')).length,0);
+        assert.deepEqual(await rest('print_provider_submission_items?select=submission_id,artifact_key'),journal.receiptBaseline);
+        assert.deepEqual(await inventory(),journal.artifactBaseline);entry.zeroArtifactAndReceiptWrites=true;save();
+      } else {
+        assert.equal(execution.status,'success','Terminal workflow failed; inspect journal before any retry');
+        assert.ok(entry.nodes.includes('Check Gelato Draft'));
+        const [submission]=await rest(`print_provider_submissions?id=eq.${entry.submissionId}&select=id,request_state,accepted_root_order_id,order_reference_id,owning_execution_id,send_started_at,shipment_method_uid`);
+        assert.equal(submission.request_state,'submitted');assert.equal(submission.owning_execution_id,entry.executionId);assert.ok(submission.send_started_at);
+        const items=await rest(`print_provider_submission_items?submission_id=eq.${entry.submissionId}&select=item_reference_id,child_order_id,artifact_key,artifact_fingerprint,pdf_page_count,provider_item_id`);
+        assert.deepEqual(items.map(x=>x.child_order_id).sort((a,b)=>a-b),orders.map(x=>x.orderDbId).sort((a,b)=>a-b));
+        entry.artifacts=[];
+        for(const item of items) {
+          assert.equal(item.pdf_page_count,35);assert.ok(item.provider_item_id&&item.artifact_fingerprint);
+          assert.ok(orders.some(order=>item.artifact_key.startsWith(`book-finding-our-inner-voice/orders/${order.orderId}/`)));
+          const r=await fetch(`https://admin.littleherolabs.com/api/pdf/${item.artifact_key}`,{redirect:'error',signal:AbortSignal.timeout(60_000)});assert.ok(r.ok);
+          const bytes=Buffer.from(await r.arrayBuffer());assert.ok(bytes.length<256_000_000);assert.equal((bytes.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,35);
+          entry.artifacts.push({itemReferenceId:item.item_reference_id,key:item.artifact_key,pageCount:35,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});
+        }
+        await verifyGraph(submission,items,entry);entry.shipmentMethodUid=submission.shipment_method_uid;
+        assert.equal((await rest('print_provider_submission_notifications?select=submission_id')).length,0);
+        console.log(JSON.stringify({case:entry.mode,executionId:entry.executionId,outcome:'draft',items:items.length,financialStatus:'draft',shipmentMethodUid:entry.shipmentMethodUid}));
+      }
+      entry.verifiedAt=new Date().toISOString();save();
+    }
+    const after=await rest('orders?select=*&order=id');
+    for(const original of seed.baseline)assert.equal(hash(after.find(row=>row.id===original.id)),original.hash,'Original order changed');
+    for(const old of journal.oldWorkflows)assert.equal(oldFingerprint(await n8n(`workflows/${old.id}`)),old.hash,'Existing workflow changed');
+    await assertRetainedState(rest);
+    journal.completed=true;delete journal.error;save();
+  } finally {
+    for(const [name,action] of [['dispatch',async()=>{await gate(false);await assertGate(false);}],...workflows.map(id=>[id,async()=>{await n8n(`workflows/${id}/deactivate`,{method:'POST'});assert.equal((await n8n(`workflows/${id}`)).active,false); }])]) {
+      try{await action();journal.cleanup.push({name,verified:true,at:new Date().toISOString()});}catch{journal.cleanup.push({name,verified:false,at:new Date().toISOString()});}save();
+    }
+    assert.ok(journal.cleanup.every(x=>x.verified),'Cleanup requires immediate reconciliation');
+    await assertRetainedState(rest);
+  }
+  console.log(JSON.stringify({mode,completed:journal.completed,dispatch:false,copiesInactive:true,cases:journal.cases.map(x=>({mode:x.mode,executionId:x.executionId,status:x.status,ownershipRejection:x.ownershipRejection}))}));
+}
+main().catch(error=>{journal.error=error instanceof Error?error.message:'Window failed';save();console.error(journal.error);process.exitCode=1;});

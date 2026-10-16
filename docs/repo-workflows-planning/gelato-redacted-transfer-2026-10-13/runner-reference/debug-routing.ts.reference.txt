@@ -1,0 +1,20 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import {resolvePrintRoutingRequest} from '<WORKTREE>/back-end/src/lib/books/print-routing-endpoint';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const base=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL,key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const seed=JSON.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/seed-journal.json','utf8'));
+const rest=async(path:string)=>{const r=await fetch(`${base}/rest/v1/${path}`,{headers:{apikey:key,Authorization:`Bearer ${key}`},redirect:'error'});if(!r.ok)throw new Error(`Read failed (${r.status})`);return r.json();};
+async function main(){
+  for(const orders of [seed.orders.slice(0,1),seed.orders.slice(1)]){
+    try{const routes=await resolvePrintRoutingRequest(orders.map((x:{orderDbId:number})=>x.orderDbId),
+      async(ids)=>rest(`orders?id=in.(${ids.join(',')})&select=*`),
+      async(root)=>rest(`orders?root_order_id=eq.${root}&select=id,orderId`),
+      async(manifest)=>{const r=await fetch(`https://admin.littleherolabs.com/api/manifests/${manifest}`,{redirect:'error'});if(!r.ok)throw new Error(`Manifest read failed (${r.status})`);return r.json();});
+      console.log(JSON.stringify({mode:orders.length===1?'single':'siblings',routingResolved:true,routes}));
+      fs.writeFileSync(`<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/routes-${orders.length}.json`,JSON.stringify(routes,null,2),{mode:0o600});
+    }catch(error){console.log(JSON.stringify({mode:orders.length===1?'single':'siblings',error:error instanceof Error?error.message:'Routing failed'}));}
+  }
+}
+void main();

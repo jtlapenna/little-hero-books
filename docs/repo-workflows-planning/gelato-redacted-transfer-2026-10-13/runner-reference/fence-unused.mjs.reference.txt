@@ -1,0 +1,15 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';import fs from 'node:fs';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const base=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL,key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;assert.equal(new URL(base).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const rest=async(path,init={})=>{const r=await fetch(base+'/rest/v1/'+path,{...init,headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},redirect:'error',signal:AbortSignal.timeout(60_000)});assert.ok(r.ok);const text=await r.text();return text?JSON.parse(text):null;};
+const probe=JSON.parse(fs.readFileSync(dir+'/claim-probe-journal.json'));const claim=probe.result.body;
+assert.equal(probe.dispatchClosed,true);assert.equal(probe.result.http,200);assert.equal(claim.dispatch,true);
+assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);
+const[sub]=await rest('print_provider_submissions?select=id,claim_token,request_state,send_started_at,owning_execution_id,accepted_root_order_id');assert.equal(sub.id,claim.submissionId);assert.equal(sub.claim_token,claim.claimToken);assert.equal(sub.request_state,'claimed');for(const f of ['send_started_at','owning_execution_id','accepted_root_order_id'])assert.equal(sub[f],null);
+const items=await rest('print_provider_submission_items?select=child_order_id,artifact_key,provider_order_id');assert.deepEqual(items,[{child_order_id:1053,artifact_key:null,provider_order_id:null}]);
+fs.writeFileSync(dir+'/fence-unused-journal.json',JSON.stringify({at:new Date().toISOString(),submissionId:sub.id,intent:'Fence exact unsent synthetic claim; no provider call'},null,2),{mode:0o600});
+await rest('rpc/fence_gelato_print_submission',{method:'POST',body:JSON.stringify({p_submission_id:claim.submissionId,p_token:claim.claimToken})});
+const[result]=await rest('print_provider_submissions?select=id,request_state,send_started_at');assert.equal(result.request_state,'failed');assert.equal(result.send_started_at,null);console.log(JSON.stringify({submissionId:result.id,requestState:'failed',sendStarted:false,dispatch:false}));

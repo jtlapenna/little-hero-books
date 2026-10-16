@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "mode": "final",
+  "timestamp": "2026-10-13T22:30:23.429710+00:00",
+  "verdict": "READY WITH RESIDUAL RISK",
+  "rationale": "Validated JSON equality matches database and provider transport; strict values/fingerprint/SQL unchanged. Source deployment stays gated off; complete live draft proof pending.",
+  "branch": "codex/gelato-quote-json-persistence",
+  "base_ref": "origin/main",
+  "base_sha": "c0136e8890e4ed2fb56c712183e574ba26431747",
+  "head_sha": "9febf9c255ebf59cb4a195ccb3cb0ff2c5ebc845",
+  "checks": [
+    "Service regression failed original code with saved quote mismatch, passes afterfix including nonempty/absent optional fields and recipient/file/order/null rejection with zero begin/sends.",
+    "Canonical runtime/API/workflow/routing/stored-file suites pass; fresh reviewers lifecycle/notification suites pass.",
+    "CI scanner/native/runtime/service sequence, whitespace and focused ESLint pass.",
+    "Production build68543 exit0; compiled two JSON roundtrips independently inspected.",
+    "Read-only actual persisted54656 runtime diagnostic fails beforefix beforeboundaries; afterfix reaches read-only store guard and never provider.",
+    "Actual outercleanup verified DBfalse/copiesinactive/all5activeflagsfalse, disabled deployment34b46bde-3da3-46ec-962d-8322f3600749.",
+    "Exact PR8 hosted contract CI38478307290 completed success."
+  ],
+  "findings": [],
+  "reviewer_coverage": [
+    {
+      "reviewer": "snapshot_final_contract",
+      "slice": "data/API/identity/persistence/SQL",
+      "verdict": "READY WITH RESIDUAL RISK",
+      "patch_id": "84e4025d4279a902186c4f9e020404a68ba50491"
+    },
+    {
+      "reviewer": "snapshot_final_rollout",
+      "slice": "CI/build/test/operational evidence",
+      "verdict": "READY WITH RESIDUAL RISK",
+      "patch_id": "84e4025d4279a902186c4f9e020404a68ba50491"
+    }
+  ],
+  "carry_forward": {
+    "from_head": "c0136e8890e4ed2fb56c712183e574ba26431747",
+    "to_head": "9febf9c255ebf59cb4a195ccb3cb0ff2c5ebc845",
+    "tree_matched": true,
+    "patch_matched": true,
+    "parent_matched": true
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "status": "Working creative snapshot. Production settings unchanged.",
+  "currentEditor": "tools/inner-voice-placement-editor",
+  "originalWorkspaces": [
+    "/Users/jeff/Projects/little-hero-books",
+    "/Users/jeff/Projects/little-hero-books-w4-gelato"
+  ],
+  "preserved": [
+    "Current local editor source and all active runtime artwork/font bytes.",
+    "Current placement file and submitted placement/migration history.",
+    "Selected and deferred art drafts, prompts, source hashes and image review evidence.",
+    "All saved October 13 proof PDFs and October 6 copy-comparison PDFs.",
+    "Uncommitted creative documents, phase checklist and redacted Gelato transfer."
+  ],
+  "excludedPreservedLocally": [
+    ".playwright-cli browser recordings and OS/cache files.",
+    "Duplicate self-contained HTML previews with embedded image bytes.",
+    "Old hosted generation payloads and unused personalization variants under output/book-revamp.",
+    "Unrelated pre-existing marketing commit ef8d5c36 on the original WIP branch."
+  ],
+  "sourceFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
+  "productionStatus": "No config publication, provider submission, notification or deployment requested by this commit."
+}

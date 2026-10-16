@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "flip-undo",
+      "passed": true
+    },
+    {
+      "name": "failed-startup-mismatch",
+      "passed": true
+    },
+    {
+      "name": "failed-startup-http-error",
+      "passed": true
+    },
+    {
+      "name": "failed-startup-malformed",
+      "passed": true
+    },
+    {
+      "name": "stale-save-warning",
+      "passed": true
+    },
+    {
+      "name": "saved-file-preserved",
+      "passed": true
+    }
+  ],
+  "runtimeErrors": [],
+  "scope": "Rendered editor walkthrough and error recovery. No unit suite or production tests run.",
+  "visualReview": {
+    "viewports": [
+      "1480 x 950 desktop",
+      "390 x 844 mobile"
+    ],
+    "pages": [
+      7,
+      9,
+      10,
+      13,
+      17,
+      19,
+      28
+    ],
+    "states": [
+      "selected figure",
+      "two-character page",
+      "spread",
+      "no movable figure",
+      "startup failures",
+      "stale-save conflict"
+    ],
+    "disposition": "No new visual blocker. Mobile controls are below canvas; desktop remains best for precise placement. Existing creative layout issues remain documented."
+  },
+  "assetReview": {
+    "activeAssets": 44,
+    "activeImages": 43,
+    "minimumImageShortEdge": 2048,
+    "savedPlacementIdentityPreserved": true,
+    "secretScan": "300 candidate files scanned against 31 known secret names and common token formats. No matches."
+  }
+}

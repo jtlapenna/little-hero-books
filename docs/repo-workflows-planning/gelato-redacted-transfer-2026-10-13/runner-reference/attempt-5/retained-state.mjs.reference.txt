@@ -1,0 +1,19 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+export async function assertRetainedState(rest){
+ const submissionIds=[];
+ for(const [executionId,orderId,orderHashField] of [[54655,1053,'order1053Hash'],[54656,1066,'order1066Hash']]){
+  const saved=JSON.parse(fs.readFileSync(`${directory}/preserved-${executionId}.json`));assert.equal(saved.execution.id,executionId);assert.equal(saved.execution.status,'error');assert.equal(saved.dispatch,false);
+  const submissions=await rest(`print_provider_submissions?id=eq.${saved.submission.id}&select=*`);assert.equal(submissions.length,1);const [submission]=submissions;assert.equal(hash(submission),hash(saved.submission));assert.ok(Date.parse(submission.lease_expires_at)<Date.now());
+  for(const field of ['send_started_at','owning_execution_id','accepted_root_order_id','request_snapshot'])assert.equal(submission[field],null);
+  const items=await rest(`print_provider_submission_items?submission_id=eq.${submission.id}&select=*`);assert.equal(items.length,1);const [item]=items;assert.equal(hash(item),hash(saved.item));
+  const rows=await rest(`orders?id=eq.${orderId}&select=*`);assert.equal(rows.length,1);assert.equal(hash(rows[0]),saved[orderHashField]);
+  assert.deepEqual(await rest(`print_provider_submission_orders?submission_id=eq.${submission.id}&select=submission_id`),[]);assert.deepEqual(await rest(`print_provider_submission_notifications?submission_id=eq.${submission.id}&select=submission_id`),[]);
+  const response=await fetch('https://admin.littleherolabs.com/api/pdf/'+item.artifact_key,{redirect:'error',signal:AbortSignal.timeout(60000)});assert.ok(response.ok);const bytes=Buffer.from(await response.arrayBuffer());assert.equal(createHash('sha256').update(bytes).digest('hex'),saved.artifact.sha256);submissionIds.push(submission.id);
+ }
+ return{submissionIds,orderDbIds:[1053,1066]};
+}

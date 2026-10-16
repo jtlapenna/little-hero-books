@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T21:03:56.680847+00:00",
+  "base_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "head_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "checks": [
+    "actualnativegraph+6credentialbindingsreadbackmatchsource",
+    "threecompletefixtureprefixes,all3testrowsdone,9originalrowsunchanged",
+    "negativeusesrandomunknownclaims, noDBgateopen, all4quotetodraftnodesskip",
+    "R2scopedinventoryandDBreceiptbeforeafter added",
+    "innerfinally closesDBfirst/deactivatesboth evenonfailure",
+    "Bothindependentcurrent-sourcemocks:consumed54653read-onlyresume,0firstcasePOST;untriggeredsibling1POST;priorbaselinespreserved;cleanupverified"
+  ]
+}

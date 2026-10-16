@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T22:54:29.083173+00:00",
+  "rationale": "Confirmed522 membership transport rejection before any claim/webhook/provider send. Strict conditional reset permits only exact unused1073. Canonical local+deployed readonly routing passed. No source patch or provider retry; release readiness not judged.",
+  "branch": "codex/gelato-quote-json-persistence",
+  "base_ref": "origin/main",
+  "base_sha": "470893287510db68a80e8e4ed330c120d7fbd252",
+  "head_sha": "9febf9c255ebf59cb4a195ccb3cb0ff2c5ebc845",
+  "findings": [],
+  "reviewer_coverage": [
+    {
+      "name": "synthetic_seed_contract_review",
+      "slice": "reset/data/routingcredibility",
+      "result": "CHECKPOINT CLEAR"
+    },
+    {
+      "name": "synthetic_seed_rollout_review",
+      "slice": "namespace/one-shot/cleanup/resetguard",
+      "result": "CHECKPOINT CLEAR"
+    }
+  ]
+}

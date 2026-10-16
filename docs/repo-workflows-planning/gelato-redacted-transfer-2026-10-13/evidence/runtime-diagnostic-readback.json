@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-13T23:27:11.666Z",
+  "unauthorizedStatus": 401,
+  "status": 200,
+  "contextAvailable": true,
+  "cloudflare": {
+    "present": false,
+    "isString": false,
+    "isTrue": false,
+    "isFalse": false
+  },
+  "globalProcess": {
+    "present": false,
+    "isString": false,
+    "isTrue": false,
+    "isFalse": false
+  },
+  "nodeProcess": {
+    "present": false,
+    "isString": false,
+    "isTrue": false,
+    "isFalse": false
+  },
+  "draftsEnabled": false,
+  "buildTimestampMs": 1791933975558
+}

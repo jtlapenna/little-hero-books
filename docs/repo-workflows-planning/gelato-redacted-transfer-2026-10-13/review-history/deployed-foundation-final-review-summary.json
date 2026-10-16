@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "mode": "final",
+  "timestamp": "2026-10-13T19:39:30.725393+00:00",
+  "verdict": "READY WITH RESIDUAL RISK",
+  "rationale": "Reviewed committed candidate remains ready with residual risk for dormant app release after isolated closed-gate runtime preparation. Required PR checks must pass before merge.",
+  "branch": "codex/w4-gelato-copies",
+  "activated_policy_gates": [
+    {
+      "source": "User-provided AGENTS.md release safety",
+      "reason": "Migration, permissions, provider state, cross-workflow/customer UI",
+      "status": "PASS WITH NAMED LIMITS",
+      "evidence": "Three independent non-overlapping existing reviewers, main source and production verification."
+    },
+    {
+      "source": "User-provided AGENTS.md UI final review",
+      "reason": "Admin/customer status, preview hydration/approval",
+      "status": "PASS",
+      "evidence": "Unchanged source hash retains prior separate extensive phone/tablet/desktop rendered visual/task proof; loading/error/recovery/cancel/partial packages/keyboard approval checks."
+    },
+    {
+      "source": "implementation plan required manual release checks",
+      "reason": "CI selects build/export scan, not all Gelato suites",
+      "status": "PASS",
+      "evidence": "Prior exact unchanged app/workflow source evidence retained; new production-default SQL proofs rerun. Eight service suites and workflow/routing/intake/scanner suites rerun by independent reviewers."
+    },
+    {
+      "source": ".github/workflows/deploy-cloudflare-pages.yml",
+      "reason": "main backend changes deploy automatically",
+      "status": "PASS FOR PRE-RELEASE",
+      "evidence": "Migration20261013191407 applied and verified first. All9 rows explicit Lulu; near-final none active/null/post-cutoff. Existing callers retained and compatible. Deployment smoke runs after approved merge."
+    },
+    {
+      "source": ".github/workflows/deploy-frontend-cloudflare-pages.yml",
+      "reason": "main frontend changes deploy automatically",
+      "status": "PASS FOR PRE-RELEASE",
+      "evidence": "Unchanged frontend build proof retained. Old backend missing manifest field uses tested fallback; newer invalid field fails closed."
+    },
+    {
+      "source": ".github/workflows/check-workflow-export-secrets.yml",
+      "reason": "Changed4 workflow exports",
+      "status": "PASS",
+      "evidence": "Unit scanner and actual changed-export scan pass; both indexed new copies included."
+    },
+    {
+      "source": "AGENTS.md personal account boundary",
+      "reason": "Future Git release",
+      "status": "PASS",
+      "evidence": "<REDACTED_EMAIL>; origin jtlapenna/little-hero-books; gh active jtlapenna verified."
+    },
+    {
+      "source": "rigorous-build Stage6",
+      "reason": "Git actions need separate approval",
+      "status": "AUTHORIZED",
+      "evidence": "User subsequent proceed request for outlined Gelato steps after Git approval request."
+    }
+  ],
+  "checks": {
+    "reused_unchanged_implementation_evidence": {
+      "prior_unchanged_implementation_evidence": [
+        {
+          "name": "current base fetch and merge-tree",
+          "result": "PASS",
+          "evidence": "origin/main and HEAD 46c1f81f00f70de5ec04766bcf406de9735d40dd; no committed-range conflict; WIP content reviewed separately"
+        },
+        {
+          "name": "Gelato submission/lifecycle/notifications/API contract/workflow copies",
+          "result": "PASS",
+          "evidence": "mocked provider/delivery and real SDK synthetic transport"
+        },
+        {
+          "name": "Gelato consumer/attention/approval regressions",
+          "result": "PASS",
+          "evidence": "actual HTTP no-write guards, actual preview API status fixtures, missing/mixed Gelato recovery rejection and provider mutation predicate"
+        },
+        {
+          "name": "Gelato disposable PostgreSQL",
+          "result": "PASS",
+          "evidence": "migration replay, ownership, graph atomicity/CAS, recovery, consumed notification send, retries, shared packages, cutoff, archive and concurrency"
+        },
+        {
+          "name": "Gelato routing/W1.1/W0 intake/freeze/legacy rollout/recovery/archive",
+          "result": "PASS",
+          "evidence": "synthetic fixtures and mocked transports"
+        },
+        {
+          "name": "Book config/kernel and Gelato lossless PDF",
+          "result": "PASS",
+          "evidence": "both editions and malformed image/input cases"
+        },
+        {
+          "name": "Legacy W4/W4.1 input/submit/approval/preflight/recovery; Lulu map/webhook; mapper/R2",
+          "result": "PASS",
+          "evidence": "safe local regression scripts"
+        },
+        {
+          "name": "Targeted ESLint and git diff --check",
+          "result": "PASS",
+          "evidence": "new Gelato modules/component/proof scripts and navigation"
+        },
+        {
+          "name": "Backend pages:build",
+          "result": "PASS",
+          "evidence": "current Cloudflare/OpenNext build; existing duplicate approved key warning"
+        },
+        {
+          "name": "Frontend Astro build",
+          "result": "PASS",
+          "evidence": "current frontend build"
+        },
+        {
+          "name": "Changed workflow exports secret scan",
+          "result": "PASS",
+          "evidence": "four changed/current workflow JSON files; prior archives outside changed-file policy"
+        },
+        {
+          "name": "Standalone TypeScript",
+          "result": "BASELINE FAILURE",
+          "evidence": "repository errors remain; no diagnostic in new Gelato modules/routes/component/scripts"
+        },
+        {
+          "name": "Headless visual/task review",
+          "result": "PASS WITH LIMITS",
+          "evidence": "admin/customer status tasks at1440/768/375, loading/error/recovery/cancel/partial/tracking/attention; blocked external analytics/fonts; unchanged book viewer dev hydration symptom remains outside status proof"
+        },
+        {
+          "name": "Legacy Amazon config and customer email regressions",
+          "result": "PASS",
+          "evidence": "test:amazon-sp-api-config and test:customer-email"
+        },
+        {
+          "name": "Post-artifact cleanup identity recheck",
+          "result": "PASS",
+          "evidence": "tracked/staged/committed SHA256 and index tree unchanged; relevant source hashes recomputed; temporary UI artifacts excluded"
+        }
+      ],
+      "continuation": {
+        "preview_api": "Actual token POST both books, valid/used/expired x pending/approved PASS; before-fix missing manifest3Key failure observed.",
+        "preview_browser": "Actual API synthetic output; fast/delayed/blocked hydration, subscriber cleanup, token states, canonical/legacy/null/missing paths, replay, navigation, zoom, correction and approval PASS.",
+        "visual": "Phone390x844/tablet768x1024/desktop synthetic screenshots inspected; width equals viewport. Independent invalid-action probes repeated after fixes.",
+        "stored_file_service": "Copied URL service regression failed before repair; submission, refresh and recovery equality/changed-byte cases PASS after repair.",
+        "stored_file_transport": "Host, receipt, per-file/aggregate budget, abort and actual R2 error text-trap/cancel PASS.",
+        "actual_poll_runtime": "SDK DB/Get/R2 mocks reach stalled verifier body;100ms shared abort with zero writes/notifications/creates PASS.",
+        "sql": "Disposable PostgreSQL replay, permissions/ownership, graph persistence, recovery, immutable outbox and concurrency PASS rerun.",
+        "provider_drafts": "One/two-item synthetic draft create, quote/Get/Search PASS. Later copied files exact SHA256 and repaired wrapper read-only proof PASS. No production receipts/dispatch or paid conversion exercised.",
+        "builds": "Current backend pages:build and frontend build PASS.",
+        "typecheck": "Baseline standalone failures remain. No new continuation module/route/test diagnostic; unchanged R2 lines74/306 retain baseline errors.",
+        "diff_check": "PASS"
+      }
+    },
+    "current_content": [
+      {
+        "name": "tracked binary diff identity",
+        "result": "PASS",
+        "evidence": "Original59 changed tracked paths have exact prior full diff hash eff523d7533bcb1e61ff880295e94ae5e65a3c8dc10a8e4faa078c7253c9cfa7; former untracked app/source inputs unchanged."
+      },
+      {
+        "name": "sequence ACL reproduce first",
+        "result": "PASS",
+        "evidence": "Failed under production default ACLs before revoke, passes afterward. Service USAGE retained."
+      },
+      {
+        "name": "PostgreSQL production-shaped replay/concurrency",
+        "result": "PASS",
+        "evidence": "2x replay, integer/timestamp compatibility, old W0/2A/Lulu writers, atomicity/CAS/recovery/outbox/retry/archive/row locks."
+      },
+      {
+        "name": "actual production catalog/ledger",
+        "result": "PASS",
+        "evidence": "Exact target; 17 fields,5 RLS/private tables,22 private RPCs,3 triggers; no public rights;9 Lulu done; closed dispatch; no provider activity."
+      },
+      {
+        "name": "service REST schema cache",
+        "result": "PASS",
+        "evidence": "All5 new tables return200 to service role; provider state empty."
+      },
+      {
+        "name": "live existing app read probes",
+        "result": "PASS WITH LIMIT",
+        "evidence": "Checkout CORS OPTIONS204 and nonexistent preview GET404; no synthetic checkout/order creation or full health proof."
+      },
+      {
+        "name": "runtime gate inspection",
+        "result": "PASS",
+        "evidence": "Authenticated exact Cloudflare project/domain read. Gelato key and all5 flags absent; literal true gates therefore off. Existing Lulu flag present. No runtime write."
+      },
+      {
+        "name": "fresh focused service tests",
+        "result": "PASS",
+        "evidence": "Submission/lifecycle/notifications/poll-stored-file/stored-file/API contract/workflow copies/R2 by independent reviewer."
+      },
+      {
+        "name": "fresh workflow/caller/scan tests",
+        "result": "PASS",
+        "evidence": "Exported W1.1 claim routing/W0 legacy/freeze/intake replay/workflow isolation/export scanner unit and actual4export scan."
+      },
+      {
+        "name": "complete index/whitespace",
+        "result": "PASS",
+        "evidence": "137 indexed intended paths;0unstaged;0untracked;cached diff check passes."
+      },
+      {
+        "name": "closed-gate server credential setup",
+        "result": "PASS",
+        "evidence": "Encrypted Gelato key stored;5false flags; unrelated production bindings/config and all preview config/canonical deployment preserved. Two source-grounded checkpoint reviewers clear; main readback and databasegatefalse."
+      }
+    ]
+  },
+  "skips": [
+    "Fresh-context reviewer capacity unavailable; independent existing reviewer sessions reused and non-author repairs cross-checked.",
+    "No deployed W1.1/W4/W4.1 execution/resource proof. Closed gates make this non-blocking for dormant app release.",
+    "No full standalone TypeScript pass; prior baseline repository errors unchanged, none new in Gelato modules. Actual production builds pass.",
+    "No live app deploy or postdeploy synthetic checkout smoke in this turn; existing CI executes those after an approved release.",
+    "No runtime config write, workflow import/activation, creative/physical proof or book readiness override."
+  ],
+  "findings": [],
+  "reviewer_coverage": [
+    {
+      "reviewer": "gelato_cp1_sql_review",
+      "slice": "SQL/private grants/production-shaped compatibility/checkpoint",
+      "result": "CHECKPOINT CLEAR; migration SHA matched"
+    },
+    {
+      "reviewer": "bc_release_contract_review",
+      "slice": "CI/deployment/workflow/caller rollout",
+      "result": "READY WITH RESIDUAL RISK"
+    },
+    {
+      "reviewer": "gelato_cp1_service_review",
+      "slice": "API/lifecycle/stored files/gates/notification",
+      "result": "READY WITH RESIDUAL RISK"
+    },
+    {
+      "reviewer": "consensus_config_router",
+      "slice": "Config/legacy W0/Lulu/admin/customer preview",
+      "result": "No release blocker in slice"
+    }
+  ],
+  "carry_forward": {
+    "previous_head": "46c1f81f00f70de5ec04766bcf406de9735d40dd",
+    "new_head": "49bf74076ee20121cf84ac484d85edd400f64856",
+    "single_parent": true,
+    "tree_matches": true,
+    "patch_matches": true,
+    "no_hook_content_change": true,
+    "time": "2026-10-13T19:32:25.752710+00:00"
+  }
+}

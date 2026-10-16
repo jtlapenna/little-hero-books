@@ -1,0 +1,149 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { deflateSync } from 'node:zlib';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import { AwsClient } from '<WORKTREE>/back-end/node_modules/aws4fetch/dist/aws4fetch.esm.js';
+import { buildOrderIntakeManifestFromNormalizedInputRuntime } from '<WORKTREE>/back-end/src/lib/w0-manifest-builder';
+import { loadBundledBookConfig } from '<WORKTREE>/back-end/src/lib/books/load-book-config';
+import { buildBookConfigPublishPayload } from '<WORKTREE>/back-end/src/lib/books/runtime-book-config';
+import { normalizeW0Manifest } from '<WORKTREE>/back-end/src/lib/books/normalize-w0-manifest';
+import { buildW3Manifest } from '<WORKTREE>/back-end/src/lib/books/w3-manifest';
+import { buildW4PrintInput } from '<WORKTREE>/back-end/src/lib/books/w4-print-input';
+import { buildPreviewImageAssetKey } from '<WORKTREE>/back-end/src/lib/order-paths';
+
+const journalPath = '<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-4/fresh-seed-journal.json';
+const credentials = { ...dotenv.parse(readFileSync('<PRIMARY_CHECKOUT>/.env')), ...dotenv.parse(readFileSync('<WORKTREE>/back-end/.env.local')) };
+const database = credentials.SUPABASE_URL || credentials.NEXT_PUBLIC_SUPABASE_URL;
+assert.equal(new URL(database).hostname, 'mdnthwpcnphjnnblbvxk.supabase.co');
+const serviceKey = credentials.SUPABASE_SERVICE_ROLE_KEY || credentials.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+assert.ok(serviceKey && credentials.BACKEND_API_TOKEN);
+const backend = 'https://admin.littleherolabs.com';
+const config = loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 2 });
+assert.equal(config.status, 'draft');
+const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const save = () => writeFileSync(journalPath, JSON.stringify(journal, null, 2), { mode: 0o600 });
+const proofId = randomUUID();
+type OrderProof = { orderId: string; rootOrderId: string; formatId: 'standard' | 'amazon'; orderDbId?: number; w0Published?: boolean; fixturePublished?: boolean };
+type Journal = { proofId: string; createdAt: string; orders: OrderProof[]; baseline?: Array<{ id: number; hash: string }>; configBaseline?: string; seeded?: boolean; supersededSources?: string[] };
+const journal: Journal = existsSync(journalPath) ? JSON.parse(readFileSync(journalPath, 'utf8')) : {
+  proofId, createdAt: new Date().toISOString(), orders: [
+    { orderId: `TEST-GELATO-SINGLE-${proofId}`, rootOrderId: `TEST-GELATO-SINGLE-${proofId}`, formatId: 'standard' },
+  ],
+};
+assert.equal(journal.orders.length, 1);
+assert.ok(journal.orders.every(order => order.orderId.startsWith('TEST-GELATO-') && order.rootOrderId.startsWith('TEST-GELATO-')));
+assert.ok(journal.orders.filter(order => order.formatId === 'amazon').every(order => order.rootOrderId.length <= 50), 'Amazon root exceeds persisted column limit');
+
+async function request(url: string, init?: RequestInit) {
+  const result = await fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(120_000) });
+  if (!result.ok) throw new Error(`Request failed (${result.status})`);
+  const text = await result.text();
+  return text ? JSON.parse(text) : null;
+}
+const rest = (path: string, init?: RequestInit) => request(`${database}/rest/v1/${path}`, { ...init, headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', ...(init?.headers || {}) } });
+const postBackend = (path: string, body: unknown) => request(`${backend}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${credentials.BACKEND_API_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const inputFor = (order: OrderProof) => ({
+  orderId: order.orderId, ...(order.formatId === 'amazon' ? { amazonOrderId: order.rootOrderId, marketplaceId: 'ATVPDKIKX0DER' } : {}),
+  customerEmail: '<REDACTED_RECIPIENT>', buyer: { name: '<REDACTED_RECIPIENT>', email: '<REDACTED_RECIPIENT>' }, shippingTier: 'standard',
+  characterSpecs: { childName: '<REDACTED_RECIPIENT>', age: 5, pronouns: 'she-her', skinTone: 'light', hairStyle: 'bun', hairColor: 'brown', favoriteColor: 'blue', favoriteAnimal: 'fox' },
+  bookSpecs: { bookId: config.bookId, formatId: order.formatId, testMode: true },
+  orderDetails: { quantity: 1, shippingAddress: { name: '<REDACTED_RECIPIENT>', address_line1: '<REDACTED_RECIPIENT>', city: '<REDACTED_RECIPIENT>', state_code: '<REDACTED_RECIPIENT>', postcode: '<REDACTED_RECIPIENT>', country_code: '<REDACTED_RECIPIENT>', email: '<REDACTED_RECIPIENT>' } },
+  _raw: { root_order_id: order.rootOrderId },
+});
+
+function fixtureFor(order: OrderProof, one: ReturnType<typeof normalizeW0Manifest>) {
+  const prefix = `${config.bookId}/orders/${order.orderId}`;
+  const built = buildW3Manifest({ orderId: order.orderId, rootOrderId: order.rootOrderId, bookId: config.bookId, formatId: order.formatId, configVersion: 2,
+    renderSnapshot: one.renderSnapshot, orderR2BaseKey: prefix, oneManifestKey: `${prefix}/manifests/1-manifest.json`, backendUrl: backend,
+    pagePreviewImages: one.pagePlan.map(page => ({ pageNumber: page.index, r2Key: buildPreviewImageAssetKey(prefix, page.label) })), coverPngR2Key: `${prefix}/preview-images/cover-spread.png`,
+  }, { intake: one });
+  assert.equal(built.manifest.summary.readyForBook, false);
+  return { ...built.manifest, runStamp: journal.createdAt, generatedAt: journal.createdAt, summary: { ...built.manifest.summary, readyForBook: true }, testOnly: true,
+    syntheticProof: { kind: 'W4 integration source fixture', artworkApproved: false, realW3Ready: false } };
+}
+
+function png(width: number, height: number, gray: number) {
+  const crc = (bytes: Buffer) => { let value = 0xffffffff; for (const byte of bytes) { value ^= byte; for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0); } return (value ^ 0xffffffff) >>> 0; };
+  const chunk = (type: string, bytes: Buffer) => { const name = Buffer.from(type); const size = Buffer.alloc(4); size.writeUInt32BE(bytes.length); const checksum = Buffer.alloc(4); checksum.writeUInt32BE(crc(Buffer.concat([name, bytes]))); return Buffer.concat([size, name, bytes, checksum]); };
+  const header = Buffer.alloc(13); header.writeUInt32BE(width); header.writeUInt32BE(height, 4); header[8] = 8;
+  const raster = Buffer.alloc(height * (width + 1), gray); for (let row = 0; row < height; row++) raster[row * (width + 1)] = 0;
+  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]), chunk('IHDR', header), chunk('IDAT', deflateSync(raster)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+async function main() {
+  const local = new Map<string, unknown>();
+  for (const order of journal.orders) {
+    const result = await buildOrderIntakeManifestFromNormalizedInputRuntime(inputFor(order), { schemaVersion: 'v3', bookId: config.bookId, configVersion: 2, formatId: order.formatId, configSource: 'bundled' });
+    local.set(result.manifestKey, result.manifest);
+    local.set(result.manifestKey.replace('1-manifest', '3-manifest'), fixtureFor(order, normalizeW0Manifest(result.manifest)));
+  }
+  const loadManifest = async (key: string) => local.get(key) ?? null;
+  const loadOrder = async (orderId: string) => ({ orderId, root_order_id: journal.orders.find(order => order.orderId === orderId)?.rootOrderId, print_provider: 'gelato', print_config_version: 2, print_product_uid: config.formats.standard.print.productUid,
+    print_inner_page_count: 32, print_api_page_count: 32, print_expected_pdf_page_count: 35 });
+  for (const order of journal.orders) await buildW4PrintInput({ orderId: order.orderId, bookId: config.bookId, formatId: order.formatId }, { expectedProvider: 'gelato', loadManifest, loadOrder });
+  if (!process.argv.includes('--seed')) { save(); console.log(JSON.stringify({ localPreflight: true, orders: 1, realW3Ready: false, productionMutation: false })); return; }
+  assert.equal(journal.seeded, undefined, 'Seed already completed');
+  const gates = await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'); assert.deepEqual(gates, [{ enabled: false }]);
+  const baseline = await rest('orders?select=*&order=id');
+  if (!journal.baseline) {
+    const old = JSON.parse(readFileSync('<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/seed-journal.json', 'utf8'));
+    assert.equal(baseline.length, 13);
+    for (const original of old.baseline) assert.equal(digest(baseline.find((row: { id: number }) => row.id === original.id)), original.hash);
+    assert.deepEqual(baseline.filter((row: { print_provider: string }) => row.print_provider === 'gelato').map((row: {id:number})=>row.id).sort(), [1053,1054,1055,1066]);
+    const held = JSON.parse(readFileSync('<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/preserved-54655.json', 'utf8'));
+    assert.equal(digest(baseline.find((row: {id:number})=>row.id===1053)), held.order1053Hash);
+    const second = JSON.parse(readFileSync('<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/preserved-54656.json', 'utf8'));
+    assert.equal(digest(baseline.find((row: {id:number})=>row.id===1066)), second.order1066Hash);
+    journal.baseline = baseline.map((row: { id: number }) => ({ id: row.id, hash: digest(row) }));
+    journal.configBaseline = digest(await rest(`book_configs?book_id=eq.${config.bookId}&version=eq.1&select=*`)); save();
+  }
+  const payload = buildBookConfigPublishPayload(config, { activate: false, publishedBy: 'codex-gelato-synthetic-proof' });
+  const existing = await rest(`book_configs?book_id=eq.${config.bookId}&version=eq.2&select=checksum,is_active,status`);
+  if (existing.length) assert.deepEqual(existing, [{ checksum: payload.checksum, is_active: false, status: 'draft' }]);
+  else await rest('book_configs', { method: 'POST', body: JSON.stringify(payload) });
+  assert.deepEqual(await rest(`book_configs?book_id=eq.${config.bookId}&version=eq.2&select=checksum,is_active,status`), [{ checksum: payload.checksum, is_active: false, status: 'draft' }]);
+  const aws = new AwsClient({ accessKeyId: credentials.CLOUDFLARE_R2_ACCESS_KEY_ID || credentials.CLOUDFLARE_R2_ACCESS_KEY || credentials.R2_ACCESS_KEY_ID || credentials.R2_ACCESS_ID_KEY,
+    secretAccessKey: credentials.CLOUDFLARE_R2_SECRET_ACCESS_KEY || credentials.CLOUDFLARE_R2_SECRET_KEY || credentials.R2_SECRET_ACCESS_KEY, service: 's3', region: 'auto' });
+  const account = credentials.CLOUDFLARE_ACCOUNT_ID || credentials.R2_ACCOUNT_ID;
+  const bucket = credentials.R2_ORDERS_BUCKET_NAME || credentials.R2_ORDERS_BUCKET || 'little-hero-orders';
+  const put = async (key: string, bytes: Buffer, contentType: string, prefix: string) => {
+    assert.ok(key.startsWith(prefix + '/')); assert.ok(prefix.includes('/orders/TEST-GELATO-'));
+    const url = `https://${bucket}.${account}.r2.cloudflarestorage.com/${key}`;
+    const response = await aws.fetch(url, { method: 'PUT', headers: { 'Content-Type': contentType, 'If-None-Match': '*' }, body: bytes, signal: AbortSignal.timeout(60_000), redirect: 'error' });
+    if (response.status === 412) { const old = await aws.fetch(url, { signal: AbortSignal.timeout(60_000), redirect: 'error' }); assert.ok(old.ok); assert.equal(createHash('sha256').update(Buffer.from(await old.arrayBuffer())).digest('hex'), createHash('sha256').update(bytes).digest('hex')); }
+    else assert.ok(response.ok, `Fixture PUT failed (${response.status})`);
+  };
+  for (const order of journal.orders) {
+    const prefix = `${config.bookId}/orders/${order.orderId}`;
+    if (!order.w0Published) {
+      assert.equal((await rest(`orders?orderId=eq.${order.orderId}&select=id`)).length, 0, 'Existing row requires reconciliation');
+      save();
+      const result = await postBackend('/api/internal/w0/publish-manifest', { schemaVersion: 'v3', bookId: config.bookId, formatId: order.formatId, configVersion: 2, configSource: 'published', payload: inputFor(order) });
+      assert.equal(result.success, true); assert.equal(result.orderUpsert.orderId, order.orderId);
+      order.orderDbId = Number(result.orderDbId); assert.ok(Number.isSafeInteger(order.orderDbId)); order.w0Published = true; save();
+    }
+    await rest(`orders?id=eq.${order.orderDbId}&orderId=eq.${order.orderId}&print_provider=eq.gelato&print_submission_id=is.null`, { method: 'PATCH', body: JSON.stringify({ execution_status: 'done', next_workflow: null }), headers: { Prefer: 'return=representation' } });
+    const [row] = await rest(`orders?id=eq.${order.orderDbId}&select=*`);
+    assert.equal(row.orderId, order.orderId); assert.equal(row.root_order_id, order.rootOrderId); assert.equal(row.print_config_version, 2); assert.equal(row.execution_status, 'done'); assert.equal(row.print_provider, 'gelato');
+    if (!order.fixturePublished) {
+      const one = await request(`${backend}/api/manifests/${prefix}/manifests/1-manifest.json`);
+      const normalized = normalizeW0Manifest(one);
+      assert.equal(normalized.configVersion, 2); assert.equal(normalized.orderId, order.orderId);
+      const size = config.rendering.preview.interiorPx;
+      for (const [index, page] of normalized.pagePlan.entries()) await put(buildPreviewImageAssetKey(prefix, page.label), png(size.w, size.h, 200 + index % 32), 'image/png', prefix);
+      const cover = config.rendering.preview.coverPx;
+      await put(`${prefix}/preview-images/cover-spread.png`, png(cover.w, cover.h, 220), 'image/png', prefix);
+      await put(`${prefix}/manifests/3-manifest.json`, Buffer.from(JSON.stringify(fixtureFor(order, normalized))), 'application/json', prefix);
+      order.fixturePublished = true; save();
+    }
+  }
+  const after = await rest('orders?select=*&order=id');
+  for (const original of journal.baseline) assert.equal(digest(after.find((row: { id: number }) => row.id === original.id)), original.hash, 'Original order changed');
+  assert.equal(after.length, journal.baseline.length + journal.orders.length);
+  assert.equal(digest(await rest(`book_configs?book_id=eq.${config.bookId}&version=eq.1&select=*`)), journal.configBaseline);
+  assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'), [{ enabled: false }]);
+  journal.seeded = true; save(); console.log(JSON.stringify({ seeded: true, orders: journal.orders, realW3Ready: false, artworkApproved: false, dispatch: false }));
+}
+main().catch(error => { console.error(error instanceof Error ? error.message : 'Synthetic seed failed'); process.exitCode = 1; });

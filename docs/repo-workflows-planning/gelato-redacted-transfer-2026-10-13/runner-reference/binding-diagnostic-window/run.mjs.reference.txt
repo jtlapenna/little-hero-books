@@ -1,0 +1,116 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const execute=promisify(execFile);
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/binding-diagnostic-window';
+const reviewedSha=process.argv[2]; assert.match(reviewedSha,/^[a-f0-9]{40}$/);
+const path=`${directory}/outer-journal.json`;
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+assert.ok(!fs.existsSync(path),'Existing outer journal requires reconciliation');
+const journal={startedAt:new Date().toISOString(),steps:[],deploymentIntents:[]};
+const save=()=>fs.writeFileSync(path,JSON.stringify(journal,null,2),{mode:0o600});save();
+const gh=async args=>(await execute('gh',[...args,'-R','jtlapenna/little-hero-books'],{maxBuffer:1_000_000,timeout:120_000})).stdout;
+const step=async(name,action)=>{journal.steps.push({name,startedAt:new Date().toISOString()});save();console.log(name);const result=await action();Object.assign(journal.steps.at(-1),{complete:true,finishedAt:new Date().toISOString()});save();return result;};
+const node=async(file,...args)=>{const result=await execute(process.execPath,[`${directory}/${file}`,reviewedSha,...args],{maxBuffer:1_000_000,timeout:180_000});console.log(result.stdout.trim());};
+const list=async()=>{const runs=JSON.parse(await gh(['run','list','--workflow','deploy-cloudflare-pages.yml','--branch','main','--limit','100','--json','databaseId,headSha,status,conclusion,createdAt']));assert.ok(runs.length<100,'GitHub run inventory incomplete');return runs;};
+const providerTerminal=d=>(d.stage==='deploy'&&['success','skipped'].includes(d.status))||['failure','canceled'].includes(d.status);
+async function cloudflareDeployments(since){
+  const account=env.CLOUDFLARE_ACCOUNT_ID||env.R2_ACCOUNT_ID,result=[];
+  for(let page=1;page<=30;page++){
+    const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/little-hero-labs-admin/deployments?env=production&per_page=20&page=${page}`,{headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`},redirect:'error',signal:AbortSignal.timeout(30_000)});assert.ok(r.ok);
+    const body=await r.json();assert.equal(body.success,true);assert.ok(Array.isArray(body.result));
+    for(const d of body.result){assert.equal(d.environment,'production');assert.ok(Number.isFinite(Date.parse(d.created_on)));}
+    const dates=body.result.map(d=>Date.parse(d.created_on));assert.deepEqual(dates,[...dates].sort((a,b)=>b-a));
+    result.push(...body.result.filter(d=>Date.parse(d.created_on)>=since).map(d=>{
+      const bindingsKnown=!!d.env_vars&&typeof d.env_vars==='object'&&!Array.isArray(d.env_vars);
+      const draftFlagPresent=bindingsKnown&&Object.hasOwn(d.env_vars,'GELATO_DRAFT_SUBMISSION_ENABLED');
+      const flag=draftFlagPresent?d.env_vars.GELATO_DRAFT_SUBMISSION_ENABLED:null;
+      return{id:d.id,createdAt:d.created_on,stage:d.latest_stage.name,status:d.latest_stage.status,commit:d.deployment_trigger.metadata.commit_hash,bindingsKnown,draftFlagPresent,draftFlag:flag?.value??null,draftFlagType:flag?.type??null};
+    }));
+    if(body.result.length<20||dates.some(date=>date<since)||page===body.result_info?.total_pages)return result;
+  }
+  throw new Error('Cloudflare deployment inventory incomplete');
+}
+async function deploy(label) {
+  if(label==='disabled')await node('runtime.mjs','assert-project-closed');
+  const sha=(await execute('gh',['api','repos/jtlapenna/little-hero-books/commits/main','--jq','.sha'],{timeout:60_000})).stdout.trim();assert.equal(sha,'' + reviewedSha + '');
+  const before=new Set((await list()).map(x=>x.databaseId));
+  const intent={label,at:new Date().toISOString(),beforeIds:[...before]};intent.cloudflareBaseline=await cloudflareDeployments(0);
+  const couldEnableDraft=d=>!(d.bindingsKnown&&d.draftFlagPresent&&d.draftFlagType==='plain_text'&&d.draftFlag==='false');
+  assert.ok(intent.cloudflareBaseline.filter(couldEnableDraft).every(providerTerminal),'Existing Cloudflare deployment could reopen draft flag');
+  intent.excludedHistoricalPending=intent.cloudflareBaseline.filter(d=>!providerTerminal(d)&&!couldEnableDraft(d));journal.deploymentIntents.push(intent);save();
+  if(label==='disabled')await node('runtime.mjs','assert-project-closed');
+  await gh(['workflow','run','deploy-cloudflare-pages.yml','--ref','main']);
+  const deadline=Date.now()+1_200_000;
+  while(Date.now()<deadline){
+    const candidates=(await list()).filter(x=>!before.has(x.databaseId));assert.ok(candidates.length<=1,'Concurrent deploy requires reconciliation');
+    if(candidates.length){const run=candidates[0];assert.equal(run.headSha,sha);intent.runId=run.databaseId;intent.status=run.status;save();if(run.status==='completed'){assert.equal(run.conclusion,'success','Full deployment and smoke must pass');return run;}}
+    await new Promise(resolve=>setTimeout(resolve,10_000));
+  }
+  throw new Error('Deployment outcome unknown; DB gate stays closed');
+}
+async function settleEnabledDeployment(){
+  const intent=journal.deploymentIntents.find(x=>x.label==='enabled');
+  if(!intent){journal.enabledDeploymentSettled=true;save();return;}
+  if(!intent.runId){
+    const until=Date.now()+30_000;
+    while(Date.now()<until){
+      const candidates=(await list()).filter(x=>!intent.beforeIds.includes(x.databaseId)&&x.headSha==='' + reviewedSha + ''&&Date.parse(x.createdAt)>=Date.parse(intent.at)-2000);
+      assert.ok(candidates.length<=1,'Unknown concurrent deployment requires reconciliation');
+      if(candidates.length){intent.runId=candidates[0].databaseId;save();break;}
+      await new Promise(resolve=>setTimeout(resolve,5000));
+    }
+    assert.ok(intent.runId,'Enabled dispatch outcome unknown; do not start competing cleanup deployment');
+  }
+  const read=async()=>JSON.parse(await gh(['run','view',String(intent.runId),'--json','status,conclusion,headSha']));
+  let run=await read();assert.equal(run.headSha,'' + reviewedSha + '');
+  if(run.status!=='completed'){
+    const until=Date.now()+300_000;
+    while(Date.now()<until){run=await read();if(run.status==='completed')break;await new Promise(resolve=>setTimeout(resolve,5000));}
+    assert.equal(run.status,'completed','Enabled deployment settlement remains unknown');
+  }
+  intent.status=run.status;intent.conclusion=run.conclusion;save();
+  const until=Date.now()+600_000;
+  let priorClear=false;
+  while(Date.now()<until){
+    const deployments=await cloudflareDeployments(Date.parse(intent.at)-2000);
+    intent.cloudflareSettlement=deployments;save();
+    const terminal=deployments.every(providerTerminal);
+    if(terminal&&priorClear){journal.enabledDeploymentSettled=true;save();return;}
+    priorClear=terminal;await new Promise(resolve=>setTimeout(resolve,5000));
+  }
+  throw new Error('Cloudflare provider deployment remains unsettled');
+}
+let failure;
+try {
+  await step('Reject competing production deployment jobs',async()=>{assert.ok((await list()).every(r=>r.status==='completed'));const pending=(await cloudflareDeployments(0)).filter(d=>!providerTerminal(d));assert.ok(pending.every(d=>d.bindingsKnown&&d.draftFlagPresent&&d.draftFlagType==='plain_text'&&d.draftFlag==='false'),'Pending deployment has unknown or enabled bindings');});
+  await step('Enable draft-only project flag with dispatch closed',()=>node('runtime.mjs','open'));
+  await step('Deploy reviewed commit and wait for full smoke job',()=>deploy('enabled'));
+  await step('Verify active draft binding and authenticated rejection',()=>node('runtime.mjs','verify'));
+  await step('Read flags without orders or provider calls',()=>node('runtime.mjs','observe'));
+} catch(error){failure=error; journal.error=error instanceof Error?error.message:'Outer proof failed';save();}
+finally {
+  try{await step('Verify dispatch and copies stayed closed',()=>node('runtime.mjs','assert-closed-controls'));}
+  catch(error){journal.windowCleanupError=error instanceof Error?error.message:'Independent window cleanup failed';save();process.exitCode=1;}
+  if(fs.existsSync(`${directory}/runtime-journal.json`)){
+    journal.cleanupErrors=[];
+    for(const[name,action]of [
+      ['Close dispatch and disable project draft flag',()=>node('runtime.mjs','close')],
+      ['Reconcile or stop any earlier enabled deployment',()=>settleEnabledDeployment()],
+      ['Redeploy disabled settings and wait for full smoke job',async()=>{assert.equal(journal.enabledDeploymentSettled,true);const result=await deploy('disabled');journal.disabledDeploymentFullJobSucceeded=true;save();return result;}],
+      ['Verify active disabled binding and saved-submission rejection',async()=>{
+        assert.equal(journal.enabledDeploymentSettled,true);assert.equal(journal.disabledDeploymentFullJobSucceeded,true);
+        const runtime=JSON.parse(fs.readFileSync(`${directory}/runtime-journal.json`));assert.equal(runtime.expectedValue,'false');
+        await node('runtime.mjs','verify');journal.disabledVerified=true;
+      }],
+    ]){
+      try{await step(name,action);}catch(error){journal.cleanupErrors.push({step:name,error:error instanceof Error?error.message:'Outer cleanup failed'});save();process.exitCode=1;}
+    }
+    journal.cleanupVerified=!!journal.enabledDeploymentSettled&&!!journal.disabledDeploymentFullJobSucceeded&&!!journal.disabledVerified&&!journal.windowCleanupError;save();
+  }
+}
+if(failure){console.error(journal.error);process.exitCode=1;}
+else if(journal.cleanupVerified){journal.completed=true;save();console.log(JSON.stringify({completed:true,nonPrinting:true,dispatch:false,activeDraftFlag:false}));}

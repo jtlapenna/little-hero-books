@@ -1,0 +1,270 @@
+{
+  "baselineFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
+  "assets": [
+    {
+      "asset": "asset-0",
+      "file": "assets/asset-0-Nunito-SemiBold.ttf",
+      "source": "/Users/jeff/Projects/little-hero-books/output/pdf/inner-voice-typography-2026-10-13/Nunito-SemiBold.ttf",
+      "sha256": "77909328f250fc30644527092d08b51a69dac08bf89cb7624a7f9b07ed355403"
+    },
+    {
+      "asset": "asset-1",
+      "file": "assets/asset-1-blank.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "asset": "asset-10",
+      "file": "assets/asset-10-pose03.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose03.png",
+      "sha256": "e92841277309609d4d6ad68a6d43bd142377d4f294e76a19a1703fc7a2c79b2a"
+    },
+    {
+      "asset": "asset-13",
+      "file": "assets/asset-13-page_11.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_11.png",
+      "sha256": "e5b176ddb432222d09fd93556a5cd3f4d9c07461f08294ae81540c20cb613240"
+    },
+    {
+      "asset": "asset-14",
+      "file": "assets/asset-14-pose04.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose04.png",
+      "sha256": "2f5ac532de6a2b0ea4177539644c259e792e9993b9751527b71151bf43b52be7"
+    },
+    {
+      "asset": "asset-15",
+      "file": "assets/asset-15-page_12.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_12.png",
+      "sha256": "335202752da25b169087e398fc599f69d39bf1f1e0992ce47c6062d9eef2051c"
+    },
+    {
+      "asset": "asset-16",
+      "file": "assets/asset-16-owl-clues.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-clues.png",
+      "sha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde"
+    },
+    {
+      "asset": "asset-18",
+      "file": "assets/asset-18-pose05.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose05.png",
+      "sha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7"
+    },
+    {
+      "asset": "asset-19",
+      "file": "assets/asset-19-page_14.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_14.png",
+      "sha256": "45dc3dc9ac9c983fb470ab2486079459a227a3ee6f2795b1e88a2b41d75f9402"
+    },
+    {
+      "asset": "asset-2",
+      "file": "assets/asset-2-page_03.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_03.png",
+      "sha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766"
+    },
+    {
+      "asset": "asset-20",
+      "file": "assets/asset-20-pose06.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose06.png",
+      "sha256": "e98101c89f6cfff121025f8b2cda68a9dbf36012d6d8db402646a5fbea570bce"
+    },
+    {
+      "asset": "asset-21",
+      "file": "assets/asset-21-pose07.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose07.png",
+      "sha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf"
+    },
+    {
+      "asset": "asset-22",
+      "file": "assets/asset-22-page_15.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_15.png",
+      "sha256": "0fbf1c27b4ae202bbcc16e54ba451d46aa35df2445be18029f521bcfb516e043"
+    },
+    {
+      "asset": "asset-23",
+      "file": "assets/asset-23-pose08.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose08.png",
+      "sha256": "1c46e36e0fcd239c48390b677d38447e8e18fa4571f12a5f1e411abaac509b23"
+    },
+    {
+      "asset": "asset-24",
+      "file": "assets/asset-24-page_16.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_16.png",
+      "sha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8"
+    },
+    {
+      "asset": "asset-25",
+      "file": "assets/asset-25-page_17.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_17.png",
+      "sha256": "6753c2c2296f16022ae5d0a924f31e7b6a73aa22fecb036f0976524e7dfeeee6"
+    },
+    {
+      "asset": "asset-27",
+      "file": "assets/asset-27-page_18.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_18.png",
+      "sha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53"
+    },
+    {
+      "asset": "asset-29",
+      "file": "assets/asset-29-page_20.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_20.png",
+      "sha256": "eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807"
+    },
+    {
+      "asset": "asset-3",
+      "file": "assets/asset-3-page_05.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_05.png",
+      "sha256": "90af6b99bd0cc441d27a997eae2c1813c6d493aef2401013d4be4b44a045fc26"
+    },
+    {
+      "asset": "asset-30",
+      "file": "assets/asset-30-page_21.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_21.png",
+      "sha256": "416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d"
+    },
+    {
+      "asset": "asset-31",
+      "file": "assets/asset-31-page_22.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_22.png",
+      "sha256": "d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72"
+    },
+    {
+      "asset": "asset-32",
+      "file": "assets/asset-32-page_23.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_23.png",
+      "sha256": "c27a20e328c04c1167ea479c19fbe249dd41cc6ed41cc2a406d90015e2e333d4"
+    },
+    {
+      "asset": "asset-33",
+      "file": "assets/asset-33-pose10.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose10.png",
+      "sha256": "7401ca27d81f3ffd4d350f44881af15a7a4478a0d0be65524ee32d11732f56cc"
+    },
+    {
+      "asset": "asset-34",
+      "file": "assets/asset-34-page_24.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_24.png",
+      "sha256": "c85ae114813462ecbc0bdcfd2947baf9ccefc1550646286e5e53d234bc18f4f4"
+    },
+    {
+      "asset": "asset-35",
+      "file": "assets/asset-35-page_25.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_25.png",
+      "sha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356"
+    },
+    {
+      "asset": "asset-37",
+      "file": "assets/asset-37-page_26.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_26.png",
+      "sha256": "b72b98f786f710c44d61da9abbd6341d4140d39a953dc2d7b2e2e81825c4fe63"
+    },
+    {
+      "asset": "asset-38",
+      "file": "assets/asset-38-pose11-provider-original.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/pose11-provider-original.png",
+      "sha256": "b8af8476472f39b2510aa7e529c91ebc2c9ee92b5a7b607812c0d7df0f563e3f"
+    },
+    {
+      "asset": "asset-4",
+      "file": "assets/asset-4-pose01.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose01.png",
+      "sha256": "f4a05ba4d0015c5753bcfd86b1acfdd48e66050ee4f402e7d0b3150c96817f3e"
+    },
+    {
+      "asset": "asset-40",
+      "file": "assets/asset-40-page_27.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_27.png",
+      "sha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a"
+    },
+    {
+      "asset": "asset-41",
+      "file": "assets/asset-41-page_28.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_28.png",
+      "sha256": "ae011ba2079e0c1ec21c5c979a93b915ddb26f59b47301c87b982ccf83996f6c"
+    },
+    {
+      "asset": "asset-44",
+      "file": "assets/asset-44-page_30.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_30.png",
+      "sha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7"
+    },
+    {
+      "asset": "asset-5",
+      "file": "assets/asset-5-page_06.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_06.png",
+      "sha256": "93c6f83b682c69a72af64144368619c1bddd7b394338024acd9f3dc52b5a753e"
+    },
+    {
+      "asset": "asset-52",
+      "file": "assets/asset-52-page-07-hero-page-07-look-up-personalized-preview-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-hero-page-07-look-up-personalized-preview-v1-2k-upscaled.png",
+      "sha256": "9ab732d40d82d49f47c45459d9ff06ae3fda03a21b02b564e7fabd0ed1c1636a"
+    },
+    {
+      "asset": "asset-53",
+      "file": "assets/asset-53-page-09-background-page-09-bedroom-owl-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-09-background-page-09-bedroom-owl-v1-2k-upscaled.png",
+      "sha256": "0259fa1d2a4c9d77235455183284aaa918c5f90c202525c900612711dbe20aa6"
+    },
+    {
+      "asset": "asset-54",
+      "file": "assets/asset-54-page-10-background-page-10-bedroom-owl-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-10-background-page-10-bedroom-owl-v1-2k-upscaled.png",
+      "sha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927"
+    },
+    {
+      "asset": "asset-55",
+      "file": "assets/asset-55-page-13-bush-sneeze-matched-2k-upscaled-v1.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-13-bush-sneeze-matched-2k-upscaled-v1.png",
+      "sha256": "9faf1e53b4fd998e902103d30c332ecd49b0d6054a373e32d53098adcaf6d73f"
+    },
+    {
+      "asset": "asset-56",
+      "file": "assets/asset-56-page-17-hero-page-17-uphill-personalized-preview-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-hero-page-17-uphill-personalized-preview-v1-2k-upscaled.png",
+      "sha256": "0d6b0953ba69d3d96ec023816f2b64a71601734676ec6008da1ec174ecb80db1"
+    },
+    {
+      "asset": "asset-57",
+      "file": "assets/asset-57-page-19-background-page-19-depth-stronger-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-19-background-page-19-depth-stronger-v1-2k-upscaled.png",
+      "sha256": "b06c8d55dba31163df73266d502d39f6a12a1e53f0bacde72762fc7839d0dfe5"
+    },
+    {
+      "asset": "asset-58",
+      "file": "assets/asset-58-page-25-guide-appears-owl-appears-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-25-guide-appears-owl-appears-2k-upscaled.png",
+      "sha256": "a6a5a2ad65bff91204af62fffec79eaec4e2f5cf16d8311df69e07a78046b660"
+    },
+    {
+      "asset": "asset-59",
+      "file": "assets/asset-59-page-26-guide-flying-owl-flying-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-26-guide-flying-owl-flying-2k-upscaled.png",
+      "sha256": "a8f3007b68a7ff4802cc19156cc67033a82c8a863e6462b21d33524facff27eb"
+    },
+    {
+      "asset": "asset-6",
+      "file": "assets/asset-6-page_07.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_07.png",
+      "sha256": "c1f3f8f62c1a91eb4afe4c7036c3cd15553fd6f6c3d75d38fd73bd2cc9a916e4"
+    },
+    {
+      "asset": "asset-60",
+      "file": "assets/asset-60-page-28-hero-page-28-you-go-first-personalized-preview-v1-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-hero-page-28-you-go-first-personalized-preview-v1-2k-upscaled.png",
+      "sha256": "bb621be92ac9f74c3e7cecc1f6544b84429f182084f9a1693fcb7e748c0bc3b2"
+    },
+    {
+      "asset": "asset-61",
+      "file": "assets/asset-61-page-28-waiting-child-waiting-child-2k-upscaled.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-waiting-child-waiting-child-2k-upscaled.png",
+      "sha256": "850597574770ba51db34d715fba1faa775a25997091289367061a1014064458b"
+    },
+    {
+      "asset": "asset-8",
+      "file": "assets/asset-8-page_08.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_08.png",
+      "sha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28"
+    }
+  ],
+  "sourcePaths": "Seed sourcePath/sourceManifest fields retain generation provenance. Runtime resolves asset-map.json relative to this folder. Image bytes and placement identity are unchanged."
+}

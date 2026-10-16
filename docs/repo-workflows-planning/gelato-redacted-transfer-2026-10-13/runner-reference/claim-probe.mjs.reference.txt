@@ -1,0 +1,24 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';import assert from 'node:assert/strict';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const base=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL,key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;assert.equal(new URL(base).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const headers={apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'};
+const rest=async(path,init={})=>{const r=await fetch(base+'/rest/v1/'+path,{...init,headers,redirect:'error',signal:AbortSignal.timeout(60_000)});const text=await r.text();return{http:r.status,body:text?JSON.parse(text):null};};
+const save=j=>fs.writeFileSync(dir+'/claim-probe-journal.json',JSON.stringify(j,null,2),{mode:0o600});
+assert.ok(!fs.existsSync(dir+'/claim-probe-journal.json'),'Existing probe requires reconciliation');
+assert.deepEqual((await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled')).body,[{enabled:false}]);
+assert.deepEqual((await rest('print_provider_submissions?select=id')).body,[]);
+for(const id of ['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb']){const r=await fetch('https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/'+id,{headers:{'X-N8N-API-KEY':e.N8N_API_KEY}});assert.ok(r.ok);assert.equal((await r.json()).active,false);}
+const c=await fetch('https://api.cloudflare.com/client/v4/accounts/'+(e.CLOUDFLARE_ACCOUNT_ID||e.R2_ACCOUNT_ID)+'/pages/projects/little-hero-labs-admin',{headers:{Authorization:'Bearer '+e.CLOUDFLARE_API_TOKEN}});assert.ok(c.ok);const project=(await c.json()).result;assert.equal(project.canonical_deployment.env_vars.GELATO_DRAFT_SUBMISSION_ENABLED.value,'false');
+const routes=JSON.parse(fs.readFileSync(dir+'/routes-1.json'));assert.deepEqual(routes.map(x=>x.orderDbId),[1053]);
+const seed=JSON.parse(fs.readFileSync(dir+'/seed-journal.json'));const j={startedAt:new Date().toISOString(),intent:'Canonical service REST claim only. Native copies inactive, deployed draft flag false, no provider call.'};save(j);
+try{
+  assert.equal((await rest('print_provider_dispatch_gates?provider=eq.gelato',{method:'PATCH',body:JSON.stringify({enabled:true})})).http,204);
+  assert.deepEqual((await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled')).body,[{enabled:true}]);
+  j.result=await rest('rpc/claim_gelato_print_submission',{method:'POST',body:JSON.stringify({p_routes:routes,p_idempotency_key:'synthetic-proof:'+seed.proofId+':single'})});save(j);
+  console.log(JSON.stringify({http:j.result.http,code:j.result.body.code,message:j.result.body.message,details:j.result.body.details,dispatch:j.result.body.dispatch}));
+}finally{
+  await rest('print_provider_dispatch_gates?provider=eq.gelato',{method:'PATCH',body:JSON.stringify({enabled:false})});assert.deepEqual((await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled')).body,[{enabled:false}]);j.dispatchClosed=true;save(j);
+}

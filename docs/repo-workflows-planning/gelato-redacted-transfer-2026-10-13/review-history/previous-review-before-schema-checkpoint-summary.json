@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "mode": "final",
+  "timestamp": "2026-10-12T04:03:14.766563+00:00",
+  "verdict": "NOT READY",
+  "rationale": "Preview and stored-file checkpoints cleared. Exact production migration lacks usable administration/verification; main push auto-deploys backend. Intended release remains unstaged.",
+  "branch": "codex/w4-gelato-copies",
+  "activated_policy_gates": [
+    {
+      "source": "AGENTS.md release safety; rigorous-build",
+      "gate": "exact final target and durable receipt",
+      "status": "BLOCKED",
+      "evidence": "intended changes unstaged/untracked; no staging authority this continuation"
+    },
+    {
+      "source": ".github/workflows/deploy-cloudflare-pages.yml; migration and plan",
+      "gate": "schema before automatic backend deployment",
+      "status": "BLOCKED",
+      "evidence": "production migration/verification not run; main push auto-deploys backend"
+    },
+    {
+      "source": "AGENTS.md final visual/task review",
+      "gate": "changed UI review",
+      "status": "PASS WITH LIMITS",
+      "evidence": "separate headless status/task matrix with synthetic actual API fixtures; external fonts and full book viewer validation excluded"
+    },
+    {
+      "source": "adversarial-run; release-safety-review",
+      "gate": "independent source review",
+      "status": "PASS",
+      "evidence": "service/data/consumer discovery, independent skeptic, three final slices; repaired known findings verified"
+    },
+    {
+      "source": "implementation plan Required manual release checks",
+      "gate": "current behavior suites/build/scanner",
+      "status": "PASS WITH LIMITS",
+      "evidence": "focused and legacy tests/builds pass; standalone TypeScript baseline errors; no remote CI execution"
+    },
+    {
+      "source": "continuation authority and plan",
+      "gate": "closed provider/money/communication defaults",
+      "status": "PASS",
+      "evidence": "no paid conversion; dispatch/draft/cancel/relay/poll/notification gates default closed, exports inactive"
+    },
+    {
+      "source": "Current project instructions and rigorous-build/release-safety-review",
+      "gate": "Continuation checkpoint/visual/release evidence",
+      "status": "Checkpoint reviews and visual proof clear; final NOT READY",
+      "evidence": "Preview and stored-file reviews, actual API/poll/SQL tests, synthetic drafts, exact-target preflight. Migration-first and complete release index missing."
+    }
+  ],
+  "checks": {
+    "prior_unchanged_implementation_evidence": [
+      {
+        "name": "current base fetch and merge-tree",
+        "result": "PASS",
+        "evidence": "origin/main and HEAD 46c1f81f00f70de5ec04766bcf406de9735d40dd; no committed-range conflict; WIP content reviewed separately"
+      },
+      {
+        "name": "Gelato submission/lifecycle/notifications/API contract/workflow copies",
+        "result": "PASS",
+        "evidence": "mocked provider/delivery and real SDK synthetic transport"
+      },
+      {
+        "name": "Gelato consumer/attention/approval regressions",
+        "result": "PASS",
+        "evidence": "actual HTTP no-write guards, actual preview API status fixtures, missing/mixed Gelato recovery rejection and provider mutation predicate"
+      },
+      {
+        "name": "Gelato disposable PostgreSQL",
+        "result": "PASS",
+        "evidence": "migration replay, ownership, graph atomicity/CAS, recovery, consumed notification send, retries, shared packages, cutoff, archive and concurrency"
+      },
+      {
+        "name": "Gelato routing/W1.1/W0 intake/freeze/legacy rollout/recovery/archive",
+        "result": "PASS",
+        "evidence": "synthetic fixtures and mocked transports"
+      },
+      {
+        "name": "Book config/kernel and Gelato lossless PDF",
+        "result": "PASS",
+        "evidence": "both editions and malformed image/input cases"
+      },
+      {
+        "name": "Legacy W4/W4.1 input/submit/approval/preflight/recovery; Lulu map/webhook; mapper/R2",
+        "result": "PASS",
+        "evidence": "safe local regression scripts"
+      },
+      {
+        "name": "Targeted ESLint and git diff --check",
+        "result": "PASS",
+        "evidence": "new Gelato modules/component/proof scripts and navigation"
+      },
+      {
+        "name": "Backend pages:build",
+        "result": "PASS",
+        "evidence": "current Cloudflare/OpenNext build; existing duplicate approved key warning"
+      },
+      {
+        "name": "Frontend Astro build",
+        "result": "PASS",
+        "evidence": "current frontend build"
+      },
+      {
+        "name": "Changed workflow exports secret scan",
+        "result": "PASS",
+        "evidence": "four changed/current workflow JSON files; prior archives outside changed-file policy"
+      },
+      {
+        "name": "Standalone TypeScript",
+        "result": "BASELINE FAILURE",
+        "evidence": "repository errors remain; no diagnostic in new Gelato modules/routes/component/scripts"
+      },
+      {
+        "name": "Headless visual/task review",
+        "result": "PASS WITH LIMITS",
+        "evidence": "admin/customer status tasks at1440/768/375, loading/error/recovery/cancel/partial/tracking/attention; blocked external analytics/fonts; unchanged book viewer dev hydration symptom remains outside status proof"
+      },
+      {
+        "name": "Legacy Amazon config and customer email regressions",
+        "result": "PASS",
+        "evidence": "test:amazon-sp-api-config and test:customer-email"
+      },
+      {
+        "name": "Post-artifact cleanup identity recheck",
+        "result": "PASS",
+        "evidence": "tracked/staged/committed SHA256 and index tree unchanged; relevant source hashes recomputed; temporary UI artifacts excluded"
+      }
+    ],
+    "continuation": {
+      "preview_api": "Actual token POST both books, valid/used/expired x pending/approved PASS; before-fix missing manifest3Key failure observed.",
+      "preview_browser": "Actual API synthetic output; fast/delayed/blocked hydration, subscriber cleanup, token states, canonical/legacy/null/missing paths, replay, navigation, zoom, correction and approval PASS.",
+      "visual": "Phone390x844/tablet768x1024/desktop synthetic screenshots inspected; width equals viewport. Independent invalid-action probes repeated after fixes.",
+      "stored_file_service": "Copied URL service regression failed before repair; submission, refresh and recovery equality/changed-byte cases PASS after repair.",
+      "stored_file_transport": "Host, receipt, per-file/aggregate budget, abort and actual R2 error text-trap/cancel PASS.",
+      "actual_poll_runtime": "SDK DB/Get/R2 mocks reach stalled verifier body;100ms shared abort with zero writes/notifications/creates PASS.",
+      "sql": "Disposable PostgreSQL replay, permissions/ownership, graph persistence, recovery, immutable outbox and concurrency PASS rerun.",
+      "provider_drafts": "One/two-item synthetic draft create, quote/Get/Search PASS. Later copied files exact SHA256 and repaired wrapper read-only proof PASS. No production receipts/dispatch or paid conversion exercised.",
+      "builds": "Current backend pages:build and frontend build PASS.",
+      "typecheck": "Baseline standalone failures remain. No new continuation module/route/test diagnostic; unchanged R2 lines74/306 retain baseline errors.",
+      "diff_check": "PASS"
+    }
+  },
+  "skips": [
+    "Production administration/migration verification unavailable due rejected DB password and absent connected access.",
+    "No deploy/import/activation/config publication, customer messages, Git mutation or paid printing.",
+    "Live W4/W4.1 claim/receipt/projection integration unexercised; synthetic API proof is limited.",
+    "Creative approval, production processed PDF/physical quality and final customer timing copy pending.",
+    "Large groups/other storage hosts fail closed under reviewed budget/host policy."
+  ],
+  "findings": [
+    {
+      "id": "ROLLOUT-MIGRATION-FIRST",
+      "severity": "High",
+      "blocker": true,
+      "evidence": "Exact Supabase mdnthwpcnphjnnblbvxk REST schema lacks Gelato fields/tables; verifiedTLS direct PostgreSQL password rejected; connected admin access unavailable. main backend push auto-deploys.",
+      "required": "Restore exact-target admin access and apply/verify migration before backend deployment."
+    },
+    {
+      "id": "RELEASE-INDEX-INCOMPLETE",
+      "severity": "High",
+      "blocker": true,
+      "evidence": "Intended source/test/config/migration/workflow changes unstaged/untracked.",
+      "required": "Stage complete intended target for an authorized release and rerun final gate."
+    }
+  ],
+  "reviewer_coverage": {
+    "service_checkpoint": "gelato_cp1_service_review",
+    "sql_checkpoint": "gelato_cp1_sql_review",
+    "independent_skeptic": "consensus_persistence_lifecycle",
+    "final_data_api": "consensus_persistence_lifecycle",
+    "final_consumers": "full_gelato_pdf_api_review",
+    "final_ci_rollout": "consensus_api_print",
+    "capacity_limit": "Existing independent non-author sessions reused; fresh-context capacity limited. No fresh full-repository review claimed.",
+    "preview_continuation": "full_gelato_pdf_api_review independent source/headless; consensus_config_router skeptic; main verification",
+    "stored_file_continuation": "consensus_persistence_lifecycle and gelato_cp1_service_review independent slices; consensus_api_print error candidate skeptic; main source/live read-only byte proof",
+    "production_preflight": "consensus_api_print exact-target TLS/router/schema/aggregate; canonical identity hints9of9; main verification"
+  },
+  "carry_forward": null
+}

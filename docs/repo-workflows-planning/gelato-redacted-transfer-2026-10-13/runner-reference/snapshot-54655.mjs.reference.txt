@@ -1,0 +1,30 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const database=env.SUPABASE_URL||env.NEXT_PUBLIC_SUPABASE_URL;assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const key=env.SUPABASE_SERVICE_ROLE_KEY||env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const json=async(url,headers)=>{const r=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(60000)});assert.ok(r.ok);return r.json();};
+const rest=path=>json(database+'/rest/v1/'+path,{apikey:key,Authorization:'Bearer '+key});
+const n8n=path=>json('https://thepeakbeyond.app.n8n.cloud/api/v1/'+path,{'X-N8N-API-KEY':env.N8N_API_KEY});
+const seed=JSON.parse(fs.readFileSync(dir+'/seed-journal.json'));
+const positive=JSON.parse(fs.readFileSync(dir+'/positive-journal.json'));
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const execution=await n8n('executions/54655?includeData=true');assert.equal(execution.status,'error');assert.equal(execution.workflowId,'8ZqgZ7ksY0Fj8Acx');
+const nodes=Object.keys(execution.data.resultData.runData);assert.ok(nodes.includes('Quote Gelato Submission'));assert.ok(!nodes.includes('Create Held Gelato Draft'));
+const [submission]=await rest('print_provider_submissions?select=*');assert.equal(submission.id,positive.cases[0].submissionId);assert.equal(submission.request_state,'claimed');assert.ok(Date.parse(submission.lease_expires_at)<Date.now());
+for(const field of ['send_started_at','owning_execution_id','accepted_root_order_id','quote_id','quote_snapshot','request_snapshot'])assert.equal(submission[field],null);
+const [item]=await rest('print_provider_submission_items?select=*');assert.equal(item.child_order_id,1053);assert.equal(item.artifact_claim_token,submission.claim_token);assert.equal(item.pdf_page_count,35);assert.equal(item.provider_order_id,null);
+assert.deepEqual(await rest('print_provider_submission_orders?select=submission_id'),[]);assert.deepEqual(await rest('print_provider_submission_notifications?select=submission_id'),[]);
+assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);
+for(const id of ['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'])assert.equal((await n8n('workflows/'+id)).active,false);
+for(const original of positive.oldWorkflows){const w=await n8n('workflows/'+original.id);assert.equal(hash({active:w.active,nodes:w.nodes,connections:w.connections,settings:w.settings}),original.hash);}
+const orders=await rest('orders?select=*&order=id');for(const original of seed.baseline)assert.equal(hash(orders.find(row=>row.id===original.id)),original.hash);
+const response=await fetch('https://admin.littleherolabs.com/api/pdf/'+item.artifact_key,{redirect:'error',signal:AbortSignal.timeout(60000)});assert.ok(response.ok);const bytes=Buffer.from(await response.arrayBuffer());assert.equal((bytes.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,35);
+const cf=await json('https://api.cloudflare.com/client/v4/accounts/'+(env.CLOUDFLARE_ACCOUNT_ID||env.R2_ACCOUNT_ID)+'/pages/projects/little-hero-labs-admin',{Authorization:'Bearer '+env.CLOUDFLARE_API_TOKEN});assert.equal(cf.success,true);
+const deployment=cf.result.canonical_deployment;for(const flag of ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'])assert.equal(deployment.env_vars[flag].value,'false');
+const output={at:new Date().toISOString(),execution:{id:54655,status:execution.status,nodes},submission,item,artifact:{key:item.artifact_key,fingerprint:item.artifact_fingerprint,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),pages:35},order1053Hash:hash(orders.find(row=>row.id===1053)),originalOrdersUnchanged:true,oldWorkflowsUnchanged:true,leaseExpired:true,dispatch:false,copiesInactive:true,activeFlags:false,deploymentId:deployment.id};
+fs.writeFileSync(dir+'/preserved-54655.json',JSON.stringify(output,null,2),{mode:0o600});console.log(JSON.stringify({preservedExecution:54655,pdfPages:35,sendStarted:false,originalOrdersUnchanged:true,dispatch:false,activeFlags:false}));

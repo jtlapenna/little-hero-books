@@ -1,0 +1,20 @@
+{
+  "action": "Install page 17 selected trial pose in local placement editor",
+  "backup": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/before-selected-page17-pose",
+  "beforeFingerprint": "ee4e59817f74c464704a53fd53ab1d98821738066c2bdfeeb65346619c9043e4",
+  "afterFingerprint": "e24180e379868ec4a205b2d39fbdf9a476239e03052a4ec2c9c013d13c1265d1",
+  "beforeSavedAt": "2026-10-16T02:30:34.559Z",
+  "savedAt": "2026-10-16T02:40:52.418Z",
+  "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+  "assetSha256": "89ab7dbe9f0e097b7640d88f95cb77d382ed24d1ba3132a5476257ec77f90b15",
+  "visible": {
+    "left": 1536.8075035772163,
+    "top": 743.5023430742647,
+    "width": 651.5128475728662,
+    "height": 1160.6123876728338,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "preservation": "Every other page, including current page 7 placement, preserved exactly. Page 17 notes and other layers preserved. Page 17 reviewed flag reset.",
+  "approval": "Pose selected for trial. Size, position, final art approval and 2K preparation pending."
+}

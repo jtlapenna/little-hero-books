@@ -1,0 +1,52 @@
+{
+  "at": "2026-10-13T22:27:37.855Z",
+  "execution": {
+    "id": 54656,
+    "status": "error",
+    "nodes": [
+      "Webhook (Gelato Intake)",
+      "Respond to Webhook (Ack)",
+      "Prepare Gelato Request",
+      "Assemble Gelato Print PDF",
+      "Check Gelato Assembly",
+      "Quote Gelato Submission",
+      "Check Gelato Quote",
+      "Create Held Gelato Draft"
+    ]
+  },
+  "submission": {
+    "provider": "gelato",
+    "request_state": "claimed",
+    "shipment_method_uid": "usps_ground_advantage",
+    "shipment_policy_version": 2,
+    "quoted_at": "2026-10-13T22:19:00.331+00:00",
+    "quote_request_fingerprint": "abe4e793a7a9146dde65a7f5fd55e330d383b38f2ae677e74df7e71a8b03b171",
+    "owning_execution_id": null,
+    "send_started_at": null,
+    "accepted_root_order_id": null,
+    "action_reason": null,
+    "quote_present": true,
+    "quote_id_present": true,
+    "request_snapshot_present": false
+  },
+  "items": [
+    {
+      "item_reference_id": "lhb-item-1066",
+      "status": null,
+      "artifact_fingerprint": "9cb72c8f7a36962f876c9a81",
+      "pdf_page_count": 35,
+      "provider_order_id": null,
+      "provider_item_id": null,
+      "action_reason": null,
+      "progress_status": null
+    }
+  ],
+  "mapping_count": 0,
+  "graph_count": 0,
+  "artifact": {
+    "fingerprint": "9cb72c8f7a36962f876c9a81",
+    "bytes": 425891,
+    "sha256": "b101f5209864431b1d83356d5d5712f0a9ff506384eb07d28734ad960ec086a0",
+    "pages": 35
+  }
+}

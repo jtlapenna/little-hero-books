@@ -1,0 +1,20 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+export async function assertUnsentResume(rest,seed){
+  const submissions=await rest('print_provider_submissions?select=id,request_state,send_started_at,accepted_root_order_id,owning_execution_id,quote_id,quote_snapshot,request_snapshot,claim_token,workflow_job_idempotency_key');
+  if(!submissions.length)return null;
+  const probe=JSON.parse(fs.readFileSync(`${directory}/claim-probe-journal.json`));
+  assert.equal(probe.dispatchClosed,true);assert.equal(probe.result.http,200);assert.equal(probe.result.body.dispatch,true);
+  assert.equal(submissions.length,1);const submission=submissions[0];assert.equal(submission.id,probe.result.body.submissionId);
+  assert.equal(submission.request_state,'failed');assert.equal(submission.workflow_job_idempotency_key,`synthetic-proof:${seed.proofId}:single`);
+  for(const field of ['send_started_at','accepted_root_order_id','owning_execution_id','quote_id','quote_snapshot','request_snapshot'])assert.equal(submission[field],null);
+  const items=await rest(`print_provider_submission_items?submission_id=eq.${submission.id}&select=child_order_id,artifact_key,artifact_fingerprint,provider_order_id,provider_item_id`);
+  assert.equal(items.length,1);assert.equal(items[0].child_order_id,seed.orders[0].orderDbId);
+  for(const field of ['artifact_key','artifact_fingerprint','provider_order_id','provider_item_id'])assert.equal(items[0][field],null);
+  assert.deepEqual(await rest('print_provider_submission_orders?select=submission_id'),[]);assert.deepEqual(await rest('print_provider_submission_notifications?select=submission_id'),[]);
+  const[row]=await rest(`orders?id=eq.${seed.orders[0].orderDbId}&select=orderId,execution_status,next_workflow,print_submission_id,print_claim_token`);
+  assert.equal(row.orderId,seed.orders[0].orderId);assert.equal(row.execution_status,'ready_for_processing');assert.equal(row.next_workflow,'4');assert.equal(row.print_submission_id,submission.id);assert.equal(row.print_claim_token,submission.claim_token);
+  return{submissionId:submission.id,orderDbId:items[0].child_order_id};
+}

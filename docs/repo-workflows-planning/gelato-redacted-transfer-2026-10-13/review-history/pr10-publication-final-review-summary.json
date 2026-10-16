@@ -1,0 +1,69 @@
+{
+  "mode": "final",
+  "timestamp": "2026-10-13T23:43:27.317Z",
+  "verdict": "READY WITH RESIDUAL RISK",
+  "rationale": "Production-only filtered delivery of five existing flags; defaults and live release settings all false.",
+  "branch": "codex/gelato-runtime-binding-delivery",
+  "checks": [
+    {
+      "name": "binding producer-to-consumer regression",
+      "status": "passed",
+      "evidence": "real repository config through mocked authenticated Pages settings and actual Wrangler production reader; all5values; invalid target/JSON/value/config never writes; redacted errors"
+    },
+    {
+      "name": "reproduce-first",
+      "status": "passed",
+      "evidence": "real source missing closed draft assignment failed before fix; production override writer accepted but actual consumer lost flags; corrected regression failed Missing expected rejection before fix then passes"
+    },
+    {
+      "name": "runtime, persisted submission, native workflow and scanner suites",
+      "status": "passed"
+    },
+    {
+      "name": "focused MJS ESLint and staged whitespace",
+      "status": "passed"
+    },
+    {
+      "name": "CI path and order trace",
+      "status": "passed",
+      "evidence": "npm ci, scanner/native/runtime/binding/submission checks, export scan; selectors include all7activated paths; deploy main-ref guard then build/wiring thenprepare immediatelybefore explicit --branchmain upload"
+    },
+    {
+      "name": "merge-tree integration",
+      "status": "passed",
+      "tree": "9b790a6f6076df4259868d00831f9bbf9f9610ae"
+    },
+    {
+      "name": "typecheck",
+      "status": "unchanged baseline failure",
+      "evidence": "No TS or TS-test changes; previous exact base diagnostics400, changed-files none; newMJS files checked by ESLint/runtime regression"
+    },
+    {
+      "name": "live closed-controls prepublication",
+      "status": "passed",
+      "evidence": "canonical c7d359/d0c130 all5metadata/project flags false; DBfalse; copiesinactive"
+    },
+    {
+      "name": "latest closed canonical metadata",
+      "status": "passed",
+      "deployment": "<REDACTED_ID_003>",
+      "source": "c7d3590723c013f9fe0aff715b258074aec7736e",
+      "allFlags": false,
+      "dbDispatch": false,
+      "copiesActive": false
+    },
+    {
+      "name": "hosted PR binding/contracts scan",
+      "status": "passed",
+      "runId": 38485974211
+    },
+    {
+      "name": "published authoritative deploy and request-time false delivery",
+      "status": "passed",
+      "runId": 38486274873,
+      "source": "4fb98c265bdad3482d6b9e31033437c8b18dce53",
+      "evidence": "gelato-proof/delivered-false-evidence.json; all3views present string false, runtime false; all5settingsfalse, DBfalse, copiesinactive; old9/old4unchanged;3unsent/no maps/no notifications"
+    }
+  ],
+  "findings": []
+}

@@ -1,0 +1,489 @@
+{
+  "action": "Install 2K minimum working copies and matching page 13 sneeze composite",
+  "backup": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-16/before-2k-assets",
+  "beforeFingerprint": "279d2fbcba4e9b6d3ef20ef98cd66a0cdde8f3ef9f85e61e302a0098e31945fa",
+  "afterFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
+  "beforeSavedAt": "2026-10-16T18:12:25.479Z",
+  "savedAt": "2026-10-16T18:58:43.550Z",
+  "changedLayerSources": [
+    {
+      "page": 7,
+      "layer": "hero"
+    },
+    {
+      "page": 17,
+      "layer": "hero"
+    },
+    {
+      "page": 25,
+      "layer": "guide-appears"
+    },
+    {
+      "page": 26,
+      "layer": "guide-flying"
+    },
+    {
+      "page": 28,
+      "layer": "hero"
+    },
+    {
+      "page": 28,
+      "layer": "waiting-child"
+    }
+  ],
+  "preservation": "All visible figure coordinates, scale, orientation, page notes and review flags preserved exactly. Full-canvas geometry unchanged within floating-point tolerance. Original files retained.",
+  "activeAudit": [
+    {
+      "page": 1,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 2,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 3,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_03.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 4,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 5,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_05.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 5,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose01.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 6,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_06.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 7,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_07.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 7,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-hero-page-07-look-up-personalized-preview-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 8,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_08.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 9,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-09-background-page-09-bedroom-owl-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 9,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose03.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 10,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-10-background-page-10-bedroom-owl-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 11,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_11.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 11,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose04.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 12,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_12.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 12,
+      "role": "guide-clues",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-clues.png",
+      "size": [
+        2550,
+        2550
+      ]
+    },
+    {
+      "page": 13,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-13-bush-sneeze-matched-2k-upscaled-v1.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 13,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose05.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 14,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_14.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 14,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose06.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 14,
+      "role": "breath-vignette",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose07.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 15,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_15.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 15,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose08.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 16,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_16.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 17,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_17.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 17,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-hero-page-17-uphill-personalized-preview-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 18,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_18.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 19,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-19-background-page-19-depth-stronger-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 19,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose07.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 20,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_20.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 21,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_21.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 22,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_22.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 23,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_23.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 23,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose10.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 24,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_24.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 24,
+      "role": "guide-clues",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-clues.png",
+      "size": [
+        2550,
+        2550
+      ]
+    },
+    {
+      "page": 25,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_25.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 25,
+      "role": "guide-appears",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-25-guide-appears-owl-appears-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 26,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_26.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 26,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/pose11-provider-original.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 26,
+      "role": "guide-flying",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-26-guide-flying-owl-flying-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 27,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_27.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 28,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_28.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 28,
+      "role": "hero",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-hero-page-28-you-go-first-personalized-preview-v1-2k-upscaled.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 28,
+      "role": "waiting-child",
+      "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-waiting-child-waiting-child-2k-upscaled.png",
+      "size": [
+        2432,
+        2588
+      ]
+    },
+    {
+      "page": 29,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 30,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_30.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 31,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "page": 32,
+      "role": "background",
+      "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/blank.png",
+      "size": [
+        2048,
+        2048
+      ]
+    }
+  ],
+  "belowMinimumCount": 0,
+  "policy": "User approved Lanczos enlargement. Copies are not new native detail. Production and published assets unchanged."
+}
