@@ -62,7 +62,7 @@ async function performEngineeringConversion(id: string, action: 'convert' | 'obs
     let response:Response|undefined;
     try {
       response=await Promise.race([(d.fetcher??fetch)(`https://order.gelatoapis.com/v4${path}`,{method,
-        headers:{'X-API-KEY':d.apiKey,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:controller.signal}),aborted]);
+        headers:{'X-API-KEY':d.apiKey,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual',signal:controller.signal}),aborted]);
       const text=await Promise.race([response.text(),aborted]);rawEvidence.push({method,path,httpStatus:response.status,responseText:text});
       return {ok:response.ok,status:response.status,text,json:()=>JSON.parse(text) as Record<string,unknown>};
     }catch{

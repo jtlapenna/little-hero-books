@@ -1,6 +1,6 @@
 # One-time unpaid conversion: design and release plan
 
-Status: prepared locally on top of main `1c34c6f`; not installed, deployed or executed. Three native draft cases already passed (W4 54690/54691 and W4.1 54692). Normal five flags, ordinary dispatch, original workflow copies and customer delivery remain OFF. No paid production or live cancellation is authorized.
+Status: PR #16 installed/deployed on main `9305591`; exact hosted SQL and rollback-only ownership checks passed. The first website attempt stopped before provider response/send/PATCH and closed; the provider remains draft. A Worker transport follow-up is prepared separately; no real regular conversion has yet occurred. Three native draft cases already passed (W4 54690/54691 and W4.1 54692). Normal five flags, ordinary dispatch, original workflow copies and customer delivery remain OFF. No paid production or live cancellation is authorized.
 
 ## Problem and bounded behavior
 

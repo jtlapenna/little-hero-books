@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-16T02:25:02.662Z",
+  "guardPr": 16,
+  "guardMergeSource": "930559193ab37a6ff9766f5cf9529d742282ca77",
+  "productionDeployRun": 38839789406,
+  "migration": {
+    "sha256": "cf4979ed5aa84b33a8f3d0a8a239c255999e693897782d36933b3fb1f069b102",
+    "bytes": 13226,
+    "exactFunctionBodies": true,
+    "metadata": {
+      "at": "2026-10-16T02:16:46.074473+00:00",
+      "rls": true,
+      "trigger": "O",
+      "functions": {
+        "begin_gelato_engineering_conversion": {
+          "md5": "a0bee1841bdb4a7ebe2a69a380e1b31d",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        },
+        "close_gelato_engineering_conversion": {
+          "md5": "8cc28511fd6df5c348906ea06b102614",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        },
+        "guard_gelato_engineering_conversion": {
+          "md5": "0eb3389d9b572571a70a7cd2612e48dd",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        },
+        "finish_gelato_engineering_conversion": {
+          "md5": "53a764a9289310a64631e2eacbe1573c",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        },
+        "gelato_engineering_conversion_matches": {
+          "md5": "b959664f49816577767a16313b8f98ce",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        },
+        "authorize_gelato_engineering_conversion_send": {
+          "md5": "9dfc636ccaee2b7f3d89ed0f38dbc6ed",
+          "config": [
+            "search_path=public, pg_temp"
+          ],
+          "anonExecute": false,
+          "publicExecute": false,
+          "serviceExecute": true,
+          "securityDefiner": false,
+          "authenticatedExecute": false
+        }
+      },
+      "anonSelect": false,
+      "serviceClose": true,
+      "notifications": 0,
+      "serviceDelete": false,
+      "serviceExtend": false,
+      "serviceInsert": true,
+      "serviceSelect": true,
+      "normalDispatch": false,
+      "authorizationRows": 0,
+      "openNativeWindows": 0,
+      "authenticatedSelect": false
+    },
+    "rollbackOnlyProbe": {
+      "at": "2026-10-16T02:17:15.378091+00:00",
+      "rollbackOnly": true,
+      "normalDispatch": false,
+      "customerIntents": 0,
+      "providerRequests": 0,
+      "authorizationRows": 0
+    }
+  },
+  "case": "website-single",
+  "nativeExecution": "54690",
+  "conversionAuthorizationId": "d49a61dc-462c-4408-b6d1-196448166459",
+  "submissionId": "ac80a50f-797a-4d29-9cd3-ce146f8f8740",
+  "providerRootId": "bcad4c36-7cd0-48c3-9f23-b6e5cb5ad9be",
+  "authorizationState": "preflight_failed",
+  "sendStartedAt": null,
+  "closedAt": "2026-10-16T02:24:52.258892+00:00",
+  "backendResponseAt": "2026-10-16T02:24:52.348Z",
+  "providerHttpAttempts": [
+    {
+      "method": "GET",
+      "path": "/orders/bcad4c36-7cd0-48c3-9f23-b6e5cb5ad9be",
+      "httpStatus": null,
+      "responseBodyPresent": false
+    }
+  ],
+  "persistenceConfirmed": true,
+  "closureConfirmed": true,
+  "providerReadAfter": {
+    "orderType": "draft",
+    "financialStatus": "draft",
+    "fulfillmentStatus": "draft"
+  },
+  "normalControlsAfter": {
+    "at": "2026-10-16T02:25:02.662Z",
+    "source": "930559193ab37a6ff9766f5cf9529d742282ca77",
+    "deployment": "9ddae06c-9726-4121-b6a8-dd208f94ec49",
+    "normalFlagsOff": true,
+    "normalDispatch": false,
+    "allWorkflowCopiesInactive": true,
+    "customerIntents": 0
+  },
+  "customerMessages": false,
+  "paymentChanges": false,
+  "paidPrinting": false,
+  "boundary": "Runtime preflight failure, not a provider payment-required response. The authorization remains consumed and closed; send marker is null and no PATCH was attempted. Node accepts redirect:error but the production-config Worker rejects it before outbound access. A new real-engine regression reproduced preflight_failed before the fix and converted after manual mode; all 15 redirects remain unfollowed. Fresh website native identity required for another conversion test."
+}
