@@ -1,0 +1,7 @@
+# Historical conversion operator reference
+
+These are redacted archived sources used for the company-profile checkpoint, not executable release tooling. Paths are placeholders. No credentials, recipient, source seal, plan, claimed webhook body, PDF or private raw response is included. Live reuse requires owner-approved account/recipient access, an adapted source review, fresh immutable identities and source/key/PDF bindings, exclusive durable intent journal and independent closure. Never replay a consumed conversion, change its authorization to retry, or fund an account to get past a test boundary.
+
+The generic operator can handle three exact planned cases; this checkpoint attempted only website-single. Both Amazon cases stayed unconsumed after the common company-profile error. The plan builder binds fresh website B plus the two recorded Amazon A proofs. All normal controls remain false; the operator may insert only exact conversion authorities and call the internal one-time endpoint. Its direct provider access is GET-only. The internal endpoint performs at most one PATCH after checking SQL ownership, funding attestation, canonical/provider file bytes and fresh quote.
+
+The independent closer attempts all three conversion IDs and both native closure groups even when an earlier group fails. The archive needs live tests only after account setup is resolved; its mock test proves route fencing, failed-response evidence retention, no replay and all-target cleanup, not Gelato acceptance.

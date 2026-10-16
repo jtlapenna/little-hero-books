@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-16T03:19:37.327967+00:00",
+  "source": "Actual deployed native workflow executions and fresh provider GETs/quote-only diagnostic reprices",
+  "main": "d866e0541832b6f3ddaa9703aa4672b696bcd17b",
+  "prs": [
+    14,
+    15,
+    16,
+    17
+  ],
+  "normalOrderingClosed": true,
+  "paidPrinting": false,
+  "paymentChanges": false,
+  "customerMessages": false,
+  "cases": [
+    {
+      "case": "website-single",
+      "status": "Passed with real provider evidence.",
+      "boundary": "Native canonical W0/claim/W4 or W4.1 with explicitly synthetic W3 source; unconverted draft. Does not prove real checkout, W1-W3 generation, production validation or paid fulfillment.",
+      "executionId": "54694",
+      "workflowId": "At1t6ATc9JN5MpD7",
+      "workflowVersionId": "14d129e6-f157-44f2-8b6e-f5b257c428c7",
+      "workflowGraphSha256": "a39e8b2dae5584e914f26aa94db74a2924e48a2821db23eeeb5fa9a392ece02c",
+      "rawExecutionGraphSha256": "e458a4922e6539d96390c77fa92e7be82e58dee164b4a9501e4a71af0f65e2d1",
+      "submissionId": "f2eed8aa-e1db-40ae-98de-6620760dc821",
+      "shippingTier": "standard",
+      "shipmentMethodUid": "usps_ground_advantage",
+      "artifacts": [
+        {
+          "childId": 1126,
+          "role": "WEB-A",
+          "sha256": "5ff4304a932844a40e3e2ce9ee7f215f58062b53a00c25f14035c5dd640dce43",
+          "bytes": 1985112,
+          "physicalInnerPages": 32,
+          "apiPageCount": 32,
+          "uploadPages": 35,
+          "sourceFingerprint": "1e1cc75daebf509f956fd4e5",
+          "providerStoredBytesMatch": true,
+          "processedFileUrlPresent": false
+        }
+      ],
+      "providerOrders": [
+        {
+          "id": "6f32b4b1-0d36-4df9-8017-c74e3992e983",
+          "orderType": "draft",
+          "financialStatus": "draft",
+          "fulfillmentStatus": "draft",
+          "processingStatus": null,
+          "processingLogCount": 0,
+          "connectedOrderIds": [],
+          "receipts": [
+            {
+              "type": "contract",
+              "currency": "USD",
+              "transactionType": "purchase",
+              "isCalculated": true,
+              "productsPriceInitial": 0,
+              "productsPriceDiscount": 0,
+              "productsPrice": 0,
+              "productsPriceVat": 0,
+              "productsPriceInclVat": 0,
+              "shippingPriceInitial": 0,
+              "shippingPriceDiscount": 0,
+              "shippingPrice": 0,
+              "shippingPriceVat": 0,
+              "shippingPriceInclVat": 0,
+              "packagingPrice": 0,
+              "packagingPriceVat": 0,
+              "packagingPriceInclVat": 0,
+              "discount": 0,
+              "discountVat": 0,
+              "discountInclVat": 0,
+              "totalInitial": 0,
+              "total": 0,
+              "totalVat": 0,
+              "totalInclVat": 0
+            }
+          ],
+          "items": [
+            {
+              "id": "c7eac5af-6711-4df0-8d20-9a125cf6797b",
+              "itemReferenceId": "lhb-item-1126",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "quantity": 1,
+              "apiPageCount": 32,
+              "fulfillmentStatus": "created",
+              "processedFileUrlPresent": false,
+              "previewCount": 0,
+              "printJobCount": 0
+            }
+          ]
+        }
+      ],
+      "adminMappingsVerified": true,
+      "scopedRefreshVerified": true,
+      "customerNotificationIntents": 0,
+      "ordinaryRowsPreserved": true,
+      "normalControls": {
+        "at": "2026-10-16T03:14:42.809Z",
+        "source": "d866e0541832b6f3ddaa9703aa4672b696bcd17b",
+        "deployment": "6a08cb3a-0719-4c5c-a08a-bb4918c4a71f",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "normalCopiesInactive": true,
+        "runtimeDraftsEnabled": false
+      },
+      "quote": {
+        "nativeSelectionQuoteId": "0e5a5803-3f64-423c-a488-1a305f98a5e5",
+        "diagnosticRepriceQuoteId": "b218394d-0e92-4d09-b2f8-2d3a1fa921b4",
+        "rawResponseSha256": "fe71114c27a11fcb7e81a5f38b6b6935480d247642382155358f9c7f44884522",
+        "boundary": "Fresh same-input diagnostic reprice; original native monetary quote response is not persisted by application; no exact original quote-id monetary proof",
+        "products": [
+          {
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "pageCount": 32,
+            "price": 12.18,
+            "currency": "USD"
+          }
+        ],
+        "methods": [
+          {
+            "name": "USPS Ground Advantage",
+            "shipmentMethodUid": "usps_ground_advantage",
+            "type": "normal",
+            "price": 3.81,
+            "initialPrice": 3.81,
+            "currency": "USD",
+            "minDeliveryDays": 7,
+            "maxDeliveryDays": 11,
+            "minDeliveryDate": "2026-10-22",
+            "maxDeliveryDate": "2026-10-26",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "USPS Priority Mail Standard",
+            "shipmentMethodUid": "usps_priority_mail_standard",
+            "type": "express",
+            "price": 9.22,
+            "initialPrice": 9.22,
+            "currency": "USD",
+            "minDeliveryDays": 6,
+            "maxDeliveryDays": 7,
+            "minDeliveryDate": "2026-10-21",
+            "maxDeliveryDate": "2026-10-22",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "UPS Surepost",
+            "shipmentMethodUid": "ups_surepost",
+            "type": "normal",
+            "price": 14.32,
+            "initialPrice": 14.32,
+            "currency": "USD",
+            "minDeliveryDays": 7,
+            "maxDeliveryDays": 8,
+            "minDeliveryDate": "2026-10-22",
+            "maxDeliveryDate": "2026-10-23",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "UPS Ground Residential",
+            "shipmentMethodUid": "ups_ground_residential",
+            "type": "normal",
+            "price": 18.61,
+            "initialPrice": 18.61,
+            "currency": "USD",
+            "minDeliveryDays": 6,
+            "maxDeliveryDays": 7,
+            "minDeliveryDate": "2026-10-21",
+            "maxDeliveryDate": "2026-10-22",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "UPS 3 Day Select",
+            "shipmentMethodUid": "ups_3_day_select",
+            "type": "normal",
+            "price": 25.35,
+            "initialPrice": 25.35,
+            "currency": "USD",
+            "minDeliveryDays": 7,
+            "maxDeliveryDays": 7,
+            "minDeliveryDate": "2026-10-22",
+            "maxDeliveryDate": "2026-10-22",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "USPS Priority Mail Express",
+            "shipmentMethodUid": "usps_priority_mail_express",
+            "type": "express",
+            "price": 29.12,
+            "initialPrice": 29.12,
+            "currency": "USD",
+            "minDeliveryDays": 6,
+            "maxDeliveryDays": 7,
+            "minDeliveryDate": "2026-10-21",
+            "maxDeliveryDate": "2026-10-22",
+            "packageCount": 1,
+            "totalWeight": 229
+          },
+          {
+            "name": "UPS 2 Day",
+            "shipmentMethodUid": "ups_2_day",
+            "type": "express",
+            "price": 29.81,
+            "initialPrice": 29.81,
+            "currency": "USD",
+            "minDeliveryDays": 6,
+            "maxDeliveryDays": 6,
+            "minDeliveryDate": "2026-10-21",
+            "maxDeliveryDate": "2026-10-21",
+            "packageCount": 1,
+            "totalWeight": 229
+          }
+        ],
+        "selected": {
+          "name": "USPS Ground Advantage",
+          "shipmentMethodUid": "usps_ground_advantage",
+          "type": "normal",
+          "price": 3.81,
+          "initialPrice": 3.81,
+          "currency": "USD",
+          "minDeliveryDays": 7,
+          "maxDeliveryDays": 11,
+          "minDeliveryDate": "2026-10-22",
+          "maxDeliveryDate": "2026-10-26",
+          "packageCount": 1,
+          "totalWeight": 229
+        },
+        "productLineTotal": 12.18,
+        "productPlusSelectedShippingExcludingUnreportedTaxOrFees": 15.99,
+        "taxesOrOtherFeesReported": false,
+        "draftReceiptExplanation": "Provider draft receipt reports isCalculated=true and zero amounts, while the fresh quote has nonzero estimated cost. Financial state remains draft; this is not an invoice, actual billing or proof of free fulfillment. Difference remains a draft-state boundary, with no real order estimate yet."
+      }
+    }
+  ],
+  "finalClosure": {
+    "at": "2026-10-16T03:15:05.608Z",
+    "closed": true,
+    "controls": [
+      {
+        "control": "window:TEST-GELATO-A-76r1vgdvcv8pro9ridvvkkl2ie",
+        "verified": true
+      },
+      {
+        "control": "unclaimed-hold:TEST-GELATO-S-76r1vgdvcv8pro9ridvvkkl2ie-item-2",
+        "verified": true
+      },
+      {
+        "control": "window:TEST-GELATO-W-76r1vgdvcv8pro9ridvvkkl2ie",
+        "verified": true
+      },
+      {
+        "control": "unclaimed-hold:TEST-GELATO-S-76r1vgdvcv8pro9ridvvkkl2ie-item-1",
+        "verified": true
+      },
+      {
+        "control": "unclaimed-hold:TEST-GELATO-A-76r1vgdvcv8pro9ridvvkkl2ie",
+        "verified": true
+      },
+      {
+        "control": "unclaimed-hold:TEST-GELATO-W-76r1vgdvcv8pro9ridvvkkl2ie",
+        "verified": true
+      },
+      {
+        "control": "window:TEST-GELATO-S-76r1vgdvcv8pro9ridvvkkl2ie",
+        "verified": true
+      },
+      {
+        "control": "dedicated-copy:TEST-GELATO-UNPAID-e6d87f06-fd9f-4677-84ee-4dffe94a8a4e-siblings",
+        "verified": true
+      },
+      {
+        "control": "dedicated-copy:TEST-GELATO-UNPAID-e6d87f06-fd9f-4677-84ee-4dffe94a8a4e-single",
+        "verified": true
+      },
+      {
+        "control": "dedicated-workflow-copies",
+        "verified": true
+      },
+      {
+        "control": "normal-copy-OFF:8ZqgZ7ksY0Fj8Acx",
+        "verified": true
+      },
+      {
+        "control": "normal-dispatch-OFF",
+        "verified": true
+      },
+      {
+        "control": "normal-copy-OFF:d7wi1rS0CxGVdRVb",
+        "verified": true
+      },
+      {
+        "control": "normal-runtime-OFF",
+        "verified": true
+      },
+      {
+        "control": "normal-project-serving-flags-OFF",
+        "verified": true
+      }
+    ],
+    "normalControlsWritten": false,
+    "paidPrinting": false,
+    "customerMessages": false
+  },
+  "remaining": [
+    "Subsequent conversion hit company-profile prerequisite; no-payment processing boundary remains untested",
+    "Lifecycle polling/real available signals/admin financial and processing observations",
+    "Original native monetary quote response is not persisted; reprice evidence is separate",
+    "Physical production, actual charges, printing, shipping, delivery and received-book inspection require specific approval"
+  ],
+  "reproduction": "Recorded receipt consistency is offline evidence verification. Live reproduction requires fresh identities, source review, private account/recipient access and new immutable assets; never replay these consumed claims/webhooks."
+}
