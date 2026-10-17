@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Order } from '@/types/order';
 import { gelatoStatusLabel } from '@/lib/books/gelato-status';
+import type { GelatoPrintInspection } from '@/lib/books/gelato-admin-inspection';
+import { GelatoObservationDetails } from './gelato-observation-details';
 
-type Inspection = { submissionId: string | null; state: string; canRefresh: boolean; canRecover: boolean; canCancel?: boolean;
-  orders: Array<{ id: string; status: string; orderType: string; actionReason: string | null }>;
-  notifications?: Array<{ id: string; notification_type: string; delivery_state: string; attempt_result: string | null }>;
-  items: Array<{ active?: boolean; orderId: string; status: string; actionReason: string | null }> };
+type Inspection = GelatoPrintInspection;
 
 export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () => Promise<void> }) {
   const [details, setDetails] = useState<Inspection | null>(null);
@@ -70,6 +69,7 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
     {!details && !error && <p role="status" className="text-sm text-gray-600">Loading print details…</p>}
+    {details && <GelatoObservationDetails details={details} />}
     {details && details.orders.length === 0 && <p className="text-sm text-gray-600">{details.state === 'not_submitted' ? 'No Gelato submission yet.' : 'Provider acceptance is not confirmed. Check the saved submission before creating another draft.'}</p>}
     {details?.orders.map((entry) => <div key={entry.id} className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm font-medium text-gray-900">{gelatoStatusLabel(entry.status, entry.orderType, entry.actionReason)}</p>

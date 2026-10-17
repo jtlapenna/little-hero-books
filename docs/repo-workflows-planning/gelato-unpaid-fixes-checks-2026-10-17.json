@@ -1,0 +1,387 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-17",
+  "scope": "Local uncommitted unpaid engineering; synthetic transports and disposable PostgreSQL only",
+  "head": "c2c9093e3785594b7a144619b1e848c3cebe431a",
+  "fetchedMainBeforeWork": "c2c9093e3785594b7a144619b1e848c3cebe431a",
+  "nodeVersion": "20.19.4",
+  "liveMutations": false,
+  "liveProviderOrOrderRequests": false,
+  "pendingOrdersTouched": false,
+  "fundingPrintingOrCustomerMessages": false,
+  "hostedChecksForThisDelta": "Not run: changes are local and uncommitted",
+  "sourceControlDefaults": "All six Gelato enable flags false; no registration, credential or schedule installed",
+  "currentLiveControlAttestation": "Not repeated in this local-only phase; historical receipts remain timestamped evidence",
+  "passedSyntheticScripts": [
+    "test-w4-print-submitted.ts",
+    "test-print-submitted-provider-boundary.ts",
+    "test-print-submitted-persistence.ts",
+    "test-lulu-status-map.ts",
+    "test-gelato-api-contract.ts",
+    "test-gelato-consumer-contract.ts",
+    "test-gelato-consumer-api.ts",
+    "test-gelato-attention-recovery-api.ts",
+    "test-approval-gelato-status-consumer.ts",
+    "test-preview-book-contract.ts",
+    "test-gelato-scheduled-status.ts",
+    "test-gelato-financial-observation.ts",
+    "test-gelato-admin-inspection.tsx",
+    "test-gelato-lifecycle.ts",
+    "test-gelato-notifications.ts",
+    "test-gelato-submission.ts",
+    "test-gelato-engineering-conversion.ts",
+    "test-gelato-engineering-ownership.ts",
+    "test-gelato-engineering-automation.ts",
+    "test-gelato-engineering-automation-runtime.ts",
+    "test-gelato-webhook-status.ts",
+    "test-gelato-poll-stored-file.ts",
+    "test-gelato-runtime-bindings.mjs",
+    "test-admin-auth.ts (Node 20 --experimental-global-webcrypto)"
+  ],
+  "database": {
+    "passed": true,
+    "engine": "Disposable PostgreSQL 17, Unix socket only",
+    "checks": [
+      "fresh and forward migration idempotence",
+      "service_role/anon privileges and RLS",
+      "existing ownership, suppression, recovery and conversion regressions",
+      "empty opt-in cohort and key binding",
+      "seven-job fairness and lease/token/expiry/revocation",
+      "Retry-After and stable terminal lookback",
+      "two-connection SKIP LOCKED",
+      "financial bootstrap, hold and graph rollback",
+      "revision CAS for identical snapshots and stale holds",
+      "both manual/scheduled overlap directions",
+      "historical ad3074d7 schema plus populated original cases, forward migrations twice, unchanged history and absent new financial evidence",
+      "exact fresh/forward function parity"
+    ]
+  },
+  "builds": {
+    "next": "Passed with synthetic database settings",
+    "openNextAndPostbuild": "Passed with synthetic database settings",
+    "deployment": "Not performed"
+  },
+  "typecheck": {
+    "passed": false,
+    "postbuildDiagnosticCount": 388,
+    "changedOrNewPathDiagnosticCount": 0,
+    "note": "Full typecheck remains non-green after Next/OpenNext generates route types. All 41 modified/new backend paths were checked against diagnostics with zero matching errors. Temporary baseline copy was incomplete and is not used to claim exact historical-count equivalence."
+  },
+  "lint": {
+    "changedOrNewPathsExceptStatusService": "Passed across all 33 changed/new TS/TSX/MJS paths excluding status-service",
+    "statusService": "Three inherited no-explicit-any errors, also present in HEAD source"
+  },
+  "independentReview": {
+    "callback": "Clear after exact-row identity and persistence fixes; canonical status fixture comparison retained",
+    "data": "Receipt ownership and malformed-identifier findings fixed and independently rechecked; finance suite passed",
+    "runtimeAndAdmin": "Clear at integrated main c2c9093e; main async JWT/bearer verification retained. Signed-file Worker fixture binding fixed after independent failure proof and re-review; Node/Miniflare passes.",
+    "ciAndRollout": "Clear integrated checkpoint; all main manual reviewed-SHA and hosted-check gates retained; caller-commit reusable safety jobs added; all 27 npm invocations resolve."
+  },
+  "limits": [
+    "Hosted security settings and printer-file authority rollout not re-attested; retain current main security release prerequisites",
+    "Hosted exact-commit checks, migrations and enabled isolated scheduler not performed",
+    "No numeric provider quota or runtime/cadence SLA established",
+    "Focused Worker bundle is not a deployed OpenNext instance",
+    "Short file fixtures prove byte/association paths, not production PDF geometry or provider prepress",
+    "Admin consumer rendered as static React markup, no browser/device layout proof",
+    "Financial estimates do not establish actual charges or final invoice reconciliation",
+    "Normal automatic release/conversion, finished creative and actual physical lifecycle remain separate work",
+    "No complete fulfillment or end-to-end completion claim"
+  ],
+  "assessmentBaseline": "3c2e693c1664156863c0c1046ffd4928947eecd5",
+  "historicalPr24": "ad3074d708f926264a4bb6636fd2d45e33b4c56e",
+  "branch": "codex/gelato-unpaid-fixes",
+  "lockedDependencies": "Isolated npm ci --ignore-scripts from integrated package lock; jose 6.2.12; shared checkout dependencies unchanged",
+  "exactSafetyWorkflowCommands": [
+    {
+      "command": "npm run test:workflow-export-secrets",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-workflow-copies",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-submission-runtime",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-runtime-bindings",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-submission",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:w0-publication",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-lifecycle",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-engineering-conversion",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-engineering-automation",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-webhook-status",
+      "exit": 0
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-poll-stored-file.ts",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-engineering-conversion-worker",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-worker-files",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-api-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-consumer-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-consumer-api",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-attention-recovery-api",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:approval-gelato-status-consumer",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:preview-book-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:w4-print-submitted",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:print-submitted-provider-boundary",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:lulu-status-map",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-scheduled-status",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-financial-observation",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:gelato-admin-inspection",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:workflow-export-secrets -- --all",
+      "exit": 0
+    }
+  ],
+  "sourceFiles": [
+    {
+      "sha256": "2d6c4fd4a09cc35f806e4e38fb54c87295e9f6b1f7070fcdaec7bfb6713d3b99",
+      "path": ".github/workflows/check-workflow-export-secrets.yml"
+    },
+    {
+      "sha256": "316abcab3443a2bbd7355c53fd9b1129e9957827caf238b306c09532d08428cb",
+      "path": ".github/workflows/deploy-cloudflare-pages.yml"
+    },
+    {
+      "sha256": "8f74c8ad421f929573f32a7a5d0a4e9d3a016fcf465d1f65f91f312131289a57",
+      "path": "back-end/package.json"
+    },
+    {
+      "sha256": "3d63826a5eabcf63189f62e3a66e622a2483ff4727539ef28bc6b629ac278464",
+      "path": "back-end/scripts/check-gelato-financial-migration.mjs"
+    },
+    {
+      "sha256": "cfd24da25963e4e3544f3bd71c1ff560fd1e1ef7eaf74fb8a6c440d9dfebe797",
+      "path": "back-end/scripts/prepare-gelato-runtime-bindings.mjs"
+    },
+    {
+      "sha256": "75fd53fd1e7135477375d478850f439131d6ea543304809c32acf31207077381",
+      "path": "back-end/scripts/test-gelato-admin-inspection.tsx"
+    },
+    {
+      "sha256": "760d5c37813131fdd0214676e2b14237cb19071faa38b54d43b5660e9a0626c2",
+      "path": "back-end/scripts/test-gelato-engineering-automation-runtime.ts"
+    },
+    {
+      "sha256": "0ce5a00beb0496faf7769760fb81b7b8bad4cdfcc2caabd2efa829eb2fc1efc0",
+      "path": "back-end/scripts/test-gelato-engineering-automation.ts"
+    },
+    {
+      "sha256": "8556f1beabb4b9027a0ed515ec45206fae2ed81681b71fbc99a1296e6c54731d",
+      "path": "back-end/scripts/test-gelato-financial-observation.ts"
+    },
+    {
+      "sha256": "cbab9fe2c58a1d29c94025b4b4a69b90f6a09f14b14f0a08ce67e36bcaf818aa",
+      "path": "back-end/scripts/test-gelato-financial-observations.sql"
+    },
+    {
+      "sha256": "a32f35b9da369e6d2425d4832253681df81c4e087994a3790ff2317135309616",
+      "path": "back-end/scripts/test-gelato-forward-upgrade.sh"
+    },
+    {
+      "sha256": "af08344888b32c27ef32dbe1280eb85c0dfe039142737c2a473a425711e97884",
+      "path": "back-end/scripts/test-gelato-poll-stored-file.ts"
+    },
+    {
+      "sha256": "4ca733395e40844133a9d080f4bb18161caf4100517ee87ebb9e4fd5279b7a76",
+      "path": "back-end/scripts/test-gelato-print-submissions.sh"
+    },
+    {
+      "sha256": "e77b686720f67473aff25621b059761a68412f97b65e4a77c56196073edf4756",
+      "path": "back-end/scripts/test-gelato-print-submissions.sql"
+    },
+    {
+      "sha256": "f8585ade31bee2a6bc69bd437c1ecce71287d68356856c2ae01607a200fcf34d",
+      "path": "back-end/scripts/test-gelato-scheduled-status.sql"
+    },
+    {
+      "sha256": "e2255a5b5830d65b04366cac902d54784858b1c838aab69204678bff47cfc9e6",
+      "path": "back-end/scripts/test-gelato-scheduled-status.ts"
+    },
+    {
+      "sha256": "38fcf75fc92e4dfcb84a03ec33af13c30804c57ab04a773970abb3990bf135a3",
+      "path": "back-end/scripts/test-gelato-webhook-status.ts"
+    },
+    {
+      "sha256": "76c7327d1580b7baad95d89a3210dc75d5b71f4ffe8a1448c54eab6e16a4a7d4",
+      "path": "back-end/scripts/test-print-submitted-persistence.ts"
+    },
+    {
+      "sha256": "c230b3979ad20b2a3b8c8fb42ce534153b58ac562ffb233180dcbc0f4531d3c4",
+      "path": "back-end/scripts/test-print-submitted-provider-boundary.ts"
+    },
+    {
+      "sha256": "ae7b5d8ea07e160c5fd595793a3f1ee3a60096a62e6bd0b87a6a69cd2780bcea",
+      "path": "back-end/scripts/test-w4-print-submitted.ts"
+    },
+    {
+      "sha256": "21614574af3b8ea7720d1887372e8c0ca256d93cf3e21223bc83bf9f3a1c6c05",
+      "path": "back-end/src/app/api/admin/gelato-print/route.ts"
+    },
+    {
+      "sha256": "4f0e02a0006e9dcf35bb78e28662a6c5ac7a1c12e2fa425b3a1d69f2700ad4c0",
+      "path": "back-end/src/app/api/cron/gelato-status/route.ts"
+    },
+    {
+      "sha256": "e853b064ac9a55ebc78b55c6ee9f81228b088bf2aff472ffca366663c15b1ba9",
+      "path": "back-end/src/app/api/webhooks/gelato/route.ts"
+    },
+    {
+      "sha256": "ae8913c894b9054ae563800fe0a6fcacc52bab90de0e647a7b1fc6ce05f9587b",
+      "path": "back-end/src/app/api/webhooks/print-submitted/route.ts"
+    },
+    {
+      "sha256": "b48cf127aaa5ba2745344cc1f5b21e85e4677262be8419277a22662decb6bea0",
+      "path": "back-end/src/components/stages/gelato-observation-details.tsx"
+    },
+    {
+      "sha256": "06ede94a111c4195b9754dd3e891ca9e444832cff2c1c4984c0ca8996fbd58dc",
+      "path": "back-end/src/components/stages/gelato-stage.tsx"
+    },
+    {
+      "sha256": "c312a5dab9b284d89bcdbcf92929015737b601399f7cb75e3efb9c5fa957c185",
+      "path": "back-end/src/lib/books/gelato-admin-inspection.ts"
+    },
+    {
+      "sha256": "03256be48586899ae3ce294cf7990243eafdacadc0ee8603bb61bdffd30335ac",
+      "path": "back-end/src/lib/books/gelato-api-client.ts"
+    },
+    {
+      "sha256": "65c123f5f7cbd41398a98bcee9f2a2483214d2ea77c41f66498570cfa6ee5c95",
+      "path": "back-end/src/lib/books/gelato-engineering-automation-runtime.ts"
+    },
+    {
+      "sha256": "1f69a212ae8c97bbe8e883469cd93203aeb7cf010c95e60668b3c291e9723e1f",
+      "path": "back-end/src/lib/books/gelato-engineering-conversion-runtime.ts"
+    },
+    {
+      "sha256": "96ad71333c2b421adbfb467706a55bd021da690557c24abe3c330f3c3322a648",
+      "path": "back-end/src/lib/books/gelato-financial-observation.ts"
+    },
+    {
+      "sha256": "ef4e27dff62510ea53a1f5e1490d27a7bd944baefefd02a1b65202f72f7db6b5",
+      "path": "back-end/src/lib/books/gelato-lifecycle.ts"
+    },
+    {
+      "sha256": "820bfdd5c59e60b02d761661c82bda6443158f1a2dae7ae883359e06cfd33bce",
+      "path": "back-end/src/lib/books/gelato-polling.ts"
+    },
+    {
+      "sha256": "830f5c19a246114337f47d59a5cd3a0d69edeb78b999b32f302e32f6c591de81",
+      "path": "back-end/src/lib/books/gelato-provider-snapshot.ts"
+    },
+    {
+      "sha256": "9ac1c3f8ae0c5ae05a71083615f2f955ac856a3e32e25b8837f223d104012ce7",
+      "path": "back-end/src/lib/books/gelato-scheduled-status.ts"
+    },
+    {
+      "sha256": "4f34e261c4c188a7320ba340aa9da32b86cb8c794a61ea43f16966bc6280fa75",
+      "path": "back-end/src/lib/books/gelato-status.ts"
+    },
+    {
+      "sha256": "b2e6344de98f97699d44b73644ee156c28e16ca29c69845903ab96e51102bdfb",
+      "path": "back-end/src/lib/books/gelato-submission-store.ts"
+    },
+    {
+      "sha256": "aeaac15799ed36a9c5a724e422131daaaadd5840f89cbfadb8eba9b4ddeb2ec6",
+      "path": "back-end/src/lib/books/gelato-submission.ts"
+    },
+    {
+      "sha256": "d0a4ba760377bb94ad14065dee12fae43ced8546105301b54f8d4493d99eecd0",
+      "path": "back-end/src/lib/books/gelato-webhook-runtime.ts"
+    },
+    {
+      "sha256": "206fb219176d973abe911c25cf1e8a3a06b92341d0186a3c4ce905a886d1ffc5",
+      "path": "back-end/src/lib/books/gelato-webhook.ts"
+    },
+    {
+      "sha256": "ae0e6208841af76bee9d3294eae7fab89059cd210f3e010fc1c8d17c9c4a0259",
+      "path": "back-end/src/lib/lulu-print-completion.ts"
+    },
+    {
+      "sha256": "e4ad31fed34e1e22bf3220c3cc5751f2fb2f818e835b9ce782396d88c605232e",
+      "path": "back-end/src/lib/status-service.ts"
+    },
+    {
+      "sha256": "6bddeef21f228ede1f6fd06396d7c48703bc9739790e76c1aedfa713c6e679dd",
+      "path": "back-end/wrangler.toml"
+    },
+    {
+      "sha256": "df410f1950053aa3f79550b893b64b6daf203f6947cbf7c53845ace786452f5a",
+      "path": "database/20261017200507_gelato_scheduled_status.sql"
+    },
+    {
+      "sha256": "b01ba50f0ab0a2ab2e622c071b7cc9270c42594f05f9b169303d27de34f2d3ab",
+      "path": "database/20261017201742_gelato_financial_observations.sql"
+    },
+    {
+      "sha256": "91a5bb528443eb50488f3bb9d48efec8a234231353e1df071eb2e3b575ff3be9",
+      "path": "database/migration-print-provider-fields.sql"
+    }
+  ]
+}

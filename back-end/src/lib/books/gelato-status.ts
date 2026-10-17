@@ -1,12 +1,12 @@
 export const GELATO_PREPRODUCTION_STATUSES = ['created', 'uploading', 'passed', 'pending_approval', 'pending_personalization', 'not_connected', 'on_hold'] as const;
 export const GELATO_STATUSES = [...GELATO_PREPRODUCTION_STATUSES, 'draft', 'digitizing', 'in_production', 'printed', 'shipped', 'in_transit', 'delivered', 'canceled', 'failed', 'returned'] as const;
 export type GelatoStatus = typeof GELATO_STATUSES[number];
-const preproduction = [...GELATO_PREPRODUCTION_STATUSES, 'in_production', 'printed', 'shipped', 'in_transit', 'delivered', 'canceled', 'failed'];
+const preproduction = [...GELATO_PREPRODUCTION_STATUSES, 'in_production', 'printed', 'shipped', 'in_transit', 'delivered', 'returned', 'canceled', 'failed'];
 const transitions: Record<string, readonly string[]> = {
   created: preproduction, uploading: preproduction, passed: preproduction, pending_approval: preproduction,
   pending_personalization: preproduction, not_connected: preproduction,
-  in_production: ['in_production', 'on_hold', 'printed', 'shipped', 'in_transit', 'delivered', 'canceled', 'failed'],
-  printed: ['printed', 'on_hold', 'shipped', 'in_transit', 'delivered', 'canceled', 'failed'],
+  in_production: ['in_production', 'on_hold', 'printed', 'shipped', 'in_transit', 'delivered', 'returned', 'canceled', 'failed'],
+  printed: ['printed', 'on_hold', 'shipped', 'in_transit', 'delivered', 'returned', 'canceled', 'failed'],
   shipped: ['shipped', 'on_hold', 'in_transit', 'delivered', 'returned', 'failed'],
   in_transit: ['in_transit', 'on_hold', 'delivered', 'returned', 'failed'],
   delivered: ['delivered', 'returned'], canceled: ['canceled'], failed: ['failed'], returned: ['returned'],

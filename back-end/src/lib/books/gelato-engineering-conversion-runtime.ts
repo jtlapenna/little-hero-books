@@ -5,7 +5,7 @@ import { createGelatoSubmissionStore, type GelatoSubmissionStore } from './gelat
 import { createGelatoStoredFileVerifier } from './gelato-stored-file';
 import type { EngineeringConversionDependencies } from './gelato-engineering-conversion';
 
-const controlNames = ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+const controlNames = ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED','GELATO_SCHEDULED_STATUS_ENABLED'];
 type Sources = { environment?: Record<string, string | undefined>; database?: SupabaseClient; store?: GelatoSubmissionStore; fetcher?: typeof fetch };
 export async function readEngineeringArtifact(load: (signal: AbortSignal) => Promise<Response>, budgetMs=30_000): Promise<Uint8Array> {
   const controller=new AbortController();

@@ -1,6 +1,7 @@
 import { GelatoIdSchema, GelatoProviderOrderSchema, type GelatoProviderOrder } from './gelato-provider-snapshot';
 import { z } from 'zod';
 import type { GelatoDraftOrderRequest, GelatoQuoteRequest } from './gelato-api-contract';
+import { observeGelatoFinance } from './gelato-financial-observation';
 
 const GELATO_API_BASE = 'https://order.gelatoapis.com/v4';
 
@@ -33,6 +34,18 @@ export type GelatoClientDependencies = {
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 };
+
+export class GelatoProviderReadError extends Error {
+  constructor(readonly classification: 'rate_limited' | 'provider_unavailable' | 'provider_rejected' | 'timeout' | 'invalid_snapshot',
+    readonly httpStatus?: number, readonly retryAfterSeconds?: number) {
+    super(`Gelato observation failed: ${classification}`);
+  }
+}
+export function gelatoRetryAfter(value: string | null, now = Date.now()): number | undefined {
+  if (!value?.trim()) return undefined;
+  const seconds = /^\d+$/.test(value.trim()) ? Number(value) : (Date.parse(value) - now) / 1000;
+  return Number.isFinite(seconds) ? Math.min(86400, Math.max(0, Math.ceil(seconds))) : undefined;
+}
 
 async function postGelato<T>(path: string, body: unknown, dependencies: GelatoClientDependencies): Promise<T> {
   const apiKey = dependencies.apiKey ?? process.env.GELATO_API_KEY;
@@ -105,12 +118,14 @@ export async function getGelatoOrder(id: string, dependencies: GelatoClientDepen
   let response: Response;
   try {
     response = await (dependencies.fetcher ?? fetch)(`${GELATO_API_BASE}/orders/${encodeURIComponent(safeId)}`, {
-      headers: { 'X-API-KEY': apiKey },
+      headers: { 'X-API-KEY': apiKey }, redirect: 'manual',
       signal: dependencies.signal ? AbortSignal.any([dependencies.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
-  } catch { throw new Error('Gelato order lookup did not complete'); }
-  if (!response.ok) throw new Error(`Gelato order lookup failed with HTTP ${response.status}`);
-  return GelatoProviderOrderSchema.parse(await response.json());
+  } catch { throw new GelatoProviderReadError(dependencies.signal?.aborted ? 'timeout' : 'provider_unavailable'); }
+  if (!response.ok) throw new GelatoProviderReadError(response.status === 429 ? 'rate_limited' : response.status >= 500 ? 'provider_unavailable' : 'provider_rejected', response.status, gelatoRetryAfter(response.headers.get('retry-after')));
+  try { const raw: unknown = await response.json(); const parsed = GelatoProviderOrderSchema.parse(raw);
+    return { ...parsed, financialObservation: observeGelatoFinance(raw, parsed.currency) }; }
+  catch { throw new GelatoProviderReadError('invalid_snapshot'); }
 }
 
 export async function searchGelatoOrders(orderReferenceId: string, dependencies: GelatoClientDependencies = {}): Promise<string[]> {

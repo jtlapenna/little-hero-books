@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
-import { updateOrderStatus } from '@/lib/status-service';
+import { persistLuluPrintCompletion } from '@/lib/lulu-print-completion';
 import { recordWorkflowJobEventResponse } from '@/app/api/internal/workflow-jobs/log-event/route';
 import { completeW4PrintJobForOrder, completeW4SiblingJobForGroup } from '@/lib/workflow-jobs';
 import { getActivePreviewToken, getPreviewTokenForOrderLink } from '@/lib/preview-tokens';
@@ -47,6 +47,7 @@ const MultiPayloadSchema = WorkflowMetadataSchema.extend({ orderIds: z.array(z.s
 const PayloadSchema = z.union([SinglePayloadSchema, MultiPayloadSchema]);
 
 type PrintSubmittedPayload = z.infer<typeof PayloadSchema>;
+type JsonRecord = Record<string, unknown>;
 type PrintSubmittedResult = {
   orderId: string;
   success: boolean;
@@ -60,7 +61,7 @@ type PrintSubmittedResult = {
 
 type PrintSubmittedDependencies = {
   getOrder: typeof getOrderFromSupabase;
-  updateOrderStatus: typeof updateOrderStatus;
+  persistCompletion: typeof persistLuluPrintCompletion;
   getActivePreviewToken: typeof getActivePreviewToken;
   getPreviewTokenForOrderLink: typeof getPreviewTokenForOrderLink;
   sendAmazonPrintSubmittedMessage: typeof sendAmazonPrintSubmittedMessage;
@@ -72,7 +73,7 @@ type PrintSubmittedDependencies = {
 
 const defaultDependencies: PrintSubmittedDependencies = {
   getOrder: getOrderFromSupabase,
-  updateOrderStatus,
+  persistCompletion: persistLuluPrintCompletion,
   getActivePreviewToken,
   getPreviewTokenForOrderLink,
   sendAmazonPrintSubmittedMessage,
@@ -83,6 +84,12 @@ const defaultDependencies: PrintSubmittedDependencies = {
 };
 
 type PrintSubmittedOrder = {
+  print_provider?: string | null;
+  print_submission_id?: string | null;
+  gelato_order_id?: string | null;
+  gelato_order_type?: string | null;
+  gelato_status?: string | null;
+  lulu_job_id?: string | number | null;
   orderId?: string | null;
   amazon_order_id?: string | null;
   platform?: string | null;
@@ -254,7 +261,8 @@ export async function handlePrintSubmitted(
   }
 
   const payload = parseResult.data;
-  const orderIds = 'orderIds' in payload ? payload.orderIds : [payload.orderId];
+  const orderIds = [...new Set('orderIds' in payload ? payload.orderIds : [payload.orderId])];
+  if (orderIds.length > 100) return { ok: false as const, status: 400, body: { error: 'Print callback group is too large' } };
   const nonProduction = isNonProductionSubmit(payload);
   const submitMode = normalizeSubmitMode(payload.submitMode);
   const hasSharedWorkflowMetadata = Boolean(
@@ -270,29 +278,64 @@ export async function handlePrintSubmitted(
       : 'http://localhost:4321');
   let sharedWorkflowMarked = false;
   const luluJobId = toTrimmedString(payload.luluJobId);
-  const { status: luluStatus } = normalizeLuluStatus(payload.luluStatus);
+  const { status: payloadLuluStatus } = normalizeLuluStatus(payload.luluStatus);
 
-  for (const orderId of orderIds) {
-    const order = await dependencies.getOrder(orderId).catch(() => null) as PrintSubmittedOrder | null;
-    if (!order) {
-      results.push({ orderId, success: false, error: 'Order not found' });
-      continue;
+  // Resolve the entire requested group before any legacy workflow/write/send effect.
+  // Payload labels and notification flags cannot override persisted provider ownership.
+  const orders = await Promise.all(orderIds.map(async orderId =>
+    await dependencies.getOrder(orderId).catch(() => null) as PrintSubmittedOrder | null));
+  if (orders.some(order => !order)) return { ok: false as const, status: 404, body: { error: 'Order not found' } };
+  const resolved = orders as PrintSubmittedOrder[];
+  // This callback accepts canonical per-book keys only. General lookup tolerates
+  // PKs/prefixes, but token/workflow helpers interpret those strings differently.
+  if (resolved.some((order, index) => order.orderId !== orderIds[index])) {
+    return { ok: false as const, status: 409, body: { error: 'Print callback requires exact canonical order IDs' } };
+  }
+  if (resolved.some(order => {
+    const provider = toTrimmedString(order.print_provider);
+    const hasGelato = [order.print_submission_id, order.gelato_order_id, order.gelato_order_type, order.gelato_status].some(value => value != null);
+    // Predating provider routing, a persisted Lulu job is unambiguous legacy evidence.
+    return hasGelato || (provider !== 'lulu' && !(provider === null && toTrimmedString(order.lulu_job_id)));
+  })) return { ok: false as const, status: 409, body: { error: 'Legacy print callback requires unambiguous Lulu ownership for every order' } };
+  if (resolved.some(order => luluJobId && toTrimmedString(order.lulu_job_id) && toTrimmedString(order.lulu_job_id) !== luluJobId)) {
+    return { ok: false as const, status: 409, body: { error: 'Lulu callback job differs from the persisted job' } };
+  }
+  const storedStatuses = [...new Set(resolved.map(order => toTrimmedString((order as JsonRecord).lulu_status)).filter(Boolean))];
+  const luluStatus = payloadLuluStatus ?? (storedStatuses.length === 1 && resolved.every(order => toTrimmedString((order as JsonRecord).lulu_status)) ? storedStatuses[0] : null);
+  const acceptedStatuses = ['CREATED', 'UNPAID', 'PAYMENT_IN_PROGRESS', 'PRODUCTION_DELAYED', 'PRODUCTION_READY', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED', 'SUBMITTED'];
+  if (!nonProduction && (!luluStatus || !acceptedStatuses.includes(luluStatus.toUpperCase()) ||
+      resolved.some(order => !luluJobId && !toTrimmedString(order.lulu_job_id)))) {
+    return { ok: false as const, status: 409, body: { error: 'Lulu acceptance is not established' } };
+  }
+
+  if (!nonProduction) {
+    const nowIso = new Date().toISOString();
+    try {
+      for (const order of resolved) await dependencies.persistCompletion(order, {
+        execution_status: 'done', print_submitted_at: nowIso, started_at: null, current_workflow: null,
+        ...(luluJobId ? { lulu_job_id: luluJobId } : {}), ...(luluStatus ? { lulu_status: luluStatus } : {}),
+      });
+    } catch {
+      return { ok: false as const, status: 503, body: { error: 'Lulu completion persistence was not confirmed; no customer messages attempted' } };
     }
+  }
 
+  // Confirm all workflow updates before attempting the first message in a group.
+  for (const orderId of orderIds) {
     if (!markWorkflowOnce || !sharedWorkflowMarked) {
       try {
         await markW4PrintJobSubmitted(orderId, payload, nonProduction, dependencies);
         if (markWorkflowOnce) {
           sharedWorkflowMarked = true;
         }
-      } catch (workflowJobError) {
-        console.warn(
-          `[print-submitted] Non-fatal: failed to mark W4 workflow job complete for ${orderId}:`,
-          workflowJobError,
-        );
+      } catch {
+        return { ok: false as const, status: 503, body: { error: 'Lulu workflow completion was not confirmed; no customer messages attempted' } };
       }
     }
+  }
 
+  for (const [index, orderId] of orderIds.entries()) {
+    const order = resolved[index];
     if (nonProduction) {
       console.info('[print-submitted] Recorded non-production W4 completion', {
         orderId,
@@ -309,18 +352,6 @@ export async function handlePrintSubmitted(
       });
       continue;
     }
-
-    const nowIso = new Date().toISOString();
-    await dependencies.updateOrderStatus(orderId, {
-      execution_status: 'done',
-      print_submitted_at: nowIso,
-      started_at: null,
-      current_workflow: null,
-      ...(luluJobId ? { lulu_job_id: luluJobId } : {}),
-      ...(luluStatus ? { lulu_status: luluStatus } : {}),
-    }).catch((err) => {
-      console.error('[print-submitted] Failed to update order status:', err?.message ?? err);
-    });
 
     let token = await dependencies.getActivePreviewToken(orderId);
     if (!token) token = await dependencies.getPreviewTokenForOrderLink(orderId);

@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {build} from 'esbuild';
 import {Miniflare,Response as WorkerResponse} from 'miniflare';
 import {NextRequest} from 'next/server';
-const bindings={SUPABASE_URL:'https://synthetic-automation.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-automation-bearer-authority-at-least-thirty-two-bytes',GELATO_API_KEY:'explicit-test-key',CLOUDFLARE_ACCOUNT_ID:'synthetic-automatic',CLOUDFLARE_R2_ACCESS_KEY_ID:'synthetic-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'synthetic-secret',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_CANCEL_ENABLED:'false',GELATO_STATUS_RELAY_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'};
+const bindings={SUPABASE_URL:'https://synthetic-automation.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-automation-bearer-authority-at-least-thirty-two-bytes',GELATO_API_KEY:'explicit-test-key',CLOUDFLARE_ACCOUNT_ID:'synthetic-automatic',CLOUDFLARE_R2_ACCESS_KEY_ID:'synthetic-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'synthetic-secret',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_CANCEL_ENABLED:'false',GELATO_STATUS_RELAY_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_SCHEDULED_STATUS_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'};
 async function main(){
  Object.assign(process.env,bindings);
  const {fixture}=await import('./test-gelato-engineering-automation');

@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 export const GELATO_RUNTIME_FLAGS = Object.freeze([
   'GELATO_DRAFT_SUBMISSION_ENABLED', 'GELATO_CANCEL_ENABLED', 'GELATO_STATUS_RELAY_ENABLED',
   'GELATO_STATUS_POLLING_ENABLED', 'GELATO_NOTIFICATIONS_ENABLED',
+  'GELATO_SCHEDULED_STATUS_ENABLED',
 ]);
 class BindingPreparationError extends Error {}
 const requireValue = (condition, message) => { if (!condition) throw new BindingPreparationError(message); };

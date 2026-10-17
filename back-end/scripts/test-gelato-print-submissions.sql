@@ -193,7 +193,7 @@ SELECT 'Gelato draft persistence atomicity and replay: ok' AS result;
 DO $$ DECLARE s uuid; expected jsonb; results jsonb; result jsonb; token uuid;
 BEGIN
  SELECT id,claim_token INTO s,token FROM public.print_provider_submissions WHERE workflow_job_idempotency_key='cp1-key';
- SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
  -- Authoritative draft conversion may keep the provider timestamp unchanged.
  UPDATE public.print_provider_submission_items SET status='created' WHERE submission_id=s;
  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('d',64),'status','created','orderType','order','accepted',true,'actionReason',NULL,
@@ -207,7 +207,7 @@ BEGIN
    RAISE EXCEPTION 'Equal-time conversion did not project atomically with unchanged provider time'; END IF;
  IF EXISTS(SELECT 1 FROM public.print_provider_submission_notifications WHERE submission_id=s) THEN RAISE EXCEPTION 'Created conversion emitted customer intent'; END IF;
  PERFORM pg_temp.expect_error(format('SELECT public.apply_gelato_provider_snapshots(%L,%L,%L)',s,expected,results),'changed concurrently');
- SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('c',64),'status','in_production','orderType','order','accepted',true,'actionReason',NULL,
    'snapshot',jsonb_set(jsonb_set(jsonb_set(snapshot,'{updatedAt}',to_jsonb(clock_timestamp()+interval '1 minute')),'{orderType}','"order"'),'{fulfillmentStatus}','"in_production"'),
    'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','in_production','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))
@@ -215,7 +215,7 @@ BEGIN
  PERFORM public.apply_gelato_provider_snapshots(s,expected,results);
  IF (SELECT count(*) FROM public.orders WHERE id IN (80,81) AND gelato_status='in_production' AND gelato_order_type='order')<>2 THEN RAISE EXCEPTION 'Provider refresh projection failed'; END IF;
  PERFORM pg_temp.expect_error(format('SELECT public.apply_gelato_provider_snapshots(%L,%L,%L)',s,expected,results),'changed concurrently');
- SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
  PERFORM public.hold_gelato_provider_refresh(s,expected,'provider_refresh_requires_review');
  IF EXISTS(SELECT 1 FROM public.orders WHERE id IN (80,81) AND (gelato_status<>'in_production' OR gelato_action_reason<>'provider_refresh_requires_review')) THEN RAISE EXCEPTION 'Refresh hold regressed accepted state'; END IF;
  SELECT id,claim_token INTO s,token FROM public.print_provider_submissions WHERE workflow_job_idempotency_key='root-complete';
@@ -258,7 +258,7 @@ BEGIN
  SELECT id INTO s FROM public.print_provider_submissions WHERE workflow_job_idempotency_key='cp1-key';
  UPDATE public.print_provider_submissions SET request_snapshot=jsonb_set(request_snapshot,'{notificationTargets}',
   '[{"childOrderId":80,"childOrderKey":"CP1-80","platform":"d2c","customerEmail":"test@example.com","childName":"Test","amazonOrderId":null,"amazonOrderItemId":null},{"childOrderId":81,"childOrderKey":"CP1-81","platform":"d2c","customerEmail":"test@example.com","childName":"Test","amazonOrderId":null,"amazonOrderItemId":null}]') WHERE id=s;
- SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('d',64),'status','in_production','orderType','order','accepted',true,'actionReason',NULL,
    'snapshot',jsonb_set(snapshot,'{updatedAt}',to_jsonb(clock_timestamp()+interval '2 minutes')),
    'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','in_production','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))
@@ -351,7 +351,7 @@ BEGIN
    INTO graph FROM public.print_provider_submission_items i CROSS JOIN LATERAL jsonb_array_elements(request->'items') item
    WHERE i.submission_id=s AND item->>'itemReferenceId'=i.item_reference_id;
   PERFORM public.persist_gelato_draft_result(s,token,'notice-execution-'||case_id,graph);
-  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
+  SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected FROM public.print_provider_submission_orders WHERE submission_id=s;
   SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',repeat('c',64),'status','in_production','orderType','order','accepted',true,'actionReason',NULL,
    'snapshot',jsonb_set(jsonb_set(jsonb_set(snapshot,'{updatedAt}',to_jsonb(clock_timestamp()+interval '1 minute')),'{orderType}','"order"'),'{fulfillmentStatus}','"in_production"'),
    'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','in_production','orderType','order','actionReason',NULL,'tracking','[]'::jsonb))

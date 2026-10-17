@@ -15,11 +15,22 @@ async function main() {
   let canonicalWrites = 0;
   let artifactReads = 0;
   let streamCanceled = false;
+  let registered = false, claimAvailable = true, cleanupFailure = true, finishes = 0;
   const database = createClient('https://db.example.test', 'synthetic-key', { global: { fetch: async (input, init) => {
     const url = new URL(String(input));
     assert.equal(url.hostname, 'db.example.test');
     if (init?.signal?.aborted) return new Response(JSON.stringify({ message: 'Aborted' }), { status: 499 });
     const table = url.pathname.split('/').pop();
+    if (registered && table === 'claim_gelato_scheduled_status') {
+      const rows = claimAvailable ? [{ submission_id: submissionId, lease_token: token }] : [];
+      claimAvailable = false; return Response.json(rows);
+    }
+    if (registered && table === 'finish_gelato_scheduled_status') {
+      assert(!init?.signal?.aborted, 'Cleanup uses an independent signal');
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.p_error_class, 'timeout'); assert.equal(body.p_poll_token, token); finishes++;
+      return cleanupFailure ? Response.json({ message: 'Synthetic unavailable cleanup' }, { status: 503 }) : Response.json(null);
+    }
     if (table === 'list_gelato_poll_candidates') return Response.json([{ id: submissionId, request_state: 'submitted' }]);
     if (url.pathname.includes('/rpc/')) { canonicalWrites++; throw new Error('Unexpected live-signal write'); }
     const records = table === 'print_provider_submissions' ? [submission] : table === 'print_provider_submission_items' ? [member] : table === 'print_provider_submission_orders' ? [storedProvider] : [];
@@ -46,8 +57,22 @@ async function main() {
     assert.equal(result.checked, 1); assert.equal(result.errors, 1); assert.equal(result.refreshed, 0); assert.equal(result.delivered, 0);
     assert.equal(canonicalWrites, 0, 'aborted store cannot persist a hold, status or notification');
     assert.ok(Date.now() - started < 500, 'poll file read must honor the shared deadline');
+    registered = true; streamCanceled = false;
+    const { pollRegisteredGelatoStatus } = await import('../src/lib/books/gelato-scheduled-status');
+    const options = { enabled: true, apiKey: 'synthetic-dedicated-status', budgetMs: 450, candidateBudgetMs: 60, cleanupBudgetMs: 75 };
+    const dedicated = await pollRegisteredGelatoStatus(database, options);
+    assert.equal(dedicated.checked, 1); assert.equal(dedicated.errors, 2, 'Work timeout and unavailable cleanup are both visible');
+    assert.equal(streamCanceled, true); assert.equal(finishes, 1); assert.equal(canonicalWrites, 0);
+    const leased = await pollRegisteredGelatoStatus(database, options);
+    assert.equal(leased.checked, 0, 'A failed cleanup cannot make an owned lease immediately claimable');
+    // SQL suite proves actual lease expiry/token revocation. Here model the next
+    // lease granted after that boundary and exercise the actual runtime again.
+    claimAvailable = true; cleanupFailure = false;
+    const retry = await pollRegisteredGelatoStatus(database, options);
+    assert.equal(retry.checked, 1); assert.equal(retry.errors, 1); assert.equal(finishes, 2);
+    assert.equal(canonicalWrites, 0); assert.equal(retry.delivered, 0);
   } finally { clearTimeout(watchdog); globalThis.fetch = originalFetch; }
-  console.log('Gelato actual poll runtime: stalled file aborts without writes or notifications');
+  console.log('Gelato legacy + registered actual runtimes: stalled R2 body cancels; bounded independent cleanup, failed-cleanup lease hold and retry; no canonical writes/messages');
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
