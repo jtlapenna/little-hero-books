@@ -61,7 +61,7 @@
       "transfer_file": "runner-reference/attempt-3/verify-deployed.mjs.reference.txt",
       "source_file": "gelato-proof/attempt-3/verify-deployed.mjs",
       "source_sha256": "df7aafd41097839790a5d3daae6681443f631bce5cc4641b5aef85a700bc0b63",
-      "transfer_sha256": "e7a90d14d7e23175248134a710c1ae93c537685082ea4823deb3c6e2bc2beb17"
+      "transfer_sha256": "8ab28ab521de7f069bfe5f6a06c7b187c3064c27ed093c24fd89a14b16851309"
     },
     {
       "transfer_file": "runner-reference/attempt-3/window.mjs.reference.txt",
@@ -115,7 +115,7 @@
       "transfer_file": "runner-reference/attempt-4/verify-deployed.mjs.reference.txt",
       "source_file": "gelato-proof/attempt-4/verify-deployed.mjs",
       "source_sha256": "6551adb21535be6ae8213c14d5ae0b6a6eea21f6e72f7f6de415bddf7d951f9a",
-      "transfer_sha256": "1efa4b4d55c151c6b100748671873899f7edb49588a54e8f9eb99bd116e3aebd"
+      "transfer_sha256": "a810ca63716c17783c9d9fe7a715c47191b3436c7788682977a1b10e6c5c0d55"
     },
     {
       "transfer_file": "runner-reference/attempt-4/window.mjs.reference.txt",
@@ -175,7 +175,7 @@
       "transfer_file": "runner-reference/attempt-5/verify-deployed.mjs.reference.txt",
       "source_file": "gelato-proof/attempt-5/verify-deployed.mjs",
       "source_sha256": "a02ea488bc48902b909fbf3edd553bc965d9a7e1f4e3922fb344de7b6b1d3170",
-      "transfer_sha256": "8725714386d584dcb4c61c600943b459d0396858cf0945dfd5c1536b0e848d09"
+      "transfer_sha256": "1ada85084b2d1a585ee961ddd2fe170597ae4a29c0950b46f0e1c2b7c55d6d2a"
     },
     {
       "transfer_file": "runner-reference/attempt-5/window.mjs.reference.txt",
@@ -463,7 +463,7 @@
       "transfer_file": "review-history/deployed-foundation-final-review-summary.json",
       "source_file": "release-safety/deployed-foundation-final-review.json",
       "source_sha256": "50d9190b9f83b09f07eeb3a2903fdd43350725583d9ca9927bd497cef07118a3",
-      "transfer_sha256": "168938096ff931b588b875b6577334c47ee7755f902c9c8c79155c9b3ef33d55"
+      "transfer_sha256": "6c7c1fa19e7f95f62e5a120fb147300945cace9a7c7cceae6b0e2daf0795d887"
     },
     {
       "transfer_file": "review-history/diagnostic-checkpoint-summary.json",
@@ -535,13 +535,13 @@
       "transfer_file": "review-history/pre-runtime-final-review-summary.json",
       "source_file": "release-safety/pre-runtime-final-review.json",
       "source_sha256": "44185e214a9ee4ed78cce0d554ef12a1565a54d38f9f061b3a1f654ef14bfc07",
-      "transfer_sha256": "5efba62f4ff27cedd3c95eb60d2aa437589cb01c93d68b6316e241f35ae1acfc"
+      "transfer_sha256": "c5622be1134d56d6e4a2b96098e3608a276626d8cb2fc3127a5c202e539a8937"
     },
     {
       "transfer_file": "review-history/previous-review-before-schema-checkpoint-summary.json",
       "source_file": "release-safety/previous-review-before-schema-checkpoint.json",
       "source_sha256": "7c4e200587d628e432ed6457673bf52fcf6a6f9e4c58775aad39abebadc3ea21",
-      "transfer_sha256": "0ac9f66206713a33ba024895bf95d0fc516ca8f8f0dbfc95ac66e3bcff12cc5c"
+      "transfer_sha256": "18450e5a123d9dee6406c98968ded15b766a4c6ac5c8c1980f6e63cb6cd70a6d"
     },
     {
       "transfer_file": "review-history/provider-contract-review-summary.json",
@@ -571,7 +571,7 @@
       "transfer_file": "review-history/runtime-preparation-checkpoint-summary.json",
       "source_file": "release-safety/runtime-preparation-checkpoint.json",
       "source_sha256": "91c03480bdef006e7efa0a446784b9f0cfe76819d589e57b7d3c8e04178bc27a",
-      "transfer_sha256": "86a7f553641f3dff5c78b9c668827528747bc55c402df35bcc9f5dee3ccdfb30"
+      "transfer_sha256": "3eaecb1b30f81df12dc0709703013263bc82816fff33c1053c0f9f20f490fee8"
     },
     {
       "transfer_file": "review-history/schema-checkpoint-review-20261013-summary.json",

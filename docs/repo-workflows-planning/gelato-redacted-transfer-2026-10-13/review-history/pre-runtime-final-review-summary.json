@@ -136,7 +136,7 @@
       ],
       "continuation": {
         "preview_api": "Actual token POST both books, valid/used/expired x pending/approved PASS; before-fix missing manifest3Key failure observed.",
-        "preview_browser": "Actual API synthetic output; fast/delayed/blocked hydration, subscriber cleanup, token states, canonical/legacy/null/missing paths, replay, navigation, zoom, correction and approval PASS.",
+        "preview_browser": "Actual API synthetic output; fast/delayed/blocked hydration, subscriber cleanup, preview link states; canonical, legacy, null and missing paths, replay, navigation, zoom, correction and approval PASS.",
         "visual": "Phone390x844/tablet768x1024/desktop synthetic screenshots inspected; width equals viewport. Independent invalid-action probes repeated after fixes.",
         "stored_file_service": "Copied URL service regression failed before repair; submission, refresh and recovery equality/changed-byte cases PASS after repair.",
         "stored_file_transport": "Host, receipt, per-file/aggregate budget, abort and actual R2 error text-trap/cancel PASS.",
