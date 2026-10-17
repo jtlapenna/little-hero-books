@@ -1,4 +1,4 @@
-process.env.BACKEND_API_TOKEN = 'synthetic-printer-file-signing-authority-only-12345';
+process.env.BACKEND_API_TOKEN ??= 'synthetic-printer-file-signing-authority-only-12345';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
@@ -17,25 +17,26 @@ import {pollGelatoPrintProvider} from '../src/lib/books/gelato-polling';
 
 const hash=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
 const token='22222222-2222-4222-8222-222222222222',aid='33333333-3333-4333-8333-333333333333',owner='44444444-4444-4444-8444-444444444444';
-export async function fixture(format:'standard'|'amazon'='standard',count=1,index=0,storedFiles=false){
+export async function fixture(format:'standard'|'amazon'='standard',count=1,index=0,storedFiles=false,clock=new Date('2026-10-16T12:00:00Z')){
+ const at=(minutes=0)=>new Date(clock.getTime()+minutes*60_000).toISOString();
  const id=index?'11111111-1111-4111-8111-'+String(index).padStart(12,'0'):'11111111-1111-4111-8111-111111111111',aid=index?'33333333-3333-4333-8333-'+String(index).padStart(12,'0'):'33333333-3333-4333-8333-333333333333';
  const providerId=index?'provider-automatic-'+index:'provider-automatic';
  const root='TEST-GELATO-AUTOMATION-'+format+(index?'-'+index:''),config=GelatoPrintConfigSchema.parse(configFile.formats[format].print);
  const blobs=new Map<string,Buffer>(),rows=new Map<string,Record<string,unknown>>();
- const context:GelatoSubmissionContext={submission:{id,provider:'gelato',root_order_id:root,order_reference_id:'lhb-automatic-test-'+index,workflow_job_idempotency_key:'synthetic-job',claim_token:token,lease_expires_at:'2026-10-16T12:15:00Z',request_state:'claimed',owning_execution_id:null,send_started_at:null,accepted_root_order_id:null,quote_snapshot:null,request_snapshot:null,quote_id:null,shipment_method_uid:null,shipment_policy_version:null,quoted_at:null,quote_request_fingerprint:null},members:[],providerOrders:[]};
+ const context:GelatoSubmissionContext={submission:{id,provider:'gelato',root_order_id:root,order_reference_id:'lhb-automatic-test-'+index,workflow_job_idempotency_key:'synthetic-job',claim_token:token,lease_expires_at:at(15),request_state:'claimed',owning_execution_id:null,send_started_at:null,accepted_root_order_id:null,quote_snapshot:null,request_snapshot:null,quote_id:null,shipment_method_uid:null,shipment_policy_version:null,quoted_at:null,quote_request_fingerprint:null},members:[],providerOrders:[]};
  for(let index=0;index<count;index++){
   const child=count===1?root:root+'-item-'+(index+1),key=`book-finding-our-inner-voice/orders/${child}/gelato/print/v2/${'a'.repeat(24)}.pdf`;
   blobs.set(key,Buffer.from('Synthetic child '+index+' '+format));
   context.members.push({submission_id:id,child_order_id:index+1,child_order_key:child,item_reference_id:'lhb-item-'+index,artifact_key:key,artifact_fingerprint:'a'.repeat(24),artifact_claim_token:token,pdf_page_count:35,provider_order_id:null,provider_item_id:null,status:null});
   rows.set(child,{id:index+1,orderId:child,root_order_id:root,book_specs:{testMode:true},print_provider:'gelato',print_submission_id:id,print_claim_token:token,print_book_id:'book-finding-our-inner-voice',print_format_id:format,print_config_version:2,print_product_uid:config.productUid,print_inner_page_count:32,print_api_page_count:32,print_expected_pdf_page_count:35,quantity:1,shipping_tier:'standard',customer_email:'synthetic@example.com',shipping_address:{name:'Taylor Example',street1:'1 Test St',city:'Seattle',state:'WA',zip:'98101',country:'US'}});
  }
- const producer:GelatoSubmissionDependencies={backendUrl:'https://admin.littleherolabs.com',draftsEnabled:false,now:()=>new Date('2026-10-16T12:00:00Z'),artifactExists:async key=>blobs.has(key),loadOrder:async key=>rows.get(key)??null,
+ const producer:GelatoSubmissionDependencies={backendUrl:'https://admin.littleherolabs.com',draftsEnabled:false,now:()=>new Date(clock),artifactExists:async key=>blobs.has(key),loadOrder:async key=>rows.get(key)??null,
   loadPrintInput:async key=>({orderId:key,orderDbId:rows.get(key)!.id,orderPrefix:'book-finding-our-inner-voice/orders/'+key,rootOrderId:root,bookConfigVersion:2,providerPrintConfig:config} as W4GelatoPrintInput),
   store:{load:async()=>context,transition:async(name,p)=>{assert.equal(name,'record_gelato_quote_snapshot');Object.assign(context.submission,{quote_snapshot:p.p_snapshot,quote_id:p.p_quote_id,shipment_method_uid:p.p_shipment_method_uid,shipment_policy_version:p.p_policy_version,quoted_at:p.p_quoted_at,quote_request_fingerprint:p.p_request_fingerprint});return null;}},
   quote:async r=>({orderReferenceId:r.orderReferenceId,quotes:[{id:'native',itemReferenceIds:r.products.map(p=>p.itemReferenceId),products:r.products,shipmentMethods:[{shipmentMethodUid:'usps_ground_advantage',type:'normal'}]}]})};
  await quoteGelatoSubmission({submissionId:id,claimToken:token,executionId:'synthetic-native',mode:count===1?'single':'siblings'},producer);
  const saved=context.submission.quote_snapshot as GelatoSavedSnapshot;
- let converted=false,patches=0,applies=0,holds=0;let connected:string[]=[],off=true,providerTime='2026-10-16T12:00:00Z';const gets:string[]=[];
+ let converted=false,patches=0,applies=0,holds=0;let connected:string[]=[],off=true,providerTime=at();const gets:string[]=[];
  const raw=()=>({...saved.request,id:providerId,orderType:converted?'order':'draft',fulfillmentStatus:converted?'created':'draft',financialStatus:converted?'pending':'draft',updatedAt:providerTime,connectedOrderIds:connected,items:saved.request.items.map((item,i)=>({...item,...(storedFiles?{files:[{type:'default',url:'https://gelato-api-live.s3.eu-west-1.amazonaws.com/automatic-fixture-'+i+'.pdf'}]}:{}),id:'provider-item-'+i,fulfillmentStatus:'created',processedFileUrl:null})),shipment:{shipmentMethodUid:saved.request.shipmentMethodUid,packages:[]},privateBilling:'PRIVATE-RAW-MARKER'});
  producer.engineeringDraftsAllowed=async()=>true;
  producer.verifyStoredFile=async()=>true;
@@ -52,9 +53,9 @@ export async function fixture(format:'standard'|'amazon'='standard',count=1,inde
   return {persisted:true};
  };
  await submitGelatoDraft({submissionId:id,claimToken:token,executionId:'synthetic-native',mode:count===1?'single':'siblings'},producer);
- const a={id:aid,submission_id:id,provider_root_id:providerId,account_key_sha256:hash('explicit-test-key'),owner_token:null as string|null,state:'ready',closed_at:null as string|null,expires_at:'2026-10-16T12:15:00Z',artifacts:context.members.map(m=>({child_order_id:m.child_order_id,artifact_key:m.artifact_key!,provider_item_id:m.provider_item_id!,sha256:hash(blobs.get(m.artifact_key!)!)}))};
- const conversion={apiKey:'explicit-test-key',normalControlsOff:true,now:()=>new Date('2026-10-16T12:00:00Z'),authorization:async()=>a,context:async()=>context,artifact:async(key:string)=>blobs.get(key)!,verifyFile:async()=>true,
-  closeOwned:async(authorizationId:string,t:string)=>{assert.equal(authorizationId,aid);assert.equal(t,owner);a.closed_at='2026-10-16T12:01:00Z';return true;},
+ const a={id:aid,submission_id:id,provider_root_id:providerId,account_key_sha256:hash('explicit-test-key'),owner_token:null as string|null,state:'ready',closed_at:null as string|null,expires_at:at(15),artifacts:context.members.map(m=>({child_order_id:m.child_order_id,artifact_key:m.artifact_key!,provider_item_id:m.provider_item_id!,sha256:hash(blobs.get(m.artifact_key!)!)}))};
+ const conversion={apiKey:'explicit-test-key',normalControlsOff:true,now:()=>new Date(clock),authorization:async()=>a,context:async()=>context,artifact:async(key:string)=>blobs.get(key)!,verifyFile:async()=>true,
+  closeOwned:async(authorizationId:string,t:string)=>{assert.equal(authorizationId,aid);assert.equal(t,owner);a.closed_at=at(1);return true;},
   transition:async(name:string,p:Record<string,unknown>)=>{assert.equal(p.p_id,aid);if(name==='begin_gelato_engineering_conversion'){assert.equal(a.state,'ready');assert.equal(a.closed_at,null);a.state='preparing';a.owner_token=owner;return a;}assert.equal(p.p_token,owner);if(name==='authorize_gelato_engineering_conversion_send'){assert.equal(a.state,'preparing');a.state='sending';return null;}assert.equal(name,'finish_gelato_engineering_conversion');a.state=String(p.p_state);return null;},
   fetcher:async(input:RequestInfo|URL,init?:RequestInit)=>{const u=new URL(String(input));assert.equal(u.origin,'https://order.gelatoapis.com');assert.equal(new Headers(init?.headers).get('X-API-KEY'),'explicit-test-key');assert.equal(init?.redirect,'manual');
    if(init?.method==='PATCH'){patches++;assert.equal(a.state,'sending');assert.equal(patches,1);assert.deepEqual(JSON.parse(String(init.body)),{orderType:'order'});converted=true;return Response.json(raw());}

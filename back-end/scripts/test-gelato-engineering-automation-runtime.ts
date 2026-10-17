@@ -4,14 +4,15 @@ import {resolve} from 'node:path';
 import {build} from 'esbuild';
 import {Miniflare,Response as WorkerResponse} from 'miniflare';
 import {NextRequest} from 'next/server';
-const bindings={SUPABASE_URL:'https://synthetic-automation.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-automation-bearer',GELATO_API_KEY:'explicit-test-key',CLOUDFLARE_ACCOUNT_ID:'synthetic-automatic',CLOUDFLARE_R2_ACCESS_KEY_ID:'synthetic-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'synthetic-secret',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_CANCEL_ENABLED:'false',GELATO_STATUS_RELAY_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'};
+const bindings={SUPABASE_URL:'https://synthetic-automation.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-automation-bearer-authority-at-least-thirty-two-bytes',GELATO_API_KEY:'explicit-test-key',CLOUDFLARE_ACCOUNT_ID:'synthetic-automatic',CLOUDFLARE_R2_ACCESS_KEY_ID:'synthetic-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'synthetic-secret',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_CANCEL_ENABLED:'false',GELATO_STATUS_RELAY_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'};
 async function main(){
  Object.assign(process.env,bindings);
  const {fixture}=await import('./test-gelato-engineering-automation');
+ assert.equal(process.env.BACKEND_API_TOKEN,bindings.BACKEND_API_TOKEN,'Imported producer fixture must preserve caller signing authority');
  const {POST}=await import('../src/app/api/internal/w4/engineering-automation/route');
  const {runEngineeringAutomation}=await import('../src/lib/books/gelato-engineering-automation');
  const {gelatoEngineeringAutomationRuntime}=await import('../src/lib/books/gelato-engineering-automation-runtime');
- let current=await fixture('amazon',2,0,true);let databaseWrites=0,artifactReads=0,storedReads=0;const requests:string[]=[];
+ let current=await fixture('amazon',2,0,true,new Date());let databaseWrites=0,artifactReads=0,storedReads=0;const requests:string[]=[];
  const handle=async(request:Request):Promise<Response>=>{
   const u=new URL(request.url);requests.push(request.method+' '+u.hostname+u.pathname);const c=current.context;
   if(u.origin===bindings.SUPABASE_URL){
@@ -37,7 +38,7 @@ async function main(){
   assert.equal(current.stats().patches,1);assert.equal(current.stats().applies,2);assert(artifactReads>0&&storedReads>0);assert(current.a.closed_at);assert.equal(current.context.providerOrders[0].order_type,'order');
   const before=databaseWrites;process.env.GELATO_NOTIFICATIONS_ENABLED='true';assert.equal((await POST(new NextRequest('https://admin.example.test/api/internal/w4/engineering-automation',{method:'POST',headers:{Authorization:'Bearer '+bindings.BACKEND_API_TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body('queue'))}))).status,409);assert.equal(databaseWrites,before);process.env.GELATO_NOTIFICATIONS_ENABLED='false';
   for(const stall of ['headers','body'])for(const action of ['poll','signal'] as const){let rowReads=0;globalThis.fetch=async(input,init)=>{const request=new Request(input,init);if(new URL(request.url).pathname.endsWith('/orders')&&++rowReads>current.rows.size){if(stall==='headers')return new Promise<Response>(()=>{});return new Response(new ReadableStream({pull:()=>new Promise<void>(()=>{})}));}return handle(request);};const runtime=gelatoEngineeringAutomationRuntime();runtime.statusBudgetMs=20;const start=Date.now();const result=runEngineeringAutomation(body(action),runtime);if(action==='signal')await assert.rejects(result,/deadline/);else assert.equal((await result).completed,false);assert(Date.now()-start<500);globalThis.fetch=async(input,init)=>handle(new Request(input,init));}
-  current=await fixture('amazon',2,0,true);requests.length=0;artifactReads=0;storedReads=0;
+  current=await fixture('amazon',2,0,true,new Date());requests.length=0;artifactReads=0;storedReads=0;
   const entry=`import {runEngineeringAutomation} from ${JSON.stringify(resolve('src/lib/books/gelato-engineering-automation.ts'))};import {gelatoEngineeringAutomationRuntime} from ${JSON.stringify(resolve('src/lib/books/gelato-engineering-automation-runtime.ts'))};export default {async fetch(r){return Response.json(await runEngineeringAutomation(await r.json(),gelatoEngineeringAutomationRuntime()));}};`;
   const settings=await fs.readFile('wrangler.toml','utf8'),date=settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1],flags=[...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1]??'').matchAll(/"([^"]+)"/g)].map(m=>m[1]);assert(date&&flags.length);
   const bundle=await build({stdin:{contents:entry,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['browser','module','main'],external:['node:*'],logLevel:'silent'});

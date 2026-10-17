@@ -1,4 +1,4 @@
-process.env.BACKEND_API_TOKEN = 'synthetic-printer-file-signing-authority-only-12345';
+process.env.BACKEND_API_TOKEN ??= 'synthetic-printer-file-signing-authority-only-12345';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import configFile from '../src/lib/books/configs/book-finding-our-inner-voice/v2.json';
