@@ -1,0 +1,29 @@
+{
+  "action": "Install page 28 selected pose and taller waiting-child starting placement",
+  "backup": "/Users/jeff/Projects/little-hero-books/output/pose-editor/inner-voice/reviews/2026-10-15/before-selected-page28-pose",
+  "beforeFingerprint": "e24180e379868ec4a205b2d39fbdf9a476239e03052a4ec2c9c013d13c1265d1",
+  "afterFingerprint": "df13f79dfd97e276f2247335344816be406aba943c9cf44bdb036127d568a85c",
+  "beforeSavedAt": "2026-10-16T02:40:52.418Z",
+  "savedAt": "2026-10-16T02:49:34.767Z",
+  "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/page-28-you-go-first-personalized-preview-v1.png",
+  "assetSha256": "e629a7f06c8fd050e2056be4d3bd524cec72470e565850969aa1687ecf76f8f2",
+  "heroVisible": {
+    "left": 1225.4476339148216,
+    "top": 1081.7301937989218,
+    "width": 563.7022367194782,
+    "height": 1076.25,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "waitingChildVisible": {
+    "left": 1853.5486123510245,
+    "top": 1082.419032179234,
+    "width": 410.96511627906983,
+    "height": 1071.0,
+    "flipX": false,
+    "zIndex": 11
+  },
+  "waitingChildScaleChange": 1.2,
+  "preservation": "All other pages preserved exactly. Page 28 notes preserved. Waiting child keeps feet baseline, horizontal center, orientation, source identity and proportions.",
+  "approval": "Hero pose selected for now. Both figures size and position remain open."
+}

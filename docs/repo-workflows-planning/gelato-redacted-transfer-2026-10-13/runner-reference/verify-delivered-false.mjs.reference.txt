@@ -1,0 +1,24 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const expected='4fb98c265bdad3482d6b9e31033437c8b18dce53';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
+async function read(url,headers){const r=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(30000)});assert.ok(r.ok);return r.json();}
+const account=e.CLOUDFLARE_ACCOUNT_ID||e.R2_ACCOUNT_ID;
+const p=await read('https://api.cloudflare.com/client/v4/accounts/'+account+'/pages/projects/little-hero-labs-admin',{Authorization:'Bearer '+e.CLOUDFLARE_API_TOKEN});assert.equal(p.success,true);const canonical=p.result.canonical_deployment;assert.equal(canonical.latest_stage.status,'success');assert.equal(canonical.deployment_trigger.metadata.commit_hash,expected);
+for(const flag of flags){assert.equal(p.result.deployment_configs.production.env_vars[flag].value,'false');assert.equal(canonical.env_vars[flag].value,'false');}
+const url='https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft';
+const denied=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(30000)});assert.equal(denied.status,401);assert.equal(denied.headers.get('cache-control'),'private, no-store');await denied.body?.cancel();
+const r=await fetch(url,{headers:{Authorization:'Bearer '+e.BACKEND_API_TOKEN},redirect:'error',signal:AbortSignal.timeout(30000)});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'private, no-store');const observation=await r.json();assert.deepEqual(Object.keys(observation).sort(),['contextAvailable','cloudflare','globalProcess','nodeProcess','draftsEnabled','buildTimestampMs'].sort());assert.equal(observation.contextAvailable,true);assert.equal(observation.draftsEnabled,false);assert.ok(Number.isFinite(observation.buildTimestampMs)&&observation.buildTimestampMs>0);
+for(const k of ['cloudflare','globalProcess','nodeProcess'])assert.deepEqual(observation[k],{present:true,isString:true,isTrue:false,isFalse:true});
+const db=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL;assert.equal(new URL(db).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');const key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;const rest=path=>read(db+'/rest/v1/'+path,{apikey:key,Authorization:'Bearer '+key});assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);
+const n8n=id=>read('https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/'+id,{'X-N8N-API-KEY':e.N8N_API_KEY});for(const id of ['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'])assert.equal((await n8n(id)).active,false);
+const baseline=JSON.parse(fs.readFileSync(directory+'/negative-journal.json'));for(const old of baseline.oldWorkflows){const w=await n8n(old.id);assert.equal(hash({active:w.active,nodes:w.nodes,connections:w.connections,settings:w.settings}),old.hash);}
+const orders=await rest('orders?select=*&order=id');for(const old of JSON.parse(fs.readFileSync(directory+'/seed-journal.json')).baseline){assert.equal(hash(orders.find(row=>row.id===old.id)),old.hash);}
+const submissions=await rest('print_provider_submissions?select=*&order=id');assert.equal(submissions.length,3);assert.equal(hash(submissions),JSON.parse(fs.readFileSync(directory+'/delivery-prepublication-data-audit.json')).retainedSubmissionsHash);assert.deepEqual(await rest('print_provider_submission_orders?select=provider_order_id'),[]);assert.deepEqual(await rest('print_provider_submission_notifications?select=id'),[]);
+const result={at:new Date().toISOString(),source:expected,deploymentId:canonical.id,observation,allFiveFlags:false,dbDispatch:false,copiesActive:false,originalNineUnchanged:true,originalFourWorkflowsUnchanged:true,orderCount:orders.length,unsentSubmissions:3,providerMappings:0,notifications:0};fs.writeFileSync(directory+'/delivered-false-evidence.json',JSON.stringify(result,null,2),{mode:0o600});console.log(JSON.stringify(result));

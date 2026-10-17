@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T22:12:39.947666+00:00",
+  "rationale": "Fresh synthetic source avoids artifact-bearing replay. Exact retained state guards preserve old1053 and54655. Two independent reviews clear contract and rollout slices; no release readiness judged.",
+  "branch": "codex/gelato-sandbox-rollout",
+  "base_ref": "origin/main",
+  "base_sha": "c0136e8890e4ed2fb56c712183e574ba26431747",
+  "head_sha": "2d2c83e7c5ea5aab032012dc4349675a7010f65b",
+  "checks": [
+    "Fresh seed local preflight passes configured canonical W0/W3 sources without production mutation.",
+    "Retained guard rejection mocks independently pass modified cardinality/submission/order/PDF/provider/outbox cases.",
+    "AllMJS syntaxchecks pass.",
+    "Source exports match reviewed merged main; original journals preserved."
+  ],
+  "findings": []
+}

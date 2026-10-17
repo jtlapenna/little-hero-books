@@ -1,0 +1,19 @@
+{
+  "layers": [
+    {
+      "page": 7,
+      "id": "hero",
+      "asset": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+      "initial": {
+        "left": 808.3371736431687,
+        "top": 1306.7012570859847,
+        "width": 221.04368699479372,
+        "height": 549.4812407842278,
+        "flipX": false,
+        "zIndex": 10
+      },
+      "poseApproval": "Approved by Jeff; position and size remain open.",
+      "pageNote": "New looking-up pose approved. Adjust its size and position here. Final 2K asset preparation remains pending."
+    }
+  ]
+}

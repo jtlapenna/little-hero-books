@@ -1,0 +1,31 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';import assert from 'node:assert/strict';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import {createClient} from '<WORKTREE>/back-end/node_modules/@supabase/supabase-js';
+import {createGelatoSubmissionStore} from '<WORKTREE>/back-end/src/lib/books/gelato-submission-store';
+import {quoteGelatoSubmission} from '<WORKTREE>/back-end/src/lib/books/gelato-submission';
+import {buildW4PrintInput} from '<WORKTREE>/back-end/src/lib/books/w4-print-input';
+import {assertW4GelatoPrintInput} from '<WORKTREE>/back-end/src/lib/books/w4-gelato-print-input';
+import {headObject,R2_ORDERS_BUCKET} from '<WORKTREE>/back-end/src/lib/r2-client';
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+for(const[k,v]of Object.entries(e))if(/^(R2_|CLOUDFLARE_R2_|CLOUDFLARE_ACCOUNT_ID)/.test(k))process.env[k]=v;
+const base=e.SUPABASE_URL||e.NEXT_PUBLIC_SUPABASE_URL,key=e.SUPABASE_SERVICE_ROLE_KEY||e.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;assert.equal(new URL(base).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const db=createClient(base,key,{auth:{persistSession:false,autoRefreshToken:false}}),actualStore=createGelatoSubmissionStore(db);
+const probe=JSON.parse(fs.readFileSync(dir+'/claim-probe-journal.json','utf8'));
+async function main(){
+const context=await actualStore.load(probe.result.body.submissionId);
+const loadOrder=async(orderId:string)=>{assert.ok(orderId.startsWith('TEST-GELATO-'));const r=await fetch(`${base}/rest/v1/orders?orderId=eq.${orderId}&select=*`,{headers:{apikey:key,Authorization:'Bearer '+key},redirect:'error'});assert.ok(r.ok);const rows=await r.json();assert.equal(rows.length,1);return rows[0];};
+const loadManifest=async(path:string)=>{assert.ok(path.includes('/orders/TEST-GELATO-'));const r=await fetch('https://admin.littleherolabs.com/api/manifests/'+path,{redirect:'error'});assert.ok(r.ok);return r.json();};
+const readOnlyStore={load:actualStore.load,transition:async()=>{throw new Error('Diagnostic forbids persistence');}};
+let phase='build';
+try{
+ await quoteGelatoSubmission({submissionId:context.submission.id,claimToken:context.submission.claim_token,executionId:'54655',mode:'single'}, {
+  store:readOnlyStore,backendUrl:'https://admin.littleherolabs.com',draftsEnabled:false,loadOrder,
+  loadPrintInput:async(orderId)=>assertW4GelatoPrintInput(await buildW4PrintInput({orderId},{loadManifest,loadOrder,defaultBackendUrl:'https://admin.littleherolabs.com',expectedProvider:'gelato'})),
+  artifactExists:async(path)=>{phase='artifact-head';const result=await headObject(R2_ORDERS_BUCKET,path);console.log(JSON.stringify({artifactHead:result.ok}));return result.ok;},
+  quote:async(request)=>{phase='provider-request-ready';fs.writeFileSync(dir+'/canonical-quote-request.json',JSON.stringify(request,null,2),{mode:0o600});throw new Error('Read-only diagnostic reached provider boundary');},
+ });
+}catch(error){console.log(JSON.stringify({phase,message:error instanceof Error?error.message:'Unknown diagnostic error',providerCall:false,write:false}));}
+}
+main().catch(error=>{console.error(error instanceof Error?error.message:'Diagnostic failed');process.exitCode=1;});

@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-13T22:02:16.444Z",
+  "execution": {
+    "id": 54655,
+    "status": "error",
+    "nodes": [
+      "Webhook (Gelato Intake)",
+      "Respond to Webhook (Ack)",
+      "Prepare Gelato Request",
+      "Assemble Gelato Print PDF",
+      "Check Gelato Assembly",
+      "Quote Gelato Submission"
+    ]
+  },
+  "submission": {
+    "provider": "gelato",
+    "request_state": "claimed",
+    "shipment_method_uid": null,
+    "shipment_policy_version": null,
+    "quoted_at": null,
+    "quote_request_fingerprint": null,
+    "owning_execution_id": null,
+    "send_started_at": null,
+    "accepted_root_order_id": null,
+    "action_reason": null,
+    "quote_present": false,
+    "quote_id_present": false,
+    "request_snapshot_present": false
+  },
+  "items": [
+    {
+      "item_reference_id": "lhb-item-1053",
+      "status": null,
+      "artifact_fingerprint": "05f5e7bad6d0cd75106bc830",
+      "pdf_page_count": 35,
+      "provider_order_id": null,
+      "provider_item_id": null,
+      "action_reason": null,
+      "progress_status": null
+    }
+  ],
+  "mapping_count": 0,
+  "graph_count": 0,
+  "artifact": {
+    "fingerprint": "05f5e7bad6d0cd75106bc830",
+    "bytes": 425891,
+    "sha256": "b101f5209864431b1d83356d5d5712f0a9ff506384eb07d28734ad960ec086a0",
+    "pages": 35
+  }
+}

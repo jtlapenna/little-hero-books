@@ -1,0 +1,2223 @@
+{
+  "schema": "lhb.placement-editor-seed@v1",
+  "bookId": "book-finding-our-inner-voice",
+  "configVersion": 2,
+  "formatId": "standard",
+  "units": 2625,
+  "font": "asset-0",
+  "sourceManifest": "/Users/jeff/Projects/little-hero-books/output/pdf/inner-voice-character-placement-2026-10-13/character-placement-manifest.json",
+  "pages": [
+    {
+      "page": 1,
+      "id": "page-01",
+      "title": "Title",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [
+        {
+          "text": "Finding Our Inner Voice",
+          "x": 517.734,
+          "y": 1073.8802083333333,
+          "size": 148.16666666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 2,
+      "id": "page-02",
+      "title": "Blank",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 3,
+      "id": "page-03",
+      "title": "Dedication",
+      "background": "asset-2",
+      "backgroundSha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766",
+      "lines": [
+        {
+          "text": "[Customer dedication message]",
+          "x": 646.5371354166666,
+          "y": 1212.7864583333333,
+          "size": 92.60416666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 4,
+      "id": "page-04",
+      "title": "Blank",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 5,
+      "id": "page-05",
+      "title": "Park arrival",
+      "background": "asset-3",
+      "backgroundSha256": "90af6b99bd0cc441d27a997eae2c1813c6d493aef2401013d4be4b44a045fc26",
+      "lines": [
+        {
+          "text": "This was Alexandra's favorite park in all of",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Grass Valley.",
+          "x": 166.6875,
+          "y": 300.63541666666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Swings squeaked. Sneakers thumped. Kids",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "laughed and called, \"Again, again!\"",
+          "x": 166.6875,
+          "y": 508.99479166666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra ran in, ready to play.",
+          "x": 166.6875,
+          "y": 624.75,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-arrival",
+          "label": "Child",
+          "asset": "asset-4",
+          "assetSha256": "f4a05ba4d0015c5753bcfd86b1acfdd48e66050ee4f402e7d0b3150c96817f3e",
+          "sourcePath": "hosted-generation/E/normalized/pose01.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            481,
+            199,
+            1441,
+            1858
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1050.0,
+            "top": 1259.9999999999998,
+            "width": 607.5949367088609,
+            "height": 1050.0,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 6,
+      "id": "page-06",
+      "title": "Park choices",
+      "background": "asset-5",
+      "backgroundSha256": "93c6f83b682c69a72af64144368619c1bddd7b394338024acd9f3dc52b5a753e",
+      "lines": [
+        {
+          "text": "Swings. Tunnels. Sand. A climbing wall like a",
+          "x": 648.2291666666666,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "mountain.",
+          "x": 648.2291666666666,
+          "y": 300.63541666666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra looked left, then right. \"What should",
+          "x": 648.2291666666666,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "I try first?\"",
+          "x": 648.2291666666666,
+          "y": 508.99479166666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Then came a whoosh from way up high.",
+          "x": 648.2291666666666,
+          "y": 624.75,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 7,
+      "id": "page-07",
+      "title": "The tall slide",
+      "background": "asset-6",
+      "backgroundSha256": "c1f3f8f62c1a91eb4afe4c7036c3cd15553fd6f6c3d75d38fd73bd2cc9a916e4",
+      "lines": [
+        {
+          "text": "It was the tall slide.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Kids climbed up. Kids sat down. Kids",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "whooshed all the way to the bottom.",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Again, again!\" they shouted.",
+          "x": 166.6875,
+          "y": 532.1458333333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra looked up.",
+          "x": 166.6875,
+          "y": 647.9010416666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "The slide looked fun. It also looked",
+          "x": 166.6875,
+          "y": 763.6562500000001,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "very, very tall.",
+          "x": 166.6875,
+          "y": 856.2604166666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-slide-awe",
+          "label": "Child",
+          "asset": "asset-45",
+          "assetSha256": "f4d19d9da2dca24bcb73a7660973606bd415b79a466eb038d590d0f1865cc54b",
+          "sourcePath": "output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+          "canvas": [
+            1254,
+            1254
+          ],
+          "bbox": [
+            392,
+            133,
+            816,
+            1187
+          ],
+          "crop": null,
+          "initial": {
+            "left": 808.3371736431687,
+            "top": 1306.7012570859847,
+            "width": 221.04368699479372,
+            "height": 549.4812407842278,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "poseApproval": "Approved by Jeff; position and size remain open."
+        }
+      ],
+      "note": "New looking-up pose approved. Adjust its size and position here. Final 2K asset preparation remains pending.",
+      "paper": null
+    },
+    {
+      "page": 8,
+      "id": "page-08",
+      "title": "At the top",
+      "background": "asset-8",
+      "backgroundSha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28",
+      "lines": [
+        {
+          "text": "Alexandra climbed to the top.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "The slide looked even longer from here.",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "x": 166.6875,
+          "y": 439.54166666666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra's tummy flipped. The top felt",
+          "x": 166.6875,
+          "y": 555.296875,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "small. The slide felt big.",
+          "x": 166.6875,
+          "y": 647.9010416666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra did not know what to do.",
+          "x": 166.6875,
+          "y": 763.6562500000001,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 9,
+      "id": "page-09",
+      "title": "Sad bedroom and first tiny voice",
+      "background": "asset-9",
+      "backgroundSha256": "1389eed71087b6902d3475b0f8ffebd1c6dec29fe5ead527a90d23b4a10b214f",
+      "lines": [
+        {
+          "text": "That night, Alexandra sat quietly on the bed. The slide was far",
+          "x": 166.6875,
+          "y": 1953.6197916666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "away. The big feeling was still there.",
+          "x": 166.6875,
+          "y": 2046.2239583333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "x": 166.6875,
+          "y": 2161.9791666666665,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra took a deep breath. The room grew quiet.",
+          "x": 166.6875,
+          "y": 2277.734375,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"That was scary,\" said a tiny voice. Alexandra nodded. \"Yes.\"",
+          "x": 166.6875,
+          "y": 2393.4895833333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Oh! You can hear me now.\"",
+          "x": 166.6875,
+          "y": 2509.2447916666665,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-sad-seated",
+          "label": "Child",
+          "asset": "asset-10",
+          "assetSha256": "e92841277309609d4d6ad68a6d43bd142377d4f294e76a19a1703fc7a2c79b2a",
+          "sourcePath": "hosted-generation/E/normalized/pose03.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            605,
+            176,
+            1344,
+            1944
+          ],
+          "crop": null,
+          "initial": {
+            "left": 997.5,
+            "top": 840.0,
+            "width": 384.0250282805429,
+            "height": 918.7499999999999,
+            "flipX": false,
+            "zIndex": 10
+          }
+        },
+        {
+          "id": "guide-portrait",
+          "reviewId": "animal-portrait",
+          "label": "Owl portrait",
+          "asset": "asset-11",
+          "assetSha256": "b295ce1c89a95ffef1476fdae6f06bd8a9671d28403a2db97dacdf686e4b0ea4",
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-portrait.png",
+          "canvas": [
+            1024,
+            1024
+          ],
+          "bbox": [
+            0,
+            0,
+            1024,
+            1024
+          ],
+          "crop": null,
+          "initial": {
+            "left": 307.12500000000006,
+            "top": 152.25000000000003,
+            "width": 223.12500000000003,
+            "height": 223.12500000000003,
+            "flipX": false,
+            "zIndex": 11
+          }
+        }
+      ],
+      "note": "Portrait moved into frame. Sitting pose needs bed contact review.",
+      "paper": {
+        "page": 9,
+        "polygonFractionsFromTop": [
+          [
+            0.096,
+            0.051
+          ],
+          [
+            0.234,
+            0.058
+          ],
+          [
+            0.232,
+            0.15
+          ],
+          [
+            0.096,
+            0.142
+          ]
+        ],
+        "color": "#fff9ee"
+      }
+    },
+    {
+      "page": 10,
+      "id": "page-10",
+      "title": "Bedroom light trail and gradual forest transition",
+      "background": "asset-12",
+      "backgroundSha256": "677d3b310344bdc876ee6fbb8510adcadc44fdebc79e29444634a00b1268ac64",
+      "lines": [
+        {
+          "text": "\"Who said that?\" asked",
+          "x": 1551.1197916666667,
+          "y": 263.59375000000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra.",
+          "x": 1551.1197916666667,
+          "y": 356.19791666666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "A light blinked beside the",
+          "x": 1551.1197916666667,
+          "y": 471.95312500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "bed. Then another. Then",
+          "x": 1551.1197916666667,
+          "y": 564.5572916666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "another.",
+          "x": 1551.1197916666667,
+          "y": 657.1614583333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The lights made a path",
+          "x": 1551.1197916666667,
+          "y": 772.9166666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "across the floor. \"Let's",
+          "x": 1551.1197916666667,
+          "y": 865.5208333333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "look together,\" said the",
+          "x": 1551.1197916666667,
+          "y": 958.125,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "tiny voice.",
+          "x": 1551.1197916666667,
+          "y": 1050.7291666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 11,
+      "id": "page-11",
+      "title": "Bedroom light trail and gradual forest transition",
+      "background": "asset-13",
+      "backgroundSha256": "e5b176ddb432222d09fd93556a5cd3f4d9c07461f08294ae81540c20cb613240",
+      "lines": [
+        {
+          "text": "Alexandra followed the lights.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The walls became trees. The rug became",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "moss. The ceiling filled with stars.",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"This way,\" said the voice. \"Whenever",
+          "x": 166.6875,
+          "y": 532.1458333333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "you're ready.\"",
+          "x": 166.6875,
+          "y": 624.75,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-walk",
+          "label": "Child",
+          "asset": "asset-14",
+          "assetSha256": "2f5ac532de6a2b0ea4177539644c259e792e9993b9751527b71151bf43b52be7",
+          "sourcePath": "hosted-generation/E/normalized/pose04.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            442,
+            160,
+            1293,
+            1895
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1102.5,
+            "top": 1312.5,
+            "width": 412.0115273775217,
+            "height": 840.0,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 12,
+      "id": "page-12",
+      "title": "Footprints lead along path toward bush",
+      "background": "asset-15",
+      "backgroundSha256": "335202752da25b169087e398fc599f69d39bf1f1e0992ce47c6062d9eef2051c",
+      "lines": [
+        {
+          "text": "On the quiet path lay a clue: a feather.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra looked left. Then right.",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Where are you?\" called Alexandra.",
+          "x": 166.6875,
+          "y": 439.54166666666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "guide-clues",
+          "reviewId": "animal-clues",
+          "label": "Feather trail",
+          "asset": "asset-16",
+          "assetSha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde",
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+          "canvas": [
+            2550,
+            2550
+          ],
+          "bbox": [
+            0,
+            926,
+            2474,
+            2225
+          ],
+          "crop": null,
+          "initial": {
+            "left": 629.9999999999999,
+            "top": 1837.4999999999998,
+            "width": 899.8960739030024,
+            "height": 472.5,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "Feather trail placeholder: dark edges need cleanup.",
+      "paper": null
+    },
+    {
+      "page": 13,
+      "id": "page-13",
+      "title": "Footprints lead along path toward bush",
+      "background": "asset-17",
+      "backgroundSha256": "b3485b66a378d598ad619223d5b509c266e5c26b77c05fa6cf955d9ad63b266f",
+      "lines": [
+        {
+          "text": "Something rustled in a bush.",
+          "x": 995.4947916666666,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Are you hiding?\" asked Alexandra.",
+          "x": 995.4947916666666,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The bush rustled again.",
+          "x": 995.4947916666666,
+          "y": 448.8020833333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Then it sneezed.",
+          "x": 995.4947916666666,
+          "y": 564.5572916666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Achoo!\"",
+          "x": 995.4947916666666,
+          "y": 680.3125000000001,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Bushes do not usually sneeze.",
+          "x": 995.4947916666666,
+          "y": 796.0677083333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-crouch",
+          "label": "Child",
+          "asset": "asset-18",
+          "assetSha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7",
+          "sourcePath": "hosted-generation/E/normalized/pose05.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            516,
+            496,
+            1140,
+            1809
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1128.75,
+            "top": 1706.25,
+            "width": 274.45544554455444,
+            "height": 577.5,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 14,
+      "id": "page-14",
+      "title": "Chaos, breathing vignette, and quiet path",
+      "background": "asset-19",
+      "backgroundSha256": "45dc3dc9ac9c983fb470ab2486079459a227a3ee6f2795b1e88a2b41d75f9402",
+      "lines": [
+        {
+          "text": "Before Alexandra could peek, voices",
+          "x": 166.6875,
+          "y": 1675.8072916666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "called from every direction.",
+          "x": 166.6875,
+          "y": 1768.4114583333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"This way!\" blinked a star. \"No, this way!\"",
+          "x": 166.6875,
+          "y": 1884.1666666666665,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "puffed the wind. \"Hop!\" said a mushroom.",
+          "x": 166.6875,
+          "y": 1976.7708333333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Skip!\" said a stone.",
+          "x": 166.6875,
+          "y": 2069.375,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "A sign spun around. \"HURRY!\"",
+          "x": 166.6875,
+          "y": 2185.1302083333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-overwhelmed",
+          "label": "Child",
+          "asset": "asset-20",
+          "assetSha256": "e98101c89f6cfff121025f8b2cda68a9dbf36012d6d8db402646a5fbea570bce",
+          "sourcePath": "hosted-generation/E/normalized/pose06.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            472,
+            238,
+            1133,
+            1897
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1732.5,
+            "top": 945.0,
+            "width": 407.8955696202531,
+            "height": 1023.75,
+            "flipX": false,
+            "zIndex": 10
+          }
+        },
+        {
+          "id": "breath-vignette",
+          "reviewId": "hero-breath-vignette",
+          "label": "Breathing inset",
+          "asset": "asset-21",
+          "assetSha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
+          "sourcePath": "hosted-generation/E/normalized/pose07.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            763,
+            241,
+            1395,
+            1117
+          ],
+          "crop": "upper 52 percent of alpha silhouette",
+          "initial": {
+            "left": 2178.75,
+            "top": 2100.0,
+            "width": 303.01369863013696,
+            "height": 420.0,
+            "flipX": false,
+            "zIndex": 11
+          }
+        }
+      ],
+      "note": "Two moments: main child and chest-up breath inset. Scene may need more space.",
+      "paper": null
+    },
+    {
+      "page": 15,
+      "id": "page-15",
+      "title": "Chaos, breathing vignette, and quiet path",
+      "background": "asset-22",
+      "backgroundSha256": "0fbf1c27b4ae202bbcc16e54ba451d46aa35df2445be18029f521bcfb516e043",
+      "lines": [
+        {
+          "text": "\"Too many voices make it hard to hear",
+          "x": 1157.5520833333333,
+          "y": 772.9166666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "your own,\" said the tiny voice.",
+          "x": 1157.5520833333333,
+          "y": 865.5208333333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra stopped. One slow breath.",
+          "x": 1157.5520833333333,
+          "y": 981.2760416666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra listened for the small, true",
+          "x": 1157.5520833333333,
+          "y": 1097.03125,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "voice inside.",
+          "x": 1157.5520833333333,
+          "y": 1189.6354166666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Listen close. I'm still here.\"",
+          "x": 1157.5520833333333,
+          "y": 1305.390625,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        },
+        {
+          "text": "And there it was: a quiet path.",
+          "x": 1157.5520833333333,
+          "y": 1421.1458333333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-crawl",
+          "label": "Child",
+          "asset": "asset-23",
+          "assetSha256": "1c46e36e0fcd239c48390b677d38447e8e18fa4571f12a5f1e411abaac509b23",
+          "sourcePath": "hosted-generation/E/normalized/pose08.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            406,
+            478,
+            1668,
+            1723
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1155.0,
+            "top": 1890.0,
+            "width": 611.9939759036143,
+            "height": 603.75,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "Crawl pose retained for review. Story action and path fit need a decision.",
+      "paper": null
+    },
+    {
+      "page": 16,
+      "id": "page-16",
+      "title": "Path choice",
+      "background": "asset-24",
+      "backgroundSha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8",
+      "lines": [
+        {
+          "text": "The path split in two.",
+          "x": 166.6875,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "One way was smooth and shiny. It looked",
+          "x": 166.6875,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "easy. The other was plain and steep.",
+          "x": 166.6875,
+          "y": 425.65104166666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra looked at the shiny path. It was",
+          "x": 166.6875,
+          "y": 541.40625,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "pretty. But something inside felt tight.",
+          "x": 166.6875,
+          "y": 634.0104166666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "A deep breath. \"Not that way,\" whispered",
+          "x": 166.6875,
+          "y": 749.765625,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "the tiny voice.",
+          "x": 166.6875,
+          "y": 842.3697916666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 17,
+      "id": "page-17",
+      "title": "Cave approach",
+      "background": "asset-25",
+      "backgroundSha256": "6753c2c2296f16022ae5d0a924f31e7b6a73aa22fecb036f0976524e7dfeeee6",
+      "lines": [
+        {
+          "text": "Alexandra chose the steep path.",
+          "x": 166.6875,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Up, and up, and up.",
+          "x": 166.6875,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "At the top, a cave glittered. Alexandra",
+          "x": 166.6875,
+          "y": 448.8020833333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "stepped closer.",
+          "x": 166.6875,
+          "y": 541.40625,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-climb",
+          "label": "Child",
+          "asset": "asset-46",
+          "assetSha256": "89ab7dbe9f0e097b7640d88f95cb77d382ed24d1ba3132a5476257ec77f90b15",
+          "sourcePath": "output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+          "canvas": [
+            1254,
+            1254
+          ],
+          "bbox": [
+            362,
+            132,
+            943,
+            1167
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1536.8075035772163,
+            "top": 743.5023430742647,
+            "width": 651.5128475728662,
+            "height": 1160.6123876728338,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "poseApproval": "Selected for trial by Jeff; position and size remain open."
+        }
+      ],
+      "note": "New uphill pose selected for trial. Adjust its size and position here. Final art approval and 2K preparation remain pending.",
+      "paper": null
+    },
+    {
+      "page": 18,
+      "id": "page-18",
+      "title": "Prickly words",
+      "background": "asset-27",
+      "backgroundSha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53",
+      "lines": [
+        {
+          "text": "Alexandra felt scared. Alexandra's tummy felt tight.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"YOU CAN'T!\" \"YOU'RE TOO LITTLE!\" The tiny voice",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "echoed through the cave.",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "A wall blocked the path. The same words",
+          "x": 555.625,
+          "y": 1643.3958333333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "glowed on it in big, prickly letters.",
+          "x": 555.625,
+          "y": 1736.0,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The tiny voice didn't sound friendly now.",
+          "x": 555.625,
+          "y": 1851.7552083333333,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Why do you sound mean?\" asked",
+          "x": 858.1442916666667,
+          "y": 2319.40625,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra.",
+          "x": 1251.48975,
+          "y": 2412.0104166666665,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 19,
+      "id": "page-19",
+      "title": "Words soften",
+      "background": "asset-28",
+      "backgroundSha256": "ad76d13e385ccdf7f698cd6c6191c9eafbcd5338e8a0e649909b164942144ba8",
+      "lines": [
+        {
+          "text": "The voice was quiet.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra remembered. One deep breath.",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Then another.",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The cave grew quieter. The prickly words",
+          "x": 166.6875,
+          "y": 532.1458333333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "wiggled. Then softened.",
+          "x": 166.6875,
+          "y": 624.75,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-breath",
+          "label": "Child",
+          "asset": "asset-21",
+          "assetSha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
+          "sourcePath": "hosted-generation/E/normalized/pose07.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            763,
+            241,
+            1395,
+            1925
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1259.9999999999998,
+            "top": 1259.9999999999998,
+            "width": 394.061757719715,
+            "height": 1050.0,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 20,
+      "id": "page-20",
+      "title": "Hidden feeling",
+      "background": "asset-29",
+      "backgroundSha256": "eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807",
+      "lines": [
+        {
+          "text": "The words opened. Inside were smaller words:",
+          "x": 166.6875,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "I'M A LITTLE SCARED.",
+          "x": 166.6875,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "THIS FEELS TOO BIG.",
+          "x": 166.6875,
+          "y": 425.65104166666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Oh. You weren't trying to be mean.\"",
+          "x": 648.2291666666666,
+          "y": 1865.6458333333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The tiny voice felt warm again.",
+          "x": 648.2291666666666,
+          "y": 1981.4010416666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 21,
+      "id": "page-21",
+      "title": "Understanding",
+      "background": "asset-30",
+      "backgroundSha256": "416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d",
+      "lines": [
+        {
+          "text": "\"Sometimes big feelings come out sharp,\"",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "said the voice.",
+          "x": 166.6875,
+          "y": 300.63541666666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"But if you listen close, you can hear what",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "they are really trying to say.\"",
+          "x": 166.6875,
+          "y": 508.99479166666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 22,
+      "id": "page-22",
+      "title": "Cave opens",
+      "background": "asset-31",
+      "backgroundSha256": "d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72",
+      "lines": [
+        {
+          "text": "The prickles fell away. The wall",
+          "x": 166.6875,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "shimmered. The cave opened wide.",
+          "x": 166.6875,
+          "y": 309.89583333333337,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Beyond it, the world was bright.",
+          "x": 1088.0989583333335,
+          "y": 2189.7604166666665,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra stepped through.",
+          "x": 1088.0989583333335,
+          "y": 2305.515625,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 23,
+      "id": "page-23",
+      "title": "Into sunlight",
+      "background": "asset-32",
+      "backgroundSha256": "c27a20e328c04c1167ea479c19fbe249dd41cc6ed41cc2a406d90015e2e333d4",
+      "lines": [
+        {
+          "text": "Alexandra ran into the sunlight. Alexandra",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "felt a little better now.",
+          "x": 166.6875,
+          "y": 300.63541666666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Now Alexandra understood. The tiny voice",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "helped them notice what felt scary, what felt",
+          "x": 166.6875,
+          "y": 508.99479166666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "wrong, and what felt right.",
+          "x": 166.6875,
+          "y": 601.5989583333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-run",
+          "label": "Child",
+          "asset": "asset-33",
+          "assetSha256": "7401ca27d81f3ffd4d350f44881af15a7a4478a0d0be65524ee32d11732f56cc",
+          "sourcePath": "hosted-generation/E/normalized/pose10.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            541,
+            210,
+            1448,
+            1837
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1233.75,
+            "top": 1286.25,
+            "width": 526.8070067609098,
+            "height": 945.0,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 24,
+      "id": "page-24",
+      "title": "Final clue trail",
+      "background": "asset-34",
+      "backgroundSha256": "c85ae114813462ecbc0bdcfd2947baf9ccefc1550646286e5e53d234bc18f4f4",
+      "lines": [
+        {
+          "text": "\"I want to see you,\" said Alexandra.",
+          "x": 648.2291666666666,
+          "y": 1444.296875,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "A trail of feathers glowed ahead. The forest",
+          "x": 648.2291666666666,
+          "y": 1560.0520833333333,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "grew warmer and quieter.",
+          "x": 648.2291666666666,
+          "y": 1652.6562500000002,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Where are you?\"",
+          "x": 648.2291666666666,
+          "y": 1768.4114583333335,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Listen close,\" said the tiny voice.",
+          "x": 648.2291666666666,
+          "y": 1884.1666666666665,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"That quiet is your heart.\"",
+          "x": 648.2291666666666,
+          "y": 1976.7708333333335,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [
+        {
+          "id": "guide-clues",
+          "reviewId": "animal-clues",
+          "label": "Feather trail",
+          "asset": "asset-16",
+          "assetSha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde",
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+          "canvas": [
+            2550,
+            2550
+          ],
+          "bbox": [
+            0,
+            926,
+            2474,
+            2225
+          ],
+          "crop": null,
+          "initial": {
+            "left": 840.0,
+            "top": 2100.0,
+            "width": 649.9249422632795,
+            "height": 341.25,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "Feather trail placeholder: dark edges need cleanup.",
+      "paper": null
+    },
+    {
+      "page": 25,
+      "id": "page-25",
+      "title": "Animal reveal",
+      "background": "asset-35",
+      "backgroundSha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356",
+      "lines": [
+        {
+          "text": "In a warm, magical clearing, Owl appeared.",
+          "x": 671.3802083333334,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra gasped. \"It was you?\"",
+          "x": 671.3802083333334,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Owl smiled.",
+          "x": 671.3802083333334,
+          "y": 448.8020833333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"I am your quiet voice,\" said Owl, \"in a shape",
+          "x": 671.3802083333334,
+          "y": 564.5572916666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "you can see.\"",
+          "x": 671.3802083333334,
+          "y": 657.1614583333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "The warm quiet was inside Alexandra, too.",
+          "x": 671.3802083333334,
+          "y": 772.9166666666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        }
+      ],
+      "layers": [
+        {
+          "id": "guide-appears",
+          "reviewId": "animal-appears",
+          "label": "Owl",
+          "asset": "asset-36",
+          "assetSha256": "8027586c5671f8e4a962e9943fae150b5aa040e2943f84e2ed83e824fdae29f5",
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-appears.png",
+          "canvas": [
+            1024,
+            1024
+          ],
+          "bbox": [
+            177,
+            186,
+            850,
+            857
+          ],
+          "crop": null,
+          "initial": {
+            "left": 918.7499999999999,
+            "top": 1365.0,
+            "width": 789.8472429210135,
+            "height": 787.5,
+            "flipX": false,
+            "zIndex": 10
+          }
+        }
+      ],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 26,
+      "id": "page-26",
+      "title": "Flying home",
+      "background": "asset-37",
+      "backgroundSha256": "b72b98f786f710c44d61da9abbd6341d4140d39a953dc2d7b2e2e81825c4fe63",
+      "lines": [
+        {
+          "text": "Alexandra and Owl flew through the stars.",
+          "x": 694.53125,
+          "y": 680.3125000000001,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "The magical forest grew small below. Ahead",
+          "x": 694.53125,
+          "y": 796.0677083333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "was the park, the ladder, and the very, very tall",
+          "x": 694.53125,
+          "y": 888.671875,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "slide.",
+          "x": 694.53125,
+          "y": 981.2760416666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Owl stayed close. So did the quiet voice.",
+          "x": 694.53125,
+          "y": 1097.03125,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-fly",
+          "label": "Child",
+          "asset": "asset-38",
+          "assetSha256": "b8af8476472f39b2510aa7e529c91ebc2c9ee92b5a7b607812c0d7df0f563e3f",
+          "sourcePath": "hosted-generation/E/pose11-provider-original.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            296,
+            214,
+            1750,
+            1650
+          ],
+          "crop": null,
+          "initial": {
+            "left": 603.75,
+            "top": 1312.5,
+            "width": 770.79213091922,
+            "height": 761.25,
+            "flipX": false,
+            "zIndex": 10
+          }
+        },
+        {
+          "id": "guide-flying",
+          "reviewId": "animal-flying",
+          "label": "Flying owl",
+          "asset": "asset-39",
+          "assetSha256": "47a92bfa4aee7d56f10f2240e27675dfca18d951d78e0576039d8f87b9d8a7da",
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-flying.png",
+          "canvas": [
+            1024,
+            1024
+          ],
+          "bbox": [
+            173,
+            224,
+            862,
+            782
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1680.0,
+            "top": 1338.75,
+            "width": 421.364247311828,
+            "height": 341.25,
+            "flipX": false,
+            "zIndex": 11
+          }
+        }
+      ],
+      "note": "Uses retained complete flying source. Final normalized asset needs repair.",
+      "paper": null
+    },
+    {
+      "page": 27,
+      "id": "page-27",
+      "title": "Back at the top",
+      "background": "asset-40",
+      "backgroundSha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a",
+      "lines": [
+        {
+          "text": "Alexandra was back at the top.",
+          "x": 166.6875,
+          "y": 208.03125000000009,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "The slide still looked long. The slide still",
+          "x": 166.6875,
+          "y": 323.78645833333337,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "looked fun. The slide still looked very,",
+          "x": 166.6875,
+          "y": 416.39062500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "very tall.",
+          "x": 166.6875,
+          "y": 508.99479166666674,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "x": 166.6875,
+          "y": 624.75,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Alexandra's tummy flipped.",
+          "x": 166.6875,
+          "y": 740.5052083333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "This time, Alexandra knew what to do.",
+          "x": 166.6875,
+          "y": 856.2604166666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "fade"
+        },
+        {
+          "text": "Pause.",
+          "x": 926.0416666666666,
+          "y": 1976.7708333333335,
+          "size": 83.34375,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Breathe.",
+          "x": 926.0416666666666,
+          "y": 2078.6354166666665,
+          "size": 83.34375,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Listen close.",
+          "x": 926.0416666666666,
+          "y": 2180.5,
+          "size": 83.34375,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 28,
+      "id": "page-28",
+      "title": "Almost ready",
+      "background": "asset-41",
+      "backgroundSha256": "ae011ba2079e0c1ec21c5c979a93b915ddb26f59b47301c87b982ccf83996f6c",
+      "lines": [
+        {
+          "text": "The quiet voice was there.",
+          "x": 166.6875,
+          "y": 217.2916666666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Small and warm.",
+          "x": 166.6875,
+          "y": 333.04687500000006,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"Not yet,\" it said. \"Almost.\"",
+          "x": 166.6875,
+          "y": 448.8020833333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Alexandra looked at the child waiting behind",
+          "x": 166.6875,
+          "y": 564.5572916666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "them.",
+          "x": 166.6875,
+          "y": 657.1614583333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"You go first,\" said Alexandra. \"I'm almost",
+          "x": 166.6875,
+          "y": 772.9166666666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "ready.\"",
+          "x": 166.6875,
+          "y": 865.5208333333334,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "And this time, Alexandra smiled.",
+          "x": 166.6875,
+          "y": 981.2760416666667,
+          "size": 74.08333333333333,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [
+        {
+          "id": "hero",
+          "reviewId": "hero-calm-speaking",
+          "label": "Child",
+          "asset": "asset-42",
+          "assetSha256": "9311ced8d242ba07c7c5b52530acf22e7a5cc873ca8a22df9bccceb5e246982b",
+          "sourcePath": "hosted-generation/E/normalized/pose12.png",
+          "canvas": [
+            2048,
+            2048
+          ],
+          "bbox": [
+            778,
+            175,
+            1430,
+            1907
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1207.5,
+            "top": 1391.25,
+            "width": 405.1472286374133,
+            "height": 1076.25,
+            "flipX": false,
+            "zIndex": 10
+          }
+        },
+        {
+          "id": "waiting-child",
+          "reviewId": "waiting-child",
+          "label": "Waiting child",
+          "asset": "asset-43",
+          "assetSha256": "f81c6ab1dab5360027a8dc747570cfd5023024b3b7dcb3de6f9562242c19d445",
+          "sourcePath": "book-finding-our-inner-voice/v1/overlays/waiting-child.png",
+          "canvas": [
+            1216,
+            1294
+          ],
+          "bbox": [
+            371,
+            53,
+            833,
+            1257
+          ],
+          "crop": null,
+          "initial": {
+            "left": 1890.0,
+            "top": 1548.75,
+            "width": 342.4709302325582,
+            "height": 892.5000000000001,
+            "flipX": false,
+            "zIndex": 11
+          }
+        }
+      ],
+      "note": "Waiting child is unfinished placeholder. Review scale and distance only.",
+      "paper": null
+    },
+    {
+      "page": 29,
+      "id": "page-29",
+      "title": "Blank",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 30,
+      "id": "page-30",
+      "title": "Listening exercise",
+      "background": "asset-44",
+      "backgroundSha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7",
+      "lines": [
+        {
+          "text": "Pause.",
+          "x": 648.2291666666666,
+          "y": 402.50000000000006,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Breathe.",
+          "x": 648.2291666666666,
+          "y": 495.10416666666674,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Listen close.",
+          "x": 648.2291666666666,
+          "y": 587.7083333333334,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Trace the spiral with your finger.",
+          "x": 648.2291666666666,
+          "y": 703.4635416666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Breathe in as you go around. Breathe out",
+          "x": 648.2291666666666,
+          "y": 819.2187500000001,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "as you come back.",
+          "x": 648.2291666666666,
+          "y": 911.8229166666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Think of something you'd like to try.",
+          "x": 648.2291666666666,
+          "y": 1027.578125,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "How does it make you feel?",
+          "x": 648.2291666666666,
+          "y": 1143.3333333333335,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "Listen close. Does your quiet voice say",
+          "x": 648.2291666666666,
+          "y": 1259.0885416666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "\"no,\" \"not yet,\" or \"yes\"?",
+          "x": 648.2291666666666,
+          "y": 1351.6927083333333,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        },
+        {
+          "text": "You can take your time.",
+          "x": 648.2291666666666,
+          "y": 1467.4479166666667,
+          "size": 74.08333333333333,
+          "color": "#fff5de",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 31,
+      "id": "page-31",
+      "title": "About and copyright",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [
+        {
+          "text": "About Little Hero Labs / copyright page.",
+          "x": 212.98958333333331,
+          "y": 328.41666666666674,
+          "size": 64.82291666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "For grown-ups",
+          "x": 212.98958333333331,
+          "y": 434.9114583333334,
+          "size": 64.82291666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Ask your child: \"Was there a time today when you felt ready, or when you",
+          "x": 212.98958333333331,
+          "y": 541.40625,
+          "size": 64.82291666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "wanted to wait?\"",
+          "x": 212.98958333333331,
+          "y": 624.75,
+          "size": 64.82291666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        },
+        {
+          "text": "Give them time to answer.",
+          "x": 212.98958333333331,
+          "y": 731.2447916666667,
+          "size": 64.82291666666666,
+          "color": "#392e29",
+          "contrast": "plain"
+        }
+      ],
+      "layers": [],
+      "note": "",
+      "paper": null
+    },
+    {
+      "page": 32,
+      "id": "page-32",
+      "title": "Blank",
+      "background": "asset-1",
+      "backgroundSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "lines": [],
+      "layers": [],
+      "note": "",
+      "paper": null
+    }
+  ],
+  "baselineFingerprint": "e24180e379868ec4a205b2d39fbdf9a476239e03052a4ec2c9c013d13c1265d1"
+}

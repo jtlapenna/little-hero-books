@@ -1,0 +1,93 @@
+{
+  "startedAt": "2026-10-13T22:13:43.519Z",
+  "error": "Command failed: /opt/homebrew/Cellar/node@22/22.23.2_1/bin/node <PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-3/window.mjs positive\nTerminal workflow failed; inspect journal before any retry\n\n'error' !== 'success'\n\n",
+  "cleanupErrors": [],
+  "enabledDeploymentSettled": true,
+  "steps": [
+    {
+      "name": "Enable draft-only project flag with dispatch closed",
+      "startedAt": "2026-10-13T22:13:43.520Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:13:47.348Z"
+    },
+    {
+      "name": "Deploy reviewed commit and wait for full smoke job",
+      "startedAt": "2026-10-13T22:13:47.349Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:18:11.611Z"
+    },
+    {
+      "name": "Verify active draft binding and authenticated rejection",
+      "startedAt": "2026-10-13T22:18:11.612Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:18:13.622Z"
+    },
+    {
+      "name": "Run single and sibling held-draft proofs",
+      "startedAt": "2026-10-13T22:18:13.624Z"
+    },
+    {
+      "name": "Independently close dispatch and deactivate both test copies",
+      "startedAt": "2026-10-13T22:19:07.417Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:19:09.042Z"
+    },
+    {
+      "name": "Close dispatch and disable project draft flag",
+      "startedAt": "2026-10-13T22:19:09.044Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:19:11.099Z"
+    },
+    {
+      "name": "Reconcile or stop any earlier enabled deployment",
+      "startedAt": "2026-10-13T22:19:11.103Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:19:17.895Z"
+    },
+    {
+      "name": "Redeploy disabled settings and wait for full smoke job",
+      "startedAt": "2026-10-13T22:19:17.896Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:23:32.212Z"
+    },
+    {
+      "name": "Verify active disabled binding and saved-submission rejection",
+      "startedAt": "2026-10-13T22:23:32.214Z",
+      "complete": true,
+      "finishedAt": "2026-10-13T22:23:34.386Z"
+    }
+  ],
+  "deploymentIntents": [
+    {
+      "label": "enabled",
+      "at": "2026-10-13T22:13:48.788Z",
+      "runId": 38476359050,
+      "status": "completed",
+      "conclusion": "success",
+      "baseline_deployment_count": 468,
+      "excluded_historical_pending_count": 1,
+      "settlement": [
+        {
+          "id": "<REDACTED_ID_010>",
+          "createdAt": "2026-10-13T22:17:45.964076Z",
+          "stage": "deploy",
+          "status": "success",
+          "commit": "c0136e8890e4ed2fb56c712183e574ba26431747",
+          "bindingsKnown": true,
+          "draftFlagPresent": true,
+          "draftFlag": "true",
+          "draftFlagType": "plain_text"
+        }
+      ]
+    },
+    {
+      "label": "disabled",
+      "at": "2026-10-13T22:19:19.289Z",
+      "runId": 38477004125,
+      "status": "completed",
+      "baseline_deployment_count": 469,
+      "excluded_historical_pending_count": 1,
+      "settlement": []
+    }
+  ]
+}

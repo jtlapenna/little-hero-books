@@ -1,0 +1,19 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';
+import util from 'node:util';
+import {syncBuiltinESMExports} from 'node:module';
+util.isDeepStrictEqual = ((a: unknown,b: unknown)=>JSON.stringify(a)===JSON.stringify(b)) as typeof util.isDeepStrictEqual;
+syncBuiltinESMExports();
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+async function main(){
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};Object.assign(process.env,env);
+const {gelatoSubmissionRuntime}=await import('<WORKTREE>/back-end/src/lib/books/gelato-submission-runtime');const {submitGelatoDraft}=await import('<WORKTREE>/back-end/src/lib/books/gelato-submission');
+const {GelatoSubmissionSchema,GelatoMemberSchema}=await import('<WORKTREE>/back-end/src/lib/books/gelato-submission-store');
+const dir='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-5';const saved=JSON.parse(fs.readFileSync(dir+'/draft-readback.json','utf8'));
+const db=env.SUPABASE_URL||env.NEXT_PUBLIC_SUPABASE_URL,key=env.SUPABASE_SERVICE_ROLE_KEY||env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+let write=false,provider=false;const runtime=gelatoSubmissionRuntime({loadOrder:async(orderId:string)=>{const r=await fetch(db+'/rest/v1/orders?orderId=eq.'+encodeURIComponent(orderId)+'&select=*',{headers:{apikey:key,Authorization:'Bearer '+key},redirect:'error'});if(!r.ok)throw new Error('read failed');const rows=await r.json();if(rows.length!==1)throw new Error('identity lookup failed');return rows[0];},loadManifest:async(key:string)=>{const r=await fetch('https://admin.littleherolabs.com/api/manifests/'+key,{redirect:'error'});if(!r.ok)throw new Error('manifest read failed');return r.json();}});
+const identity={submissionId:saved.submission.id,claimToken:saved.submission.claim_token,executionId:'read-only-draft-diagnostic',mode:'single' as const};
+const context={submission:GelatoSubmissionSchema.parse(saved.submission),members:saved.items.map((x:unknown)=>GelatoMemberSchema.parse(x)),providerOrders:[]};
+try{await submitGelatoDraft(identity,{...runtime,draftsEnabled:true,now:()=>new Date(Date.parse(saved.submission.quoted_at)+1000),store:{load:async()=>context,transition:async()=>{write=true;throw new Error('READ_ONLY_STORE_BOUNDARY');}},create:async()=>{provider=true;throw new Error('READ_ONLY_PROVIDER_BOUNDARY');}});}catch(error){console.log(JSON.stringify({message:error instanceof Error?error.message:'unknown',storeBoundaryReached:write,providerCall:provider}));}
+}
+main().catch(error=>{console.error(error instanceof Error?error.message:'Diagnostic failed');process.exitCode=1;});

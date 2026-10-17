@@ -1,0 +1,40 @@
+{
+  "errors": [],
+  "pages": [
+    {
+      "page": 9,
+      "layers": [
+        "hero"
+      ],
+      "background": "asset-48"
+    },
+    {
+      "page": 10,
+      "layers": [],
+      "background": "asset-49"
+    },
+    {
+      "page": 19,
+      "layers": [
+        "hero"
+      ],
+      "background": "asset-50"
+    }
+  ],
+  "resized": 1443.7500000000002,
+  "undoRestored": true,
+  "exportPages": 32,
+  "exportLayers": 18,
+  "savedFileUnchanged": true,
+  "viewports": [
+    [
+      1480,
+      950
+    ],
+    [
+      900,
+      800
+    ]
+  ],
+  "scope": "Selected backgrounds render; child stays separate; resize and undo; text toggle; export. Writes intercepted."
+}

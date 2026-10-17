@@ -1,0 +1,601 @@
+{
+  "created": "2026-10-13",
+  "scope": "Historical redacted reference; no live audit or execution",
+  "redaction_policy": "Known credential literals, JWTs, recipient fields, email addresses, UUIDs, Amazon order numbers and signed URL parameters removed. Raw outer journals and request/quote payloads omitted. Alias reversal map is not transferred.",
+  "files": [
+    {
+      "transfer_file": "runner-reference/archive-unsent-attempt.mjs.reference.txt",
+      "source_file": "gelato-proof/archive-unsent-attempt.mjs",
+      "source_sha256": "deb02d6ff7c68e87ef31ae97256be5a63e1e5cf1845f4500610922a61ef00eec",
+      "transfer_sha256": "9df80c8501c48e7d2e0757f3e3698d6dcfc51c4d07be0521436ef2cc5904d16d"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/close-window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/close-window.mjs",
+      "source_sha256": "62711c0e28312b1cd73df38536e4d2be4b58f32ffad7e5fbc6ab90773da6f9aa",
+      "transfer_sha256": "8d006f17b69b36b954b0e4005f2c4fae29bb9b6ac03268d76432c04c51fb3eb3"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/compose-seed.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/compose-seed.mjs",
+      "source_sha256": "a06b430fc3b79a5428b7385af571dfeb9ee392e64fad2ea613bc7d4ada4652d2",
+      "transfer_sha256": "76641fdba8c93e33d3e2f818c307598b2553f23e7c4ab79c8a4e71d58940e5ac"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/debug-draft.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-3/debug-draft.ts",
+      "source_sha256": "3d4624e31a26f233e7a4664456b625ea18a769ceb269bb9b77e273e8e1d27c9c",
+      "transfer_sha256": "41804385f9371396093b969e45b0a51bb52fd55e17c5180ddf807d6425cfd199"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/inspect-draft.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/inspect-draft.mjs",
+      "source_sha256": "a1b8c8be6ba484dbb67b7dacb976df4077444daa30bfa419b66cfff974548542",
+      "transfer_sha256": "9486d2450ccec1c6fcf9963e58c17d3f50744ccb9ccf9a3af6ebdba1b300387b"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/retained-state.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/retained-state.mjs",
+      "source_sha256": "7eca25a3579e6d33e1ed9706aae230517562217cca4bf8f1baec70ab5f5cc6e7",
+      "transfer_sha256": "ba7c57a5562df908b7be4e2e5a0768e315b753a128a7f643162694f3347e0f8e"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/run-positive.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/run-positive.mjs",
+      "source_sha256": "04c9a6ac1950ce7deabc340c99546dac790de8e3a05415d4fe5bd63aa387827e",
+      "transfer_sha256": "b10fb838afe5240cf5557145dd863b295fdcbdc315e1f14d4d0d3896512e01eb"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/runtime.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/runtime.mjs",
+      "source_sha256": "6e26094c01e794b3dcd4d8b5462b3af340dae391c281cb4004dd4491eb854220",
+      "transfer_sha256": "854c78b8f2f9bac6c761c3401a0f93367cf26939292d4d88d102794cb5ad3fab"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/seed-fresh.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-3/seed-fresh.ts",
+      "source_sha256": "65c6baf7916ba59091a61d3a0963ec8c75d5214912c00407a6af5e5ac7e6f67d",
+      "transfer_sha256": "85dc074ea5e26c5b38742b5c2096d2750adaff6794aece7401482318e46c6ee6"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/verify-deployed.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/verify-deployed.mjs",
+      "source_sha256": "df7aafd41097839790a5d3daae6681443f631bce5cc4641b5aef85a700bc0b63",
+      "transfer_sha256": "e7a90d14d7e23175248134a710c1ae93c537685082ea4823deb3c6e2bc2beb17"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-3/window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-3/window.mjs",
+      "source_sha256": "79719b7aab13c110a65832c0657922dcad9d48b1c411c6ed53c1e63511f1a48e",
+      "transfer_sha256": "b3817394ddefeef39fd6f498470e4ee7e6e7cace3045e5001bc56d829c801240"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/close-window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/close-window.mjs",
+      "source_sha256": "b0e8181b9a2b0dbb834d772d17da108fca7cbb76a9b50450bcbf8dcb7adfec2c",
+      "transfer_sha256": "388adec1b829498efc1b5b685a1dd5c8505d58b5ad083dcf085fb45d5a19925e"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/compose-seed.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/compose-seed.mjs",
+      "source_sha256": "0a63ff48cd1dbabaf63ea27877b26753c73e96c06ac27f0c2b6d728592aba87e",
+      "transfer_sha256": "6b98933717b4f7ac4e2db6d98f77d1e0d74a7e35cdb3d67a0b73fb83a49fdf31"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/debug-routing.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-4/debug-routing.ts",
+      "source_sha256": "35fb30bab36d7cbe41d4c75ea4244619a08da7cf8367dd09cf83114f4e799d4e",
+      "transfer_sha256": "9713b33a7209b302980fb3ced7237d56b987ac0227fa054eee3b7e44eb48c573"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/retained-state.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/retained-state.mjs",
+      "source_sha256": "892ae0241117bfe89e7764c42e8597f41d0b6702e702a5736e00520a2b252a87",
+      "transfer_sha256": "f459643a2aef2c53745b9a82b0eb90dcc3df4b8127b751fbf9ea580e6345cec3"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/run-positive.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/run-positive.mjs",
+      "source_sha256": "de7407fe950b0eb51a1a56ac0fbbf673daddf3a12bbde23c8f368fba8cfcbf4e",
+      "transfer_sha256": "4444e8b13303294e0342627a4c17b3e800cf2f580f3628714f514a2f5273575e"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/runtime.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/runtime.mjs",
+      "source_sha256": "820dad5b82d350777ac39f3c3b985bd4612880e35b7e3ff4babcf18f166cf06d",
+      "transfer_sha256": "1a0d9fc2b5b2867b92819ae91c70e0ac3a99f6bf548098bbccb131e264cb8bd4"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/seed-fresh.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-4/seed-fresh.ts",
+      "source_sha256": "a7de7344ec4b3f4dcd2fb3ba9b4782a5b9891d05154fa312409795360ff71930",
+      "transfer_sha256": "3d4921485c135cdbeb2697a9a47d33fa5af4fa07b8629b7caf201b0f7b20f718"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/verify-deployed.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/verify-deployed.mjs",
+      "source_sha256": "6551adb21535be6ae8213c14d5ae0b6a6eea21f6e72f7f6de415bddf7d951f9a",
+      "transfer_sha256": "1efa4b4d55c151c6b100748671873899f7edb49588a54e8f9eb99bd116e3aebd"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-4/window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-4/window.mjs",
+      "source_sha256": "7e07b1714adf94bbaf241dfaa96385d27ac6e8dde735bdec95648e2cae758fb3",
+      "transfer_sha256": "c65a67532a5805df9d2d4b05f7bac95d0fe5453ee75a4d1fa49ac8c13e35f8e3"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/close-window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/close-window.mjs",
+      "source_sha256": "5ef2bd1232a05201c86ab3c03d010279f2cfa3a0597b02398d528d49c1ca3f02",
+      "transfer_sha256": "7b1fdc95746f4b1a91dad7c7a88605b09a40982db0543455862026a4c33ec1aa"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/debug-worker-draft.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-5/debug-worker-draft.ts",
+      "source_sha256": "57ad531d74fba9b6322eaffa55abc8e0978befd748641d783f7a42f6898c7e30",
+      "transfer_sha256": "052ee5e265c19768ef618ee88e44a1e5b3c0d19b1ca4d9e283ce24c1901eb3fb"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/inspect-draft.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/inspect-draft.mjs",
+      "source_sha256": "83bd9ef55ab4ad503312f31cd050ae37555b63d5e36f6085753d93bfc81f207c",
+      "transfer_sha256": "95113291e18b3b564948e79d1f5a03908b299738b99304ebd6a1a96ecc383ffc"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/rehold-unused.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/rehold-unused.mjs",
+      "source_sha256": "4e21466425c158a753d17b3ddd3b3f19f221051b7588f976697d412e8766dc77",
+      "transfer_sha256": "5d0861d2fa81882364205410e2c1e617ef98591918c103bf27dc0da45a2f62a5"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/retained-state.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/retained-state.mjs",
+      "source_sha256": "892ae0241117bfe89e7764c42e8597f41d0b6702e702a5736e00520a2b252a87",
+      "transfer_sha256": "f459643a2aef2c53745b9a82b0eb90dcc3df4b8127b751fbf9ea580e6345cec3"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/routing-preflight.ts.reference.txt",
+      "source_file": "gelato-proof/attempt-5/routing-preflight.ts",
+      "source_sha256": "b07e1c501301b413597615571f9356e656994d2c9fd6c4374d72fb12644e9e56",
+      "transfer_sha256": "7d87a134440e10fa03b5e03b54aa526a3472b7536c4adebdff14714e15163584"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/run-positive.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/run-positive.mjs",
+      "source_sha256": "c4dec6ffdead482465ef3e879f901fc2fd4ba7dbe382aa26bd5babb034ba0f84",
+      "transfer_sha256": "ca5fa5722ad74dd0f576cd08d687375fb5fc258efff41dfa9da602d1473b288a"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/runtime.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/runtime.mjs",
+      "source_sha256": "f5e0ae94621ccf55272c9f010143268531f77fd1e7303d0d8822320ed81b5f53",
+      "transfer_sha256": "42bc1e22609f9a850ee155811a4e9f6258d3049337bc1d31d6f779d433aca62f"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/verify-deployed.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/verify-deployed.mjs",
+      "source_sha256": "a02ea488bc48902b909fbf3edd553bc965d9a7e1f4e3922fb344de7b6b1d3170",
+      "transfer_sha256": "8725714386d584dcb4c61c600943b459d0396858cf0945dfd5c1536b0e848d09"
+    },
+    {
+      "transfer_file": "runner-reference/attempt-5/window.mjs.reference.txt",
+      "source_file": "gelato-proof/attempt-5/window.mjs",
+      "source_sha256": "f40529e2eb4cd1f3415f217934f207b1d65735668a29125dcc2adef8e6116e79",
+      "transfer_sha256": "caf434a3265b53240942f975cfc1a8a31d66ca8cb8e93e7b2b6ff2ab27831907"
+    },
+    {
+      "transfer_file": "runner-reference/binding-diagnostic-window/run.mjs.reference.txt",
+      "source_file": "gelato-proof/binding-diagnostic-window/run.mjs",
+      "source_sha256": "70af42196d0071bf02e7303d20437c3afa2dcbb3e2aab8a381844a4d8746ef97",
+      "transfer_sha256": "77d5481cf1b5fd45fdc591d984581c907afe391270db7d66d9ced70ff2474ace"
+    },
+    {
+      "transfer_file": "runner-reference/binding-diagnostic-window/runtime.mjs.reference.txt",
+      "source_file": "gelato-proof/binding-diagnostic-window/runtime.mjs",
+      "source_sha256": "5b6871d1002ba2361546dbff294eafae6f362a184127355ee5507460e5321d0a",
+      "transfer_sha256": "7088d92929cf46caad9347cd27e1b2549d187fa1ad16f52772d102565ad41324"
+    },
+    {
+      "transfer_file": "runner-reference/claim-probe.mjs.reference.txt",
+      "source_file": "gelato-proof/claim-probe.mjs",
+      "source_sha256": "4b729fb330cd8e36f23f333a3b91f5f84dc312f4e5b090b60862318adaf98366",
+      "transfer_sha256": "ca5ed0423207da8d4bdb3eefbeef931860e7ffcb0ea69855a262885b9737b706"
+    },
+    {
+      "transfer_file": "runner-reference/close-window.mjs.reference.txt",
+      "source_file": "gelato-proof/close-window.mjs",
+      "source_sha256": "634b6909188896edee5e4c35ebb97b94ac86f99899be538c1fa0835dc3ddf135",
+      "transfer_sha256": "bcd24b771ba0590e40d1c956d34e190c39126cef8e000602c0320eedb3b45a00"
+    },
+    {
+      "transfer_file": "runner-reference/debug-quote.ts.reference.txt",
+      "source_file": "gelato-proof/debug-quote.ts",
+      "source_sha256": "def77f61e50395e084a5db742d843ac3c437c915232fa034708f09ba48ddfde0",
+      "transfer_sha256": "be20ba272fed49bbb59f33429504b6bda00a2daa355a5722003ac708362b1bd1"
+    },
+    {
+      "transfer_file": "runner-reference/debug-routing.ts.reference.txt",
+      "source_file": "gelato-proof/debug-routing.ts",
+      "source_sha256": "c0b1f7e219a880b68dd25e5ad655c9ad0d3ce031c641273fdea46dd03809e0ba",
+      "transfer_sha256": "def664a849536bdfa74787d052f52706214faab97fb36fe84906d14840ecbc41"
+    },
+    {
+      "transfer_file": "runner-reference/fence-unused.mjs.reference.txt",
+      "source_file": "gelato-proof/fence-unused.mjs",
+      "source_sha256": "a3fac5fe18a810b59ecf7ee4af1d7afc3f0dd202b1d809c6c72461795a098c56",
+      "transfer_sha256": "330ff25c552162d8da3e384e9a174416edb37f8d2956a1950c2a33bbef542286"
+    },
+    {
+      "transfer_file": "runner-reference/read-runtime-diagnostic.mjs.reference.txt",
+      "source_file": "gelato-proof/read-runtime-diagnostic.mjs",
+      "source_sha256": "cdbe0df7ccbc80de6460e9b838b1ce49076b6d051eac0bebe900e280047dc828",
+      "transfer_sha256": "3b8e273b4791bc7999e4eca5eda43d8d31fb9b73a16491ba33198b6edff6b50d"
+    },
+    {
+      "transfer_file": "runner-reference/remove-stale-march-deployment.mjs.reference.txt",
+      "source_file": "gelato-proof/remove-stale-march-deployment.mjs",
+      "source_sha256": "99e72d6dd379ac4ac8a266789b1624bb9379ef625bd1475f4a5eca6a6c889e32",
+      "transfer_sha256": "c2d7d34c39ec2288dcdbe3a9cc84adc526cc17a921dcf0b7bb0566affc16aad7"
+    },
+    {
+      "transfer_file": "runner-reference/run-positive.mjs.reference.txt",
+      "source_file": "gelato-proof/run-positive.mjs",
+      "source_sha256": "5534d89a0de5311ca497758f700b73cc1fe36dc79726a2cc455444aa55215260",
+      "transfer_sha256": "e19b151e1c345339045ea8ea3feb36bfe88473a280fe8a9a597d36d2be37035e"
+    },
+    {
+      "transfer_file": "runner-reference/runtime.mjs.reference.txt",
+      "source_file": "gelato-proof/runtime.mjs",
+      "source_sha256": "879e3669ff48aa6a019e45a018d7c029737433931e3eff9a48b12f1517cd6ad0",
+      "transfer_sha256": "e26fb0d5da4684de18293e6701e4b380495ac016ce13b03be87a29f72af3bf09"
+    },
+    {
+      "transfer_file": "runner-reference/seed.ts.reference.txt",
+      "source_file": "gelato-proof/seed.ts",
+      "source_sha256": "06885fd4ba6dff0e3a43db5c69ef73d4928eced935cb27348edfe4275c31425f",
+      "transfer_sha256": "c30e4de959176a6d800849a813c2d2703fd98668f3d10078324f3e80783baa7f"
+    },
+    {
+      "transfer_file": "runner-reference/snapshot-54655.mjs.reference.txt",
+      "source_file": "gelato-proof/snapshot-54655.mjs",
+      "source_sha256": "517844e97a9fee47abbbff136efbcde8117daccc5aceef7bd4a359e8f05ebed6",
+      "transfer_sha256": "1ec1307de3e181aa7808872143bfb7080780f70ee3c5a272f74ea041306c499e"
+    },
+    {
+      "transfer_file": "runner-reference/snapshot-54656.mjs.reference.txt",
+      "source_file": "gelato-proof/snapshot-54656.mjs",
+      "source_sha256": "1a30b3b90abeedfca66413dc589e5cb90d95517423a69c69ec297044d5f7bcad",
+      "transfer_sha256": "5905e4ea840347f260c7948d3eff1d9e91c66a01dfdd006a487c17615c54da30"
+    },
+    {
+      "transfer_file": "runner-reference/unsent-resume.mjs.reference.txt",
+      "source_file": "gelato-proof/unsent-resume.mjs",
+      "source_sha256": "998d62b6feef15e9f303c76bce3835bb95f2444e199adf77577a09e42c49bd60",
+      "transfer_sha256": "47c29017f46512ddeb4f04f7ef79225fb614cf849194ef6a763fafb08f027f46"
+    },
+    {
+      "transfer_file": "runner-reference/verify-delivered-false.mjs.reference.txt",
+      "source_file": "gelato-proof/verify-delivered-false.mjs",
+      "source_sha256": "20ec00d8e3302b708d6e5eca87062223343d72f0b281c8a10799cd120d01d6d9",
+      "transfer_sha256": "88cc03746fdae9301bf1191e69670407c1d6fa6ef626493865effca12b3e1249"
+    },
+    {
+      "transfer_file": "runner-reference/window.mjs.reference.txt",
+      "source_file": "gelato-proof/window.mjs",
+      "source_sha256": "8c7bf773b61524adddadab252230b82fbfe5f247ad617027fb770b7b94e2465e",
+      "transfer_sha256": "f6e4fea88f1c46491640383e4c38ac84d3189359e2c9f3839be2467742c14df2"
+    },
+    {
+      "transfer_file": "evidence/delivered-false-evidence.json",
+      "source_file": "gelato-proof/delivered-false-evidence.json",
+      "source_sha256": "2512b0349b6c28aac57a22309ab5f03bd8acc9e78ee5a989f5d45efcb9735473",
+      "transfer_sha256": "3790479d54b5f38dbaa8528da26a256a5a4fd2eee51584bcdc82b4739325c8ab"
+    },
+    {
+      "transfer_file": "evidence/runtime-diagnostic-readback.json",
+      "source_file": "gelato-proof/runtime-diagnostic-readback.json",
+      "source_sha256": "305bc38818a35e96b49c458c46309fd48433606953e76d673ef7790a25065f86",
+      "transfer_sha256": "d74fcc4c974b4d76fcd830a2be1803c10b0afb964992c53df3894d9540722a65"
+    },
+    {
+      "transfer_file": "evidence/native-readback.json",
+      "source_file": "gelato-proof/native-readback.json",
+      "source_sha256": "b3e09b7c401c1d4a9d98f30fc9d1d4e8e7ee8f12aa7dae7d133d43824c897a5d",
+      "transfer_sha256": "5565f1af6cfc7054bcbcfccff8d6c39706a184d1445a20724026da3a5a3ce7f1"
+    },
+    {
+      "transfer_file": "evidence/delivery-prepublication-data-audit.json",
+      "source_file": "gelato-proof/delivery-prepublication-data-audit.json",
+      "source_sha256": "22e346aa884ed0af5ac827e74ee3b8365d2b00803fbfecd7bdfec9945a8c32f4",
+      "transfer_sha256": "5fcfe6706eba1f539db3661d416b94ecc771538352d495e5843c06918e1c1e46"
+    },
+    {
+      "transfer_file": "evidence/publication-proof-2026-10-13.json",
+      "source_file": "gelato-proof/publication-proof-2026-10-13.json",
+      "source_sha256": "2ebedfb41b6680204aaebe56594ccb1997e3a08d0711f0bb3e4b34a1d66b03cb",
+      "transfer_sha256": "2ebedfb41b6680204aaebe56594ccb1997e3a08d0711f0bb3e4b34a1d66b03cb"
+    },
+    {
+      "transfer_file": "evidence/claim-diagnostic.json",
+      "source_file": "gelato-proof/claim-diagnostic.json",
+      "source_sha256": "c5f85bdeb95a270ab9285884a5781d8f9c8fb9412f18939f4be986d5ccd0b92a",
+      "transfer_sha256": "97c6cd4bfa24b5170f924d85edc0261f52d99c4e51ff9f73940a132f0d853521"
+    },
+    {
+      "transfer_file": "evidence/claim-failure-evidence.json",
+      "source_file": "gelato-proof/attempt-5/claim-failure-evidence.json",
+      "source_sha256": "b70c12a92c88f186ff3e5954cb9e364442ac6ecf5c36b76e904cca789cbeda1b",
+      "transfer_sha256": "b70c12a92c88f186ff3e5954cb9e364442ac6ecf5c36b76e904cca789cbeda1b"
+    },
+    {
+      "transfer_file": "evidence/stale-march-deployment-metadata.json",
+      "source_file": "gelato-proof/stale-march-deployment-metadata.json",
+      "source_sha256": "ed3607dd7748b8876e5372f1cb18e5d11d978abad5c958753a481fcf5c81e6f8",
+      "transfer_sha256": "dc7e96d652c12e311a375491bf57eb66de21b8928b794cf49af9f670c79c3d7c"
+    },
+    {
+      "transfer_file": "evidence/credential-output-incident.json",
+      "source_file": "gelato-proof/credential-output-incident.json",
+      "source_sha256": "620c37cf8cefe4a3eb95970786012e78ed449ccff3fae584949c8dafbeffcc56",
+      "transfer_sha256": "386943412deb9a67090bb40a7e543ba587da6b776b11382e5dd6f4ebcf7d9da5"
+    },
+    {
+      "transfer_file": "evidence/execution-54655-state-summary.json",
+      "source_file": "gelato-proof/preserved-54655.json",
+      "source_sha256": "d8e6c972d1c59f56a071bd15aabdce0240ffd372502e1237762da983b1c8a039",
+      "transfer_sha256": "b515f17563e869d11ab68c21de974fb635c95a7950e906357056f6ee35325147"
+    },
+    {
+      "transfer_file": "evidence/execution-54656-state-summary.json",
+      "source_file": "gelato-proof/preserved-54656.json",
+      "source_sha256": "254fb2d36f13e4c0255974760d0822acfe24ce425da1dd7c88fb2a558cab9152",
+      "transfer_sha256": "3f6dab9dd1873a6061e5b706865a2b2329db3081067358917e07511ac81e5f54"
+    },
+    {
+      "transfer_file": "evidence/execution-54657-state-summary.json",
+      "source_file": "gelato-proof/attempt-5/draft-readback.json",
+      "source_sha256": "34915510250bf683bb22f21efddfe9a71ebf8c9a60435948866eabac5bce5740",
+      "transfer_sha256": "815bd9c7ee9a690959ae86de8561de65ae6c330976b3113be497094025bf6355"
+    },
+    {
+      "transfer_file": "evidence/first-native/positive-journal.json",
+      "source_file": "gelato-proof/positive-journal.json",
+      "source_sha256": "4200e536dfd458312c48ba2a9d77ce6899013099a0f61ed57e93641d305f3758",
+      "transfer_sha256": "ea993c25d105b28a18be5ea91a185ed6297ee35d2f22041eb80249b46be6d97b"
+    },
+    {
+      "transfer_file": "evidence/first-native/outer-journal.json",
+      "source_file": "gelato-proof/outer-journal.json",
+      "source_sha256": "555fdd5b6afcf1fe4b0dcb3dba694f54bb0e14a59fdcad3bfcba23fc87c4eff5",
+      "transfer_sha256": "e42ff8471afd2023ff5a751c6b86ab149d34a9490de2da6840fb8e59eaf83d88"
+    },
+    {
+      "transfer_file": "evidence/first-native/outer-cleanup.json",
+      "source_file": "gelato-proof/outer-cleanup.json",
+      "source_sha256": "a8157bf6f4546a24139800f4b715e68a7d2b8c9cf3d887ee0dd6b15b0079366c",
+      "transfer_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "transfer_file": "evidence/first-native/runtime-journal.json",
+      "source_file": "gelato-proof/runtime-journal.json",
+      "source_sha256": "f861aa72bc70fbb61543056f9a7ca97cdf3d7e7b44d8e42132cd372a11dab07f",
+      "transfer_sha256": "b57cd339280aceefbf63b14a2e719123829970dd869801476c5b27ed06c35d8c"
+    },
+    {
+      "transfer_file": "evidence/attempt-3/positive-journal.json",
+      "source_file": "gelato-proof/attempt-3/positive-journal.json",
+      "source_sha256": "4f1db71faf65ec65ba31296f04f4fda260c8b4f0743a87d1b957dad2c9faefc8",
+      "transfer_sha256": "4a62bcdffba62b8dfb83fb3f1199cf28b0950ca80c7e0ea0f65dc0779e1658f7"
+    },
+    {
+      "transfer_file": "evidence/attempt-3/outer-journal.json",
+      "source_file": "gelato-proof/attempt-3/outer-journal.json",
+      "source_sha256": "7802865fe2d1b06f498276734a50b1897e53f15e5e376e958217574aaa7dca1d",
+      "transfer_sha256": "18106f11b7a2050d0e60cc705ffc818c8fc044894a99845d1e888634f74d112d"
+    },
+    {
+      "transfer_file": "evidence/attempt-3/outer-cleanup.json",
+      "source_file": "gelato-proof/attempt-3/outer-cleanup.json",
+      "source_sha256": "b8c38cec644dd4c7ab3766395d4995cc293594238f7247c34d5435cd2e465bf7",
+      "transfer_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "transfer_file": "evidence/attempt-3/runtime-journal.json",
+      "source_file": "gelato-proof/attempt-3/runtime-journal.json",
+      "source_sha256": "fc238766c1124d0515f85fc93542ce6405d0dfd7d7b22a2e1a4f2cf56ab5b050",
+      "transfer_sha256": "449ecf6a75d74b83239ee808d57cfd35e6fe0552c23738207ffbd8a1facb1e94"
+    },
+    {
+      "transfer_file": "evidence/attempt-5/positive-journal.json",
+      "source_file": "gelato-proof/attempt-5/positive-journal.json",
+      "source_sha256": "06b1432e96e3fd2839551c30768b3572d2f6d40cd1f15ce67a881a9a8ce42712",
+      "transfer_sha256": "1b84da706a99106618210d8cf95be51828bbe34671433e12ead284f6db585521"
+    },
+    {
+      "transfer_file": "evidence/attempt-5/outer-journal.json",
+      "source_file": "gelato-proof/attempt-5/outer-journal.json",
+      "source_sha256": "068b237feefd20af2f1832f6266de21f00473f1b8f0f35b6751e71e3b88db13a",
+      "transfer_sha256": "790e94669e1f11efaeb981db7f1aa810b7271f458d437400ad64b8fe42e3ed18"
+    },
+    {
+      "transfer_file": "evidence/attempt-5/outer-cleanup.json",
+      "source_file": "gelato-proof/attempt-5/outer-cleanup.json",
+      "source_sha256": "bdefcf0e6250a91b7e4aad6dd78e3703c59bcf905d9c2fdaf2bf23297bfd58e1",
+      "transfer_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "transfer_file": "evidence/attempt-5/runtime-journal.json",
+      "source_file": "gelato-proof/attempt-5/runtime-journal.json",
+      "source_sha256": "e174a7ceddd20cdec82d140ec2aae658484ef75d8b6c2a1e96672a8b69a538e5",
+      "transfer_sha256": "28a36dd37bd560579b83f8450d84b3891f9deb6743ac24df9dfe2fd36bda45f0"
+    },
+    {
+      "transfer_file": "evidence/negative-cases-summary.json",
+      "source_file": "gelato-proof/negative-journal.json",
+      "source_sha256": "d25e2c39e628a02a5082758ae80e025aa1c4971b29cf1ffa8526c1e0dde393ec",
+      "transfer_sha256": "dd4ae29e1c53c52885a744fb21a17a4528656a77f62e770cb1577d69bfd119e5"
+    },
+    {
+      "transfer_file": "review-history/attempt4-checkpoint-complete-summary.json",
+      "source_file": "release-safety/attempt4-checkpoint-complete.json",
+      "source_sha256": "66dc937833de85d1f9dd5058fcecc336f3a7e0af47e00818b83cdcee57b9b6ad",
+      "transfer_sha256": "eab7bb02b1c6f411b16850ec00c6d22c7307127e808f2d062f64a82eaaeb033c"
+    },
+    {
+      "transfer_file": "review-history/attempt4-checkpoint-summary.json",
+      "source_file": "release-safety/attempt4-checkpoint.json",
+      "source_sha256": "bf1dd3a5df02500ebdd18ac1d6defcfbd47e6457c9f81f25b0a88d7b71f7a75d",
+      "transfer_sha256": "eab7bb02b1c6f411b16850ec00c6d22c7307127e808f2d062f64a82eaaeb033c"
+    },
+    {
+      "transfer_file": "review-history/attempt5-checkpoint-summary.json",
+      "source_file": "release-safety/attempt5-checkpoint.json",
+      "source_sha256": "91906dd7ad95593fabc60409eef91b62e639d3a1fd3f49e550f76aa106036904",
+      "transfer_sha256": "b0980114934cddc40127e7f7b8e00168a8fc214e26adca1e4f3ed93cc7519dcf"
+    },
+    {
+      "transfer_file": "review-history/delivery-checkpoint-summary.json",
+      "source_file": "release-safety/delivery-checkpoint.json",
+      "source_sha256": "26a4e5941f798a393bc905ff3229155b09ca0e5c77cae3f8874b768e911bdb51",
+      "transfer_sha256": "ff23e2fbcfe1384cf781d162da23e0df084c1b21b2c2403c47edf970b3dfe970"
+    },
+    {
+      "transfer_file": "review-history/deployed-foundation-final-review-summary.json",
+      "source_file": "release-safety/deployed-foundation-final-review.json",
+      "source_sha256": "50d9190b9f83b09f07eeb3a2903fdd43350725583d9ca9927bd497cef07118a3",
+      "transfer_sha256": "168938096ff931b588b875b6577334c47ee7755f902c9c8c79155c9b3ef33d55"
+    },
+    {
+      "transfer_file": "review-history/diagnostic-checkpoint-summary.json",
+      "source_file": "release-safety/diagnostic-checkpoint.json",
+      "source_sha256": "b6835313163b08187cca4fbe68c6afafedbc1e968b423bb244ec7533b29dc4ba",
+      "transfer_sha256": "2230d25c4aca2b99f01d7089c7f2718a7fbd783da86d4fbcd5632a92dae2f24b"
+    },
+    {
+      "transfer_file": "review-history/fresh-proof-checkpoint-complete-summary.json",
+      "source_file": "release-safety/fresh-proof-checkpoint-complete.json",
+      "source_sha256": "22badcbe422a9be1262a1973e737ed78f447487129e614dcf69e47eb55f59a37",
+      "transfer_sha256": "3c0a437937736029467e0e0525afd39c3903f39c3c346821b8105c963d89c511"
+    },
+    {
+      "transfer_file": "review-history/fresh-proof-checkpoint-summary.json",
+      "source_file": "release-safety/fresh-proof-checkpoint.json",
+      "source_sha256": "8c63ecdac00a48d8ba6bf7db68304fce28202da68e0bbfdd7c3833cf06059db5",
+      "transfer_sha256": "3c0a437937736029467e0e0525afd39c3903f39c3c346821b8105c963d89c511"
+    },
+    {
+      "transfer_file": "review-history/json-snapshot-final-review-summary.json",
+      "source_file": "release-safety/json-snapshot-final-review.json",
+      "source_sha256": "77843fb127ec3a3f22f34d899d0050b5d2f41e058604b9d317abb0664975b59d",
+      "transfer_sha256": "a6002c0763b93b94d88de306d9be6512791ec123331d48979ce952c6693a084b"
+    },
+    {
+      "transfer_file": "review-history/negative-window-checkpoint-summary.json",
+      "source_file": "release-safety/negative-window-checkpoint.json",
+      "source_sha256": "6995542b3fbdfd6c94e802ee433931069217d8f8fc7900087114279636cf5805",
+      "transfer_sha256": "eda8f791a1406ee9d23b2c44d765f95a690830753bf0f93b02dd25bdaaa4986e"
+    },
+    {
+      "transfer_file": "review-history/phase-plan-handoff-final-review-summary.json",
+      "source_file": "release-safety/phase-plan-handoff-final-review.json",
+      "source_sha256": "3ea76f65c567fc9f1de1394d06dac593592991e8d859bd473dbc6208b717c7ea",
+      "transfer_sha256": "e035aed16680df130ceb9cd75c6e526297c8c57f39d94a134194adb024a81fbf"
+    },
+    {
+      "transfer_file": "review-history/positive-window-checkpoint-summary.json",
+      "source_file": "release-safety/positive-window-checkpoint.json",
+      "source_sha256": "dd2d05b9b9f1a86dc4da8ac5830b05c398bb10df755bf0473aa88e502f402ee0",
+      "transfer_sha256": "d990a62a94f8f5a68bed537e0d72144ae81ff56f72e0baac922da42c9454986f"
+    },
+    {
+      "transfer_file": "review-history/pr10-publication-final-review-summary.json",
+      "source_file": "release-safety/pr10-publication-final-review.json",
+      "source_sha256": "51fe502364c7671653b0c0131c2f59cd4f1b3d67717707c66fb60acc801d95a4",
+      "transfer_sha256": "af5264ae3a00536c67cdd5cb98bc72dba2eb6a7cafe61a2c25b3fc1d3eef1e6e"
+    },
+    {
+      "transfer_file": "review-history/pr7-publication-final-review-summary.json",
+      "source_file": "release-safety/pr7-publication-final-review.json",
+      "source_sha256": "b776f5a1c0839fe13097c46af6eecd5930edae0be293605b6d747f4e5f5aa9b7",
+      "transfer_sha256": "44fa665cfffb48b51b2ce982774170217c4d43408b37344aa1a3d1694bad7f2d"
+    },
+    {
+      "transfer_file": "review-history/pr8-publication-final-review-summary.json",
+      "source_file": "release-safety/pr8-publication-final-review.json",
+      "source_sha256": "93acb6cc6320f4827e0b426ad705c2f48aabbe2330f98ff460ff24b6faa384d3",
+      "transfer_sha256": "6626fc31b371f8e492bf15e66263eeb2fc62633353e18a4320f36c53d72b2f3e"
+    },
+    {
+      "transfer_file": "review-history/pr9-publication-final-review-summary.json",
+      "source_file": "release-safety/pr9-publication-final-review.json",
+      "source_sha256": "988cd7e7b307f5c9ea3cb1227a495ba6fc300d5b625d91622df85949ba06b28e",
+      "transfer_sha256": "fec0cd2a88ed1abb3f53bec53083c33dd89d46eb40647c08eb7641f9a90d2a21"
+    },
+    {
+      "transfer_file": "review-history/pre-runtime-final-review-summary.json",
+      "source_file": "release-safety/pre-runtime-final-review.json",
+      "source_sha256": "44185e214a9ee4ed78cce0d554ef12a1565a54d38f9f061b3a1f654ef14bfc07",
+      "transfer_sha256": "5efba62f4ff27cedd3c95eb60d2aa437589cb01c93d68b6316e241f35ae1acfc"
+    },
+    {
+      "transfer_file": "review-history/previous-review-before-schema-checkpoint-summary.json",
+      "source_file": "release-safety/previous-review-before-schema-checkpoint.json",
+      "source_sha256": "7c4e200587d628e432ed6457673bf52fcf6a6f9e4c58775aad39abebadc3ea21",
+      "transfer_sha256": "0ac9f66206713a33ba024895bf95d0fc516ca8f8f0dbfc95ac66e3bcff12cc5c"
+    },
+    {
+      "transfer_file": "review-history/provider-contract-review-summary.json",
+      "source_file": "release-safety/provider-contract-review.json",
+      "source_sha256": "f90c187e3172c30562dc75bd818255d5180d028b3ddae7ed7a6cfb22259b1b41",
+      "transfer_sha256": "0801b331a21eb8e238cc7bd025ba87d8874b08e55e24bba4bac76cd1992dab92"
+    },
+    {
+      "transfer_file": "review-history/recovery-window-checkpoint-summary.json",
+      "source_file": "release-safety/recovery-window-checkpoint.json",
+      "source_sha256": "523a83617ceec0bf79fc6e5755041422dcc6de94d52af470636be619d7dee90c",
+      "transfer_sha256": "3e270738bc5957e2ee62bd63099c31fcd067ab1810eeaeee9f760c878f3c7e25"
+    },
+    {
+      "transfer_file": "review-history/review-summary.json",
+      "source_file": "release-safety/review.json",
+      "source_sha256": "3ea76f65c567fc9f1de1394d06dac593592991e8d859bd473dbc6208b717c7ea",
+      "transfer_sha256": "e035aed16680df130ceb9cd75c6e526297c8c57f39d94a134194adb024a81fbf"
+    },
+    {
+      "transfer_file": "review-history/runtime-native-final-review-summary.json",
+      "source_file": "release-safety/runtime-native-final-review.json",
+      "source_sha256": "5b05aabfa90fb6798ff2556c21bc60f09cb4d9e672d289d98a18bd0ffc374349",
+      "transfer_sha256": "0df09effbe1540d365ccedeec5ec6c2d5537a3063fb2f2bbdcc6b57758e28c69"
+    },
+    {
+      "transfer_file": "review-history/runtime-preparation-checkpoint-summary.json",
+      "source_file": "release-safety/runtime-preparation-checkpoint.json",
+      "source_sha256": "91c03480bdef006e7efa0a446784b9f0cfe76819d589e57b7d3c8e04178bc27a",
+      "transfer_sha256": "86a7f553641f3dff5c78b9c668827528747bc55c402df35bcc9f5dee3ccdfb30"
+    },
+    {
+      "transfer_file": "review-history/schema-checkpoint-review-20261013-summary.json",
+      "source_file": "release-safety/schema-checkpoint-review-20261013.json",
+      "source_sha256": "42e8f45927842c97ccb23e3f9a95c673c77f8a3c519bff7464bb21136bd35bc4",
+      "transfer_sha256": "b98b03ba1809a0e1d9a471948cbf59c1f2885a28e4f42e23c537167aa0117c1b"
+    },
+    {
+      "transfer_file": "review-history/seed-checkpoint-review-summary.json",
+      "source_file": "release-safety/seed-checkpoint-review.json",
+      "source_sha256": "62b6d9fa5a1cdfcfbde2134de69b060fd7c2f4a0c73380add507d56b792c5217",
+      "transfer_sha256": "0d11f6aa1e9899c46b7ea1cc4cd032861a58f5a2f309c591c1d66710e0fe09b8"
+    },
+    {
+      "transfer_file": "review-history/stale-removal-checkpoint-summary.json",
+      "source_file": "release-safety/stale-removal-checkpoint.json",
+      "source_sha256": "e7831f5d75e4447708d0c1f1f92fed7c51a7a1c295235433d15b67d5f5934f08",
+      "transfer_sha256": "9e6eb579134364fd985f9c5e2d61a88c2f6ff9ddf4e03b6de864f19abab8a76d"
+    },
+    {
+      "transfer_file": "evidence/direct-api-proofs-summary.json",
+      "source_file": "docs/repo-workflows-planning/gelato-draft-proof-evidence-2026-10-11.json",
+      "source_sha256": "55d9355d9fb90535fefba94e03f06999e6f02d59d44b450a250047b469922305",
+      "transfer_sha256": "52c5e3ba583e26e46f1d3907abd756adbd0b6bf198e6526996a7e5f419e27ea2"
+    }
+  ]
+}

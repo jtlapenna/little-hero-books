@@ -1,0 +1,13 @@
+{
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T23:57:07.503Z",
+  "rationale": "Fixed-target no-force stale deployment deletion helper reviewed; explicit human DELETE approval remains required.",
+  "branch": "codex/gelato-sandbox-continuation",
+  "checks": [
+    "syntaxpassed",
+    "metadata snapshot targetid/date/source validated, noncanonical; no-force only",
+    "exclusive wx intent beforeoneDELETE; no retries; ambiguity journal retained",
+    "saved/live requestfalse proof plus5flagmetadata/db/copies verifiedbefore; samecanonical/controls/404verifiedafter"
+  ],
+  "findings": []
+}

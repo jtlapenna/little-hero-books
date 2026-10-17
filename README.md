@@ -5,6 +5,12 @@
 
 Little Hero Labs creates magical, personalized children's stories where each child becomes the hero of *Finding Our Inner Voice* — a journey through enchanted locations where they discover their inner strength. Our system uses template-based story generation with consistent quality and automated print-on-demand fulfillment.
 
+## Expanded book artwork and placement draft
+
+The [saved placement editor](tools/inner-voice-placement-editor/README.md) contains current 32-page interior artwork, selected copy, Jeff's saved placements, 2K working copies and review PDFs. It runs locally with Python and does not change production settings or create orders.
+
+Current creative decisions and remaining approvals are tracked in the [art review notes](docs/new-planning/finding-our-inner-voice-30-page-expansion/art-review-notes-2026-10-15.md) and [Gelato phase checklist](docs/repo-workflows-planning/gelato-next-phase-plan.md). Pages 30 and 31, final lettering, character placement, covers, animal variants and physical print approval remain open.
+
 ## 🎯 **Current Status: Ready for n8n Handoff**
 
 ### ✅ **What's Complete:**

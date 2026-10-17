@@ -1,0 +1,675 @@
+{
+  "schema": "lhb.placement-review@v1",
+  "bookId": "book-finding-our-inner-voice",
+  "configVersion": 2,
+  "formatId": "standard",
+  "baselineFingerprint": "ee4e59817f74c464704a53fd53ab1d98821738066c2bdfeeb65346619c9043e4",
+  "savedAt": "2026-10-16T02:30:34.559Z",
+  "pages": [
+    {
+      "page": 1,
+      "pageId": "page-01",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 2,
+      "pageId": "page-02",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 3,
+      "pageId": "page-03",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 4,
+      "pageId": "page-04",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 5,
+      "pageId": "page-05",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "f4a05ba4d0015c5753bcfd86b1acfdd48e66050ee4f402e7d0b3150c96817f3e",
+          "visible": {
+            "left": 1452.8776681135373,
+            "top": 1153.2812406613507,
+            "width": 629.5357395225261,
+            "height": 1087.9164498623654,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 1137.4540319569383,
+            "top": 1022.7837279894937,
+            "width": 1343.0095776480557,
+            "height": 1343.0095776480557,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose01.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "pageId": "page-06",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 7,
+      "pageId": "page-07",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "f4d19d9da2dca24bcb73a7660973606bd415b79a466eb038d590d0f1865cc54b",
+          "visible": {
+            "left": 808.3371736431687,
+            "top": 1306.7012570859847,
+            "width": 221.04368699479372,
+            "height": 549.4812407842278,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 603.9760290630765,
+            "top": 1237.364440174882,
+            "width": 653.7471308761116,
+            "height": 653.7471308761116,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 8,
+      "pageId": "page-08",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 9,
+      "pageId": "page-09",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "e92841277309609d4d6ad68a6d43bd142377d4f294e76a19a1703fc7a2c79b2a",
+          "visible": {
+            "left": 824.5417504484502,
+            "top": 694.4208576909809,
+            "width": 471.3370052314625,
+            "height": 1127.637111298005,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 438.67045387871434,
+            "top": 582.1673895979668,
+            "width": 1306.2221741732546,
+            "height": 1306.2221741732546,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose03.png",
+          "crop": null
+        },
+        {
+          "id": "guide-portrait",
+          "assetSha256": "b295ce1c89a95ffef1476fdae6f06bd8a9671d28403a2db97dacdf686e4b0ea4",
+          "visible": {
+            "left": 292.9808274047618,
+            "top": 125.87718929942426,
+            "width": 269.38889428429775,
+            "height": 269.38889428429775,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "placement": {
+            "left": 292.9808274047618,
+            "top": 125.87718929942426,
+            "width": 269.38889428429775,
+            "height": 269.38889428429775,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-portrait.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 10,
+      "pageId": "page-10",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 11,
+      "pageId": "page-11",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "2f5ac532de6a2b0ea4177539644c259e792e9993b9751527b71151bf43b52be7",
+          "visible": {
+            "left": 615.573838832511,
+            "top": 906.4905022567009,
+            "width": 542.274617154558,
+            "height": 1105.5775097099386,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 134.4723864803475,
+            "top": 804.5352275860437,
+            "width": 1305.0275157844117,
+            "height": 1305.0275157844117,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose04.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 12,
+      "pageId": "page-12",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "guide-clues",
+          "assetSha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde",
+          "visible": {
+            "left": 49.614575874782446,
+            "top": 1064.7834004280908,
+            "width": 2521.67707630717,
+            "height": 1324.0333557489948,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 49.614575874782446,
+            "top": 120.93822150309529,
+            "width": 2599.1416914241236,
+            "height": 2599.1416914241236,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 13,
+      "pageId": "page-13",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7",
+          "visible": {
+            "left": 637.8616130924041,
+            "top": 1104.0532327092992,
+            "width": 455.49035628635175,
+            "height": 958.4276246858652,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": -24.935251503761606,
+            "top": 741.9967956611733,
+            "width": 1494.9427078116162,
+            "height": 1494.9427078116162,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose05.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 14,
+      "pageId": "page-14",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "e98101c89f6cfff121025f8b2cda68a9dbf36012d6d8db402646a5fbea570bce",
+          "visible": {
+            "left": 203.58534887976475,
+            "top": 472.24724406465634,
+            "width": 429.21323423110846,
+            "height": 1077.2537906042496,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": -390.5600510014217,
+            "top": 317.7045061720636,
+            "width": 1329.8467529581092,
+            "height": 1329.8467529581092,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose06.png",
+          "crop": null
+        },
+        {
+          "id": "breath-vignette",
+          "assetSha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
+          "visible": {
+            "left": 1631.1663742211867,
+            "top": 1714.7885335147635,
+            "width": 648.0248101212223,
+            "height": 898.2116039022006,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "placement": {
+            "left": 848.8199657995211,
+            "top": 1467.6778068704366,
+            "width": 2099.92849862067,
+            "height": 2099.92849862067,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose07.png",
+          "crop": "upper 52 percent of alpha silhouette"
+        }
+      ]
+    },
+    {
+      "page": 15,
+      "pageId": "page-15",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "1c46e36e0fcd239c48390b677d38447e8e18fa4571f12a5f1e411abaac509b23",
+          "visible": {
+            "left": 220.95644520706497,
+            "top": 1642.8893241591143,
+            "width": 927.4492665486212,
+            "height": 914.9558929104861,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": -77.41471344486865,
+            "top": 1291.60505362802,
+            "width": 1505.0840712294582,
+            "height": 1505.0840712294582,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose08.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 16,
+      "pageId": "page-16",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 17,
+      "pageId": "page-17",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "7f43428aadac2f51c617f554abe34a99aca2c9c2febe50b4dcb0cff8787ce32d",
+          "visible": {
+            "left": 1599.3113216466043,
+            "top": 743.5023430742647,
+            "width": 526.5052114340903,
+            "height": 1160.6123876728338,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 1170.2569462620115,
+            "top": 627.102733348476,
+            "width": 1385.9674460372967,
+            "height": 1385.9674460372967,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose09.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 18,
+      "pageId": "page-18",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 19,
+      "pageId": "page-19",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
+          "visible": {
+            "left": 1268.1085014709352,
+            "top": 752.9535324900332,
+            "width": 572.132953175449,
+            "height": 1524.480843587747,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 577.3846988239928,
+            "top": 534.782580408889,
+            "width": 1854.0004558596827,
+            "height": 1854.0004558596827,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose07.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 20,
+      "pageId": "page-20",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 21,
+      "pageId": "page-21",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 22,
+      "pageId": "page-22",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 23,
+      "pageId": "page-23",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "7401ca27d81f3ffd4d350f44881af15a7a4478a0d0be65524ee32d11732f56cc",
+          "visible": {
+            "left": 796.4730536228407,
+            "top": 1179.7616275487158,
+            "width": 526.8070067609098,
+            "height": 945,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 447.9788925902654,
+            "top": 1057.7886711873143,
+            "width": 1189.5267363245237,
+            "height": 1189.5267363245237,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose10.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 24,
+      "pageId": "page-24",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "guide-clues",
+          "assetSha256": "136988f899f1431d7f2394e75df54bf6aca91eedc8835cbb9d175f275ba52cde",
+          "visible": {
+            "left": 840,
+            "top": 1671.342707018253,
+            "width": 1466.3207412138893,
+            "height": 769.907292981747,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 840.0,
+            "top": 1122.509640581688,
+            "width": 1511.3653557378407,
+            "height": 1511.3653557378407,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 25,
+      "pageId": "page-25",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "guide-appears",
+          "assetSha256": "8027586c5671f8e4a962e9943fae150b5aa040e2943f84e2ed83e824fdae29f5",
+          "visible": {
+            "left": 871.3444422394208,
+            "top": 1070.4752390631525,
+            "width": 855.0042488284486,
+            "height": 852.4633743891366,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 646.4770543603192,
+            "top": 834.1739162071474,
+            "width": 1300.9277129276838,
+            "height": 1300.9277129276838,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-appears.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 26,
+      "pageId": "page-26",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "b8af8476472f39b2510aa7e529c91ebc2c9ee92b5a7b607812c0d7df0f563e3f",
+          "visible": {
+            "left": 519.068399381729,
+            "top": 989.067970281437,
+            "width": 887.0157798682583,
+            "height": 876.0348417405909,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 337.2728681570103,
+            "top": 858.5168169858337,
+            "width": 1249.3867380812883,
+            "height": 1249.3867380812883,
+            "flipX": true,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/pose11-provider-original.png",
+          "crop": null
+        },
+        {
+          "id": "guide-flying",
+          "assetSha256": "47a92bfa4aee7d56f10f2240e27675dfca18d951d78e0576039d8f87b9d8a7da",
+          "visible": {
+            "left": 1108.6285663978151,
+            "top": 1326.8530783451338,
+            "width": 733.8798520446888,
+            "height": 594.3468177662356,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "placement": {
+            "left": 924.3597501369571,
+            "top": 1088.2622411056414,
+            "width": 1090.7009702376797,
+            "height": 1090.7009702376797,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/animals/owl-flying.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 27,
+      "pageId": "page-27",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 28,
+      "pageId": "page-28",
+      "reviewed": false,
+      "notes": "",
+      "layers": [
+        {
+          "id": "hero",
+          "assetSha256": "9311ced8d242ba07c7c5b52530acf22e7a5cc873ca8a22df9bccceb5e246982b",
+          "visible": {
+            "left": 1304.725137955854,
+            "top": 1081.7301937989218,
+            "width": 405.1472286374133,
+            "height": 1076.25,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "placement": {
+            "left": 821.2825859928055,
+            "top": 972.9866891799842,
+            "width": 1272.6096997690531,
+            "height": 1272.6096997690531,
+            "flipX": false,
+            "zIndex": 10
+          },
+          "sourcePath": "hosted-generation/E/normalized/pose12.png",
+          "crop": null
+        },
+        {
+          "id": "waiting-child",
+          "assetSha256": "f81c6ab1dab5360027a8dc747570cfd5023024b3b7dcb3de6f9562242c19d445",
+          "visible": {
+            "left": 1887.7957053742803,
+            "top": 1260.919032179234,
+            "width": 342.4709302325582,
+            "height": 892.5000000000001,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "placement": {
+            "left": 1612.7811704905594,
+            "top": 1221.6312414815595,
+            "width": 901.3953488372094,
+            "height": 959.2151162790699,
+            "flipX": false,
+            "zIndex": 11
+          },
+          "sourcePath": "book-finding-our-inner-voice/v1/overlays/waiting-child.png",
+          "crop": null
+        }
+      ]
+    },
+    {
+      "page": 29,
+      "pageId": "page-29",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 30,
+      "pageId": "page-30",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 31,
+      "pageId": "page-31",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    },
+    {
+      "page": 32,
+      "pageId": "page-32",
+      "reviewed": false,
+      "notes": "",
+      "layers": []
+    }
+  ],
+  "coordinateSystem": {
+    "width": 2625,
+    "height": 2625,
+    "origin": "top-left",
+    "placementBox": "full source image, including transparent padding"
+  },
+  "purpose": "Local placement review; apply only after approval",
+  "sourceManifest": "/Users/jeff/Projects/little-hero-books/output/pdf/inner-voice-character-placement-2026-10-13/character-placement-manifest.json"
+}

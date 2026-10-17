@@ -1,0 +1,26 @@
+from pathlib import Path
+from PIL import Image
+import base64,json,hashlib,html,shutil
+ROOT=Path('/Users/jeff/Projects/little-hero-books');OUT=Path(__file__).parent
+seed=json.loads((ROOT/'output/pose-editor/inner-voice/editor-data.json').read_text());live=json.loads((ROOT/'output/pose-editor/inner-voice/placements.json').read_text());assetmap=json.loads((ROOT/'output/pose-editor/inner-voice/asset-map.json').read_text())
+p=seed['pages'][16];old=p['layers'][0];visible=live['pages'][16]['layers'][0]['visible'];new=OUT/'page-17-uphill-personalized-preview-v1.png';base=ROOT/'assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-17-uphill-climb-v1.png';im=Image.open(new);bbox=im.getchannel('A').point(lambda a:255 if a>=32 else 0).getbbox();w,h=im.size
+new_visible=dict(visible);new_visible['flipX']=False;new_visible['width']=visible['height']*(bbox[2]-bbox[0])/(bbox[3]-bbox[1]);new_visible['left']=visible['left']+visible['width']/2-new_visible['width']/2
+
+def data(path,mime='image/png'):return 'data:'+mime+';base64,'+base64.b64encode(Path(path).read_bytes()).decode()
+background=data(assetmap[p['background']]);font=data(assetmap[seed['font']],'font/ttf')
+def figure(path,bbox,size,v):
+ a,b,r,t=bbox;sw,sh=size;viewleft=sw-r if v['flipX'] else a
+ transform=f'translate({sw},0) scale(-1,1)' if v['flipX'] else ''
+ return f'<svg x="{v["left"]}" y="{v["top"]}" width="{v["width"]}" height="{v["height"]}" viewBox="{viewleft} {b} {r-a} {t-b}" overflow="hidden"><g transform="{transform}"><image href="{data(path)}" width="{sw}" height="{sh}"/></g></svg>'
+def panel(title,pose):
+ lines=''.join(f'<text x="{l["x"]}" y="{l["y"]}" font-size="{l["size"]}" fill="{l["color"]}">{html.escape(l["text"])}</text>' for l in p['lines'])
+ return f'<section><h2>{title}</h2><svg class="page" viewBox="0 0 2625 2625"><image href="{background}" width="2625" height="2625"/>{pose}<g font-family="Book">{lines}</g></svg></section>'
+old_panel=panel('Previous pose',figure(assetmap[old['asset']],old['bbox'],old['canvas'],visible));new_panel=panel('New pose: climbing toward the cave',figure(new,bbox,(w,h),new_visible))
+(OUT/'page-17-pose-comparison.html').write_text(f'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page 17 pose study</title><style>@font-face{{font-family:Book;src:url('{font}')}}*{{box-sizing:border-box}}body{{margin:0;padding:30px;background:#f3f0e8;color:#27392f;font:15px -apple-system,BlinkMacSystemFont,sans-serif}}header{{display:flex;justify-content:space-between;align-items:baseline;gap:25px;margin-bottom:22px}}h1{{font:30px Georgia,serif;margin:0}}header p{{font-size:13px;color:#566057;margin:0}}main{{display:grid;grid-template-columns:1fr 1fr;gap:24px}}h2{{font-size:14px;font-weight:600;margin:0 0 12px}}.page{{display:block;width:100%;height:auto;box-shadow:0 4px 16px #00000012}}footer{{font-size:12px;color:#566057;margin-top:17px}}@media(max-width:720px){{main{{grid-template-columns:1fr}}header{{display:block}}header p{{margin-top:8px}}}}</style><header><h1>Page 17 · pose direction</h1><p>Your placement and visible height retained. New pose faces uphill toward the cave.</p></header><main>{old_panel}{new_panel}</main><footer>Colored character is a review preview. Reusable gray-bodysuit reference is saved separately. Text remains provisional.</footer></html>''')
+(OUT/'jeff-placement-source.json').write_text(json.dumps(live,indent=2))
+
+def meta(path):
+ im=Image.open(path);return {'path':str(path),'size':im.size,'mode':im.mode,'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'visibleAlphaBoundsThreshold32':im.getchannel('A').point(lambda a:255 if a>=32 else 0).getbbox()}
+a,b,r,t=bbox;scale=new_visible['height']/(t-b);frame={'left':new_visible['left']-a*scale,'top':new_visible['top']-b*scale,'width':w*scale,'height':h*scale,'flipX':False,'zIndex':visible['zIndex']}
+manifest={'status':'Page 17 review candidate; not applied to editor baseline or production config','tool':'built-in image_gen','bookId':seed['bookId'],'page':17,'poseIdCandidate':'uphill-climb','baseAsset':meta(base),'personalizedPreview':meta(new),'references':[str(ROOT/'assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose02.png'),str(ROOT/'assets/poses/bases/eyebrows/body-suit.png'),assetmap[p['background']],assetmap[old['asset']]],'sourcePlacementSavedAt':live['savedAt'],'previousVisiblePlacement2625':visible,'candidateVisiblePlacement2625':new_visible,'candidateFullImagePlacement2625':frame,'sourceResolution':'Both generated files are 1254 x 1254. Drafts, not confirmed 2K masters.','reviewBrief':'Full body, three-quarter rear/side facing right, climbing uphill toward the cave, higher leading foot and lower trailing foot, balanced arm movement. Gray reusable bodysuit with eyebrows, no hair, genuine alpha; colored identity preview derived separately.','limits':['Final art approval pending.','Both files contain very faint alpha pixels outside the visible silhouette; no source pixel edits applied.','Final 2K source and pose-generation workflow proof remain finishing steps.']}
+(OUT/'generation-manifest.json').write_text(json.dumps(manifest,indent=2));print(json.dumps({'comparison':str(OUT/'page-17-pose-comparison.html'),'base':str(base),'candidatePlacement':frame},indent=2))

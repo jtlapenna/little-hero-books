@@ -1,0 +1,355 @@
+{
+  "assets": [
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "f4d19d9da2dca24bcb73a7660973606bd415b79a466eb038d590d0f1865cc54b"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-hero-page-07-look-up-personalized-preview-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "9ab732d40d82d49f47c45459d9ff06ae3fda03a21b02b564e7fabd0ed1c1636a"
+      },
+      "uses": [
+        {
+          "page": 7,
+          "role": "hero"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-09-bedroom-owl-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "7874bb6aaf733107ae192dad951aa5d7e77d435c083affb057f1fb44dbae6cce"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-09-background-page-09-bedroom-owl-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "0259fa1d2a4c9d77235455183284aaa918c5f90c202525c900612711dbe20aa6"
+      },
+      "uses": [
+        {
+          "page": 9,
+          "role": "background"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/bedroom-09-10/page-10-bedroom-owl-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "1bf2106f0284fd4cfd566b32e01a7c40042373048d5168b6f1375cfcad8d774b"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-10-background-page-10-bedroom-owl-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927"
+      },
+      "uses": [
+        {
+          "page": 10,
+          "role": "background"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/page-13-sneeze/page-13-bush-sneeze-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "d787fd8bcc606f4f359fbc929ce2f5ba54cb6e69465757c21a52af87a6fe622d"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-13-bush-sneeze-matched-2k-upscaled-v1.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "9faf1e53b4fd998e902103d30c332ecd49b0d6054a373e32d53098adcaf6d73f"
+      },
+      "uses": [
+        {
+          "page": 13,
+          "role": "background"
+        }
+      ],
+      "method": "Original matching 2048 square background with enlarged generated sneeze effect. Preserve original gutter."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-17/page-17-uphill-personalized-preview-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "89ab7dbe9f0e097b7640d88f95cb77d382ed24d1ba3132a5476257ec77f90b15"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-hero-page-17-uphill-personalized-preview-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "0d6b0953ba69d3d96ec023816f2b64a71601734676ec6008da1ec174ecb80db1"
+      },
+      "uses": [
+        {
+          "page": 17,
+          "role": "hero"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-19-depth/page-19-depth-stronger-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGB",
+        "sha256": "d2fb976cf59f300f69fa77cf505b012793e5338ed9981f91cb70024c77b2fcf2"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-19-background-page-19-depth-stronger-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "sha256": "b06c8d55dba31163df73266d502d39f6a12a1e53f0bacde72762fc7839d0dfe5"
+      },
+      "uses": [
+        {
+          "page": 19,
+          "role": "background"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-appears.png",
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGBA",
+        "sha256": "8027586c5671f8e4a962e9943fae150b5aa040e2943f84e2ed83e824fdae29f5"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-25-guide-appears-owl-appears-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "a6a5a2ad65bff91204af62fffec79eaec4e2f5cf16d8311df69e07a78046b660"
+      },
+      "uses": [
+        {
+          "page": 25,
+          "role": "guide-appears"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/animals/owl-flying.png",
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGBA",
+        "sha256": "47a92bfa4aee7d56f10f2240e27675dfca18d951d78e0576039d8f87b9d8a7da"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-26-guide-flying-owl-flying-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "a8f3007b68a7ff4802cc19156cc67033a82c8a863e6462b21d33524facff27eb"
+      },
+      "uses": [
+        {
+          "page": 26,
+          "role": "guide-flying"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-28/page-28-you-go-first-personalized-preview-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "e629a7f06c8fd050e2056be4d3bd524cec72470e565850969aa1687ecf76f8f2"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-hero-page-28-you-go-first-personalized-preview-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "bb621be92ac9f74c3e7cecc1f6544b84429f182084f9a1693fcb7e748c0bc3b2"
+      },
+      "uses": [
+        {
+          "page": 28,
+          "role": "hero"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/overlays/waiting-child.png",
+        "size": [
+          1216,
+          1294
+        ],
+        "mode": "RGBA",
+        "sha256": "f81c6ab1dab5360027a8dc747570cfd5023024b3b7dcb3de6f9562242c19d445"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-waiting-child-waiting-child-2k-upscaled.png",
+        "size": [
+          2432,
+          2588
+        ],
+        "mode": "RGBA",
+        "sha256": "850597574770ba51db34d715fba1faa775a25997091289367061a1014064458b"
+      },
+      "uses": [
+        {
+          "page": 28,
+          "role": "waiting-child"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-07-slide-look-up-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "63c671ee789d67c7a0fc23a0eb0346f38ecee4c76538f35715d2378c793ac8ad"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-gray-pose-reference-pose-page-07-slide-look-up-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "d69d52217769088f11d12ec9c8d0851467693debc987db92e05d969f44ebae33"
+      },
+      "uses": [
+        {
+          "page": 7,
+          "role": "gray-pose-reference"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-17-uphill-climb-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "02ff9be2e619bc2cba33ac5998671e41395b86498c4b02b3210ee7c10c29d06f"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-17-gray-pose-reference-pose-page-17-uphill-climb-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "ff8c7ac352b40969992b773f4b496e90b34af61b92c8bc72a1c8f0c280fc27ab"
+      },
+      "uses": [
+        {
+          "page": 17,
+          "role": "gray-pose-reference"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    },
+    {
+      "source": {
+        "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-28-you-go-first-v1.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "mode": "RGBA",
+        "sha256": "c6a9083263b23be5b5c939eba9399868e187c2f28e5be996267f737e64c6c37f"
+      },
+      "output": {
+        "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-28-gray-pose-reference-pose-page-28-you-go-first-v1-2k-upscaled.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGBA",
+        "sha256": "921aeab87b708c5a8112a8dde094498ea41311615570ab673cba4bb754180950"
+      },
+      "uses": [
+        {
+          "page": 28,
+          "role": "gray-pose-reference"
+        }
+      ],
+      "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+    }
+  ]
+}

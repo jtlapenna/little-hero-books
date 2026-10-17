@@ -1,0 +1,12 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const e={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const url='https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft';
+const denied=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});assert.equal(denied.status,401);assert.equal(denied.headers.get('cache-control'),'private, no-store');await denied.body?.cancel();
+const r=await fetch(url,{headers:{Authorization:'Bearer '+e.BACKEND_API_TOKEN},redirect:'error',signal:AbortSignal.timeout(20000)});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'private, no-store');const b=await r.json();
+assert.deepEqual(Object.keys(b).sort(),['contextAvailable','cloudflare','globalProcess','nodeProcess','draftsEnabled','buildTimestampMs'].sort());
+for(const key of ['cloudflare','globalProcess','nodeProcess']){assert.deepEqual(Object.keys(b[key]).sort(),['present','isString','isTrue','isFalse'].sort());for(const value of Object.values(b[key]))assert.equal(typeof value,'boolean');}
+assert.equal(typeof b.contextAvailable,'boolean');assert.ok(b.draftsEnabled===null||typeof b.draftsEnabled==='boolean');assert.ok(b.buildTimestampMs===null||typeof b.buildTimestampMs==='number');
+fs.writeFileSync('<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/runtime-diagnostic-readback.json',JSON.stringify({at:new Date().toISOString(),unauthorizedStatus:401,status:r.status,...b},null,2),{mode:0o600});console.log(JSON.stringify(b));

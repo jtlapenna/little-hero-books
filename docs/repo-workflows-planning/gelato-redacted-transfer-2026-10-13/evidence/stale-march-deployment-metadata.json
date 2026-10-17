@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-13T23:49:31.760Z",
+  "id": "<REDACTED_ID_001>",
+  "createdOn": "2026-03-12T20:33:49.842725Z",
+  "environment": "production",
+  "latestStage": {
+    "name": "deploy",
+    "started_on": "2026-03-12T20:43:29.40744Z",
+    "ended_on": null,
+    "status": "active"
+  },
+  "stages": [
+    {
+      "name": "queued",
+      "started_on": "2026-03-12T20:33:50.003234Z",
+      "ended_on": "2026-03-12T20:39:31.106086Z",
+      "status": "success"
+    },
+    {
+      "name": "initialize",
+      "started_on": "2026-03-12T20:39:31.106086Z",
+      "ended_on": "2026-03-12T20:40:19.074761Z",
+      "status": "success"
+    },
+    {
+      "name": "clone_repo",
+      "started_on": "2026-03-12T20:40:19.074761Z",
+      "ended_on": "2026-03-12T20:41:44.883457Z",
+      "status": "success"
+    },
+    {
+      "name": "build",
+      "started_on": "2026-03-12T20:41:44.883457Z",
+      "ended_on": "2026-03-12T20:43:29.40744Z",
+      "status": "success"
+    },
+    {
+      "name": "deploy",
+      "started_on": "2026-03-12T20:43:29.40744Z",
+      "ended_on": null,
+      "status": "active"
+    }
+  ],
+  "source": "17c892d4486f2ef1067945c288bf6946b718e01d",
+  "canonicalDeploymentId": "<REDACTED_ID_003>",
+  "canonicalSource": "c7d3590723c013f9fe0aff715b258074aec7736e",
+  "bindingMetadataKnown": true,
+  "draftFlagPresent": false
+}

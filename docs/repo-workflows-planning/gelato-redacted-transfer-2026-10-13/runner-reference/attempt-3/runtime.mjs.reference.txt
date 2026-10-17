@@ -1,0 +1,83 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import {assertRetainedState} from './retained-state.mjs';
+const directory = '<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-3';
+const env = { ...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')), ...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local')) };
+const account = env.CLOUDFLARE_ACCOUNT_ID || env.R2_ACCOUNT_ID;
+const url = `https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/little-hero-labs-admin`;
+const flags = ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+const draftFlag = flags[0];
+const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const save = value => fs.writeFileSync(`${directory}/runtime-journal.json`, JSON.stringify(value,null,2), {mode:0o600});
+const cf = async (method = 'GET', body) => {
+  const r = await fetch(url,{method,headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},body:body && JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(60_000)});
+  if(!r.ok) throw new Error(`Cloudflare request failed (${r.status})`);
+  const result=await r.json(); assert.equal(result.success,true); return result.result;
+};
+const rest = async (path,init={}) => {
+  const database = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
+  assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+  const key=env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+  const r=await fetch(`${database}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',...init.headers},redirect:'error',signal:AbortSignal.timeout(30_000)}); assert.ok(r.ok);const text=await r.text();return text?JSON.parse(text):null;
+};
+const mode=process.argv[2];
+if(mode==='close') {
+  try{await rest('print_provider_dispatch_gates?provider=eq.gelato',{method:'PATCH',body:JSON.stringify({enabled:false})});assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);}
+  catch{console.log(JSON.stringify({dispatchClosureUnverified:true,stillDisablingRuntimeFlag:true}));}
+}
+const project = await cf();
+if(mode==='open' || mode==='close') {
+  if(mode==='open')assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);
+  const baselineWithoutDraft = structuredClone(project.deployment_configs);
+  delete baselineWithoutDraft.production.env_vars[draftFlag];
+  const expected=mode==='open'?'true':'false';
+  if(mode==='open') {
+    const seed=JSON.parse(fs.readFileSync(`${directory}/seed-journal.json`)); assert.equal(seed.seeded,true);
+    assert.ok(!fs.existsSync(`${directory}/runtime-journal.json`),'Existing runtime journal requires reconciliation');
+    for(const flag of flags) assert.equal(project.deployment_configs.production.env_vars[flag].value,'false');
+    const all=await rest('orders?print_provider=eq.gelato&select=id,orderId');
+    assert.deepEqual(all.map(x=>x.id).sort((a,b)=>a-b),[1053,...seed.orders.map(x=>x.orderDbId)].sort((a,b)=>a-b));
+    const retained=await assertRetainedState(rest);
+    assert.deepEqual(await rest('print_provider_submissions?select=id'),[{id:retained.submissionId}]);
+    const resume=null;
+    assert.equal(project.canonical_deployment.deployment_trigger.metadata.commit_hash,'c0136e8890e4ed2fb56c712183e574ba26431747');
+    save({openedAt:new Date().toISOString(),beforeValue:'false',expectedValue:expected,baselineConfigHash:hash(baselineWithoutDraft),baselineDeploymentId:project.canonical_deployment.id,stage:'opening-project-flag',approvedUnsentResume:resume});
+  }
+  const journal=JSON.parse(fs.readFileSync(`${directory}/runtime-journal.json`));
+  journal.expectedValue=expected; journal.stage=mode==='open'?'opening-project-flag':'closing-project-flag'; save(journal);
+  await cf('PATCH',{deployment_configs:{production:{env_vars:{[draftFlag]:{type:'plain_text',value:expected}},wrangler_config_hash:project.deployment_configs.production.wrangler_config_hash}}});
+  const after=await cf();
+  assert.equal(after.deployment_configs.production.env_vars[draftFlag].value,expected);
+  const afterWithoutDraft=structuredClone(after.deployment_configs); delete afterWithoutDraft.production.env_vars[draftFlag];
+  assert.equal(hash(afterWithoutDraft),hash(baselineWithoutDraft),'Unrelated configuration changed');
+  journal.expectedValue=expected; journal.stage=mode==='open'?'awaiting-enabled-deployment':'awaiting-disabled-deployment'; save(journal);
+  console.log(JSON.stringify({projectFlag:expected,dispatch:false,deploymentRequired:true,unrelatedConfigurationPreserved:true}));
+} else if(mode==='verify') {
+  assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);
+  const journal=JSON.parse(fs.readFileSync(`${directory}/runtime-journal.json`));
+  assert.equal(project.canonical_deployment.latest_stage.status,'success');
+  assert.equal(project.canonical_deployment.deployment_trigger.metadata.commit_hash,'c0136e8890e4ed2fb56c712183e574ba26431747');
+  assert.equal(project.canonical_deployment.env_vars[draftFlag].value,journal.expectedValue);
+  for(const flag of flags.slice(1)) assert.equal(project.canonical_deployment.env_vars[flag].value,'false');
+  const probe=async body=>{
+    const r=await fetch('https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft',{method:'POST',headers:{Authorization:`Bearer ${env.BACKEND_API_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(60_000)});
+    await r.body?.cancel();return r.status;
+  };
+  const malformed=await probe({});assert.equal(malformed,400);
+  const unknownClaim=await probe({submissionId:randomUUID(),claimToken:randomUUID(),executionId:'runtime-probe',mode:'single'});assert.equal(unknownClaim,409);
+  journal.runtimeProbes={authenticatedMalformed:malformed,unknownClaimRejected:unknownClaim,positiveFlagBehavior:'proved only by actual bounded W4 draft execution'};
+  if(journal.expectedValue==='false'&&fs.existsSync(`${directory}/positive-journal.json`)){
+    const window=JSON.parse(fs.readFileSync(`${directory}/positive-journal.json`));
+    for(const entry of window.cases.filter(x=>x.submissionId)){
+      const [submission]=await rest(`print_provider_submissions?id=eq.${entry.submissionId}&select=id,claim_token,owning_execution_id,request_state`);
+      if(submission?.request_state!=='submitted')continue;
+      const disabled=await probe({submissionId:submission.id,claimToken:submission.claim_token,executionId:submission.owning_execution_id,mode:entry.mode});assert.equal(disabled,409);journal.runtimeProbes.submittedReplayDisabled=disabled;
+    }
+  }
+  journal.stage=journal.expectedValue==='true'?'enabled-deployment-verified':'disabled-deployment-verified'; journal.verifiedAt=new Date().toISOString(); journal.deploymentId=project.canonical_deployment.id;save(journal);
+  console.log(JSON.stringify({activeDraftFlag:journal.expectedValue,otherFlags:false,commit:project.canonical_deployment.deployment_trigger.metadata.commit_hash,deploymentId:journal.deploymentId}));
+} else throw new Error('Use open, close, or verify');

@@ -1,0 +1,21 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';import fs from 'node:fs';import {createHash} from 'node:crypto';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+import {assertRetainedState} from './retained-state.mjs';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof';
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const json=async(url,headers)=>{const r=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(60000)});assert.ok(r.ok);return r.json();};
+const database=env.SUPABASE_URL||env.NEXT_PUBLIC_SUPABASE_URL,key=env.SUPABASE_SERVICE_ROLE_KEY||env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const rest=path=>json(database+'/rest/v1/'+path,{apikey:key,Authorization:'Bearer '+key});
+const n8n=path=>json('https://thepeakbeyond.app.n8n.cloud/api/v1/'+path,{'X-N8N-API-KEY':env.N8N_API_KEY});
+const cf=await json('https://api.cloudflare.com/client/v4/accounts/'+(env.CLOUDFLARE_ACCOUNT_ID||env.R2_ACCOUNT_ID)+'/pages/projects/little-hero-labs-admin',{Authorization:'Bearer '+env.CLOUDFLARE_API_TOKEN});assert.equal(cf.success,true);
+const deployment=cf.result.canonical_deployment;assert.equal(deployment.deployment_trigger.metadata.commit_hash,'470893287510db68a80e8e4ed330c120d7fbd252');assert.equal(deployment.latest_stage.name,'deploy');assert.equal(deployment.latest_stage.status,'success');
+for(const flag of ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED']){assert.equal(deployment.env_vars[flag].value,'false');assert.equal(cf.result.deployment_configs.production.env_vars[flag].value,'false');}
+assert.deepEqual(await rest('print_provider_dispatch_gates?provider=eq.gelato&select=enabled'),[{enabled:false}]);await assertRetainedState(rest);
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const seed=JSON.parse(fs.readFileSync(directory+'/seed-journal.json'));const prior=JSON.parse(fs.readFileSync(directory+'/positive-journal.json'));
+const orders=await rest('orders?select=*&order=id');for(const saved of seed.baseline)assert.equal(hash(orders.find(row=>row.id===saved.id)),saved.hash);
+for(const saved of prior.oldWorkflows){const w=await n8n('workflows/'+saved.id);assert.equal(hash({active:w.active,nodes:w.nodes,connections:w.connections,settings:w.settings}),saved.hash);}
+const copies=[['8ZqgZ7ksY0Fj8Acx','w4-GELATO-Print_Fulfillment.repo-centric.json'],['d7wi1rS0CxGVdRVb','w4.1-GELATO-Sibling-Aggregation.repo-centric.json']];
+for(const [id,file]of copies){const live=await n8n('workflows/'+id);assert.equal(live.active,false);const local=JSON.parse(fs.readFileSync('<WORKTREE>/docs/n8n-workflow-files/repo-centric/workflows/'+file));assert.deepEqual(live.connections,local.connections);assert.equal(live.nodes.length,local.nodes.length);for(const n of local.nodes){const actual=live.nodes.find(node=>node.name===n.name);assert.deepEqual(actual.parameters,n.parameters);assert.equal(actual.type,n.type);assert.equal(actual.typeVersion,n.typeVersion);if(n.type==='n8n-nodes-base.httpRequest'){assert.equal(actual.credentials.httpHeaderAuth.id,'4kX14mPZUjnDux47');assert.equal(actual.retryOnFail,false);assert.equal(actual.continueOnFail,false);assert.equal(actual.onError,'stopWorkflow');}}}
+fs.writeFileSync(directory+'/attempt-4/closed-deployment-proof.json',JSON.stringify({at:new Date().toISOString(),commit:'470893287510db68a80e8e4ed330c120d7fbd252',deploymentId:deployment.id,flags:false,dispatch:false,copiesInactive:true,retained54655Unchanged:true,originalOrdersAndWorkflowsUnchanged:true,nativeSourceMatched:true},null,2),{mode:0o600});console.log(JSON.stringify({closedDeploymentVerified:true,deploymentId:deployment.id,nonPrinting:true}));

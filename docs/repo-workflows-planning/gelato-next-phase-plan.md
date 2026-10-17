@@ -91,6 +91,37 @@ Exit evidence: real deployed intake-to-draft orchestration works for each suppor
 
 ## 6. Finish the book in parallel
 
+### Finishing checklist
+
+Owner: Jeff and his agent. Scope is confirmed; final content approvals remain pending. Existing drafts and assets are starting material. Check each item after approval or the stated review, and record its approved file/version and any open page notes here.
+
+- [ ] Story text: approve every page's final copy, including any reductions, dedication, activity and about/copyright text.
+- [ ] Page plan: approve exact Amazon and website sequences, including title/front/back matter, blanks and cover slots.
+- [ ] Poses: approve every required pose, expression and gaze; resolve missing or unsuitable poses and review multiple-character scenes.
+- [ ] Backgrounds: approve the selected images, paint style, color/saturation and crops. Preserve intended cave-wall lettering.
+- [ ] Character sizing and positioning: review every appearance, including secondary/static characters, against its final background and text.
+- [ ] Text styling and placement: approve font, size, color, line breaks, spacing, contrast and placement; remove unwanted text backgrounds.
+- [ ] Covers: approve front, back and spine for both editions, the slide decision and any required barcode/ISBN treatment.
+- [ ] Animal guides and clues: approve appearances and guide-specific clue layers for every supported guide; resolve backgrounds 12/13's baked clue placeholders.
+- [ ] Breathing exercise: approve its replacement illustration, instructions and final layout.
+- [ ] Print preparation: verify resolution, color, aligned spread splits, bleed, safe margins and gutters at final print size.
+- [ ] Config and assets: record the approved page/pose/cover manifest using immutable config versions and asset keys; preserve old snapshots.
+- [ ] Complete personalized proofs: approve both full editions, including representative characters/guides, long names and sibling scenes. Record outstanding page notes and close them before final approval.
+
+Copy review recorded October 13: [page-by-page selections and manuscript](../new-planning/finding-our-inner-voice-30-page-expansion/story-copy-decisions-2026-10-13.md). Direct selections are saved. Pages 18 and 23 are accepted for now. Pages 30 and 31 remain provisional; front/end-matter layout remains pending. Current focus is text size, font, spacing, contrast and placement.
+
+Typography candidates saved October 13, including the compact 16-point draft and placement/contrast study: [font comparison, full-book layout and remaining checks](../new-planning/finding-our-inner-voice-30-page-expansion/typography-layout-direction-2026-10-13.md). Jeff prefers the 16-point size and requests more creative lettering. Review character scale and placement first with all planned layers, then revise scene-based text styling and background space. The local 32-page character proof and facing-spread review are recorded in that direction note. Pages 30 and 31 and exact page order remain pending. Physical copies and launch decisions remain tracked in Step 7.
+
+Placement/art review recorded October 15: [working placement export and page notes](../new-planning/finding-our-inner-voice-30-page-expansion/art-review-notes-2026-10-15.md). New pose candidates: pages 7, 17 and 28. Match room imagery on pages 9 and 10. Evaluate guide-specific painted backgrounds and page 19 depth of field. These remain open creative decisions.
+
+### Artwork snapshot, October 16
+
+Selected art and saved placements are committed in the [portable placement editor](../../tools/inner-voice-placement-editor/README.md). Current editor images meet a 2048-pixel minimum; smaller sources were enlarged with Lanczos and retain their provenance. Page 13 now has a sneeze effect on the original matching 12/13 spread. Page 12 is unchanged. Poses 7, 17 and 28, bedrooms 9/10 and the page 19 focus treatment are saved directions with finishing decisions still open. Animal clue scenes are deferred for separate work.
+
+Next creative sequence: character placement and contact, lettering, unresolved copy and ending exercise, guide-specific art, covers and exact edition sequences, complete personalized proofs, then separately approved physical print validation. Do not mark the checklist complete from this snapshot. Gelato engineering changes merged after this phase plan are documented separately in this folder; no production controls change with the creative snapshot.
+
+### Completion requirements
+
 User approves page copy and final creative direction. Apply approved text, reduce density where chosen, remove unwanted text backgrounds, and tune typography, line breaks, position and contrast. Adjust every character's scale/position, animal appearances and multi-layer scenes. Replace the ending breathing-exercise image. Decide whether the slide belongs on the cover.
 
 Audit current images for style, saturation and required resolution. Verify continuous spreads split and align correctly. Keep cave-wall artwork text where intended. Resolve baked three-toed clue placeholders on backgrounds 12/13 before approving guide-dependent artwork; review affected pages for every supported guide. Complete exact Amazon and website sequences, title/front/back matter, blanks, cover assets and any confirmed barcode/ISBN requirements.

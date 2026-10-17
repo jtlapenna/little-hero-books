@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "mode": "checkpoint",
+  "timestamp": "2026-10-13T20:53:31.160997+00:00",
+  "branch": "codex/gelato-sandbox-rollout",
+  "base_ref": "origin/main",
+  "base_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "head_sha": "c812d056a7f76ff8515e31bc25b86033dee77cbf",
+  "checks": [
+    "safe dry runner:3canonicalW0/W3/W4inputs + sibling builder passes",
+    "actual PNG parser, resolution and decoded budgets pass",
+    "live9Lulu,0Gelato,0submissions,dispatchfalse",
+    "activecanonicaldeploy c812d056 success and all5runtimeflagsfalse",
+    "current native workflow/service/API/cron regression tests pass"
+  ],
+  "findings": [
+    {
+      "id": "seed-empty-body",
+      "disposition": "confirmed and fixed; request accepts successful empty PostgREST INSERT response"
+    },
+    {
+      "id": "seed-immutable-time",
+      "disposition": "confirmed and fixed; fixture time derives from persisted journal"
+    },
+    {
+      "id": "seed-cron-timing",
+      "disposition": "verified before writes; deployed c812d056 cron excludes TEST records and liveW1.1 has webhook entry only"
+    },
+    {
+      "id": "seed-amazon-root-limit",
+      "disposition": "confirmed livevarchar50; new48charroot and newunpublishedprefixes journalled afterzerosiblingrows; oldorphan source retained;2reviewers clear repair"
+    }
+  ]
+}

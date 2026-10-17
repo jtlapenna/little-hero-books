@@ -1,0 +1,20 @@
+// ARCHIVED REDACTED REFERENCE. Do not execute. See transfer README.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import dotenv from '<WORKTREE>/back-end/node_modules/dotenv/lib/main.js';
+const directory='<PRIMARY_CHECKOUT>/.git/worktrees/little-hero-books-w4-gelato/gelato-proof/attempt-5';
+const env={...dotenv.parse(fs.readFileSync('<PRIMARY_CHECKOUT>/.env')),...dotenv.parse(fs.readFileSync('<WORKTREE>/back-end/.env.local'))};
+const database=env.SUPABASE_URL||env.NEXT_PUBLIC_SUPABASE_URL;assert.equal(new URL(database).hostname,'mdnthwpcnphjnnblbvxk.supabase.co');
+const key=env.SUPABASE_SERVICE_ROLE_KEY||env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const result=[];
+async function request(url,init={}){const r=await fetch(url,{...init,redirect:'error',signal:AbortSignal.timeout(30_000)});assert.ok(r.ok);const text=await r.text();return text?JSON.parse(text):null;}
+const actions=[['dispatch',async()=>{
+  const url=`${database}/rest/v1/print_provider_dispatch_gates?provider=eq.gelato`;
+  const headers={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'};
+  await request(url,{method:'PATCH',headers,body:JSON.stringify({enabled:false})});assert.deepEqual(await request(url+'&select=enabled',{headers}),[{enabled:false}]);
+}],...['8ZqgZ7ksY0Fj8Acx','d7wi1rS0CxGVdRVb'].map(id=>[id,async()=>{
+  const url=`https://thepeakbeyond.app.n8n.cloud/api/v1/workflows/${id}`,headers={'X-N8N-API-KEY':env.N8N_API_KEY};
+  await request(url+'/deactivate',{method:'POST',headers});assert.equal((await request(url,{headers})).active,false);
+}])];
+for(const[name,action]of actions){try{await action();result.push({name,verified:true});}catch{result.push({name,verified:false});}fs.writeFileSync(`${directory}/outer-cleanup.json`,JSON.stringify({at:new Date().toISOString(),result},null,2),{mode:0o600});}
+console.log(JSON.stringify({outerCleanup:result}));if(result.some(x=>!x.verified))process.exitCode=1;

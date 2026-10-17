@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-13T23:51:37.003Z",
+  "source": "4fb98c265bdad3482d6b9e31033437c8b18dce53",
+  "deploymentId": "<REDACTED_ID_002>",
+  "observation": {
+    "contextAvailable": true,
+    "cloudflare": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "globalProcess": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "nodeProcess": {
+      "present": true,
+      "isString": true,
+      "isTrue": false,
+      "isFalse": true
+    },
+    "draftsEnabled": false,
+    "buildTimestampMs": 1791935392542
+  },
+  "allFiveFlags": false,
+  "dbDispatch": false,
+  "copiesActive": false,
+  "originalNineUnchanged": true,
+  "originalFourWorkflowsUnchanged": true,
+  "orderCount": 14,
+  "unsentSubmissions": 3,
+  "providerMappings": 0,
+  "notifications": 0
+}

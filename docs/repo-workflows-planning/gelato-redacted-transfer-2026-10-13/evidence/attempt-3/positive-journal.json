@@ -1,0 +1,81 @@
+{
+  "mode": "positive",
+  "startedAt": "2026-10-13T22:18:13.704Z",
+  "error": "Terminal workflow failed; inspect journal before any retry\n\n'error' !== 'success'\n",
+  "gateOpenedAt": "2026-10-13T22:18:20.097Z",
+  "approvedUnsentResume": null,
+  "cases": [
+    {
+      "mode": "single",
+      "workflowId": "8ZqgZ7ksY0Fj8Acx",
+      "orderIds": [
+        "TEST-GELATO-SINGLE-<REDACTED_ID_008>"
+      ],
+      "claimIntentAt": "2026-10-13T22:18:20.452Z",
+      "orderReferenceId": "lhb-gelato-<REDACTED_ID_009>",
+      "intentRecordedAt": "2026-10-13T22:18:21.475Z",
+      "webhookConsumed": true,
+      "executionId": "54656",
+      "status": "error",
+      "nodes": [
+        "Webhook (Gelato Intake)",
+        "Respond to Webhook (Ack)",
+        "Prepare Gelato Request",
+        "Assemble Gelato Print PDF",
+        "Check Gelato Assembly",
+        "Quote Gelato Submission",
+        "Check Gelato Quote",
+        "Create Held Gelato Draft"
+      ],
+      "httpCode": "409",
+      "ownershipRejection": false
+    }
+  ],
+  "cleanup": [
+    {
+      "name": "dispatch",
+      "verified": true,
+      "at": "2026-10-13T22:19:05.235Z"
+    },
+    {
+      "name": "8ZqgZ7ksY0Fj8Acx",
+      "verified": true,
+      "at": "2026-10-13T22:19:05.752Z"
+    },
+    {
+      "name": "d7wi1rS0CxGVdRVb",
+      "verified": true,
+      "at": "2026-10-13T22:19:06.286Z"
+    }
+  ],
+  "retained_original_order_count": 9,
+  "retained_original_order_hashes": [
+    "4901e21f84741e67b01f2b910396c0c68a8f97da30329afbbbacf099615d14ef",
+    "b891b4ad67bc5ee63070316555183c224b40da98262399f642220b56db71ffd6",
+    "a8a1aea2e7f50545ee4494981a152143cd148d3a33af68addceab6d7a7635528",
+    "d978c15153bde3a81bd43fef2150ea93d2cc2f347ca533c3f1fcbd9e2bf95869",
+    "8fbe460493cfbafa5de9f5eed80102786687de3d3da1e51ab5ed1108bac736e8",
+    "f86eee0f6337fac7eb8a2ddd1652c8df0cb1cfc2c57068008dfb564b166d39b8",
+    "79acba6ab55c960b8c0a59bf1c870b7834ac586411903e04f3efc3f5c70fe4f5",
+    "d6ff8b252c88ebd3e888c0f142018f51606e950f6901c7cbc1ed0bef837f5367",
+    "61209d66afe755a4b946c006d2ada0e50d4952bd53b8648647d1391a993cdf95"
+  ],
+  "old_workflow_hashes": [
+    {
+      "id": "9E0oVs46bMoiyRIP",
+      "hash": "37acf9d6ef2528b879d9ac8d888a76bc2df96993008df03f4e840f21f60bf40b"
+    },
+    {
+      "id": "TDwc85g03FqPf9D6",
+      "hash": "6074c420d8eb3a212c388bf3bf3cca59787682a869f05b9f1a3fcf2ce0aa7a6b"
+    },
+    {
+      "id": "m4qIN9PCgifUcYih",
+      "hash": "b23b97f48ca73e6c2b99aa48235e2fb6c8faa2ad37ebbcc14a6340a63048b79e"
+    },
+    {
+      "id": "boWA0mB20qYK2g4x",
+      "hash": "591f1922b2ecfa61b5089cc5be29c5085d993608f815429f8165790ec6fdabf9"
+    }
+  ]
+}

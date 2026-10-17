@@ -1,0 +1,138 @@
+{
+  "status": "Pose approved by Jeff; page placement remains open; not published",
+  "tool": "built-in image_gen",
+  "bookId": "book-finding-our-inner-voice",
+  "page": 7,
+  "poseIdCandidate": "slide-look-up",
+  "baseAsset": {
+    "path": "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/revamp-candidates/pose-page-07-slide-look-up-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "63c671ee789d67c7a0fc23a0eb0346f38ecee4c76538f35715d2378c793ac8ad",
+    "visibleAlphaBoundsThreshold32": [
+      390,
+      178,
+      786,
+      1157
+    ]
+  },
+  "personalizedPreview": {
+    "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/page-07-look-up-personalized-preview-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "f4d19d9da2dca24bcb73a7660973606bd415b79a466eb038d590d0f1865cc54b",
+    "visibleAlphaBoundsThreshold32": [
+      392,
+      133,
+      816,
+      1187
+    ]
+  },
+  "references": [
+    "/Users/jeff/Projects/little-hero-books/assets/poses/body-suit-poses/body-suit-pngs/eyebrows/pose10.png",
+    "/Users/jeff/Projects/little-hero-books/assets/poses/bases/eyebrows/body-suit.png",
+    "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_07.png",
+    "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/hosted-generation/E/normalized/pose02.png"
+  ],
+  "sourcePlacementSavedAt": "2026-10-16T01:52:37.476Z",
+  "previousVisiblePlacement2625": {
+    "left": 795.7218651945442,
+    "top": 1306.7012570859847,
+    "width": 246.2743038920429,
+    "height": 549.4812407842278,
+    "flipX": true,
+    "zIndex": 10
+  },
+  "candidateVisiblePlacement2625": {
+    "left": 808.3371736431687,
+    "top": 1306.7012570859847,
+    "width": 221.04368699479372,
+    "height": 549.4812407842278,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "candidateFullImagePlacement2625": {
+    "left": 603.9760290630765,
+    "top": 1237.364440174882,
+    "width": 653.7471308761116,
+    "height": 653.7471308761116,
+    "flipX": false,
+    "zIndex": 10
+  },
+  "sourceResolution": "Both generated files are 1254 x 1254. Drafts, not confirmed 2K masters.",
+  "reviewBrief": "Full body, three-quarter side/back facing right, chin and gaze raised toward tall slide, curious hesitation, hands held close, two feet planted. Gray reusable bodysuit with eyebrows, no hair, genuine alpha; colored identity preview derived separately.",
+  "limits": [
+    "Both files contain very faint alpha pixels outside the visible silhouette; no source pixel edits applied.",
+    "Final 2K source and pose-generation workflow proof remain finishing steps."
+  ],
+  "promptFile": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-15/page-07/generation-prompts.json",
+  "visualReview": {
+    "status": "Pose approved by Jeff; placement and final source preparation pending",
+    "checks": [
+      "Complete head and feet; no visible clipping.",
+      "Gray bald bodysuit and eyebrows retained in base.",
+      "Colored preview uses existing sample identity and outfit.",
+      "Gaze points up and right toward slide.",
+      "Feet and visible height match the saved placement.",
+      "Original and new comparison inspected at full page."
+    ],
+    "limits": [
+      "1254 x 1254 native output, not final 2K."
+    ]
+  },
+  "approval": {
+    "pose": "approved",
+    "placement": "pending repositioning by Jeff",
+    "userInstruction": "yes, i love this. please save it and create the next one. note i will want to re-position this on the page",
+    "dateLocal": "2026-10-15"
+  },
+  "localEditor": "Approved pose installed on page 7 for repositioning; all other saved page adjustments preserved.",
+  "working2KCopies": {
+    "manifest": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/2k-asset-manifest.json",
+    "assets": [
+      {
+        "uses": [
+          {
+            "page": 7,
+            "role": "hero"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-hero-page-07-look-up-personalized-preview-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "9ab732d40d82d49f47c45459d9ff06ae3fda03a21b02b564e7fabd0ed1c1636a"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      },
+      {
+        "uses": [
+          {
+            "page": 7,
+            "role": "gray-pose-reference"
+          }
+        ],
+        "output": {
+          "path": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-16/2k-assets/page-07-gray-pose-reference-pose-page-07-slide-look-up-v1-2k-upscaled.png",
+          "size": [
+            2048,
+            2048
+          ],
+          "mode": "RGBA",
+          "sha256": "d69d52217769088f11d12ec9c8d0851467693debc987db92e05d969f44ebae33"
+        },
+        "method": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
+      }
+    ],
+    "note": "User approved upscaling. Original resolution metadata remains accurate for the retained sources."
+  }
+}
