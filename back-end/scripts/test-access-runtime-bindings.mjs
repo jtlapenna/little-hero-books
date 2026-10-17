@@ -40,6 +40,10 @@ try{
  const bytes=await fs.readFile(output),boundary=bytes.toString('utf8').split('\r\n')[0].slice(2);
  const form=await new Response(bytes,{headers:{'content-type':'multipart/form-data; boundary='+boundary}}).formData();
  const upload=JSON.parse(String(form.get('metadata')));for(const [name,value]of Object.entries(values))assert(upload.bindings.some(binding=>binding.name===name&&binding.type==='plain_text'&&binding.text===value),name);
- assert.equal(upload.bindings.filter(binding=>Object.hasOwn(values,binding.name)).length,9);assert(!bytes.includes(Buffer.from('sensitive-marker-never-upload')));assert(!bytes.includes(Buffer.from('synthetic-cloudflare-authority')));
- console.log('Actual Pages metadata:9exact runtime bindings after preparation/discovery; missing settings, decoded TOML overrides, shadow/redirect configs and changed receipt fail closed; no provider calls or secret export');
+ assert.equal(upload.bindings.filter(binding=>Object.hasOwn(values,binding.name)).length,Object.keys(values).length);
+ const scheduler=upload.bindings.filter(binding=>binding.name==='GELATO_SCHEDULED_STATUS_ENABLED');
+ assert.equal(scheduler.length,1,'Registered scheduler control must survive actual Pages packaging exactly once');
+ assert.equal(scheduler[0].type,'plain_text');assert.equal(scheduler[0].text,'false','Packaging must preserve the registered scheduler OFF state');
+ assert(!bytes.includes(Buffer.from('sensitive-marker-never-upload')));assert(!bytes.includes(Buffer.from('synthetic-cloudflare-authority')));
+ console.log(`Actual Pages metadata:${Object.keys(values).length}exact runtime bindings including registered scheduler OFF after preparation/discovery; missing settings, decoded TOML overrides, shadow/redirect configs and changed receipt fail closed; no provider calls or secret export`);
 }finally{await fs.rm(directory,{recursive:true,force:true});}

@@ -36,6 +36,8 @@ The existing legacy poller remains unchanged. Its engineering runners additional
 
 The integrated safety workflow's exact 26 test/scanner command lines all passed locally, including all-export secret scanning. The disposable PostgreSQL suite, separate admin identity proof and local Next/OpenNext build also passed. Source hashes and command exit receipts are retained in the check summary; hosted GitHub checks had not run when this local receipt was recorded. Consult the associated PR for subsequent checks.
 
+Publication follow-up in PR #26: the broader application-access workflow caught a stale nine-binding assertion after the sixth Gelato control raised the actual Pages package to ten bindings. Local reproduction failed with `10 !== 9`. The test now verifies the complete configured binding count and explicitly requires exactly one `GELATO_SCHEDULED_STATUS_ENABLED` binding with `plain_text` type and `false` value in the actual offline multipart upload. Both access and Gelato binding suites pass locally; missing-setting, override, tamper and secret-exclusion checks remain intact. This follow-up changes test coverage only; runtime behavior and serving controls are unchanged. PR checks remain the authority for hosted results on the final publication commit.
+
 ## Reproduce locally
 
 Use Node 20 and the locked backend dependencies (`jose` 6.2.12), rather than an older shared install. Run from `back-end`; do not load private environment files. These suites install synthetic transports/settings internally and never require production keys:
