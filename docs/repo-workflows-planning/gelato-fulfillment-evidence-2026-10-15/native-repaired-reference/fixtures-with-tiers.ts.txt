@@ -1,0 +1,102 @@
+import { z } from 'zod';
+import { loadBundledBookConfig } from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/load-book-config';
+import { buildOrderIntakeManifestFromNormalizedInputRuntime, buildW0OrderUpsertPayload, type NormalizedW0WorkflowInput } from '<REVIEWED_CHECKOUT>/back-end/src/lib/w0-manifest-builder';
+import { normalizeW0Manifest } from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/normalize-w0-manifest';
+import { buildW3Manifest } from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/w3-manifest';
+import { GelatoSavedSnapshotSchema } from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/gelato-submission';
+import { buildPreviewImageAssetKey } from '<REVIEWED_CHECKOUT>/back-end/src/lib/order-paths';
+function requireGuard(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
+
+export const nativeBook = 'book-finding-our-inner-voice';
+export const nativeBackend = 'https://admin.littleherolabs.com';
+export const nativeContact = 'orders@littleherolabs.com';
+const recipientSchema = GelatoSavedSnapshotSchema.shape.request.shape.shippingAddress.strict();
+export type NativeRecipient = z.infer<typeof recipientSchema>;
+export function nativeRecipient(value: unknown): NativeRecipient {
+  const parsed = recipientSchema.safeParse(value);
+  requireGuard(parsed.success && parsed.data.country === 'US' && parsed.data.email === nativeContact && /^[A-Z]{2}$/.test(parsed.data.state) &&
+    /^\d{5}(?:-\d{4})?$/.test(parsed.data.postCode) && /^\S+$/.test(parsed.data.firstName) &&
+    parsed.data.lastName === parsed.data.lastName.trim().replace(/\s+/g, ' ') &&
+    [parsed.data.addressLine1, parsed.data.city].every(s => s.trim().length > 0),
+    'Approved U.S. test recipient is incomplete or outside the held-draft fixture contract');
+  return parsed.data;
+}
+/** Convert explicitly supplied local fixture fields; never consult credentials, customers or defaults for an address. */
+export function nativeRecipientFromFields(value: Record<string, string>) {
+  const names = (value.TEST_RECIPIENT_NAME ?? '').trim().split(/\s+/);
+  return nativeRecipient({ firstName: names[0], lastName: names.slice(1).join(' '),
+    addressLine1: value.TEST_ADDRESS_LINE1?.trim(), addressLine2: value.TEST_ADDRESS_LINE2?.trim() || undefined,
+    city: value.TEST_CITY?.trim(), state: value.TEST_STATE?.trim(), postCode: value.TEST_POSTCODE?.trim(),
+    country: value.TEST_COUNTRY?.trim(), email: value.TEST_EMAIL?.trim(), phone: value.TEST_PHONE?.trim() || undefined });
+}
+export interface NativeAssetDescriptor { key: string; width: number; height: number; gray: number; pageLabel: string | null }
+export interface NativeOrderFixture {
+  orderId: string; rootOrderId: string; formatId: 'standard' | 'amazon';
+  input: NormalizedW0WorkflowInput; oneKey: string; threeKey: string;
+  one: Record<string, unknown>; genuineThree: Record<string, unknown>; three: Record<string, unknown>;
+  upsert: Record<string, unknown>; assets: NativeAssetDescriptor[];
+}
+export interface NativeCaseFixture { kind: 'website-single' | 'amazon-single' | 'amazon-siblings'; orders: NativeOrderFixture[] }
+
+/** Local metadata only: canonical builders with explicit bundled source. No service, file or publication effects. */
+export async function buildNativeFixtureSet(value: unknown): Promise<NativeCaseFixture[]> {
+  const parsed = z.object({ proofId: z.string().uuid(), at: z.string().datetime(), recipient: z.unknown() }).strict().safeParse(value);
+  requireGuard(parsed.success, 'Invalid native fixture identity or timestamp');
+  const { proofId, at } = parsed.data; const recipient = nativeRecipient(parsed.data.recipient);
+  const config = structuredClone(loadBundledBookConfig({ bookId: nativeBook, version: 2 }));
+  requireGuard(config.bookId === nativeBook && config.version === 2 && config.status === 'draft', 'Native fixture requires the frozen draft version');
+  // Preserve every UUID bit using an alphanumeric token that also fits sibling suffixes.
+  const token = BigInt('0x' + proofId.replaceAll('-', '')).toString(32).padStart(26, '0');
+  const website = `TEST-GELATO-W-${token}`, amazon = `TEST-GELATO-A-${token}`, siblings = `TEST-GELATO-S-${token}`;
+  const specs = [
+    { kind: 'website-single' as const, root: website, format: 'standard' as const, ids: [website] },
+    { kind: 'amazon-single' as const, root: amazon, format: 'amazon' as const, ids: [amazon] },
+    { kind: 'amazon-siblings' as const, root: siblings, format: 'amazon' as const, ids: [`${siblings}-item-1`, `${siblings}-item-2`] },
+  ];
+  requireGuard(specs.every(s => s.root.length <= 50 && s.ids.every(id => id.length <= 50)), 'Synthetic identity exceeds persisted limits');
+  const cases: NativeCaseFixture[] = []; let childIndex = 0;
+  for (const spec of specs) {
+    const orders: NativeOrderFixture[] = [];
+    for (const orderId of spec.ids) {
+      const childName = ['FixtureAri', 'FixtureBea', 'FixtureWillow', 'FixtureRowan'][childIndex++];
+      const input: NormalizedW0WorkflowInput = { orderId, orderDate: at,
+        ...(spec.format === 'amazon' ? { amazonOrderId: spec.root, marketplaceId: 'ATVPDKIKX0DER' } : {}),
+        customerEmail: nativeContact, buyer: { name: `${recipient.firstName} ${recipient.lastName}`.trim(), email: nativeContact }, shippingTier: spec.kind === 'website-single' ? 'standard' : spec.kind === 'amazon-single' ? 'priority' : 'expedited',
+        characterSpecs: { childName, age: 5, pronouns: 'she-her', skinTone: 'light', hairStyle: 'bun', hairColor: 'brown', favoriteColor: 'blue', favoriteAnimal: 'fox' },
+        bookSpecs: { bookId: nativeBook, formatId: spec.format, testMode: true },
+        orderDetails: { quantity: 1, shippingAddress: { name: `${recipient.firstName} ${recipient.lastName}`.trim(),
+          address_line1: recipient.addressLine1, ...(recipient.addressLine2 ? { address_line2: recipient.addressLine2 } : {}),
+          city: recipient.city, state_code: recipient.state, postcode: recipient.postCode, country_code: recipient.country, email: nativeContact,
+          ...(recipient.phone ? { phone_number: recipient.phone } : {}) } }, _raw: { root_order_id: spec.root } };
+      const built = await buildOrderIntakeManifestFromNormalizedInputRuntime(input, {
+        schemaVersion: 'v3', bookId: nativeBook, formatId: spec.format, configVersion: 2, configSource: 'bundled',
+      });
+      // Local fixture timestamps only; never replace a remote frozen W0 with these bytes.
+      const one: Record<string, unknown> = { ...structuredClone(built.manifest), createdAt: at, updatedAt: at, runId: `synthetic-w0-${proofId}-${childIndex}` };
+      const normalized = normalizeW0Manifest(one);
+      requireGuard(normalized.renderSnapshot?.bookConfig.status === 'draft' && normalized.bookSpecs.testMode === true &&
+        normalized.configVersion === 2 && normalized.formatId === spec.format, 'Native fixture lost its frozen test provenance');
+      const prefix = `${nativeBook}/orders/${orderId}`;
+      const assets: NativeAssetDescriptor[] = normalized.pagePlan.map((page, index) => ({ key: buildPreviewImageAssetKey(prefix, page.label),
+        width: config.rendering.preview.interiorPx.w, height: config.rendering.preview.interiorPx.h, gray: 128 + index, pageLabel: page.label }));
+      assets.push({ key: `${prefix}/preview-images/cover-spread.png`, width: config.rendering.preview.coverPx.w,
+        height: config.rendering.preview.coverPx.h, gray: 208 + childIndex, pageLabel: null });
+      const original = buildW3Manifest({ orderId, rootOrderId: spec.root,
+        ...(spec.format === 'amazon' ? { amazonOrderId: spec.root } : {}), bookId: nativeBook, formatId: spec.format, configVersion: 2,
+        renderSnapshot: normalized.renderSnapshot, orderR2BaseKey: prefix, oneManifestKey: built.manifestKey, backendUrl: nativeBackend,
+        pagePreviewImages: normalized.pagePlan.map(page => ({ pageNumber: page.index, r2Key: buildPreviewImageAssetKey(prefix, page.label) })),
+        coverPngR2Key: `${prefix}/preview-images/cover-spread.png`,
+      }, { intake: normalized });
+      const genuineThree: Record<string, unknown> = { ...structuredClone(original.manifest), runStamp: at, generatedAt: at };
+      const summary = z.object({ readyForBook: z.literal(false) }).passthrough().safeParse(genuineThree.summary);
+      requireGuard(summary.success && genuineThree.testOnly === true, 'Canonical W3 unexpectedly claims real readiness');
+      const three = { ...structuredClone(genuineThree), summary: { ...summary.data, readyForBook: true }, testOnly: true,
+        syntheticProof: { kind: 'W4 integration source fixture', artworkApproved: false, realW3Ready: false } };
+      orders.push({ orderId, rootOrderId: spec.root, formatId: spec.format, input, oneKey: built.manifestKey,
+        threeKey: `${prefix}/manifests/3-manifest.json`, one, genuineThree, three,
+        upsert: buildW0OrderUpsertPayload({ normalizedInput: input, manifest: one, manifestKey: built.manifestKey }), assets });
+    }
+    cases.push({ kind: spec.kind, orders });
+  }
+  return cases;
+}

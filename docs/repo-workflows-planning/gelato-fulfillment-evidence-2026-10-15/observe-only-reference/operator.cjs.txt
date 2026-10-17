@@ -1,0 +1,106 @@
+'use strict';
+const fs=require('node:fs');const fsp=require('node:fs/promises');const assert=require('node:assert/strict');const crypto=require('node:crypto');
+const primary='<ORIGINATING_CHECKOUT>';
+const directory=primary+'/.gelato-testing/fulfillment-2026-10-15/conversion-20261016-D';
+const native=primary+'/.gelato-testing/fulfillment-2026-10-15/native-20261016-C';
+const checkout='<REVIEWED_CHECKOUT>';
+const digest=v=>crypto.createHash('sha256').update(typeof v==='string'||Buffer.isBuffer(v)?v:JSON.stringify(v)).digest('hex');
+function readPrivate(p){const s=fs.lstatSync(p);assert(s.isFile()&&!s.isSymbolicLink()&&s.uid===process.getuid()&&(s.mode&0o077)===0,'Private file ownership/mode required');return fs.readFileSync(p,'utf8');}
+async function save(p,data){const h=await fsp.open(p,'wx',0o600);try{await h.writeFile(JSON.stringify(data,null,2)+'\n');await h.sync();}finally{await h.close();}const d=await fsp.open(directory,'r');try{await d.sync();}finally{await d.close();}}
+class Journal{
+ constructor(){this.events=[];}
+ async open(){const p=directory+'/operations.jsonl';try{const raw=readPrivate(p);assert(raw===''||raw.endsWith('\n'),'Torn journal');this.events=raw.trimEnd().split('\n').filter(Boolean).map(JSON.parse);}catch(e){if(e.code!=='ENOENT')throw e;}this.h=await fsp.open(p,'a',0o600);}
+ find(kind,key){const a=this.events.filter(e=>e.kind===kind&&e.key===key);assert(a.length<=1,'Duplicate effect record');return a[0];}
+ async record(kind,key,data){const e={at:new Date().toISOString(),kind,key,data};await this.h.writeFile(JSON.stringify(e)+'\n');await this.h.sync();this.events.push(e);}
+ async effect(key,input,perform){assert(!this.find('intent',key),'Consumed intent: observe only, never repeat');await this.record('intent',key,{sha256:digest(input)});try{const result=await perform();await this.record('response',key,result);return result;}catch{await this.record('uncertain',key,{noRetry:true});throw Error('Effect uncertain; close and observe only');}}
+ async close(){await this.h?.close();}
+}
+class Operator{
+ constructor(env,plan,seal,journal,lock,fetcher=fetch){this.env=env;this.plan=plan;this.seal=seal;this.journal=journal;this.lock=lock;this.fetcher=fetcher;this.n=0;}
+ async request(service,method,path,body){
+  const {env,plan}=this;let url,headers={};
+  const roots=plan.cases.map(c=>c.adminOrderKey),authIds=plan.cases.map(c=>c.authorizationId),submissions=plan.cases.map(c=>c.submissionId);
+  if(method!=='GET')this.lock.assert();
+  if(service==='db'){
+   url=env.SUPABASE_URL+'/rest/v1/'+path;headers={apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Prefer:'return=representation,count=exact'};
+   const table=path.split('?')[0];assert(['orders','print_provider_dispatch_gates','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications','gelato_engineering_submission_windows','gelato_engineering_conversions'].includes(table),'Unknown table');
+   if(method!=='GET'){
+    assert.notEqual(method,'POST','Observation cannot create authorization');
+    assert.equal(table,'gelato_engineering_conversions','Only new exact conversion authorities may be written');
+    if(method==='POST'){const c=plan.cases.find(c=>c.authorizationId===body.id);assert(c&&c.submissionId===body.submission_id&&c.providerRootId===body.provider_root_id,'Foreign authority');assert.deepEqual(body.artifacts,c.artifacts);assert.equal(body.account_key_sha256,plan.keySha256);assert.equal(body.fixture_manifest_sha256,plan.fixtureSha256);assert.equal(body.no_payment_routes_confirmed,true);assert.deepEqual(Object.keys(body).sort(),['id','submission_id','provider_root_id','account_key_sha256','fixture_manifest_sha256','funding_receipt_sha256','no_payment_routes_confirmed','funding_inspected_at','opened_at','expires_at','artifacts'].sort());const now=Date.now();assert(Date.parse(body.funding_inspected_at)<=now&&Date.parse(body.funding_inspected_at)>now-10*60_000);assert(Date.parse(body.expires_at)>now&&Date.parse(body.expires_at)<=Date.parse(body.funding_inspected_at)+15*60_000);}
+    else{const u=new URL('https://unused.invalid/'+path);assert.equal(method,'PATCH');assert(authIds.includes(u.searchParams.get('id')?.replace(/^eq\./,'')));assert.equal(u.searchParams.get('closed_at'),'is.null');assert.deepEqual(Object.keys(body),['closed_at']);assert(Number.isFinite(Date.parse(body.closed_at)));}
+   }
+  }else if(service==='backend'){
+   url='https://admin.littleherolabs.com'+path;headers={Authorization:'Bearer '+env.BACKEND_API_TOKEN};
+   if(path==='/api/internal/w4/engineering-conversion'){assert.equal(method,'POST');assert.deepEqual(Object.keys(body).sort(),['action','authorizationId']);assert(authIds.includes(body.authorizationId)&&body.action==='observe');}
+   else if(path==='/api/admin/gelato-print'){assert.equal(method,'POST');assert(roots.includes(body.orderId)&&body.action==='refresh'&&Object.keys(body).length===2);}
+   else assert(method==='GET'&&(path==='/api/internal/w4/submit-gelato-draft'||roots.some(r=>path==='/api/admin/gelato-print?orderId='+r)),'Forbidden backend path');
+  }else if(service==='gelato'){
+   assert(method==='GET'&&plan.cases.some(c=>path==='orders/'+c.providerRootId),'Provider is GET-only');url='https://order.gelatoapis.com/v4/'+path;headers={'X-API-KEY':env.GELATO_API_KEY};
+  }else if(service==='cloud'){
+   assert(method==='GET'&&path==='little-hero-labs-admin');url='https://api.cloudflare.com/client/v4/accounts/'+env.CLOUDFLARE_ACCOUNT_ID+'/pages/projects/'+path;headers={Authorization:'Bearer '+env.CLOUDFLARE_API_TOKEN};
+  }else if(service==='n8n'){
+   assert(method==='GET'&&plan.workflowIds.includes(path),'Workflow GET-only');url=env.N8N_BASE_URL+'/api/v1/workflows/'+path;headers={'X-N8N-API-KEY':env.N8N_API_KEY};
+  }else throw Error('Forbidden service');
+  const controller=new AbortController();let abortReject;const aborted=new Promise((_,reject)=>{abortReject=reject;});const timer=setTimeout(()=>{controller.abort();abortReject(Error('Request deadline'));},180_000);
+  let response,recorded=false;
+  const receiptPath=directory+'/requests/'+Date.now()+'-'+String(++this.n).padStart(4,'0')+'.json';
+  try{
+   response=await Promise.race([this.fetcher(url,{method,headers:{...headers,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:controller.signal}),aborted]);
+   const responseText=await Promise.race([response.text(),aborted]);
+   await save(receiptPath,{service,method,path,body,httpStatus:response.status,responseText,contentRange:response.headers.get('content-range')});recorded=true;
+   assert(response.ok,'Request not confirmed: '+service+' HTTP '+response.status);return {body:JSON.parse(responseText),range:response.headers.get('content-range')};
+  }catch(error){if(!recorded)await save(receiptPath,{service,method,path,body,httpStatus:response?.status??null,responseText:null,contentRange:response?.headers.get('content-range')??null,uncertain:true});if(response?.body)void response.body.cancel().catch(()=>undefined);throw error;}finally{clearTimeout(timer);}
+
+ }
+ async get(service,path){return (await this.request(service,'GET',path)).body;}
+ async db(table,query='select=*',order='id'){
+  const all=[];let total;for(let offset=0;offset<100000;offset+=1000){const r=await this.request('db','GET',table+'?'+query+'&order='+order+'&limit=1000&offset='+offset);const m=r.range?.match(/\/(\d+)$/);assert(m,'Missing exact count');if(total===undefined)total=Number(m[1]);assert.equal(Number(m[1]),total);assert(Array.isArray(r.body));all.push(...r.body);if(all.length===total)return all;assert(r.body.length&&all.length<total,'Incomplete page');}throw Error('Pagination bound');
+ }
+ async off(){
+  const project=await this.get('cloud','little-hero-labs-admin');assert.equal(project.success,true);const p=project.result;assert.equal(p.canonical_deployment.deployment_trigger.metadata.commit_hash,this.seal.workerSource,'Serving source differs');
+  const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];for(const vars of[p.deployment_configs.production.env_vars,p.canonical_deployment.env_vars])assert(flags.every(k=>vars[k]?.value==='false'),'Normal flags not OFF');
+  assert.deepEqual(await this.db('print_provider_dispatch_gates','provider=eq.gelato&select=enabled','provider'),[{enabled:false}]);
+  const runtime=await this.get('backend','/api/internal/w4/submit-gelato-draft');assert.equal(runtime.draftsEnabled,false);assert(['cloudflare','globalProcess','nodeProcess'].every(k=>runtime[k]?.isFalse===true&&!runtime[k]?.isTrue));
+  for(const id of this.plan.workflowIds){const w=await this.get('n8n',id);assert.equal(w.active,false);assert.equal(digest({nodes:w.nodes,connections:w.connections,settings:w.settings}),this.plan.workflowGraphs[id]);}
+  assert((await this.db('gelato_engineering_submission_windows','select=closed_at','root_order_id')).every(w=>w.closed_at),'Open native window');assert.equal((await this.db('print_provider_submission_notifications')).length,0,'Customer intent exists');assert((await this.db('gelato_engineering_conversions','select=closed_at')).every(a=>a.closed_at),'Open conversion authorization');
+  return {at:new Date().toISOString(),source:this.seal.workerSource,deployment:p.canonical_deployment.id,normalFlagsOff:true,normalDispatch:false,allWorkflowCopiesInactive:true,customerIntents:0,openConversionAuthorizations:0};
+ }
+ async preserve(){
+  const state={};for(const t of ['orders','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications']){const order=t==='print_provider_submission_items'?'child_order_id':t==='print_provider_submission_orders'?'provider_order_id':'id';const a=await this.db(t,'select=*',order);state[t]=t==='orders'?a.filter(r=>!this.plan.orderKeys.includes(r.orderId)):t==='print_provider_submissions'?a.filter(r=>!this.plan.cases.some(c=>c.submissionId===r.id)):a.filter(r=>!this.plan.cases.some(c=>c.submissionId===r.submission_id));}
+  const p=directory+'/ordinary-baseline.json';let baseline;try{baseline=JSON.parse(readPrivate(p));}catch(e){if(e.code!=='ENOENT')throw e;baseline=Object.fromEntries(Object.entries(state).map(([t,rows])=>[t,{count:rows.length,sha256:digest(rows)}]));await save(p,baseline);}
+  for(const [t,rows]of Object.entries(state))assert.equal(digest(rows),baseline[t].sha256,'Ordinary rows changed: '+t);
+ }
+ async run(kind,mode){
+  assert.equal(mode,'observe','Observation-only operator cannot convert');
+  const c=this.plan.cases.find(c=>c.kind===kind);assert(c,'Unknown exact case');assert(!fs.existsSync(directory+'/unsafe-stop.json'),'Unsafe provider observation requires investigation before further tests');await this.off();await this.preserve();
+  try{
+   if(mode==='convert'){
+    assert(!this.journal.find('intent','convert:'+kind),'Conversion consumed; observe only');
+    assert.equal((await this.db('gelato_engineering_conversions','select=id&submission_id=eq.'+c.submissionId)).length,0,'Authority already exists; observe only');
+    const fundingPath=directory+'/funding-'+kind+'.json',text=readPrivate(fundingPath),funding=JSON.parse(text);assert.equal(funding.accountKeySha256,this.plan.keySha256);assert.equal(funding.noPaymentMethods,true);assert.equal(funding.wallets,14);assert.equal(funding.allWalletsInactiveZero,true);assert.equal(funding.autoTopup,false);assert.equal(funding.plan,'Free');assert.equal(funding.monthlyInvoices,false);assert.equal(funding.ownerConfirmedNoOtherFunding,true);assert(Date.parse(funding.inspectedAt)<=Date.now()&&Date.parse(funding.inspectedAt)>Date.now()-10*60_000,'Funding inspection stale');
+    const openedAt=new Date().toISOString();const body={id:c.authorizationId,submission_id:c.submissionId,provider_root_id:c.providerRootId,account_key_sha256:this.plan.keySha256,fixture_manifest_sha256:this.plan.fixtureSha256,funding_receipt_sha256:digest(text),no_payment_routes_confirmed:true,funding_inspected_at:funding.inspectedAt,opened_at:openedAt,expires_at:new Date(Date.parse(funding.inspectedAt)+15*60_000).toISOString(),artifacts:c.artifacts};
+    await this.journal.effect('authority:'+kind,body,()=>this.request('db','POST','gelato_engineering_conversions',body));
+    const input={authorizationId:c.authorizationId,action:'convert'};
+    const response=await this.journal.effect('convert:'+kind,input,()=>this.request('backend','POST','/api/internal/w4/engineering-conversion',input));if(response.body?.observation?.unsafeFundingOrProductionObserved){await save(directory+'/unsafe-stop.json',{at:new Date().toISOString(),case:kind,reason:'Backend observed funding/production; do not continue'});throw Error('Unsafe provider observation');}assert(response.body?.persistenceConfirmed&&response.body?.closureConfirmed,'Backend persistence/closure unconfirmed; observe only');
+   }else{assert.equal(mode,'observe');const input={authorizationId:c.authorizationId,action:'observe'};const response=await this.journal.effect('observe:'+kind+':'+Date.now(),input,()=>this.request('backend','POST','/api/internal/w4/engineering-conversion',input));if(response.body?.observation?.unsafeFundingOrProductionObserved){await save(directory+'/unsafe-stop.json',{at:new Date().toISOString(),case:kind,reason:'Observe endpoint observed funding/production; do not continue'});throw Error('Unsafe provider observation');}assert(response.body?.persistenceConfirmed&&response.body?.closureConfirmed,'Observe persistence/closure unconfirmed');}
+   const auths=await this.db('gelato_engineering_conversions','select=*&id=eq.'+c.authorizationId);assert.equal(auths.length,1);assert(auths[0].closed_at);const provider=await this.get('gelato','orders/'+c.providerRootId);assert.equal(provider.id,c.providerRootId);if(['paid','partially_paid'].includes(provider.financialStatus)||[provider.fulfillmentStatus,...(provider.items??[]).map(i=>i.fulfillmentStatus)].some(s=>['in_production','printed','shipped','in_transit','delivered'].includes(s))){await save(directory+'/unsafe-stop.json',{at:new Date().toISOString(),case:kind,reason:'GET observed funding/production; do not continue'});throw Error('Unsafe provider observation');}
+   await this.journal.effect('refresh:'+kind+':'+Date.now(),{orderId:c.adminOrderKey,action:'refresh'},()=>this.request('backend','POST','/api/admin/gelato-print',{orderId:c.adminOrderKey,action:'refresh'}));
+   const inspection=await this.get('backend','/api/admin/gelato-print?orderId='+c.adminOrderKey);await this.preserve();await this.journal.record('proof',kind+':'+Date.now(),{authority:auths[0],provider,inspection,controls:await this.off()});
+   console.log(JSON.stringify({case:kind,state:auths[0].state,orderType:provider.orderType,financialStatus:provider.financialStatus,fulfillmentStatus:provider.fulfillmentStatus,closed:true,normalControlsOff:true}));
+  }finally{await this.closeAll();await this.preserve();await this.off();}
+ }
+ async closeAll(){const results=[];for(const c of this.plan.cases){try{await this.request('db','PATCH','gelato_engineering_conversions?id=eq.'+c.authorizationId+'&closed_at=is.null',{closed_at:new Date().toISOString()});const a=await this.db('gelato_engineering_conversions','select=id,closed_at&id=eq.'+c.authorizationId);assert(a.length<=1&&a.every(r=>r.closed_at));results.push({id:c.authorizationId,closed:true});}catch{results.push({id:c.authorizationId,closed:false});}}await this.journal.record('closure','close:'+Date.now(),results);assert(results.every(r=>r.closed),'Close incomplete');}
+}
+async function main(){
+ const mode=process.argv[2],kind=process.argv[3];assert(['preflight','observe','close'].includes(mode),'Exact mode required');
+ const initialSeal=JSON.parse(readPrivate(directory+'/approved-source.json'));assert.equal(digest(fs.readFileSync(native+'/source/native-client.ts')),initialSeal.lockSourceSha256,'Reviewed lock dependency changed');const {projectLock}=await import(native+'/source/native-client.ts');const lock=await projectLock();const journal=new Journal();try{
+  await journal.open();const env=require(primary+'/back-end/node_modules/dotenv').parse(readPrivate(primary+'/.gelato-testing/.env.local'));const plan=JSON.parse(readPrivate(directory+'/plan.json')),seal=JSON.parse(readPrivate(directory+'/approved-source.json'));
+  assert.equal(env.SUPABASE_URL,'https://mdnthwpcnphjnnblbvxk.supabase.co');assert.equal(env.N8N_BASE_URL,'https://thepeakbeyond.app.n8n.cloud');assert.equal(digest(env.GELATO_API_KEY),plan.keySha256);assert.equal(digest(readPrivate(directory+'/plan.json')),seal.planSha256);
+  for(const[name,hash]of Object.entries(seal.sources)){assert(!name.includes('..'));assert.equal(digest(fs.readFileSync(checkout+'/'+name)),hash,'Reviewed server source changed');}
+  for(const[name,hash]of Object.entries(seal.operatorSources)){assert(/^[a-z-]+\.cjs$/.test(name));assert.equal(digest(fs.readFileSync(directory+'/source/'+name)),hash,'Operator changed');}
+  const op=new Operator(env,plan,seal,journal,lock);if(mode==='preflight'){const controls=await op.off();await op.preserve();console.log(JSON.stringify({preflight:true,...controls}));}else if(mode==='close'){await op.closeAll();await op.off();}else await op.run(kind,mode);
+ }finally{await journal.close();await lock.release();}
+}
+module.exports={Operator,Journal,digest,readPrivate,directory};
+if(require.main===module)main().catch(()=>{console.error('Protected conversion stopped; preserve journal, run independent close and GET-only observation. Never retry a consumed conversion.');process.exitCode=1;});

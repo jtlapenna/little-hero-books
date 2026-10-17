@@ -1,0 +1,7 @@
+# Historical fresh website native/repair reference
+
+Redacted archived source only; paths are placeholders. These sources were independently reviewed for native C, the one-PUT source uploader and canonical W0 repair. Credentials, recipient, source/fixture seals, executable plan/input, claim/webhook payload, PDF/image bytes and raw provider responses are excluded. A fresh run requires adaptation and independent review, private access, new immutable identities and artifacts, durable exclusive intent journal and independent all-target closure.
+
+The normal canonical W0 publication returned 409. The read-only canonical builder/preparation diagnostic passed; the separately reviewed repair conditionally created exactly one missing canonical manifest, without overwriting, replaying the endpoint or calling claim/workflow/provider. Native W4 then consumed that repaired artifact. This proves downstream native assembly/submission, not normal W0 endpoint publication. Do not replay any consumed operation or edit its authority to retry. Never use character-placement review PDFs as production assets.
+
+The fixture creates four labeled local PDFs for geometry inspection, but this fresh run seeded/uploaded only website-single, not four live cohorts. The sibling copy was created inactive and unused. Historical rasters/source helpers and private receipt hashes establish what was tested; the public offline verifier cannot replace independent PDF decoding or provider-byte checks.

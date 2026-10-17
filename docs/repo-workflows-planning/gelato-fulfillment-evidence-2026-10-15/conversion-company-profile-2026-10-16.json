@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-16T03:19:40.428Z",
+  "main": "d866e0541832b6f3ddaa9703aa4672b696bcd17b",
+  "prs": [
+    14,
+    15,
+    16,
+    17
+  ],
+  "source": "Real deployed internal guard, live provider PATCH rejection and GET-only recovery; normal ordering closed",
+  "case": "website-single",
+  "nativeExecutionId": "54694",
+  "authorizationId": "a4d15f5b-9ca1-4d8f-b180-430d02a4c8f3",
+  "submissionId": "f2eed8aa-e1db-40ae-98de-6620760dc821",
+  "providerRootId": "6f32b4b1-0d36-4df9-8017-c74e3992e983",
+  "artifacts": [
+    {
+      "child_order_id": 1126,
+      "provider_item_id": "c7eac5af-6711-4df0-8d20-9a125cf6797b",
+      "sha256": "5ff4304a932844a40e3e2ce9ee7f215f58062b53a00c25f14035c5dd640dce43"
+    }
+  ],
+  "fundingInspection": {
+    "inspectedAt": "2026-10-16T03:15:00.369Z",
+    "noPaymentMethods": true,
+    "wallets": 14,
+    "allWalletsInactiveZero": true,
+    "autoTopup": false,
+    "plan": "Free",
+    "monthlyInvoices": false,
+    "ownerConfirmedNoOtherFunding": true,
+    "paymentChanges": false,
+    "inspectionBoundary": "Fresh dashboard plus retained explicit owner confirmation; no atomic protection against external funding"
+  },
+  "conversion": {
+    "at": "2026-10-16T03:17:21.718Z",
+    "state": "rejected",
+    "authorizationClosed": true,
+    "sendStarted": true,
+    "persistenceConfirmed": true,
+    "closureConfirmed": true,
+    "providerRequests": [
+      {
+        "method": "GET",
+        "httpStatus": 200,
+        "responseSha256": "b491f557fc70baf4d745b6268578ae3572a9146c6d4d88cf59f69a194201e980"
+      },
+      {
+        "method": "POST",
+        "httpStatus": 200,
+        "responseSha256": "416a0a76d28386359753fa7a0d251ad1d15084b6af89343c15cb047408f484b0"
+      },
+      {
+        "method": "PATCH",
+        "httpStatus": 400,
+        "responseSha256": "5f9e751f9f18c36de640c41d5a121f3914e70d91d8a8658a8e029ec4ed108ba4"
+      },
+      {
+        "method": "GET",
+        "httpStatus": 200,
+        "responseSha256": "8d9421e76a77ce11993452121c12f149edc524c5aa67328a4d1545209bcb058d"
+      }
+    ],
+    "patchBody": {
+      "orderType": "order"
+    },
+    "patchResponse": {
+      "code": "BAD_REQUEST",
+      "message": "To be able to place an order please complete the company information in the portal."
+    },
+    "observation": {
+      "patchHttpStatus": 400,
+      "patchResponseSha256": "5f9e751f9f18c36de640c41d5a121f3914e70d91d8a8658a8e029ec4ed108ba4",
+      "diagnosticQuoteId": "242a2ed1-43d5-45bb-8dc0-3aa321395f37",
+      "quoteResponseSha256": "416a0a76d28386359753fa7a0d251ad1d15084b6af89343c15cb047408f484b0",
+      "providerOrderId": "6f32b4b1-0d36-4df9-8017-c74e3992e983",
+      "orderType": "draft",
+      "financialStatus": "draft",
+      "fulfillmentStatus": "draft",
+      "processingStatus": null,
+      "processingLogCount": 0,
+      "items": [
+        {
+          "providerItemId": "c7eac5af-6711-4df0-8d20-9a125cf6797b",
+          "itemReferenceId": "lhb-item-1126",
+          "fulfillmentStatus": "created",
+          "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+          "quantity": 1,
+          "apiPageCount": 32,
+          "processedFileUrlPresent": false
+        }
+      ],
+      "shipmentMethodUid": "usps_ground_advantage",
+      "receipts": [
+        {
+          "currency": "USD",
+          "isCalculated": true,
+          "productsPrice": 0,
+          "productsPriceVat": 0,
+          "productsPriceInclVat": 0,
+          "shippingPrice": 0,
+          "shippingPriceVat": 0,
+          "shippingPriceInclVat": 0,
+          "packagingPrice": 0,
+          "packagingPriceVat": 0,
+          "packagingPriceInclVat": 0,
+          "discount": 0,
+          "discountVat": 0,
+          "discountInclVat": 0,
+          "total": 0,
+          "totalVat": 0,
+          "totalInclVat": 0
+        }
+      ],
+      "unsafeFundingOrProductionObserved": false,
+      "providerResponseSha256": "8d9421e76a77ce11993452121c12f149edc524c5aa67328a4d1545209bcb058d",
+      "noNewCreate": true
+    },
+    "newProviderCreates": 0
+  },
+  "quote": {
+    "id": "242a2ed1-43d5-45bb-8dc0-3aa321395f37",
+    "rawResponseSha256": "416a0a76d28386359753fa7a0d251ad1d15084b6af89343c15cb047408f484b0",
+    "expirationDateTime": "2026-10-17T03:17:14+00:00",
+    "fulfillmentCountry": "US",
+    "productionCountry": "US",
+    "products": [
+      {
+        "itemReferenceId": "lhb-item-1126",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "quantity": 1,
+        "pageCount": 32,
+        "price": 12.18,
+        "currency": "USD"
+      }
+    ],
+    "methods": [
+      {
+        "name": "USPS Ground Advantage",
+        "shipmentMethodUid": "usps_ground_advantage",
+        "type": "normal",
+        "price": 3.81,
+        "initialPrice": 3.81,
+        "currency": "USD",
+        "minDeliveryDays": 7,
+        "maxDeliveryDays": 11,
+        "minDeliveryDate": "2026-10-22",
+        "maxDeliveryDate": "2026-10-26",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "USPS Priority Mail Standard",
+        "shipmentMethodUid": "usps_priority_mail_standard",
+        "type": "express",
+        "price": 9.22,
+        "initialPrice": 9.22,
+        "currency": "USD",
+        "minDeliveryDays": 6,
+        "maxDeliveryDays": 7,
+        "minDeliveryDate": "2026-10-21",
+        "maxDeliveryDate": "2026-10-22",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "UPS Surepost",
+        "shipmentMethodUid": "ups_surepost",
+        "type": "normal",
+        "price": 14.32,
+        "initialPrice": 14.32,
+        "currency": "USD",
+        "minDeliveryDays": 7,
+        "maxDeliveryDays": 8,
+        "minDeliveryDate": "2026-10-22",
+        "maxDeliveryDate": "2026-10-23",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "UPS Ground Residential",
+        "shipmentMethodUid": "ups_ground_residential",
+        "type": "normal",
+        "price": 18.61,
+        "initialPrice": 18.61,
+        "currency": "USD",
+        "minDeliveryDays": 6,
+        "maxDeliveryDays": 7,
+        "minDeliveryDate": "2026-10-21",
+        "maxDeliveryDate": "2026-10-22",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "UPS 3 Day Select",
+        "shipmentMethodUid": "ups_3_day_select",
+        "type": "normal",
+        "price": 25.35,
+        "initialPrice": 25.35,
+        "currency": "USD",
+        "minDeliveryDays": 7,
+        "maxDeliveryDays": 7,
+        "minDeliveryDate": "2026-10-22",
+        "maxDeliveryDate": "2026-10-22",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "USPS Priority Mail Express",
+        "shipmentMethodUid": "usps_priority_mail_express",
+        "type": "express",
+        "price": 29.12,
+        "initialPrice": 29.12,
+        "currency": "USD",
+        "minDeliveryDays": 6,
+        "maxDeliveryDays": 7,
+        "minDeliveryDate": "2026-10-21",
+        "maxDeliveryDate": "2026-10-22",
+        "packageCount": 1,
+        "totalWeight": 229
+      },
+      {
+        "name": "UPS 2 Day",
+        "shipmentMethodUid": "ups_2_day",
+        "type": "express",
+        "price": 29.81,
+        "initialPrice": 29.81,
+        "currency": "USD",
+        "minDeliveryDays": 6,
+        "maxDeliveryDays": 6,
+        "minDeliveryDate": "2026-10-21",
+        "maxDeliveryDate": "2026-10-21",
+        "packageCount": 1,
+        "totalWeight": 229
+      }
+    ],
+    "selected": {
+      "name": "USPS Ground Advantage",
+      "shipmentMethodUid": "usps_ground_advantage",
+      "type": "normal",
+      "price": 3.81,
+      "initialPrice": 3.81,
+      "currency": "USD",
+      "minDeliveryDays": 7,
+      "maxDeliveryDays": 11,
+      "minDeliveryDate": "2026-10-22",
+      "maxDeliveryDate": "2026-10-26",
+      "packageCount": 1,
+      "totalWeight": 229
+    },
+    "productLineTotal": 12.18,
+    "productPlusSelectedShippingExcludingUnreportedTaxOrFees": 15.99,
+    "taxOrFinalInvoiceProven": false,
+    "comparison": "Fresh conversion quote is nonzero; rejected draft receipt remains calculated=true with zero amounts. No regular-order estimate/invoice/charge exists to reconcile."
+  },
+  "recovery": {
+    "at": "2026-10-16T03:19:30.097Z",
+    "getOnly": true,
+    "providerRequestMethods": [
+      "GET"
+    ],
+    "state": "rejected",
+    "persistenceConfirmed": true,
+    "closureConfirmed": true,
+    "sameProviderRoot": true,
+    "sameItemIds": true,
+    "noConversionReplay": true,
+    "ordinaryRowsPreserved": true
+  },
+  "adminInspection": {
+    "state": "submitted",
+    "canRefresh": true,
+    "canCancel": false,
+    "canRecover": false,
+    "orders": [
+      {
+        "id": "6f32b4b1-0d36-4df9-8017-c74e3992e983",
+        "status": "draft",
+        "orderType": "draft",
+        "actionReason": null,
+        "updatedAt": "2026-10-16T03:14:27+00:00"
+      }
+    ],
+    "items": [
+      {
+        "active": true,
+        "orderId": "TEST-GELATO-W-76r1vgdvcv8pro9ridvvkkl2ie",
+        "status": "created",
+        "actionReason": "awaiting_draft_review",
+        "providerOrderId": "6f32b4b1-0d36-4df9-8017-c74e3992e983",
+        "providerItemId": "c7eac5af-6711-4df0-8d20-9a125cf6797b"
+      }
+    ]
+  },
+  "finalControls": {
+    "at": "2026-10-16T03:19:40.428Z",
+    "source": "d866e0541832b6f3ddaa9703aa4672b696bcd17b",
+    "deployment": "6a08cb3a-0719-4c5c-a08a-bb4918c4a71f",
+    "normalFlagsOff": true,
+    "normalDispatch": false,
+    "allWorkflowCopiesInactive": true,
+    "customerIntents": 0,
+    "openConversionAuthorizations": 0
+  },
+  "pendingCases": [
+    {
+      "case": "amazon-single",
+      "nativeExecutionId": "54691",
+      "providerRootId": "2f61e5be-64bc-486c-b1b9-f25fd04cdfd3",
+      "conversionAttempted": false,
+      "authorizationInserted": false,
+      "reason": "Preserve unconsumed authorization until common company-profile prerequisite is resolved"
+    },
+    {
+      "case": "amazon-siblings",
+      "nativeExecutionId": "54692",
+      "providerRootId": "ec3e437d-9db7-4ee4-baa1-7bafe102872a",
+      "conversionAttempted": false,
+      "authorizationInserted": false,
+      "reason": "Preserve unconsumed authorization until common company-profile prerequisite is resolved"
+    }
+  ],
+  "normalControlsWritten": false,
+  "paidPrinting": false,
+  "paymentChanges": false,
+  "customerMessages": false,
+  "remainingBoundary": "Provider requires company billing profile before regular-order acceptance. No-payment acceptance/processing/payment-required boundary remains untested. This is not a payment-required failure.",
+  "adminLimitations": [
+    "Print status displays draft and root correctly. General book metadata showed Format/Pages N/A for the synthetic frozen-v2 fixture.",
+    "Company-profile rejection is retained in protected guard evidence; ordinary print admin remains submitted/draft and does not expose this diagnostic rejection text."
+  ],
+  "reproduction": "Offline verifier checks archived consistency/hashes only. Historical operator source requires adaptation/fresh review/private access. Do not reset/reopen authorization or replay claim/webhook/conversion. Website retry needs a fresh native identity after account setup.",
+  "independentClosure": {
+    "at": "2026-10-16T03:24:31.436Z",
+    "closed": true,
+    "plannedAuthorizationIdsChecked": 3,
+    "amazonAuthoritiesRemainUncreated": true,
+    "nativeGroupsChecked": 2,
+    "allNativeClosureControlsVerified": true,
+    "normalControlsWritten": false,
+    "rawPrivateReceiptSha256": "f1e630bc91817bb9d7e3d6fa313d5d3de04ef1f3fa79c1beeab4a5bf897767ff"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Checksums for additional dated checkpoint only; earlier native manifest remains intact. Not live provider/PDF-byte validation.",
+  "files": [
+    {
+      "path": "conversion-company-profile-2026-10-16.json",
+      "sha256": "ffbecc80f0ac82e357bd2b56fc845db011dd83845e5cef50cfeb783dac82be73",
+      "bytes": 11826
+    },
+    {
+      "path": "native-website-refresh-2026-10-16.json",
+      "sha256": "e7db77aeb28dfe47fea67470963b92e38144c6dabd8829510332dd11f5e47f70",
+      "bytes": 11629
+    },
+    {
+      "path": "company-profile-reproduction.md",
+      "sha256": "e4ff16671ba0b74d32598a990bd65afa93a12d2f7bc7ba8bbcb4d2cd4270fae9",
+      "bytes": 3216
+    },
+    {
+      "path": "verify-company-profile-checkpoint.mjs",
+      "sha256": "07bff55d617afe54e10e54b128f8d2fb7ff98ba316980e507f5ff049c1dcd11a",
+      "bytes": 6215
+    },
+    {
+      "path": "conversion-runner-reference/README.md",
+      "sha256": "d80baf37085fbc0c8c0145cdde0c056b698c9b189d38ee2b8a9892a493f18e34",
+      "bytes": 1506
+    },
+    {
+      "path": "conversion-runner-reference/close-conversions.cjs.txt",
+      "sha256": "8334ef3b85962e798f764442d0802eb12529f62c9e0bdad4c31164a8be695cfc",
+      "bytes": 3106
+    },
+    {
+      "path": "conversion-runner-reference/operator.cjs.txt",
+      "sha256": "68d476558e3025734ac33cf260a154f52cea27060e9d9a2bd2b8eee999011346",
+      "bytes": 17578
+    },
+    {
+      "path": "conversion-runner-reference/prepare-plan.cjs.txt",
+      "sha256": "fffc0673142c34efbbb7b755d97f016e5926fb3e592961cc4769c33d64d21236",
+      "bytes": 3976
+    },
+    {
+      "path": "conversion-runner-reference/test-operator.cjs.txt",
+      "sha256": "88185dba34f0578f7878c86fd7f29a8fa47427943d79bedc3798b178f4713b55",
+      "bytes": 4058
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+import fs from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+import {isDeepStrictEqual} from 'node:util';
+import {Live,Ledger,directory,privateRead,sha,projectLock} from './native-client';
+import {normalizeW0Manifest} from '<REVIEWED_CHECKOUT>/back-end/src/lib/books/normalize-w0-manifest';
+async function main(){
+ const approval=JSON.parse(await privateRead(directory+'/repair-w0-authorization.json'));
+ assert.equal(sha(readFileSync(directory+'/source/repair-canonical-w0.ts')),approval.sourceSha256);
+ assert.equal(sha(await privateRead(directory+'/approved-source.json')),approval.nativeSealSha256);
+ assert(/^w0-readonly-diagnostic-\d+\.json$/.test(approval.diagnosticFile));
+ const raw=await privateRead(directory+'/'+approval.diagnosticFile);assert.equal(sha(raw),approval.diagnosticSha256);const diagnostic=JSON.parse(raw);assert.equal(diagnostic.liveWrites,0);assert.equal(diagnostic.stage,'read-only-freeze');assert.equal(diagnostic.result.published,false);assert.equal(diagnostic.result.reused,false);assert(!diagnostic.error);
+ const bytes=Buffer.from(JSON.stringify(diagnostic.candidate.manifest));assert.equal(sha(bytes),approval.manifestSha256);
+ const lock=await projectLock();const ledger=new Ledger();try{
+  await ledger.open();const live=new Live(ledger,lock.assert);await live.initialize();await live.assertOff();
+  const c=live.fixture.cases.find((c:any)=>c.kind==='website-single').orders[0];assert.equal(approval.key,c.oneKey);
+  assert(ledger.find('intent','w0:'+c.orderId)&&!ledger.find('verified','w0:'+c.orderId));assert(!ledger.entries.some(e=>e.kind==='intent'&&['claim:','webhook:','window:'].some(p=>e.key.startsWith(p))),'No repair after claim/window/webhook');
+  const parsed=normalizeW0Manifest(diagnostic.candidate.manifest),local=normalizeW0Manifest(c.one);assert.equal(parsed.orderId,c.orderId);assert.equal(parsed.rootOrderId,c.rootOrderId);assert.equal(parsed.bookId,local.bookId);assert.equal(parsed.formatId,c.formatId);assert.equal(parsed.configVersion,2);assert.equal(parsed.bookSpecs.testMode,true);assert(isDeepStrictEqual(parsed.renderSnapshot?.bookConfig,local.renderSnapshot?.bookConfig));assert.equal(diagnostic.candidate.manifestKey,c.oneKey);
+  const rows=await live.db('orders','select=*&orderId=eq.'+c.orderId);assert.equal(rows.length,1);const row=rows[0];assert.equal(row.execution_status,'done');assert.equal(row.next_workflow,null);assert.equal(row.print_submission_id,null);assert.equal(row.print_claim_token,null);assert.equal(row.print_manifest_key,c.upsert.print_manifest_key);assert.equal(row.one_manifest_url,c.upsert.one_manifest_url);
+  const effect='conditional-w0-repair:'+c.oneKey;const old=ledger.find('intent',effect);
+  if(!old){assert.equal(await live.object(c.oneKey),null,'Never overwrite a frozen manifest');await ledger.record('intent',effect,{manifestSha256:approval.manifestSha256,diagnosticSha256:approval.diagnosticSha256});const signed=await live.aws.sign(live.objectUrl(c.oneKey),{method:'PUT',headers:{'Content-Type':'application/json','If-None-Match':'*'},body:new Uint8Array(bytes).buffer,redirect:'error',signal:AbortSignal.timeout(60000)});lock.assert();const response=await fetch(signed);await response.body?.cancel();await ledger.record('repair-http',effect,{status:response.status});assert(response.ok||response.status===412,'Conditional publication unconfirmed; GET-only reconcile');}
+  else assert.equal(old.data.manifestSha256,approval.manifestSha256,'Consumed repair differs');
+  const stored=await live.object(c.oneKey);assert(stored&&sha(stored)===approval.manifestSha256,'Missing/different consumed repair; never repeat PUT');if(!ledger.find('verified',effect))await ledger.record('verified',effect,{sha256:sha(stored),bytes:stored.length});await ledger.record('canonical-w0-repaired','w0-'+Date.now(),{key:c.oneKey,sha256:sha(stored),canonicalPublishedConfig:true,originalPublicationNotReplayed:true,backendClaimOrWorkflowExecutionCalls:0,providerCalls:0});
+  console.log(JSON.stringify({canonicalW0Repaired:true,overwrite:false,publicationReplayed:false,workflowExecutionOrProviderCalls:0}));
+ }finally{
+  try{const closer=directory+'/source/close-native-unpaid.cjs';assert.equal(sha(readFileSync(closer)),approval.closerSha256);const result=spawnSync('/usr/local/opt/node@20/bin/node',[closer],{encoding:'utf8',timeout:180000});assert.equal(result.status,0,'Independent closure failed');assert.equal(JSON.parse(result.stdout).closed,true);}finally{try{if(ledger.handle)await ledger.close();}finally{await lock.release();}}
+ }
+}
+main().catch(()=>{console.error('Canonical manifest repair stopped; preserve intent; independent close and GET-only reconciliation only');process.exitCode=1;});

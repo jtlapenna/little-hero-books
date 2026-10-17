@@ -1,0 +1,22 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),fsp=require('node:fs/promises');
+const {Operator,Journal,directory}=require('./operator.cjs');const {closeConversions}=require('./close-conversions.cjs');
+async function main(){
+ const env={SUPABASE_URL:'https://mdnthwpcnphjnnblbvxk.supabase.co',N8N_BASE_URL:'https://thepeakbeyond.app.n8n.cloud',SUPABASE_SERVICE_ROLE_KEY:'unit-test-only',BACKEND_API_TOKEN:'unit-test-only',GELATO_API_KEY:'unit-test-only'};
+ const cases=[0,1,2].map(n=>({kind:'case'+n,rootOrderId:'TEST-GELATO-UNIT-'+n,authorizationId:`00000000-0000-4000-8000-00000000000${n}`,submissionId:`11111111-1111-4111-8111-11111111111${n}`,providerRootId:'provider'+n,artifacts:[]}));
+ const plan={cases,keySha256:'a'.repeat(64),fixtureSha256:'b'.repeat(64),workflowIds:[],orderKeys:[]};let fetched=0;const requests=[];
+ const journal={record:async(...args)=>requests.push(args),find:()=>null};const lock={assert:()=>{}};
+ const op=new Operator(env,plan,{},journal,lock,async()=>{fetched++;throw Error('Must not fetch forbidden route');});
+ for(const args of [['gelato','PATCH','orders/provider0',{orderType:'order'}],['gelato','POST','orders',{}],['backend','POST','/api/internal/w4/engineering-conversion',{authorizationId:cases[0].authorizationId,action:'convert',extra:true}],['backend','POST','/api/admin/gelato-print',{orderId:cases[0].rootOrderId,action:'cancel'}],['db','PATCH','orders?id=eq.1',{}],['n8n','POST','whatever'],['cloud','PATCH','little-hero-labs-admin',{}],['db','PATCH','gelato_engineering_conversions?id=eq.'+cases[0].authorizationId,{closed_at:new Date().toISOString()}]])await assert.rejects(op.request(...args));
+ assert.equal(fetched,0);
+ const before=new Set(fs.readdirSync(directory+'/requests'));op.fetcher=async()=>new Response(new ReadableStream({start:c=>c.error(Error('body failed'))}),{status:202,headers:{'content-range':'0-0/1'}});
+ await assert.rejects(op.get('gelato','orders/provider0'));const created=fs.readdirSync(directory+'/requests').filter(n=>!before.has(n));assert.equal(created.length,1);const receipt=JSON.parse(fs.readFileSync(directory+'/requests/'+created[0]));assert.equal(receipt.httpStatus,202);assert.equal(receipt.responseText,null);assert.equal(receipt.contentRange,'0-0/1');assert.equal(receipt.uncertain,true);
+ // Test a consumed conversion intent remains consumed after an ambiguous effect.
+ const j=new Journal();j.h={writeFile:async()=>{},sync:async()=>{}};let effects=0;await assert.rejects(j.effect('convert:unit',{},async()=>{effects++;throw Error('lost response');}));await assert.rejects(j.effect('convert:unit',{},async()=>{effects++;}));assert.equal(effects,1);assert(j.find('uncertain','convert:unit'));
+ // Every close target is tried even if the first PATCH fails.
+ const attempted=[];op.request=async(s,m,p)=>{attempted.push(p);if(p.includes(cases[0].authorizationId))throw Error('first unavailable');return{body:[]};};op.db=async(t,q)=>[{id:'synthetic',closed_at:new Date().toISOString()}];await assert.rejects(op.closeAll());assert.equal(attempted.length,3);assert(attempted.every((p,n)=>p.includes(cases[n].authorizationId)));
+ // Standalone closer also attempts all conversion IDs and reports an unavailable native dependency/input.
+ const seen=[];const result=await closeConversions(env,{authorizationIds:cases.map(c=>c.authorizationId),native:{}},async(url,init)=>{seen.push(String(url));if(String(url).includes(cases[0].authorizationId))throw Error('first unavailable');return new Response(JSON.stringify(init?.method==='PATCH'?[]:[{closed_at:'synthetic'}]));});assert.equal(result.closed,false);assert.equal(result.conversions.length,3);assert.equal(result.conversions[1].closed,true);assert.equal(result.conversions[2].closed,true);assert(seen.some(s=>s.includes(cases[2].authorizationId)));
+ console.log('Protected operator: forbidden effects fenced, failed-body status saved, consumed intent no replay, all closure targets attempted: passed; zero live requests');
+}
+main().catch(e=>{console.error(e.message);process.exitCode=1;});

@@ -1,6 +1,6 @@
 # Expanded Gelato verification: unpaid diagnostic and preparation evidence
 
-This directory supports the [requirement coverage ledger](../gelato-fulfillment-coverage-2026-10-15.md) and [isolated unpaid-lane design](../gelato-fulfillment-isolation-plan-2026-10-15.md). It records an in-progress phase. There have been no new workflow submissions, regular creates, conversions, payment changes or customer messages.
+This directory contains dated stages of the expanded engineering phase. Start with the [accepted-unpaid results](../gelato-unpaid-accepted-results-2026-10-16.md) and its requirement table: three native W4/W4.1 cases reached regular Gelato orders in created/financial-pending state, with deployed GET-only status recovery. Normal controls remain OFF; no paid printing, payment change or customer message occurred. The [company-profile checkpoint](../gelato-unpaid-checkpoint-2026-10-16.md) and older receipts remain historical evidence, including failed/closed attempts. Acceptance is not completed file validation, billing, printing or delivery.
 
 The initial source is main `e5ab870341842206ca04f933341aab0e66f3da0c`. Earlier results PR #13 remains useful for the completed draft scope. It is not expanded fulfillment proof.
 
@@ -98,3 +98,7 @@ Earlier paragraphs describe their dated preparation checkpoints. They do not sup
 ## Conversion rollout and safe preflight failure
 
 PR #16 is installed/deployed on main 9305591. Hosted SQL and rollback-only permissions passed. Its first website attempt failed before provider response/send/PATCH because the new HTTP client used a redirect mode unsupported by Workers. Authority closed; the order remains draft; normal controls stayed OFF. See [transport follow-up](../gelato-conversion-worker-fetch-2026-10-16.md) and `conversion-preflight-2026-10-16.json`. A production-config Worker regression now proves the bounded manual-redirect fix locally. This is not a provider funding boundary or a completed regular-order test. The failed authority will not be reset/replayed.
+
+## Latest company-profile checkpoint
+
+The [redacted rejection/recovery receipt](conversion-company-profile-2026-10-16.json) and [fresh website native receipt](native-website-refresh-2026-10-16.json) establish the subsequent deployed test. See [reproduction](company-profile-reproduction.md), the separate checkpoint manifest and archived conversion reference. The account company profile blocks further acceptance testing; no no-payment processing boundary is inferred. Both Amazon conversions remain unattempted.

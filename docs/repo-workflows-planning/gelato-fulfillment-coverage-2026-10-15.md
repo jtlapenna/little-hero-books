@@ -1,6 +1,6 @@
 # Gelato expanded fulfillment verification - October 15, 2026
 
-This is an in-progress requirements ledger for the expanded engineering scope. Dummy assets are sufficient. Completed draft tests remain valid for their stated boundaries; paid printing, actual billing, shipment and delivery are not complete. Normal ordering and customer communications remain closed.
+This is the historical native/preflight requirements ledger. The current consolidated requirement table and account-profile blocker are in [the October 16 checkpoint](gelato-unpaid-checkpoint-2026-10-16.md). This remains an in-progress engineering scope. Dummy assets are sufficient. Completed draft tests remain valid for their stated boundaries; paid printing, actual billing, shipment and delivery are not complete. Normal ordering and customer communications remain closed.
 
 ## Verified starting point
 
