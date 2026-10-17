@@ -34,3 +34,6 @@ for (const name of ['claim_gelato_print_submission', 'begin_gelato_print_submiss
   assert.equal(definition(scoped, name), expected, `Carry canonical ${name} changes into scoped migration`);
 }
 console.log('Scoped forward migration preserves the three canonical contracts except reviewed authorization changes');
+
+const printer = fs.readFileSync(path.join(root, 'database/20261016203550_lhl_printer_file_authority.sql'), 'utf8');
+assert.equal(definition(printer, 'record_gelato_quote_snapshot'), definition(foundation, 'record_gelato_quote_snapshot'), 'Printer forward migration must preserve canonical snapshot function');

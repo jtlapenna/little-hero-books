@@ -1,3 +1,4 @@
+process.env.BACKEND_API_TOKEN = 'synthetic-printer-file-signing-authority-only-12345';
 import assert from 'node:assert/strict';
 import configFile from '../src/lib/books/configs/book-finding-our-inner-voice/v2.json';
 import { GelatoPrintConfigSchema } from '../src/lib/books/types';
@@ -44,7 +45,7 @@ async function main() {
         if (name === 'apply_gelato_provider_snapshots') { intents = parameters.p_notifications as GelatoNotificationIntent[]; holds = parameters.p_notification_holds as typeof holds; }
         return {};
       } };
-      const dependencies: GelatoSubmissionDependencies = { store, backendUrl: 'https://files.example.test', draftsEnabled: false, artifactExists: async () => true,
+      const dependencies: GelatoSubmissionDependencies = { store, backendUrl: 'https://admin.littleherolabs.com', draftsEnabled: false, artifactExists: async () => true,
         now: () => new Date('2026-10-11T12:00:00Z'), loadOrder: async (key) => rows.find((row) => row.orderId === key)!,
         loadPrintInput: async (key) => ({ orderDbId: Number(key.slice(-1)), orderId: key, rootOrderId: root, orderPrefix: `book/orders/${key}`, bookConfigVersion: 2, providerPrintConfig: config } as unknown as W4GelatoPrintInput),
         quote: async (request) => ({ orderReferenceId: request.orderReferenceId, quotes: [{ id: 'quote-1', itemReferenceIds: request.products.map((item) => item.itemReferenceId),

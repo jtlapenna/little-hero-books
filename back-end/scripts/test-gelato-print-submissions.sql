@@ -12,7 +12,7 @@ BEGIN
   END;
   RAISE EXCEPTION 'Expected rejection: %', query;
 END $$;
-CREATE FUNCTION pg_temp.record_quote(p_submission_id uuid, p_token uuid) RETURNS void LANGUAGE plpgsql AS $$
+CREATE FUNCTION pg_temp.record_quote(p_submission_id uuid, p_token uuid, p_capability boolean DEFAULT false) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE refs text[]; row record; s public.print_provider_submissions%ROWTYPE; items jsonb; key text;
 BEGIN
   SELECT * INTO STRICT s FROM public.print_provider_submissions WHERE id=p_submission_id;
@@ -21,11 +21,11 @@ BEGIN
     PERFORM public.register_gelato_print_artifact(s.id,p_token,row.id,key,repeat('1',24),35);
   END LOOP;
   SELECT array_agg(i.item_reference_id ORDER BY i.item_reference_id), jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'productUid',o.print_product_uid,
-    'pageCount',o.print_api_page_count,'quantity',1,'files',jsonb_build_array(jsonb_build_object('type','default','url','https://files.example.test/api/pdf/'||i.artifact_key))) ORDER BY i.item_reference_id)
+    'pageCount',o.print_api_page_count,'quantity',1,'files',jsonb_build_array(jsonb_build_object('type','default','url','https://admin.littleherolabs.com/api/pdf/'||i.artifact_key||CASE WHEN p_capability THEN '?printerGrant=synthetic.header.signature' ELSE '' END))) ORDER BY i.item_reference_id)
     INTO refs,items FROM public.print_provider_submission_items i JOIN public.orders o ON o.id=i.child_order_id WHERE i.submission_id=s.id;
   PERFORM public.record_gelato_quote_snapshot(s.id,p_token,'quote-'||s.id::text,'ups_ground',1,clock_timestamp(),refs,repeat('a',64),
     jsonb_build_object('request',jsonb_build_object('orderType','draft','orderReferenceId',s.order_reference_id,'customerReferenceId',s.root_order_id,
-      'shipmentMethodUid','ups_ground','currency','USD','items',items,'shippingAddress',jsonb_build_object('firstName','Test','lastName','','country','US','addressLine1','123 Test St','addressLine2',coalesce(row.shipping_address->>'street2',''),'city','Test City','state','CA','postCode','90001','email','test@example.com')),'shippingTier','standard','config',jsonb_build_object('provider','gelato','productUid','synthetic-gelato-product','apiPageCount',32,'expectedPdfPageCount',35,'shipmentMethodPolicy',jsonb_build_object('version',1))));
+      'shipmentMethodUid','ups_ground','currency','USD','items',items,'shippingAddress',jsonb_build_object('firstName','Test','lastName','','country','US','addressLine1','123 Test St','addressLine2',coalesce(row.shipping_address->>'street2',''),'city','Test City','state','CA','postCode','90001','email','test@example.com')),'shippingTier','standard','config',jsonb_build_object('provider','gelato','productUid','synthetic-gelato-product','apiPageCount',32,'expectedPdfPageCount',35,'shipmentMethodPolicy',jsonb_build_object('version',1))) || CASE WHEN p_capability THEN jsonb_build_object('printerFiles',jsonb_build_object('version',1,'issuedAt',floor(extract(epoch FROM clock_timestamp()))::bigint,'expiresAt',floor(extract(epoch FROM clock_timestamp()))::bigint+86400)) ELSE '{}'::jsonb END);
 END $$;
 
 INSERT INTO public.orders(id,"orderId",amazon_order_id,root_order_id,created_at,execution_status,next_workflow,shipping_address)
@@ -499,3 +499,37 @@ RESET ROLE;
 SELECT 'Actual service_role insert/terminal-close privileges and anon denial: ok' AS result;
 
 \ir test-gelato-engineering-conversion.sql
+
+-- Exercise new signed URL snapshot through actual quote/begin/send RPCs. The SQL
+-- boundary validates shape and canonical key; server HMAC verification is separate.
+BEGIN;
+INSERT INTO public.orders(id,"orderId",root_order_id,execution_status,next_workflow,shipping_address)
+VALUES (901,'TEST-PRINTER-CAPABILITY','TEST-PRINTER-CAPABILITY','ready_for_processing','4','{"name":"Test","street1":"123 Test St","city":"Test City","state":"CA","zip":"90001","country":"US"}');
+UPDATE public.print_provider_dispatch_gates SET enabled=true WHERE provider='gelato';
+DO $$ DECLARE c jsonb; sid uuid; tok uuid; saved jsonb; altered jsonb; refs text[]; url text;
+BEGIN
+ c:=public.claim_gelato_print_submission(pg_temp.routes(ARRAY[901]::bigint[]),'synthetic-printer-grant');
+ sid:=(c->>'submissionId')::uuid;tok:=(c->>'claimToken')::uuid;
+ PERFORM pg_temp.record_quote(sid,tok,true);
+ SELECT quote_snapshot INTO saved FROM public.print_provider_submissions WHERE id=sid;
+ SELECT array_agg(item_reference_id ORDER BY item_reference_id) INTO refs FROM public.print_provider_submission_items WHERE submission_id=sid;
+ url:=saved#>>'{request,items,0,files,0,url}';
+ IF position('?printerGrant=' IN url)=0 THEN RAISE EXCEPTION 'Signed PDF URL was not persisted'; END IF;
+ FOREACH altered IN ARRAY ARRAY[
+  jsonb_set(saved,'{request,items,0,files,0,url}',to_jsonb(replace(url,'admin.littleherolabs.com','attacker.invalid'))),
+  jsonb_set(saved,'{request,items,0,files,0,url}',to_jsonb(url||'&format=json')),
+  jsonb_set(saved,'{request,items,0,files,0,url}',to_jsonb(replace(url,'TEST-PRINTER-CAPABILITY','OTHER'))),
+  jsonb_set(saved,'{printerFiles,expiresAt}',to_jsonb(floor(extract(epoch FROM clock_timestamp()))::bigint+30)),
+  saved-'printerFiles'
+ ] LOOP
+  PERFORM pg_temp.expect_error(format('SELECT public.record_gelato_quote_snapshot(%L,%L,%L,%L,1,clock_timestamp(),%L,repeat(''a'',64),%L)',sid,tok,'synthetic-quote','ups_ground',refs,altered));
+ END LOOP;
+ PERFORM public.begin_gelato_print_submission(sid,tok,'synthetic-printer-execution',repeat('a',64));
+ PERFORM public.authorize_gelato_print_send(sid,tok,'synthetic-printer-execution',repeat('a',64));
+ IF (SELECT request_snapshot FROM public.print_provider_submissions WHERE id=sid) IS DISTINCT FROM saved THEN RAISE EXCEPTION 'Begin changed signed snapshot'; END IF;
+ IF has_function_privilege('anon','public.record_gelato_quote_snapshot(uuid,uuid,text,text,integer,timestamp with time zone,text[],text,jsonb)','EXECUTE') OR
+    has_function_privilege('authenticated','public.record_gelato_quote_snapshot(uuid,uuid,text,text,integer,timestamp with time zone,text[],text,jsonb)','EXECUTE') OR
+    NOT has_function_privilege('service_role','public.record_gelato_quote_snapshot(uuid,uuid,text,text,integer,timestamp with time zone,text[],text,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'Printer snapshot role privileges changed'; END IF;
+END $$;
+ROLLBACK;
+SELECT 'Printer capability snapshot shape, exact host/key/query, deadline, begin/send and role contract: ok' AS result;

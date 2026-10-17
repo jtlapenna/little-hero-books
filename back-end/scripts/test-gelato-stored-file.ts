@@ -5,7 +5,7 @@ import type { GelatoMember } from '../src/lib/books/gelato-submission-store';
 import type { GelatoDraftOrderRequest } from '../src/lib/books/gelato-api-contract';
 
 const key = `book/orders/child-1/gelato/print/v2/${'a'.repeat(24)}.pdf`;
-const expectedUrl = `https://files.example.test/api/pdf/${key}`;
+const expectedUrl = `https://admin.littleherolabs.com/api/pdf/${key}`;
 const providerUrl = `https://${GELATO_STORED_FILE_HOST}/synthetic.pdf`;
 const member = { child_order_key: 'child-1', artifact_key: key, artifact_fingerprint: 'a'.repeat(24), artifact_claim_token: 'token-1', pdf_page_count: 35 } as GelatoMember;
 const bytes = 'synthetic immutable PDF bytes';
@@ -33,7 +33,7 @@ async function main() {
   for (const bad of [{ ...member, artifact_key: null }, { ...member, artifact_fingerprint: 'b'.repeat(24) }, { ...member, child_order_key: 'another-child' }, { ...member, artifact_claim_token: null }, { ...member, pdf_page_count: -1 }]) {
     await assert.rejects(verifier(bad, providerUrl, expectedUrl), /receipt/);
   }
-  await assert.rejects(verifier(member, providerUrl, 'https://files.example.test/api/pdf/another.pdf'), /receipt/);
+  await assert.rejects(verifier(member, providerUrl, 'https://admin.littleherolabs.com/api/pdf/another.pdf'), /receipt/);
   const perFile = createGelatoStoredFileVerifier({ maxFileBytes: 2, loadArtifact: async () => new Response(bytes), fetcher: async () => new Response(bytes) });
   await assert.rejects(perFile(member, providerUrl, expectedUrl), /byte budget/);
   const aggregate = createGelatoStoredFileVerifier({ maxOperationBytes: bytes.length + 2, loadArtifact: async () => new Response(bytes), fetcher: async () => new Response(bytes) });

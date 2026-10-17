@@ -425,24 +425,28 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/webhooks/print-submitted",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/webhooks/print-submitted\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + ($json.CONFIG?.backendApiToken || '') }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ rootGroupId: $json.rootGroupId, orderIds: $json.orderIds, workflowJobId: $json.workflowJobId, workflowJobIdempotencyKey: $json.workflowJobIdempotencyKey, workflowAttemptId: $json.workflowAttemptId, submitMode: $json.submitMode, luluJobId: $json.luluJobId, luluStatus: $json.luluStatus }) }}",
-        "options": {}
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "1c6f3922-5596-49b8-95b3-cccda5c57259",
       "name": "Notify: Sent to Print",
@@ -451,7 +455,13 @@
       "position": [
         42800,
         19840
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

@@ -14,3 +14,10 @@ GELATO_CANCEL_ENABLED = "false"
 GELATO_STATUS_RELAY_ENABLED = "false"
 GELATO_STATUS_POLLING_ENABLED = "false"
 GELATO_NOTIFICATIONS_ENABLED = "false"
+
+# Runtime-only identity metadata. Actual values come from the reviewed Access app
+# and exact production Pages settings, after build and before upload.
+CF_ACCESS_ISSUER = ""
+CF_ACCESS_AUDIENCE = ""
+ADMIN_SITE_ORIGIN = ""
+ADMIN_ALLOWED_EMAILS = ""

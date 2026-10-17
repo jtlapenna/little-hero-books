@@ -324,14 +324,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w2a/bootstrap-manifest",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/internal/w2a/bootstrap-manifest\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -348,8 +344,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "9d63bcdc-91c9-4ceb-bb44-ec0172b83959",
       "name": "Bootstrap 2A Manifest Stub",
@@ -360,7 +363,13 @@
         784
       ],
       "notesInFlow": true,
-      "notes": "Repo-owned 2A bootstrap manifest builder/uploader. Keeps the canonical per-item manifest path out of n8n."
+      "notes": "Repo-owned 2A bootstrap manifest builder/uploader. Keeps the canonical per-item manifest path out of n8n.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -747,14 +756,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/webhooks/workflow-2a-complete",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/webhooks/workflow-2a-complete\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -771,8 +776,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -781,7 +793,13 @@
         2000
       ],
       "id": "0047b440-ca67-401c-bd54-4c85ce45f208",
-      "name": "Supabase — Upsert from 2A Manifest"
+      "name": "Supabase — Upsert from 2A Manifest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -831,14 +849,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w2a/resolve-pose-worklist",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/internal/w2a/resolve-pose-worklist\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -857,10 +871,17 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
         },
         "jsonBody": "={{$json.requestBody}}",
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "8dff88aa-5e35-4caa-bb21-7a6b1e672c0d",
       "name": "Resolve Pose Worklist",
@@ -871,19 +892,21 @@
         784
       ],
       "notesInFlow": true,
-      "notes": "Repo-owned pose worklist resolver. Uses the companion 1-manifest/page plan when available."
+      "notes": "Repo-owned pose worklist resolver. Uses the companion 1-manifest/page plan when available.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w2a/build-run-manifest",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/internal/w2a/build-run-manifest\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -900,8 +923,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "3280678b-7e4c-4653-9089-a99cc3a6211b",
       "name": "Build + Upload 2A Manifest",
@@ -912,7 +942,13 @@
         2000
       ],
       "notesInFlow": true,
-      "notes": "Repo-owned 2A run-manifest builder/uploader. Uses the accumulated pose results gathered in n8n."
+      "notes": "Repo-owned 2A run-manifest builder/uploader. Uses the accumulated pose results gathered in n8n.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

@@ -1,6 +1,7 @@
+import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { GelatoSavedSnapshotSchema } from './gelato-submission';
+import { GelatoSavedSnapshotSchema, assertPrinterSendAuthority } from './gelato-submission';
 import { validateGelatoQuote } from './gelato-api-contract';
 import { GelatoProviderOrderSchema, validateGelatoConnectedOrdersWithFiles } from './gelato-provider-snapshot';
 import type { GelatoSubmissionContext } from './gelato-submission-store';
@@ -61,7 +62,9 @@ export async function validateEngineeringConversionContext(a: EngineeringConvers
     if (m.child_order_id!==artifact.child_order_id || m.provider_item_id!==artifact.provider_item_id || !/^TEST-GELATO-[A-Za-z0-9-]{1,38}$/.test(m.child_order_key) || m.artifact_key!==artifact.artifact_key ||
         m.artifact_key!==`book-finding-our-inner-voice/orders/${m.child_order_key}/gelato/print/v2/${m.artifact_fingerprint}.pdf` || !m.artifact_fingerprint||!/^[a-f0-9]{24}$/.test(m.artifact_fingerprint)||m.pdf_page_count!==35 || m.provider_order_id!==a.provider_root_id || !m.provider_item_id) throw new Error('Engineering artifact membership differs');
     const requested=saved.request.items.filter(item=>item.itemReferenceId===m.item_reference_id);
-    if(requested.length!==1||requested[0].files.length!==1||requested[0].files[0].url!==`https://admin.littleherolabs.com/api/pdf/${artifact.artifact_key.split('/').map(encodeURIComponent).join('/')}`)throw new Error('Engineering request URL differs from authorized artifact');
+    if (requested.length !== 1 || requested[0].files.length !== 1 || !parsePrinterFileUrl(requested[0].files[0].url, artifact.artifact_key) ||
+        (new URL(requested[0].files[0].url).search !== '' && !await verifyPrinterFileUrl(requested[0].files[0].url, artifact.artifact_key, { historical: true,
+          scope: { key: artifact.artifact_key, submissionId: context.submission.id, itemReferenceId: m.item_reference_id, orderDbId: m.child_order_id, configVersion: 2, inputFingerprint: m.artifact_fingerprint } }))) throw new Error('Engineering request URL differs from authorized artifact');
     if (digest(await d.artifact(artifact.artifact_key))!==artifact.sha256) throw new Error('Engineering immutable PDF bytes differ');
   }
   return {context,saved,members,artifacts};
@@ -116,12 +119,14 @@ async function performEngineeringConversion(id: string, action: 'convert' | 'obs
       if(parsedBefore.orderType!=='draft'||parsedBefore.fulfillmentStatus!=='draft'||beforeRaw.financialStatus!=='draft')throw new Error('Engineering conversion requires a current unfunded draft');
       const quoteRequest={orderReferenceId:saved.request.orderReferenceId,customerReferenceId:saved.request.customerReferenceId,currency:saved.request.currency,
         allowMultipleQuotes:false as const,recipient:saved.request.shippingAddress,products:saved.request.items};
+      await assertPrinterSendAuthority(saved.request.items, (d.now ?? (() => new Date()))());
       const quote=await http('POST','/orders:quote',quoteRequest);if(!quote.ok)throw new Error('Engineering fresh quote failed');
       const now=(d.now??(()=>new Date()))();const selected=validateGelatoQuote({response:quote.json(),request:quoteRequest,config:saved.config,shippingTier:saved.shippingTier,quotedAt:now.toISOString(),now});
       if(selected.shipmentMethodUid!==saved.request.shipmentMethodUid)throw new Error('Engineering current service differs');
       sendAuthorizationAttempted=true;
       await d.transition('authorize_gelato_engineering_conversion_send',{p_id:id,p_token:a.owner_token,p_key_sha256:keyHash,
         p_preflight_sha256:digest(JSON.stringify({before:digest(before.text),quote:digest(quote.text),artifacts}))});
+      await assertPrinterSendAuthority(saved.request.items, (d.now ?? (() => new Date()))());
       try { const patch=await http('PATCH',`/orders/${a.provider_root_id}`,{orderType:'order'});
         observations={patchHttpStatus:patch.status,patchResponseSha256:digest(patch.text),diagnosticQuoteId:selected.quoteId,quoteResponseSha256:digest(quote.text)};
       } catch { observations={patchResponseUncertain:true,diagnosticQuoteId:selected.quoteId,quoteResponseSha256:digest(quote.text)}; }

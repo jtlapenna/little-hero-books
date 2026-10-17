@@ -448,13 +448,20 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/normalize-pose-scale",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/normalize-pose-scale\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"imageUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/{{ $('Prep Upload').item.json.bgRemovedKey }}\",\n  \"poseNumber\": {{ $('Prep Upload').item.json.poseNumber }},\n  \"characterHash\": \"{{ $('Prep Upload').item.json.characterHash }}\"\n}",
         "options": {
-          "timeout": 30000
-        }
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "a1b2c3d4-norm-pose-scale-0001",
       "name": "Normalize Pose Scale",
@@ -464,7 +471,13 @@
         3280,
         192
       ],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

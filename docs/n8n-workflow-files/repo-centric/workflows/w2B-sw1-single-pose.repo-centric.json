@@ -4,14 +4,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || $json.orderContext?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2b/build-pose-input'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || $json.orderContext?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2b/build-pose-input'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -25,11 +21,18 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
         },
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "cf03ed68-4050-416a-9045-afef62b942aa",
       "name": "Normalize Input",
@@ -38,7 +41,13 @@
       "position": [
         1536,
         -592
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -477,13 +486,20 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/normalize-pose-scale",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/normalize-pose-scale\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"imageUrl\": \"https://pub-92cec53654f84771956bc84dfea65baa.r2.dev/{{ $('Prep Upload').item.json.bgRemovedKey }}\",\n  \"orderId\": \"{{ $('Prep Upload').item.json.orderId }}\",\n  \"bookId\": \"{{ $('Prep Upload').item.json.bookId }}\",\n  \"poseNumber\": {{ $('Prep Upload').item.json.poseNumber }},\n  \"characterHash\": \"{{ $('Prep Upload').item.json.characterHash }}\"\n}",
         "options": {
-          "timeout": 30000
-        }
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "a1b2c3d4-norm-pose-scale-0001",
       "name": "Normalize Pose Scale",
@@ -493,7 +509,13 @@
         3280,
         192
       ],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -566,14 +588,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -589,8 +607,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "0db4899e-6e60-4890-a754-4e66663d7f11",
       "name": "Log Workflow Job Submit",
@@ -599,19 +624,21 @@
       "position": [
         2376,
         -592
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -627,8 +654,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "4bd95c0a-f5cf-4431-a460-7137d0ce0c26",
       "name": "Log Workflow Job Poll",
@@ -637,19 +671,21 @@
       "position": [
         3096,
         -592
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -665,8 +701,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "dcb6d44a-3454-423d-88cc-b98a056dcf36",
       "name": "Log Workflow Job Failed",
@@ -675,19 +718,21 @@
       "position": [
         1648,
         -112
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/workflow-jobs/log-event'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -703,8 +748,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "4ec18655-a5f1-4971-ab68-5272d1ced500",
       "name": "Log Workflow Job Complete",
@@ -713,7 +765,13 @@
       "position": [
         2416,
         -272
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     }
   ],
   "connections": {

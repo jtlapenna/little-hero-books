@@ -51,6 +51,9 @@ done
 for task_iteration in 1 2; do
   "${task_psql[@]}" -f "$task_root/database/migration-gelato-engineering-conversions.sql" >"$task_pg_dir/conversion-migration.log" 2>&1
 done
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "$task_root/database/20261016203550_lhl_printer_file_authority.sql" >"$task_pg_dir/printer-file-migration.log" 2>&1
+done
 "${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-print-submissions.sql"
 # Force a started engineering sender and prove the forward migration refuses it.
 "${task_psql[@]}" >"$task_pg_dir/engineering-flight-setup.log" 2>&1 <<'SQL'

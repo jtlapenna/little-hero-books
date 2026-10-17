@@ -16,7 +16,8 @@ const { title, description = "Little Hero Labs - Become the hero of your own sto
 // Get current URL for canonical and og:url (env-driven for correct domain in all environments).
 // No-op deployment marker for Cloudflare Pages verification.
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL || 'https://www.littleherolabs.com').replace(/\/$/, '');
-const currentPath = Astro.url.pathname;
+const sensitivePreview = Astro.url.pathname.startsWith('/approve/');
+const currentPath = sensitivePreview ? '/approve' : Astro.url.pathname;
 const normalizedPath = currentPath === '/' ? '/' : currentPath.replace(/\/$/, '');
 const canonicalUrl = new URL(normalizedPath, `${siteUrl}/`).toString();
 const ogImage = image
@@ -89,6 +90,7 @@ const publicSchemas = noindex
     <meta name="description" content={description} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     
+    {!sensitivePreview && <>
     <!-- Google Analytics (GA4) -->
     <script
       is:inline
@@ -110,6 +112,9 @@ const publicSchemas = noindex
       async
     ></script>
     
+    </>}
+    {sensitivePreview && <meta name="referrer" content="no-referrer" />}
+
     <!-- Favicon & App Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -156,7 +161,7 @@ const publicSchemas = noindex
     ))}
 
     <slot name="head" />
-    <ClientRouter fallback="swap" />
+    {!sensitivePreview && <ClientRouter fallback="swap" />}
   </head>
   <body style="background-color: #FFFCF8;">
     <Header />

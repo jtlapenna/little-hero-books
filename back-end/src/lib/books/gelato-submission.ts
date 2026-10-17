@@ -1,3 +1,4 @@
+import { createPrinterFileUrl, newPrinterFileWindow, PrinterFileWindowSchema, PRINTER_FILE_SEND_MARGIN_SECONDS, verifyPrinterFileUrl, type PrinterFileWindow } from '../printer-file-grants';
 import { GelatoNotificationTargetSchema, gelatoNotificationTarget } from './gelato-notification-target';
 import { z } from 'zod';
 import { isDeepStrictEqual } from 'node:util';
@@ -18,7 +19,7 @@ export const GelatoSavedSnapshotSchema = z.object({
   request: z.object({ orderType: z.literal('draft'), orderReferenceId: z.string().min(1), customerReferenceId: z.string().min(1),
     currency: z.string().regex(/^[A-Z]{3}$/), items: z.array(ItemSchema).min(1).max(100), shipmentMethodUid: z.string().min(1), shippingAddress: RecipientSchema }),
   notificationTargets: z.array(GelatoNotificationTargetSchema).min(1).max(100).optional(),
-  config: GelatoPrintConfigSchema, shippingTier: z.string().min(1),
+  config: GelatoPrintConfigSchema, shippingTier: z.string().min(1), printerFiles: PrinterFileWindowSchema.optional(),
 });
 export type GelatoSavedSnapshot = z.infer<typeof GelatoSavedSnapshotSchema>;
 export type GelatoSubmissionIdentity = { submissionId: string; claimToken: string; executionId: string; mode: 'single' | 'siblings' };
@@ -57,7 +58,7 @@ function recipient(row: Record<string, unknown>, merchantEmail?: string) {
     city: address.city, state: pick(address.state_code, address.state), postCode: pick(address.postcode, address.postal_code, address.zip),
     email: pick(row.customer_email, address.email, merchantEmail), phone: pick(address.phone_number, address.phone) });
 }
-async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies) {
+async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies, printerFiles: PrinterFileWindow) {
   assertIdentity(context, identity, (dependencies.now ?? (() => new Date()))());
   const inputs = [];
   for (const member of context.members) {
@@ -78,23 +79,37 @@ async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSu
   const first = inputs[0];
   if (inputs.some((entry) => JSON.stringify(entry.recipient) !== JSON.stringify(first.recipient) || entry.tier !== first.tier ||
       JSON.stringify(entry.input.providerPrintConfig) !== JSON.stringify(first.input.providerPrintConfig))) throw new Error('Gelato sibling quote inputs are incompatible');
+  const fileUrls = await Promise.all(inputs.map(entry => createPrinterFileUrl({ key: entry.member.artifact_key!, submissionId: identity.submissionId,
+    itemReferenceId: entry.member.item_reference_id, orderDbId: entry.member.child_order_id, configVersion: Number(entry.input.bookConfigVersion), inputFingerprint: entry.member.artifact_fingerprint! }, printerFiles, dependencies.backendUrl)));
   const request = buildGelatoQuoteRequest({ orderReferenceId: context.submission.order_reference_id, customerReferenceId: context.submission.root_order_id,
     currency: 'USD', recipient: first.recipient, config: first.input.providerPrintConfig,
-    items: inputs.map((entry) => ({ itemReferenceId: entry.member.item_reference_id, productUid: entry.input.providerPrintConfig.productUid,
+    items: inputs.map((entry, index) => ({ itemReferenceId: entry.member.item_reference_id, productUid: entry.input.providerPrintConfig.productUid,
       pageCount: entry.input.providerPrintConfig.apiPageCount, quantity: entry.quantity,
-      fileUrl: `${dependencies.backendUrl.replace(/\/$/, '')}/api/pdf/${entry.member.artifact_key!.split('/').map(encodeURIComponent).join('/')}` })) });
+      fileUrl: fileUrls[index] })) });
   return { request, config: first.input.providerPrintConfig, shippingTier: first.tier, notificationTargets: inputs.map((entry) => gelatoNotificationTarget(entry.row, entry.member.child_order_key)) };
+}
+export async function assertPrinterSendAuthority(items: Array<{ files: Array<{ url: string }> }>, now: Date) {
+  for (const item of items) {
+    const value = item.files[0]?.url;
+    let key: string;
+    try { key = new URL(value).pathname.slice('/api/pdf/'.length); } catch { throw new Error('Gelato printer authority requires a fresh quote'); }
+    if (item.files.length !== 1 || !await verifyPrinterFileUrl(value, key, { now, minimumRemainingSeconds: PRINTER_FILE_SEND_MARGIN_SECONDS })) {
+      throw new Error('Gelato printer authority requires a fresh quote');
+    }
+  }
 }
 function parameters(identity: GelatoSubmissionIdentity) { return { p_submission_id: identity.submissionId, p_token: identity.claimToken }; }
 export async function quoteGelatoSubmission(identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies) {
   const context = await dependencies.store.load(identity.submissionId);
-  const input = await buildRequest(context, identity, dependencies);
+  const printerFiles = newPrinterFileWindow((dependencies.now ?? (() => new Date()))());
+  const input = await buildRequest(context, identity, dependencies, printerFiles);
   const quotedAt = (dependencies.now ?? (() => new Date()))();
+  await assertPrinterSendAuthority(input.request.products, (dependencies.now ?? (() => new Date()))());
   const selected = validateGelatoQuote({ response: await (dependencies.quote ?? requestGelatoQuote)(input.request), request: input.request,
     config: input.config, shippingTier: input.shippingTier, quotedAt: quotedAt.toISOString(), now: (dependencies.now ?? (() => new Date()))() });
   const request = buildGelatoDraftOrderRequest({ ...input.request, items: input.request.products.map((item) => ({ ...item, fileUrl: item.files[0].url })),
     recipient: input.request.recipient, config: input.config, selectedQuote: selected, now: (dependencies.now ?? (() => new Date()))() });
-  const snapshot = GelatoSavedSnapshotSchema.parse({ request, config: input.config, shippingTier: input.shippingTier, notificationTargets: input.notificationTargets });
+  const snapshot = GelatoSavedSnapshotSchema.parse({ request, config: input.config, shippingTier: input.shippingTier, printerFiles, notificationTargets: input.notificationTargets });
   await dependencies.store.transition('record_gelato_quote_snapshot', { ...parameters(identity), p_quote_id: selected.quoteId,
     p_shipment_method_uid: selected.shipmentMethodUid, p_policy_version: selected.shipmentPolicyVersion, p_quoted_at: selected.quotedAt,
     p_item_reference_ids: request.items.map((item) => item.itemReferenceId), p_request_fingerprint: selected.requestFingerprint, p_snapshot: snapshot });
@@ -105,9 +120,10 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
   const context = await dependencies.store.load(identity.submissionId);
   assertIdentity(context, identity, (dependencies.now ?? (() => new Date()))(), false);
   if (context.submission.request_state === 'submitted') return { submissionId: identity.submissionId, outcome: 'draft', reused: true };
-  const input = await buildRequest(context, identity, dependencies);
   const s = context.submission;
   const snapshot = GelatoSavedSnapshotSchema.parse(s.quote_snapshot);
+  if (!snapshot.printerFiles) throw new Error('Gelato printer authority requires a fresh quote');
+  const input = await buildRequest(context, identity, dependencies, snapshot.printerFiles);
   const selection: GelatoSelectedQuote = { quoteId: s.quote_id ?? '', shipmentMethodUid: s.shipment_method_uid ?? '',
     shipmentPolicyVersion: s.shipment_policy_version ?? 0, quotedAt: s.quoted_at ?? '', requestFingerprint: s.quote_request_fingerprint ?? '', shippingTier: snapshot.shippingTier };
   const request: GelatoDraftOrderRequest = buildGelatoDraftOrderRequest({ ...input.request, items: input.request.products.map((item) => ({ ...item, fileUrl: item.files[0].url })),
@@ -122,6 +138,7 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
     await dependencies.store.transition('begin_gelato_print_submission', { ...parameters(identity), p_execution_id: identity.executionId, p_request_fingerprint: selection.requestFingerprint });
     begun = true;
     await dependencies.store.transition('authorize_gelato_print_send', { ...parameters(identity), p_execution_id: identity.executionId, p_request_fingerprint: selection.requestFingerprint });
+    await assertPrinterSendAuthority(request.items, (dependencies.now ?? (() => new Date()))());
     const accepted = await (dependencies.create ?? createGelatoDraft)(request);
     await dependencies.store.transition('record_gelato_accepted_root', { ...parameters(identity), p_execution_id: identity.executionId, p_root_id: accepted.id });
     const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders([accepted.id], dependencies.get ?? getGelatoOrder), request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); }, true);

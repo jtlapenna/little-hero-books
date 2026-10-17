@@ -1,3 +1,4 @@
+import { requirePrivateFileAuth } from '@/lib/private-file-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, headObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { getSignedUrlForObject } from '@/lib/r2-service';
@@ -21,6 +22,8 @@ async function handleRequest(
 
     // Reconstruct the key from path segments
     const key = path.join('/');
+    const auth = await requirePrivateFileAuth(request, key, 'pdf');
+    if (!auth.ok) return auth.response;
     
     // Get Accept header to distinguish JSON vs PDF requests
     const acceptHeader = request.headers.get('Accept') || '';
@@ -29,7 +32,6 @@ async function handleRequest(
       key,
       bucket: R2_ORDERS_BUCKET,
       pathSegments: path,
-      url: request.url,
       acceptHeader,
       method
     });
@@ -95,7 +97,7 @@ async function handleRequest(
           'Content-Type': metadata.contentType,
           'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
           ...(metadata.contentLength ? { 'Content-Length': metadata.contentLength } : {}),
-          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+          'Cache-Control': 'private, no-store, max-age=0',
           'Access-Control-Allow-Origin': '*',
         },
       });
@@ -123,7 +125,6 @@ async function handleRequest(
         console.log(`[${method} /api/pdf] Generated signed URL successfully:`, {
           key,
           expiresIn,
-          signedUrlPrefix: signedUrl.substring(0, 50) + '...',
           signedUrlLength: signedUrl.length,
           isR2Url: signedUrl.includes('.r2.cloudflarestorage.com') || signedUrl.includes('.r2.dev'),
         });
@@ -225,30 +226,8 @@ async function handleRequest(
       status: response.status,
     });
 
-    // Proxy mode: Fetch from R2 and stream to frontend (avoids CORS issues)
-    // Support Range requests for PDF.js to load large PDFs efficiently
-    console.log(`[${method} /api/pdf] Proxying PDF stream: ${key} (${contentLength || 'unknown'} bytes)`);
-    
-    // Check for Range request header (PDF.js uses this for partial content)
-    const rangeHeader = request.headers.get('range');
-    
-    if (rangeHeader && response.body) {
-      // Handle Range request for partial content (HTTP 206)
-      // PDF.js will request chunks of the PDF instead of loading entire file
-      console.log(`[${method} /api/pdf] Range request received: ${rangeHeader}`);
-      
-      // Parse range header (e.g., "bytes=0-1023")
-      const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/);
-      if (rangeMatch) {
-        const start = parseInt(rangeMatch[1], 10);
-        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : (contentLength ? parseInt(contentLength, 10) - 1 : undefined);
-        
-        // For now, stream the full response (Range handling would require more complex logic)
-        // PDF.js will handle Range requests automatically if server supports it
-        // We'll return full content and let PDF.js manage Range requests
-      }
-    }
-    
+    // Range is intentionally ignored until the backing fetch implements partial bytes.
+    // A complete body must return 200, never a fabricated 206.
     if (!response.body) {
       console.error(`[${method} /api/pdf] Response body is null for: ${key}`);
       return NextResponse.json(
@@ -260,12 +239,12 @@ async function handleRequest(
     // Stream the PDF directly - PDF.js will use Range requests automatically
     // Add Accept-Ranges header to indicate Range request support
     return new NextResponse(response.body, {
-      status: rangeHeader ? 206 : 200,
+      status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate, private',
-        'Accept-Ranges': 'bytes', // Indicate Range request support
+        'Accept-Ranges': 'none', // Indicate Range request support
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Content-Range, Accept-Ranges',

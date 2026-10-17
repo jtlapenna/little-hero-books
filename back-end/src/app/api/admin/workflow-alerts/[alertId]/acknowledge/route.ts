@@ -8,7 +8,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ alertId: string }> },
 ) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }
@@ -20,10 +20,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid alert id' }, { status: 400 });
     }
 
-    const actor =
-      request.headers.get('x-admin-email')?.trim() ||
-      request.headers.get('x-admin-user')?.trim() ||
-      'admin';
+    const actor = adminAuth.actor;
     const alert = await acknowledgeWorkflowAlert(parsedId, actor);
     if (!alert) {
       return NextResponse.json({ error: 'Alert not found' }, { status: 404 });

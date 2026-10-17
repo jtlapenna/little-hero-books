@@ -1,52 +1,103 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { verifyBearerAuth } from './auth';
 
-type AdminAuthOk = { ok: true; mode: 'same_origin' | 'token' };
-type AdminAuthFail = { ok: false; response: NextResponse };
+type AdminAuthOk = { ok: true; mode: 'access' | 'token'; actor: string };
+type AdminAuthFail = { ok: false; response: Response };
+type AccessSettings = { issuer: string; audience: string; emails: Set<string>; origin: string };
 
-function parseHost(value: string | null): string | null {
-  if (!value) return null;
+let cachedKeys: { issuer: string; keys: ReturnType<typeof createRemoteJWKSet> } | undefined;
+
+function denied(status = 401): AdminAuthFail {
+  return {
+    ok: false,
+    response: Response.json({ error: status === 403 ? 'Forbidden' : 'Unauthorized' }, {
+      status, headers: { 'Cache-Control': 'private, no-store' },
+    }),
+  };
+}
+
+function settings(): AccessSettings | null {
   try {
-    return new URL(value).host;
+    const issuer = (process.env.CF_ACCESS_ISSUER ?? '').trim();
+    const audience = (process.env.CF_ACCESS_AUDIENCE ?? '').trim();
+    const origin = (process.env.ADMIN_SITE_ORIGIN ?? '').trim();
+    const team = new URL(issuer);
+    const site = new URL(origin);
+    if (team.protocol !== 'https:' || team.origin !== issuer ||
+        !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.cloudflareaccess\.com$/.test(team.hostname) ||
+        team.username || team.password || team.port ||
+        !/^[a-f0-9]{64}$/.test(audience) ||
+        site.protocol !== 'https:' || site.origin !== origin || site.username || site.password) return null;
+    const emails = (process.env.ADMIN_ALLOWED_EMAILS ?? '').split(',').map((value) => value.trim().toLowerCase());
+    if (!emails.length || emails.length > 100 || emails.some((email) => !/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(email))) return null;
+    return { issuer, audience, emails: new Set(emails), origin };
   } catch {
     return null;
   }
 }
 
-function unauthorized(): AdminAuthFail {
-  return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+function accessToken(request: Request): string | null {
+  // Parse the raw cookie list: a duplicate name must not silently select an identity.
+  const cookies = (request.headers.get('cookie') ?? '').split(';')
+    .map((value) => value.trim()).filter((value) => value.split('=', 1)[0] === 'CF_Authorization');
+  if (cookies.length > 1) return null;
+  const header = request.headers.get('cf-access-jwt-assertion');
+  const cookie = cookies.length ? cookies[0].slice('CF_Authorization='.length) : null;
+  if (header !== null && (!header || (cookie !== null && header !== cookie))) return null;
+  const token = header ?? cookie;
+  return token && token.length <= 16384 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) ? token : null;
 }
 
-/**
- * Purpose: fail-closed auth for admin endpoints.
- * Accept if either:
- * - strict same-origin host match against NEXT_PUBLIC_SITE_URL, OR
- * - Authorization: Bearer <BACKEND_API_TOKEN>
+/** Verify human identity, or the existing explicit machine Bearer contract.
+ * Origin/Referer/Host and unsigned identity headers can never grant access.
  */
-export function requireAdminAuth(request: NextRequest): AdminAuthOk | AdminAuthFail {
-  const configuredSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim();
-  const allowlistedHosts = new Set<string>();
-  const configuredHost = parseHost(configuredSiteUrl);
-  if (configuredHost) allowlistedHosts.add(configuredHost);
+export async function requireAdminAuth(request: Request, options: { protectReadActions?: boolean } = {}): Promise<AdminAuthOk | AdminAuthFail> {
+  // Incidental Access cookies must not disable authorized machine consumers.
+  if (request.headers.has('authorization')) {
+    return verifyBearerAuth(request).ok
+      ? { ok: true, mode: 'token', actor: 'backend-automation' }
+      : denied();
+  }
+  const config = settings();
+  const token = accessToken(request);
+  if (!config || !token) return denied();
 
-  // Purpose: avoid hard dependency on NEXT_PUBLIC_SITE_URL and support reverse proxies/CDNs.
-  const forwardedHost = (request.headers.get('x-forwarded-host') ?? '').split(',')[0]?.trim() || null;
-  const requestHost = (request.headers.get('host') ?? '').trim() || null;
-  if (forwardedHost) allowlistedHosts.add(forwardedHost);
-  if (requestHost) allowlistedHosts.add(requestHost);
+  try {
+    if (!cachedKeys || cachedKeys.issuer !== config.issuer) {
+      cachedKeys = {
+        issuer: config.issuer,
+        keys: createRemoteJWKSet(new URL(`${config.issuer}/cdn-cgi/access/certs`), {
+          timeoutDuration: 5000, cooldownDuration: 30000, cacheMaxAge: 300000,
+        }),
+      };
+    }
+    const { payload } = await jwtVerify(token, cachedKeys.keys, {
+      issuer: config.issuer, audience: config.audience, algorithms: ['RS256'],
+      requiredClaims: ['exp', 'iat', 'sub', 'email', 'type'],
+    });
+    const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    if (audiences.length !== 1 || audiences[0] !== config.audience ||
+        payload.type !== 'app' || typeof payload.sub !== 'string' || !payload.sub.trim() ||
+        typeof payload.email !== 'string' || !config.emails.has(payload.email.toLowerCase()) ||
+        typeof payload.iat !== 'number' || payload.iat > Date.now() / 1000) return denied();
 
-  const originHost = parseHost(request.headers.get('origin'));
-  const refererHost = parseHost(request.headers.get('referer'));
-  const isSameOrigin =
-    (originHost && allowlistedHosts.has(originHost)) ||
-    (refererHost && allowlistedHosts.has(refererHost));
-  if (isSameOrigin) return { ok: true, mode: 'same_origin' };
-
-  const expectedToken = (process.env.BACKEND_API_TOKEN ?? '').trim();
-  const authHeader = (request.headers.get('authorization') ?? '').trim();
-  const token =
-    authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
-  if (expectedToken && token === expectedToken) return { ok: true, mode: 'token' };
-
-  return unauthorized();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+      if (request.headers.get('origin') !== config.origin ||
+          request.headers.get('sec-fetch-site') === 'cross-site') return denied(403);
+    }
+    if (options.protectReadActions && ['GET', 'HEAD'].includes(request.method)) {
+      const origin = request.headers.get('origin');
+      if (origin !== null) {
+        if (origin !== config.origin) return denied(403);
+      } else {
+        let refererOrigin: string | undefined;
+        try { refererOrigin = new URL(request.headers.get('referer') ?? '').origin; } catch { /* deny */ }
+        if (request.headers.get('sec-fetch-site') !== 'same-origin' || refererOrigin !== config.origin) return denied(403);
+      }
+    }
+    return { ok: true, mode: 'access', actor: payload.email.toLowerCase() };
+  } catch {
+    // Do not echo tokens, signed claims, JWKS errors or transport details.
+    return denied();
+  }
 }
-

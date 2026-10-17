@@ -17,7 +17,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }

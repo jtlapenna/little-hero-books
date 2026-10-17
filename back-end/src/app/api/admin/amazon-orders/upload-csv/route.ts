@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
   console.log(`[CSV Upload] [${requestId}] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Purpose: fail-closed admin auth (strict same-origin OR Bearer BACKEND_API_TOKEN).
-    const adminAuth = requireAdminAuth(request);
+    // Purpose: fail-closed admin auth (verified Access identity OR machine Bearer token).
+    const adminAuth = await requireAdminAuth(request);
     if (!adminAuth.ok) {
       console.error(`[CSV Upload] [${requestId}] ❌ Unauthorized`);
       return adminAuth.response;

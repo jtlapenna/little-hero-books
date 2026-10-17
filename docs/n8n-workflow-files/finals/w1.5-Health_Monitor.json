@@ -582,7 +582,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://admin.littleherolabs.com/api/admin/orders/{{ $json.amazon_order_id }}/create-manifest",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/admin/orders/\" + String($json.amazon_order_id) + \"/create-manifest\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -593,8 +593,15 @@
           ]
         },
         "options": {
-          "continueOnFail": true
-        }
+          "continueOnFail": true,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "515d61c3-b93c-4fb9-88b1-bea5123dad74",
       "name": "Orphaned: Recover: Create Manifest",
@@ -603,7 +610,13 @@
       "position": [
         -832,
         704
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

@@ -1,3 +1,4 @@
+import { readDurableCustomerCorrection } from '@/lib/customer-corrections';
 import { normalizeW0Manifest } from '@/lib/books/normalize-w0-manifest';
 import { frozenPoseReferenceKeys, orderReviewPoseNumbers } from '@/lib/books/order-pose-context';
 import { NextRequest, NextResponse } from 'next/server';
@@ -331,29 +332,28 @@ async function getOrder(
     );
   }
 
+  // Canonical correction survives auxiliary empty/error/throw paths.
+  order.latestCustomerCorrection = readDurableCustomerCorrection(supabaseOrderRecord, order.orderId);
+  const correctionRevision = supabaseOrderRecord?.revision_count;
+  const allowLegacyCorrection = correctionRevision == null || (Number.isInteger(Number(correctionRevision)) && Number(correctionRevision) > 0);
+  if (!order.latestCustomerCorrection && allowLegacyCorrection) {
   try {
     let correctionsTable = 'customer_contacts';
     const contactsColumns =
-      'reason,message,payload,revision_count,last_contacted_at,created_at,updated_at,email,name,description';
+      'reason,message,payload,revision_count,last_contacted_at,created_at,email,name';
 
-    let { data: corrections, error: correctionsError } = await supabase
-      .from(correctionsTable)
-      .select(contactsColumns)
-      .eq('order_id', order.orderId)
-      .eq('revision_requested', true)
-      .order('last_contacted_at', { ascending: false })
-      .limit(1);
+    let contactsQuery = supabase.from(correctionsTable).select(contactsColumns)
+      .eq('order_id', order.orderId).eq('revision_requested', true);
+    if (correctionRevision != null) contactsQuery = contactsQuery.eq('revision_count', Number(correctionRevision));
+    let { data: corrections, error: correctionsError } = await contactsQuery.order('last_contacted_at', { ascending: false }).limit(1);
 
-    if (correctionsError && isTableMissingError(correctionsError, 'customer_contacts')) {
+    if (correctionsError || !corrections?.length) {
       correctionsTable = 'customer_feedback';
       const feedbackColumns =
         'issue_type,description,revision_count,created_at,resolved_at,page_number,status';
-      ({ data: corrections, error: correctionsError } = await supabase
-        .from(correctionsTable)
-        .select(feedbackColumns)
-        .eq('order_id', order.orderId)
-        .order('created_at', { ascending: false })
-        .limit(1));
+      let feedbackQuery = supabase.from(correctionsTable).select(feedbackColumns).eq('order_id', order.orderId);
+      if (correctionRevision != null) feedbackQuery = feedbackQuery.eq('revision_count', Number(correctionRevision));
+      ({ data: corrections, error: correctionsError } = await feedbackQuery.order('created_at', { ascending: false }).limit(1));
     }
 
     if (correctionsError && !isTableMissingError(correctionsError, correctionsTable)) {
@@ -363,10 +363,6 @@ async function getOrder(
       );
     }
 
-    console.log(
-      `[GET /api/orders/[orderId]] correction query (${correctionsTable}) for ${order.orderId}:`,
-      { corrections, correctionsError }
-    );
 
 	    if (corrections && corrections.length > 0) {
 	      const [row] = corrections as Array<Record<string, any>>;
@@ -421,6 +417,8 @@ async function getOrder(
     );
   }
   
+  }
+
   // Get character assets if characterHash is available
   let characterAssets: any[] = [];
   let sharedImageInfo: SharedImageInfo | null = null;

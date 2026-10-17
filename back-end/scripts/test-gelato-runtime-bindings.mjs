@@ -11,9 +11,12 @@ const sha = 'a'.repeat(40);
 const env = { DEPLOY_ENVIRONMENT: 'production', CLOUDFLARE_PAGES_PROJECT: 'little-hero-labs-admin',
   CLOUDFLARE_ACCOUNT_ID: 'b'.repeat(32), CLOUDFLARE_API_TOKEN: 'synthetic-cloudflare-token',
   GITHUB_REF: 'refs/heads/main', GITHUB_SHA: sha };
+const access = { CF_ACCESS_ISSUER: 'https://synthetic-binding.cloudflareaccess.com', CF_ACCESS_AUDIENCE: 'a'.repeat(64), ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com', ADMIN_ALLOWED_EMAILS: 'jeff@littleherolabs.com,john@littleherolabs.com' };
+const accessSettings = Object.fromEntries(Object.entries(access).map(([name,value])=>[name,{type:'plain_text',value}]));
 const project = flags => ({ success: true, result: { name: 'little-hero-labs-admin', production_branch: 'main',
-  deployment_configs: { production: { env_vars: flags } } } });
+  deployment_configs: { production: { env_vars: flags && !Array.isArray(flags) ? {...accessSettings, ...flags} : flags } } } });
 const values = Object.fromEntries(GELATO_RUNTIME_FLAGS.map((flag, index) => [flag, { type: 'plain_text', value: index === 0 ? 'true' : 'false' }]));
+const expectedSource = Object.entries(access).reduce((text,[name,value])=>text.replace(`${name} = \"\"`,`${name} = ${JSON.stringify(value)}`),source);
 const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'gelato-runtime-bindings-'));
 const configPath = path.join(directory, 'wrangler.toml');
 let fetches = 0;
@@ -39,11 +42,11 @@ const reject = async (body, overrides = {}, config = source, fetchImpl) => {
 };
 try {
   await prepare(project(values));
-  assert.equal(await fs.readFile(configPath, 'utf8'), source.replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'));
+  assert.equal(await fs.readFile(configPath, 'utf8'), expectedSource.replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'));
   const consumed = unstable_readConfig({ config: configPath, env: 'production' });
   for (const flag of GELATO_RUNTIME_FLAGS) assert.equal(consumed.vars[flag], values[flag].value);
   await prepare(project({ UNRELATED_SECRET: { type: 'secret_text', value: 'sensitive-value' } }));
-  assert.equal(await fs.readFile(configPath, 'utf8'), source);
+  assert.equal(await fs.readFile(configPath, 'utf8'), expectedSource);
   for (const flag of GELATO_RUNTIME_FLAGS) {
     const mixed = structuredClone(values); mixed[flag] = { type: 'plain_text', value: 'true' };
     await prepare(project(mixed));
@@ -64,12 +67,12 @@ try {
   assert.equal(fetches, start, 'Invalid production target must fail before fetch');
   const marker = '\nUNRELATED = "preserve-this-byte-for-byte"\n';
   await prepare(project(values), {}, source + marker);
-  assert.equal(await fs.readFile(configPath, 'utf8'), (source + marker).replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'));
+  assert.equal(await fs.readFile(configPath, 'utf8'), (expectedSource + marker).replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'));
   for (const broken of [source.replace('[vars]', '[other]'), source + '\nGELATO_DRAFT_SUBMISSION_ENABLED = "false"\n',
     source + '\n[env.production]\ncompatibility_date = "2024-11-01"\n',
     source + '\n[env.production.vars]\nUNRELATED = "example"\n',
     'env = { production = { vars = { UNRELATED = "example" } } }\n' + source,
-    source.replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'),
+    expectedSource.replace('GELATO_DRAFT_SUBMISSION_ENABLED = "false"', 'GELATO_DRAFT_SUBMISSION_ENABLED = "true"'),
     source + '\n[env.production.vars]\nGELATO_DRAFT_SUBMISSION_ENABLED = "false"\n',
     source + '\n[env.production.vars]\n"GELATO_DRAFT_SUBMISSION_ENABLED" = "false"\n',
     source + '\n[env.production]\nvars.GELATO_DRAFT_SUBMISSION_ENABLED = "false"\n']) await reject(project(values), {}, broken);

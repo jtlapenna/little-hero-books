@@ -110,6 +110,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
       const customEvent = event as CustomEvent<{
         spreads?: SpreadData[];
         initialSpread?: number;
+        preservePosition?: boolean;
       }>;
       const detail = customEvent.detail || {};
       const nextSpreads = Array.isArray(detail.spreads) ? detail.spreads : [];
@@ -118,7 +119,7 @@ const BookSpreadViewer: React.FC<BookSpreadViewerProps> = ({
       lastExternalSpreadsRef.current = { eventName: externalEventName, spreads: nextSpreads };
       setViewerSpreads(nextSpreads);
       const nextInitial = typeof detail.initialSpread === 'number' ? detail.initialSpread : 0;
-      setCurrentIndex(clampIndex(nextInitial, nextSpreads.length));
+      setCurrentIndex((previous) => clampIndex(detail.preservePosition ? previous : nextInitial, nextSpreads.length));
     };
 
     window.addEventListener(externalEventName, handleSpreadsUpdate as EventListener);

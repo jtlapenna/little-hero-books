@@ -8,22 +8,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validatePreviewToken } from '@/lib/preview-tokens';
-import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { z } from 'zod';
+import { correctionHistoryForTransition } from '@/lib/customer-corrections';
+import { markTokenAsUsed } from '@/lib/preview-tokens';
+import { authorizePreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
 import { supabase } from '@/lib/supabase-client';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+const corsHeaders = privatePreviewHeaders;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId: requestedOrderId } = await params;
     const body = await request.json();
     const { token, feedback } = body;
     const qa_notes = body.qa_notes ?? feedback?.qaNotes;
@@ -36,49 +34,20 @@ export async function POST(
       );
     }
 
-    if (!feedback || !feedback.pageNumber || !feedback.issueType || !feedback.description) {
-      return NextResponse.json(
-        { error: 'Feedback is required (pageNumber, issueType, description)' },
-        { status: 400 }
-      );
-    }
+    const normalizedFeedback = z.object({ pageNumber: z.number().int().min(1).max(1000),
+      issueType: z.string().trim().min(1).max(100), description: z.string().trim().min(1).max(5000) }).safeParse(feedback);
+    if (!normalizedFeedback.success) return NextResponse.json({ error: 'Valid feedback is required' }, { status: 400, headers: corsHeaders });
 
-    // Validate token
-    const validation = await validatePreviewToken(token);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error || 'Invalid or expired token' },
-        { 
-          status: 401,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    // Verify order exists and matches token
-    const order = await getOrderFromSupabase(orderId);
-    if (!order) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { 
-          status: 404,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    if (validation.orderId !== orderId && validation.orderId !== order.amazon_order_id) {
-      return NextResponse.json(
-        { error: 'Token does not match order' },
-        { 
-          status: 403,
-          headers: corsHeaders,
-        }
-      );
+    const access = await authorizePreviewOrder(token, requestedOrderId, true);
+    if (!access.ok) return access.response;
+    const orderId = access.orderId;
+    const order = access.row;
+    if (['approved', 'revision_requested'].includes(String(order.customer_approval_status ?? ''))) {
+      return NextResponse.json({ error: 'Preview action unavailable' }, { status: 409, headers: corsHeaders });
     }
 
     // Check revision limit (single correction allowed)
-    const currentRevisionCount = order.revision_count || 0;
+    const currentRevisionCount = Number(order.revision_count || 0);
     if (currentRevisionCount >= 1) {
       return NextResponse.json(
         { error: 'Maximum revision limit reached. Please contact customer service.' },
@@ -89,33 +58,22 @@ export async function POST(
       );
     }
 
-    // Store feedback in customer_feedback table
-    const { error: feedbackError } = await supabase
-      .from('customer_feedback')
-      .insert({
-        order_id: orderId,
-        page_number: feedback.pageNumber,
-        issue_type: feedback.issueType,
-        description: feedback.description,
-        status: 'pending',
-        revision_count: currentRevisionCount + 1
-      });
+    const correction = normalizedFeedback.data;
+    const rejectionHistory = correctionHistoryForTransition(order, orderId, {
+      reason: correction.issueType, message: correction.description,
+      payload: { pageNumber: correction.pageNumber, issueType: correction.issueType,
+        ...(qa_notes != null ? { qaNotes: String(qa_notes) } : {}),
+        ...(regeneration_instructions != null ? { regenerationInstructions: String(regeneration_instructions) } : {}) },
+      email: null, name: null, revisionCount: currentRevisionCount + 1,
+    });
 
-    if (feedbackError) {
-      console.error('[API] Error storing feedback:', feedbackError);
-      return NextResponse.json(
-        { error: 'Failed to store feedback' },
-        { 
-          status: 500,
-          headers: corsHeaders,
-        }
-      );
-    }
+    if (!await markTokenAsUsed(token)) return NextResponse.json({ error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
 
-    // Update order status, increment revision count, and reset all review stages to Pending
-    // When customer requests revision, all stages must be re-approved in sequence
-    await updateOrderInSupabase(orderId, {
+    if (!await transitionPreviewOrder(access.row, {
       customer_approval_status: 'revision_requested',
+      rejection_history: rejectionHistory,
+      customer_approval_approved_at: null, human_approved: false, next_workflow: null,
+      workflow_step: 'customer_revision',
       revision_count: currentRevisionCount + 1,
       review_stages: {
         preBria: { status: 'pending' },
@@ -124,7 +82,18 @@ export async function POST(
       },
       ...(typeof qa_notes !== 'undefined' && qa_notes !== null ? { qa_notes: String(qa_notes).trim() || null } : {}),
       ...(typeof regeneration_instructions !== 'undefined' && regeneration_instructions !== null ? { regeneration_instructions: String(regeneration_instructions).trim() || null } : {}),
-    });
+    })) return NextResponse.json({ error: 'Preview action already completed' }, { status: 409, headers: corsHeaders });
+
+    // The order CAS is canonical. An auxiliary failure cannot discard accepted feedback.
+    try {
+      const { error } = await supabase.from('customer_feedback').insert({
+        order_id: orderId, page_number: correction.pageNumber, issue_type: correction.issueType,
+        description: correction.description, status: 'pending', revision_count: currentRevisionCount + 1,
+      });
+      if (error) console.warn('[API] Correction accepted; auxiliary feedback persistence needs recovery');
+    } catch {
+      console.warn('[API] Correction accepted; auxiliary feedback transport needs recovery');
+    }
 
     return NextResponse.json({
       success: true,

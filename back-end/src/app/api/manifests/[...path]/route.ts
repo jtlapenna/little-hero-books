@@ -1,3 +1,4 @@
+import { requirePrivateFileAuth } from '@/lib/private-file-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 
@@ -10,7 +11,7 @@ export async function OPTIONS(request: NextRequest) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -35,7 +36,7 @@ export async function GET(
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           }
         }
       );
@@ -43,32 +44,24 @@ export async function GET(
 
     // Reconstruct the key from path segments
     const key = path.join('/');
+    const auth = await requirePrivateFileAuth(request, key, 'manifest');
+    if (!auth.ok) return auth.response;
     
     console.log(`[GET /api/manifests] Fetching manifest: ${key}`);
     
-    // Fetch object from R2 (getObject throws on error, so catch it)
+    // Only an actual R2 404 means missing. Transport/configuration/auth failures
+    // must never authorize a workflow to initialize and overwrite existing progress.
     let r2Response: Response;
     try {
-      r2Response = await getObject(R2_ORDERS_BUCKET, key);
-    } catch (error: any) {
-      // getObject throws on non-OK responses (404, 403, etc.)
-      console.error(`[GET /api/manifests] getObject threw error for ${key}:`, error.message);
-      
-      // Extract status code from error message if available
-      const statusMatch = error.message?.match(/(\d{3})/);
-      const status = statusMatch ? parseInt(statusMatch[1]) : 404;
-      
-      return NextResponse.json(
-        { error: `Failed to fetch manifest: ${error.message || 'Not found'}` },
-        {
-          status,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          }
-        }
-      );
+      r2Response = await getObject(R2_ORDERS_BUCKET, key, { allowErrorResponse: true });
+    } catch {
+      return NextResponse.json({ error: 'Manifest storage unavailable' }, { status: 502, headers: { 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': '*' } });
+    }
+    if (!r2Response.ok) {
+      if (r2Response.body) void r2Response.body.cancel().catch(() => undefined);
+      return NextResponse.json({ error: r2Response.status === 404 ? 'Manifest not found' : 'Manifest storage unavailable' }, {
+        status: r2Response.status === 404 ? 404 : 502, headers: { 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': '*' },
+      });
     }
 
     // Get manifest data
@@ -80,7 +73,7 @@ export async function GET(
       try {
         JSON.parse(text);
       } catch {
-        console.error(`[GET /api/manifests] R2 object is not valid JSON (key=${key}, length=${text.length}, first100=${text.substring(0, 100)})`);
+        console.error(`[GET /api/manifests] R2 object is not valid JSON (key=${key}, length=${text.length})`);
         return NextResponse.json(
           { error: 'Manifest file exists but contains invalid JSON', key, length: text.length },
           {
@@ -88,7 +81,7 @@ export async function GET(
             headers: {
               'Access-Control-Allow-Origin': '*',
               'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             }
           }
         );
@@ -101,8 +94,8 @@ export async function GET(
     
     // Return manifest with proper headers (including CORS)
     const cacheControl = cacheBuster
-      ? 'no-cache, no-store, must-revalidate'
-      : 'public, max-age=60, must-revalidate, s-maxage=0';
+      ? 'private, no-store, max-age=0'
+      : 'private, no-store, max-age=0';
     
     return new NextResponse(text, {
       status: 200,
@@ -111,7 +104,7 @@ export async function GET(
         'Cache-Control': cacheControl,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
   } catch (error: any) {
@@ -123,7 +116,7 @@ export async function GET(
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
       }
     );

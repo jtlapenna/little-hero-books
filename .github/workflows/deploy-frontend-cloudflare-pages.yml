@@ -1,68 +1,65 @@
 name: Deploy Frontend to Cloudflare Pages
-
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend-cloudflare-pages.yml'
-
+    inputs:
+      reviewed_sha:
+        description: Exact reviewed main commit after coordinated rollout prerequisites
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: lhl-production-release
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: production
+    environment: production
+    timeout-minutes: 20
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_PAGES_PROJECT: little-hero-labs
       PUBLIC_SITE_URL: https://www.littleherolabs.com
       PUBLIC_API_URL: https://admin.littleherolabs.com
+      REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: '24'
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Require reviewed main commit and successful hosted checks
+        run: node scripts/security/require-hosted-release-checks.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: npm ci
         working-directory: frontend
-
-      - name: Build frontend
-        run: npm run build
+      - run: npm run build
         working-directory: frontend
-
-      - name: Verify build output
+      - name: Verify output and target
+        working-directory: frontend
         run: |
           set -euo pipefail
           test -d dist
           test -f dist/_headers
           test -f dist/robots.txt
           test -f dist/llms.txt
+          node -e 'const fs=require("fs");if(!/^name = "little-hero-labs"$/m.test(fs.readFileSync("wrangler.toml","utf8")))process.exit(1)'
+      - name: Install backend-locked deployment tool
+        working-directory: back-end
+        run: npm ci
+      - name: Recheck hosted gates immediately before upload
+        run: node scripts/security/require-hosted-release-checks.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Deploy frontend with locked Wrangler
         working-directory: frontend
-
-      - name: Fail-fast account/project wiring checks
-        run: |
-          set -euo pipefail
-          WRANGLER_PROJECT_NAME=$(node -e "const fs=require('fs');const txt=fs.readFileSync('wrangler.toml','utf8');const match=txt.match(/^name\\s*=\\s*\"([^\"]+)\"/m);if(!match){console.error('Missing name in frontend/wrangler.toml');process.exit(1);}process.stdout.write(match[1]);")
-          echo "wrangler.toml project: $WRANGLER_PROJECT_NAME"
-          echo "workflow project: $CLOUDFLARE_PAGES_PROJECT"
-          if [ "$WRANGLER_PROJECT_NAME" != "$CLOUDFLARE_PAGES_PROJECT" ]; then
-            echo "ERROR: frontend/wrangler.toml project name does not match workflow target project."
-            exit 1
-          fi
-        working-directory: frontend
-
-      - name: Deploy frontend to Cloudflare Pages
-        run: npx wrangler pages deploy dist --project-name="${CLOUDFLARE_PAGES_PROJECT}" --branch=main
-        working-directory: frontend
-
+        run: node ../back-end/node_modules/wrangler/bin/wrangler.js pages deploy dist --project-name=little-hero-labs --branch=main
       - name: Smoke-check customer site
         run: |
           set -euo pipefail

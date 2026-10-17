@@ -8,57 +8,11 @@ import { gelatoCustomerStatusMessage } from '@/lib/books/gelato-consumer-status'
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
-import { supabase } from '@/lib/supabase-client';
+import { authorizePreviewOrder, findExactPreviewOrder, findExactPreviewGroup, canonicalPreviewOrderId, privatePreviewHeaders } from '@/lib/customer-preview-access';
 import { emailsMatchForLookup } from '@/lib/customer-email';
 
-/**
- * Resolve order ID from either short format (LH-XXXXX) or full UUID
- * Returns the full UUID for database lookup
- */
-async function resolveOrderId(inputId: string): Promise<string | null> {
-  // Check if it's a short format (LH-XXXXX)
-  if (inputId.toUpperCase().startsWith('LH-')) {
-    const shortId = inputId.toUpperCase();
-    // Query by display_order_id (DB column is "orderId")
-    const { data, error } = await supabase
-      .from('orders')
-      .select('orderId')
-      .eq('display_order_id', shortId)
-      .single();
-
-    if (error || !data) {
-      // Fallback: try matching by first 5 chars of orderId
-      const prefix = shortId.substring(3).toLowerCase(); // Remove 'LH-' and lowercase
-      const { data: fallbackData } = await supabase
-        .from('orders')
-        .select('orderId')
-        .ilike('orderId', `${prefix}%`)
-        .limit(1)
-        .single();
-
-      return fallbackData?.orderId ?? null;
-    }
-    return data.orderId ?? null;
-  }
-  
-  // Already a full UUID
-  return inputId;
-}
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-// Handle CORS preflight requests
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
-}
+const corsHeaders = privatePreviewHeaders;
+export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: corsHeaders }); }
 
 /**
  * Map Lulu status to customer-friendly message
@@ -182,52 +136,40 @@ export async function GET(
       );
     }
 
-    // Resolve short format (LH-XXXXX) to full UUID if needed
-    const orderId = await resolveOrderId(inputOrderId);
-    if (!orderId) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { 
-          status: 404,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    // Get order from Supabase
-    const order = await getOrderFromSupabase(orderId);
-
-    if (!order) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { 
-          status: 404,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    const orderRecord = order as Record<string, unknown>;
-
-    // Optional email verification: if client sends email, must match order (404 on mismatch)
+    const token = request.headers.get('x-preview-token');
     const emailParam = request.nextUrl.searchParams.get('email')?.trim();
-    if (emailParam) {
-      const customerEmail = orderRecord.customer_email ?? orderRecord.customerEmail;
-      if (!emailsMatchForLookup(customerEmail, emailParam)) {
-        return NextResponse.json(
-          { error: 'Order not found' },
-          { status: 404, headers: corsHeaders }
-        );
+    let orderRecord: Record<string, unknown>;
+    if (token !== null) {
+      const access = await authorizePreviewOrder(token, inputOrderId);
+      if (!access.ok) return access.response;
+      orderRecord = access.row;
+    } else {
+      if (!emailParam || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailParam)) {
+        return NextResponse.json({ error: 'Order lookup requires authorization' }, { status: 401, headers: corsHeaders });
       }
+      const found = await findExactPreviewOrder(inputOrderId, true);
+      if (!found) {
+        const group = await findExactPreviewGroup(inputOrderId);
+        if (group.length > 1 && group.every(row => emailsMatchForLookup(row.customer_email ?? row.customerEmail, emailParam))) {
+          const bookOrderIds = group.map(row => typeof row.display_order_id === 'string' ? row.display_order_id : canonicalPreviewOrderId(row)!);
+          return NextResponse.json({ orderId: inputOrderId, status: 'Multiple books', statusLong: `This order has multiple books. Look up each book using: ${bookOrderIds.join(', ')}.`, bookOrderIds }, { headers: corsHeaders });
+        }
+      }
+      if (!found || !emailsMatchForLookup(found.customer_email ?? found.customerEmail, emailParam)) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404, headers: corsHeaders });
+      }
+      orderRecord = found;
     }
+    const order = orderRecord;
 
     // Get status message
     // Check both camelCase and snake_case for luluStatus
-    const luluStatus = order.luluStatus || orderRecord.lulu_status || null;
-    const orderStatus = order.status || null;
+    const luluStatusValue = order.luluStatus || orderRecord.lulu_status;
+    const luluStatus = typeof luluStatusValue === 'string' ? luluStatusValue : null;
+    const orderStatus = typeof order.status === 'string' ? order.status : null;
     const isGelato = orderRecord.print_provider === 'gelato';
     const statusInfo = isGelato ? gelatoCustomerStatusMessage(typeof orderRecord.gelato_status === 'string' ? orderRecord.gelato_status : null, typeof orderRecord.gelato_order_type === 'string' ? orderRecord.gelato_order_type : null, typeof orderRecord.gelato_action_reason === 'string' ? orderRecord.gelato_action_reason : null) : getCustomerStatusMessage(luluStatus, orderStatus);
-    const packages = isGelato && Array.isArray(orderRecord.gelato_tracking) ? orderRecord.gelato_tracking : [];
+    const packages = isGelato && Array.isArray(orderRecord.gelato_tracking) ? orderRecord.gelato_tracking.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object' && !Array.isArray(entry)) : [];
     const scalarPackage = packages.length === 1 ? packages[0] : null;
 
     // Extract tracking info from order data

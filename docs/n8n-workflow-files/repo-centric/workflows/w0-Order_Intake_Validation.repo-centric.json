@@ -63,14 +63,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '') + '/api/internal/w0/publish-manifest' }}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String(String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '') + '/api/internal/w0/publish-manifest'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ \"Bearer \" + $env.BACKEND_API_TOKEN }}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -81,8 +77,15 @@
         "specifyBody": "json",
         "jsonBody": "={{ $(\"Prepare Build 1 Manifest Body\").first().json.requestBody }}",
         "options": {
-          "timeout": 120000
-        }
+          "timeout": 120000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "4f3a597b-3deb-4ebd-950e-8170a722abb4",
       "name": "Upload 1-manifest.json to R2",
@@ -91,7 +94,13 @@
       "position": [
         5664,
         -576
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -175,14 +184,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://admin.littleherolabs.com/api/internal/w0/build-manifest",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/internal/w0/build-manifest\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + ($item(0).$node[\"CONFIG (PRODUCTION)\"].json.r2?.apiToken || '') }}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -199,8 +204,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "eede4281-684d-4bae-9436-14b9ca8decef",
       "name": "Build 1‑manifest.json",
@@ -209,7 +221,13 @@
       "position": [
         5232,
         -576
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

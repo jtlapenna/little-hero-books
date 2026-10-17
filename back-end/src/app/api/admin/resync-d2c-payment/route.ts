@@ -6,12 +6,12 @@
  * Use when Stripe webhook ran but W0 never executed (e.g. old/deactivated n8n URL).
  *
  * Body: { root_order_id: string }
- * Auth: Bearer BACKEND_API_TOKEN
+ * Auth: verified Access operator or Bearer BACKEND_API_TOKEN
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyBearerAuth } from '@/lib/auth';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { buildD2CW0Payload } from '@/lib/w0-payload';
 import { triggerW0 } from '@/lib/sibling-order-helpers';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
@@ -20,8 +20,8 @@ export const dynamic = 'force-dynamic';
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 
 export async function POST(request: NextRequest) {
-  const auth = verifyBearerAuth(request);
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
+  const auth = await requireAdminAuth(request);
+  if (!auth.ok) return auth.response;
 
   let body: { root_order_id?: string };
   try {

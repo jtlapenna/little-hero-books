@@ -27,88 +27,15 @@ echo "✅ Copied worker.js"
 echo "📦 Copying cloudflare directory"
 mkdir -p "$OUTPUT_DIR/cloudflare"
 
-# Generate build timestamp (milliseconds since epoch)
-# macOS date doesn't support %N, so use Node.js or fallback
-if command -v node &> /dev/null; then
-  BUILD_TIMESTAMP=$(node -e "console.log(Date.now())")
-else
-  # Fallback: seconds * 1000 (less precise but works everywhere)
-  BUILD_TIMESTAMP=$(($(date +%s) * 1000))
-fi
-
-# Try cloudflare-templates first (these are the source implementations)
-if [ -f ".open-next/cloudflare-templates/images.js" ]; then
-  cp .open-next/cloudflare-templates/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  # Copy init.js and inject all required constants
-  if [ -f ".open-next/cloudflare-templates/init.js" ]; then
-    # Replace all object shorthand constants with actual values
-    # Also inject __DEPLOYMENT_ID__ definition at module scope (before initRuntime)
-    sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
-        -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
-        -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
-        -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
-        -e "s/let initialized = false;/const __DEPLOYMENT_ID__ = \"\";\nlet initialized = false;/g" \
-      .open-next/cloudflare-templates/init.js > "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
-  else
-    cp .open-next/cloudflare-templates/init.js "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied init.js (template not found)"
+# Require the compiled helpers: raw templates still contain unresolved build constants.
+# The build writes these inputs at the output root; the worker imports the nested cloudflare/ copies.
+for helper in images.js init.js skew-protection.js next-env.mjs; do
+  if [ ! -f ".open-next/cloudflare/$helper" ]; then
+    echo "ERROR: compiled Cloudflare helper missing: $helper"
+    exit 1
   fi
-  # Copy skew-protection.js and inject __SKEW_PROTECTION_ENABLED__
-  if [ -f ".open-next/cloudflare-templates/skew-protection.js" ]; then
-    sed "s/__SKEW_PROTECTION_ENABLED__/false/g" \
-      .open-next/cloudflare-templates/skew-protection.js > "$OUTPUT_DIR/cloudflare/skew-protection.js"
-    echo "✅ Copied and updated skew-protection.js"
-  else
-    cp .open-next/cloudflare-templates/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
-    echo "✅ Copied skew-protection.js"
-  fi
-  echo "✅ Copied cloudflare files from cloudflare-templates"
-# Fallback to .open-next/cloudflare if templates don't exist
-elif [ -f ".open-next/cloudflare/images.js" ]; then
-  cp .open-next/cloudflare/images.js "$OUTPUT_DIR/cloudflare/images.js"
-  # Copy init.js and inject all required constants
-  if [ -f ".open-next/cloudflare/init.js" ]; then
-    # Replace all object shorthand constants with actual values (or update existing values)
-    # Also inject __DEPLOYMENT_ID__ definition at module scope (before initRuntime)
-    sed -e "s/__BUILD_TIMESTAMP_MS__,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
-        -e "s/__BUILD_TIMESTAMP_MS__: [0-9]*,/__BUILD_TIMESTAMP_MS__: ${BUILD_TIMESTAMP},/g" \
-        -e "s/__NEXT_BASE_PATH__,/__NEXT_BASE_PATH__: \"\",/g" \
-        -e "s/__ASSETS_RUN_WORKER_FIRST__,/__ASSETS_RUN_WORKER_FIRST__: false,/g" \
-        -e "s/__TRAILING_SLASH__,/__TRAILING_SLASH__: false,/g" \
-        -e "s/let initialized = false;/const __DEPLOYMENT_ID__ = \"\";\nlet initialized = false;/g" \
-      .open-next/cloudflare/init.js > "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied and updated init.js with constants (timestamp: ${BUILD_TIMESTAMP})"
-  else
-    cp .open-next/cloudflare/init.js "$OUTPUT_DIR/cloudflare/init.js"
-    echo "✅ Copied init.js (template not found)"
-  fi
-  # Copy skew-protection.js and inject __SKEW_PROTECTION_ENABLED__
-  if [ -f ".open-next/cloudflare/skew-protection.js" ]; then
-    sed "s/__SKEW_PROTECTION_ENABLED__/false/g" \
-      .open-next/cloudflare/skew-protection.js > "$OUTPUT_DIR/cloudflare/skew-protection.js"
-    echo "✅ Copied and updated skew-protection.js"
-  else
-    cp .open-next/cloudflare/skew-protection.js "$OUTPUT_DIR/cloudflare/skew-protection.js"
-    echo "✅ Copied skew-protection.js"
-  fi
-  echo "✅ Copied cloudflare files from .open-next/cloudflare"
-else
-  echo "❌ ERROR: cloudflare files not found in expected locations!"
-  exit 1
-fi
-
-# Copy next-env.mjs to cloudflare/ directory (needed by init.js)
-if [ -f ".open-next/cloudflare/next-env.mjs" ]; then
-  cp .open-next/cloudflare/next-env.mjs "$OUTPUT_DIR/cloudflare/next-env.mjs"
-  echo "✅ Copied next-env.mjs to cloudflare/"
-elif [ -f "$OUTPUT_DIR/next-env.mjs" ]; then
-  # If it's already at root, copy it to cloudflare/ as well
-  cp "$OUTPUT_DIR/next-env.mjs" "$OUTPUT_DIR/cloudflare/next-env.mjs"
-  echo "✅ Copied next-env.mjs from root to cloudflare/"
-else
-  echo "⚠️  WARNING: next-env.mjs not found, but continuing..."
-fi
+  cp ".open-next/cloudflare/$helper" "$OUTPUT_DIR/cloudflare/$helper"
+done
 
 # Copy middleware directory (contains handler.mjs)
 echo "📦 Copying middleware directory"
@@ -206,16 +133,9 @@ else
   echo "⚠️  WARNING: public directory not found (may be OK if no public files)"
 fi
 
-# Create _routes.json for static asset routing
-echo "📝 Creating _routes.json"
-cat > "$OUTPUT_DIR/_routes.json" << 'EOF'
-{
-  "version": 1,
-  "include": ["/*"],
-  "exclude": ["/_next/*", "/favicon.ico"]
-}
-EOF
-echo "✅ Created _routes.json"
+# Install raw-entry policy before OpenNext normalization/image shortcuts and emit narrow static exclusions.
+node --import tsx scripts/enforce-pages-access-boundary.mts "$OUTPUT_DIR"
+echo "✅ Installed raw access boundary and reviewed Pages routes"
 
 # Clean up any remaining node_modules or package.json files that shouldn't be deployed
 echo "🧹 Cleaning up unnecessary files..."

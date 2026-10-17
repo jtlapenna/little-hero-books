@@ -7,6 +7,7 @@ set -e
 OUTPUT_DIR=".open-next/cloudflare"
 REQUIRED_FILES=(
   "_worker.js"
+  "access-boundary.mjs"
   "assets"
   "_next/static"
   "server-functions/default/handler.mjs"

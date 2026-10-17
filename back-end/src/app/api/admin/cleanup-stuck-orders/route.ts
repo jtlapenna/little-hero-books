@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyBearerAuth } from '@/lib/auth';
+import { requireAdminAuth } from '@/lib/admin-auth';
 import { cleanupStuckOrders } from '@/lib/stuck-order-cleanup';
 
 // Force dynamic rendering
@@ -15,10 +15,8 @@ export const dynamic = 'force-dynamic';
  * - timeoutMinutes: Number of minutes before order is considered stuck (default: 30)
  */
 export async function POST(request: NextRequest) {
-  const auth = verifyBearerAuth(request);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: 401 });
-  }
+  const auth = await requireAdminAuth(request);
+  if (!auth.ok) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -53,10 +51,8 @@ export async function POST(request: NextRequest) {
  * Get summary of stuck orders without cleaning them up.
  */
 export async function GET(request: NextRequest) {
-  const auth = verifyBearerAuth(request);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: 401 });
-  }
+  const auth = await requireAdminAuth(request);
+  if (!auth.ok) return auth.response;
 
   try {
     // This would call getStuckOrdersSummary() when implemented

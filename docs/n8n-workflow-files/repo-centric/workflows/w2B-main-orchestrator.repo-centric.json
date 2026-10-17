@@ -38,14 +38,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || $json.body?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2b/build-worklist'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || $json.body?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2b/build-worklist'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -59,11 +55,18 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
         },
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "17f27d52-93fe-4933-bbf8-57d85a31eee0",
       "name": "Normalize 2B Input",
@@ -72,7 +75,13 @@
       "position": [
         1760,
         -2032
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -124,14 +133,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || $items('Webhook Trigger')[0].json.body.backendUrl || $items('Webhook Trigger')[0].json.body.backend_url || $items('Webhook Trigger')[0].json.backendUrl || $items('Webhook Trigger')[0].json.backend_url || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-skipped",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String($json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || $items('Webhook Trigger')[0].json.body.backendUrl || $items('Webhook Trigger')[0].json.body.backend_url || $items('Webhook Trigger')[0].json.backendUrl || $items('Webhook Trigger')[0].json.backend_url || 'https://admin.littleherolabs.com') + \"/api/webhooks/workflow-2b-skipped\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -147,8 +152,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "01abd1e4-8a88-4300-b06f-1a66a5595aa1",
       "name": "Notify Backend: All Poses Skipped",
@@ -157,7 +169,13 @@
       "position": [
         2960,
         -2144
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -189,14 +207,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-complete",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String($json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com') + \"/api/webhooks/workflow-2b-complete\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -212,8 +226,15 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "2429ab4b-4149-4808-b566-f375527d33b9",
       "name": "Notify Backend: BRIA_READY",
@@ -223,7 +244,13 @@
         3488,
         -2144
       ],
-      "disabled": true
+      "disabled": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
@@ -271,15 +298,24 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.backendUrl + '/api/manifests/' + $json.manifest2bKey + '?v=' + Date.now() }}",
+        "url": "={{ (() => { const ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; const orderId = String(ctx.orderId || ''); const raw = String(ctx.manifest2bKey || ''); const prefix = 'https://admin.littleherolabs.com/api/manifests/'; const key = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw; if (!/^[A-Za-z0-9_-]+\\/orders\\/[A-Za-z0-9_-]+\\/manifests\\/2b-manifest\\.json$/.test(key) || key.split('/')[2] !== orderId) throw new Error('Invalid 2B manifest destination'); return prefix + key + '?v=' + Date.now(); })() }}",
         "options": {
           "response": {
             "response": {
-              "responseFormat": "json"
+              "responseFormat": "text",
+              "fullResponse": true,
+              "neverError": true
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "11d79ace-75f0-43b7-a9ea-a16467d5510a",
       "name": "Download 2B Manifest (if exists)",
@@ -289,19 +325,34 @@
         3920,
         -1888
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
-        "url": "={{ $json.manifest2aUrl + ($json.manifest2aUrl.includes('?') ? '&' : '?') + 'v=' + Date.now() }}",
+        "url": "={{ (() => { const ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; const orderId = String(ctx.orderId || ''); const raw = String(ctx.manifest2aUrl || ''); const prefix = 'https://admin.littleherolabs.com/api/manifests/'; const key = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw; if (!/^[A-Za-z0-9_-]+\\/orders\\/[A-Za-z0-9_-]+\\/manifests\\/2a-manifest\\.json$/.test(key) || key.split('/')[2] !== orderId) throw new Error('Invalid 2A manifest destination'); return prefix + key + '?v=' + Date.now(); })() }}",
         "options": {
           "response": {
             "response": {
-              "responseFormat": "text"
+              "responseFormat": "text",
+              "fullResponse": true,
+              "neverError": true
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "a0306e8d-d252-42c5-a0ad-602936a1d2a6",
       "name": "Download 2A Manifest (for merge)",
@@ -311,11 +362,17 @@
         3760,
         -2016
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Merge the incoming pose result into 2B manifest (create if missing).\n * Uses repo-provided manifest keys/URLs before any fallback logic.\n */\nlet ctx = {};\ntry { ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; } catch {}\nconst incoming = ctx.result || {};\n\nconst orderId = incoming.orderId || ctx.orderId || null;\nif (!orderId) throw new Error('2B aggregator: missing orderId in Normalize Result');\n\nconst backendUrl = ctx.backendUrl || incoming.backendUrl || 'https://admin.littleherolabs.com';\nconst manifest2bMaybe = $items('Download 2B Manifest (if exists)', 0, $runIndex)?.[0]?.json || null;\nconst manifest2aHint = incoming.manifest2aUrl || ctx.manifest2aUrl || null;\n\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) {\n    return Buffer.from(record.data);\n  }\n\n  if (Array.isArray(record.data)) {\n    return Buffer.from(record.data);\n  }\n\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (entry) => {\n    const record = asObject(entry);\n    const buffer = toBufferLike(entry) || toBufferLike(record.data) || toBufferLike(record.chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    const index = Number.isInteger(readableState.bufferIndex) && readableState.bufferIndex >= 0\n      ? readableState.bufferIndex : 0;\n    for (const entry of bufferState.slice(index)) pushChunk(entry);\n  } else {\n    let current = asObject(bufferState).head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      pushChunk(current);\n      current = asObject(current).next || null;\n      guard += 1;\n    }\n  }\n  if (chunks.length) return Buffer.concat(chunks).toString('utf8');\n\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length) : directOutBuffer.length;\n    return directOutBuffer.subarray(0, end).toString('utf8') || null;\n  }\n  return null;\n}\n\nfunction parseJsonPrefix(text) {\n  if (typeof text !== 'string') return null;\n  const start = text.search(/[\\[{]/);\n  if (start === -1) return null;\n\n  const stack = [];\n  let inString = false;\n  let escape = false;\n\n  for (let index = start; index < text.length; index += 1) {\n    const char = text[index];\n\n    if (inString) {\n      if (escape) {\n        escape = false;\n      } else if (char === '\\\\') {\n        escape = true;\n      } else if (char === '\"') {\n        inString = false;\n      }\n      continue;\n    }\n\n    if (char === '\"') {\n      inString = true;\n      continue;\n    }\n\n    if (char === '{' || char === '[') {\n      stack.push(char);\n      continue;\n    }\n\n    if (char === '}' || char === ']') {\n      const expected = char === '}' ? '{' : '[';\n      if (!stack.length || stack[stack.length - 1] !== expected) {\n        return null;\n      }\n\n      stack.pop();\n      if (!stack.length) {\n        try {\n          return JSON.parse(text.slice(start, index + 1));\n        } catch {\n          return null;\n        }\n      }\n    }\n  }\n\n  return null;\n}\n\nfunction parseJsonText(text) {\n  if (typeof text !== 'string') return null;\n  try {\n    return JSON.parse(text);\n  } catch {\n    return parseJsonPrefix(text);\n  }\n}\n\nfunction asManifest(raw) {\n  if (!raw) return null;\n  if (raw.schema) return raw;\n  if (raw.body && raw.body.schema) return raw.body;\n  if (raw.data && raw.data.schema) return raw.data;\n\n  const text = typeof raw === 'string'\n    ? raw\n    : (typeof raw.data === 'string'\n      ? raw.data\n      : (typeof raw.body === 'string'\n        ? raw.body\n        : (extractStreamText(raw) || extractStreamText(raw.body) || extractStreamText(raw.data))));\n\n  const parsed = parseJsonText(text);\n  return parsed && parsed.schema ? parsed : null;\n}\n\nlet manifest2a = null;\ntry {\n  manifest2a = asManifest($items('Download 2A Manifest (for merge)', 0, $runIndex)?.[0]?.json);\n} catch {}\n\nif (!manifest2a && manifest2aHint) {\n  try {\n    const http = this.helpers.httpRequest;\n    const url = String(manifest2aHint) + (String(manifest2aHint).includes('?') ? '&' : '?') + 'v=' + Date.now();\n    const raw = await http({ method: 'GET', url, json: false, timeout: 90000 });\n    manifest2a = asManifest(raw);\n  } catch {}\n}\n\nif (!incoming || !incoming.characterHash || !Number.isFinite(Number(incoming.poseNumber))) {\n  throw new Error('2B aggregator: invalid Normalize Result payload');\n}\n\nif (!manifest2a || !manifest2a.schema) {\n  throw new Error('2B aggregator: missing 2A manifest or invalid schema (orderId=' + orderId + ', manifest2aUrl=' + manifest2aHint + ')');\n}\n\nlet manifest2b = asManifest(manifest2bMaybe);\nif (manifest2b && manifest2b.schema !== 'lhb.run-manifest@v2.0') {\n  manifest2b = null;\n}\nif (!manifest2b) {\n  manifest2b = JSON.parse(JSON.stringify(manifest2a));\n  manifest2b.stage = '2b';\n  manifest2b.createdAt = new Date().toISOString();\n  manifest2b.updatedAt = new Date().toISOString();\n  (manifest2b.entries || []).forEach(e => {\n    e.bgRemovedKey = null;\n    e.bgRemovedImageUrl = null;\n    e.briaStatus = null;\n    e.briaRequestId = null;\n    e.briaStatusUrl = null;\n    e.briaErrorMessage = null;\n    e.sourceApprovedKey = null;\n    e.sourceReplacedAt = null;\n    e.sourceReplacementCount = 0;\n    e.processedAt = null;\n    e.needsReview = false;\n    e.reviewReason = null;\n    e.isFlagged = false;\n  });\n}\n\nconst poseNumber = Number(incoming.poseNumber);\nconst entry = (manifest2b.entries || []).find(e => Number(e.poseNumber) === poseNumber);\nif (!entry) throw new Error('2B aggregator: pose ' + poseNumber + ' not found in manifest entries');\n\nentry.sourceApprovedKey = incoming.approvedKey || entry.approvedKey || null;\nentry.sourceReplacedAt = incoming.sourceReplacedAt || null;\nentry.sourceReplacementCount = Number(incoming.sourceReplacementCount || 0);\nentry.processedAt = new Date().toISOString();\nentry.briaStatus = incoming.briaStatus;\nentry.briaRequestId = incoming.briaRequestId || null;\nentry.briaStatusUrl = incoming.briaStatusUrl || null;\nentry.briaErrorMessage = incoming.briaErrorMessage || null;\nif (incoming.qa && typeof incoming.qa === 'object') {\n  entry.qa = { ...(entry.qa || {}), ...incoming.qa };\n}\n\nif (incoming.briaStatus === 'completed') {\n  entry.bgRemovedKey = incoming.bgRemovedKey || entry.bgRemovedKey;\n  entry.bgRemovedImageUrl = incoming.bgRemovedImageUrl || entry.bgRemovedImageUrl;\n  entry.bgRemovedStatus = 'completed';\n  entry.bgRemoved = true;\n  entry.needsReview = incoming.needsReview === true;\n  entry.reviewReason = incoming.needsReview === true ? (incoming.reviewReason || 'transparency_fail_or_low_conf') : null;\n  if (incoming.needsReview !== true) entry.isFlagged = false;\n} else {\n  entry.bgRemoved = false;\n  entry.bgRemovedStatus = incoming.briaStatus;\n  entry.needsReview = true;\n  entry.reviewReason = incoming.reviewReason || 'unknown';\n}\n\nmanifest2b.updatedAt = new Date().toISOString();\nconst approved2a = (manifest2a.entries || []).filter(e => e && e.approved && e.status === 'approved');\nconst approvedCount = approved2a.length;\nconst isTerminal = (s) => ['completed','failed','timeout','error'].includes(String(s||'').toLowerCase());\nconst approvedNums = new Set(approved2a.map(e => Number(e.poseNumber)));\nconst terminalApproved = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)) && isTerminal(e.briaStatus)).length;\nconst complete = (approvedCount > 0) && (terminalApproved === approvedCount);\nconst approvedEntries2b = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)));\nconst needsHumanReview = approvedEntries2b.some(e => e.needsReview === true || e.needs_review === true);\nconst allSucceeded = approvedEntries2b.every(e => String(e.briaStatus||'').toLowerCase() === 'completed');\nconst readyForBook = allSucceeded && !needsHumanReview;\nmanifest2b.summary = manifest2b.summary || {};\nmanifest2b.summary.approvedPoseCount = approvedCount;\nmanifest2b.summary.terminalPoseCount = terminalApproved;\nmanifest2b.summary.complete = complete;\nmanifest2b.summary.needsHumanReview = needsHumanReview;\nmanifest2b.summary.readyForBook = readyForBook;\n\nreturn [{ json: { manifest2b, complete, manifest2bKey: ctx.manifest2bKey, backendUrl: ctx.backendUrl || backendUrl, orderId: incoming.orderId, amazonOrderId: incoming.amazonOrderId || ctx.amazonOrderId || null, characterHash: incoming.characterHash } }];"
+        "jsCode": "/**\n * Merge the incoming pose result into 2B manifest (create if missing).\n * Uses repo-provided manifest keys/URLs before any fallback logic.\n */\nlet ctx = {};\ntry { ctx = $items('Normalize Result', 0, $runIndex)?.[0]?.json || {}; } catch {}\nconst incoming = ctx.result || {};\n\nconst orderId = incoming.orderId || ctx.orderId || null;\nif (!orderId) throw new Error('2B aggregator: missing orderId in Normalize Result');\n\nconst backendUrl = 'https://admin.littleherolabs.com';\nconst manifest2bMaybe = $items('Download 2B Manifest (if exists)', 0, $runIndex)?.[0]?.json || null;\nconst manifest2aHint = incoming.manifest2aUrl || ctx.manifest2aUrl || null;\n\nfunction asObject(value) {\n  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};\n}\n\nfunction toBufferLike(value) {\n  if (!value) return null;\n  if (Buffer.isBuffer(value)) return value;\n  if (typeof value === 'string') return Buffer.from(value, 'utf8');\n  if (Array.isArray(value)) return Buffer.from(value);\n\n  const record = asObject(value);\n  if (record.type === 'Buffer' && Array.isArray(record.data)) {\n    return Buffer.from(record.data);\n  }\n\n  if (Array.isArray(record.data)) {\n    return Buffer.from(record.data);\n  }\n\n  return null;\n}\n\nfunction extractStreamText(value) {\n  const source = asObject(value);\n  const readableState = asObject(source._readableState);\n  const chunks = [];\n  const pushChunk = (entry) => {\n    const record = asObject(entry);\n    const buffer = toBufferLike(entry) || toBufferLike(record.data) || toBufferLike(record.chunk);\n    if (buffer && buffer.length > 0) chunks.push(buffer);\n  };\n  const bufferState = readableState.buffer;\n  if (Array.isArray(bufferState)) {\n    const index = Number.isInteger(readableState.bufferIndex) && readableState.bufferIndex >= 0\n      ? readableState.bufferIndex : 0;\n    for (const entry of bufferState.slice(index)) pushChunk(entry);\n  } else {\n    let current = asObject(bufferState).head || null;\n    let guard = 0;\n    while (current && guard < 10000) {\n      pushChunk(current);\n      current = asObject(current).next || null;\n      guard += 1;\n    }\n  }\n  if (chunks.length) return Buffer.concat(chunks).toString('utf8');\n\n  const directOutBuffer = toBufferLike(source._outBuffer);\n  const outOffset = typeof source._outOffset === 'number' ? source._outOffset : null;\n  if (directOutBuffer && directOutBuffer.length > 0) {\n    const end = outOffset !== null && outOffset >= 0\n      ? Math.min(outOffset, directOutBuffer.length) : directOutBuffer.length;\n    return directOutBuffer.subarray(0, end).toString('utf8') || null;\n  }\n  return null;\n}\n\nfunction parseJsonText(text) { if (typeof text !== 'string') return null; try { return JSON.parse(text); } catch { return null; } }\n\nfunction asManifest(raw) {\n  if (!raw) return null;\n  if (raw.schema) return raw;\n  if (raw.body && raw.body.schema) return raw.body;\n  if (raw.data && raw.data.schema) return raw.data;\n\n  const text = typeof raw === 'string'\n    ? raw\n    : (typeof raw.data === 'string'\n      ? raw.data\n      : (typeof raw.body === 'string'\n        ? raw.body\n        : (extractStreamText(raw) || extractStreamText(raw.body) || extractStreamText(raw.data))));\n\n  const parsed = parseJsonText(text);\n  return parsed && parsed.schema ? parsed : null;\n}\n\nfunction requireManifestResponse(raw, stage, missingAllowed) {\n  if (!raw || !Number.isInteger(raw.statusCode) || (raw.statusCode !== 200 && !(missingAllowed && raw.statusCode === 404))) throw new Error('Manifest download failed');\n  if (raw.statusCode === 404) return null;\n  const manifest = asManifest(raw.body);\n  const actualOrderId = manifest?.orderId || manifest?.order?.orderId;\n  const actualHash = manifest?.characterHash || manifest?.order?.characterHash;\n  if (!manifest || manifest.schema !== 'lhb.run-manifest@v2.0' || (stage === '2b' ? manifest.stage !== stage : manifest.stage !== undefined && manifest.stage !== stage) || actualOrderId !== orderId || actualHash !== incoming.characterHash || !Array.isArray(manifest.entries) || !manifest.entries.length || manifest.entries.some(e => !e || (typeof e.poseNumber !== 'number' && !/^[0-9]+$/.test(String(e.poseNumber))) || !Number.isInteger(Number(e.poseNumber)) || Number(e.poseNumber) < 0) || new Set(manifest.entries.map(e => Number(e.poseNumber))).size !== manifest.entries.length) throw new Error('Manifest identity or schema differs');\n  if ((manifest.orderId && manifest.orderId !== orderId) || (manifest.order?.orderId && manifest.order.orderId !== orderId) || (manifest.characterHash && manifest.characterHash !== incoming.characterHash) || (manifest.order?.characterHash && manifest.order.characterHash !== incoming.characterHash)) throw new Error('Manifest identity differs');\n  return manifest;\n}\nconst manifest2a = requireManifestResponse($items('Download 2A Manifest (for merge)', 0, $runIndex)?.[0]?.json, '2a', false);\nconst downloaded2b = requireManifestResponse(manifest2bMaybe, '2b', true);\n\nif (!incoming || !incoming.characterHash || !Number.isFinite(Number(incoming.poseNumber))) {\n  throw new Error('2B aggregator: invalid Normalize Result payload');\n}\n\nif (!manifest2a || !manifest2a.schema) {\n  throw new Error('2B aggregator: missing 2A manifest or invalid schema (orderId=' + orderId + ', manifest2aUrl=' + manifest2aHint + ')');\n}\n\nlet manifest2b = downloaded2b;\nif (!manifest2b) {\n  manifest2b = JSON.parse(JSON.stringify(manifest2a));\n  manifest2b.stage = '2b';\n  manifest2b.createdAt = new Date().toISOString();\n  manifest2b.updatedAt = new Date().toISOString();\n  (manifest2b.entries || []).forEach(e => {\n    e.bgRemovedKey = null;\n    e.bgRemovedImageUrl = null;\n    e.briaStatus = null;\n    e.briaRequestId = null;\n    e.briaStatusUrl = null;\n    e.briaErrorMessage = null;\n    e.sourceApprovedKey = null;\n    e.sourceReplacedAt = null;\n    e.sourceReplacementCount = 0;\n    e.processedAt = null;\n    e.needsReview = false;\n    e.reviewReason = null;\n    e.isFlagged = false;\n  });\n}\n\nconst poseNumber = Number(incoming.poseNumber);\nconst entry = (manifest2b.entries || []).find(e => Number(e.poseNumber) === poseNumber);\nif (!entry) throw new Error('2B aggregator: pose ' + poseNumber + ' not found in manifest entries');\n\nentry.sourceApprovedKey = incoming.approvedKey || entry.approvedKey || null;\nentry.sourceReplacedAt = incoming.sourceReplacedAt || null;\nentry.sourceReplacementCount = Number(incoming.sourceReplacementCount || 0);\nentry.processedAt = new Date().toISOString();\nentry.briaStatus = incoming.briaStatus;\nentry.briaRequestId = incoming.briaRequestId || null;\nentry.briaStatusUrl = incoming.briaStatusUrl || null;\nentry.briaErrorMessage = incoming.briaErrorMessage || null;\nif (incoming.qa && typeof incoming.qa === 'object') {\n  entry.qa = { ...(entry.qa || {}), ...incoming.qa };\n}\n\nif (incoming.briaStatus === 'completed') {\n  entry.bgRemovedKey = incoming.bgRemovedKey || entry.bgRemovedKey;\n  entry.bgRemovedImageUrl = incoming.bgRemovedImageUrl || entry.bgRemovedImageUrl;\n  entry.bgRemovedStatus = 'completed';\n  entry.bgRemoved = true;\n  entry.needsReview = incoming.needsReview === true;\n  entry.reviewReason = incoming.needsReview === true ? (incoming.reviewReason || 'transparency_fail_or_low_conf') : null;\n  if (incoming.needsReview !== true) entry.isFlagged = false;\n} else {\n  entry.bgRemoved = false;\n  entry.bgRemovedStatus = incoming.briaStatus;\n  entry.needsReview = true;\n  entry.reviewReason = incoming.reviewReason || 'unknown';\n}\n\nmanifest2b.updatedAt = new Date().toISOString();\nconst approved2a = (manifest2a.entries || []).filter(e => e && e.approved && e.status === 'approved');\nconst approvedCount = approved2a.length;\nconst isTerminal = (s) => ['completed','failed','timeout','error'].includes(String(s||'').toLowerCase());\nconst approvedNums = new Set(approved2a.map(e => Number(e.poseNumber)));\nconst terminalApproved = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)) && isTerminal(e.briaStatus)).length;\nconst complete = (approvedCount > 0) && (terminalApproved === approvedCount);\nconst approvedEntries2b = (manifest2b.entries || []).filter(e => approvedNums.has(Number(e.poseNumber)));\nconst needsHumanReview = approvedEntries2b.some(e => e.needsReview === true || e.needs_review === true);\nconst allSucceeded = approvedEntries2b.every(e => String(e.briaStatus||'').toLowerCase() === 'completed');\nconst readyForBook = allSucceeded && !needsHumanReview;\nmanifest2b.summary = manifest2b.summary || {};\nmanifest2b.summary.approvedPoseCount = approvedCount;\nmanifest2b.summary.terminalPoseCount = terminalApproved;\nmanifest2b.summary.complete = complete;\nmanifest2b.summary.needsHumanReview = needsHumanReview;\nmanifest2b.summary.readyForBook = readyForBook;\n\nreturn [{ json: { manifest2b, complete, manifest2bKey: ctx.manifest2bKey, backendUrl, orderId: incoming.orderId, amazonOrderId: incoming.amazonOrderId || ctx.amazonOrderId || null, characterHash: incoming.characterHash } }];"
       },
       "id": "adce2f9a-597d-4b89-adf3-7eb5ffb77d0a",
       "name": "Merge Result Into 2B Manifest",
@@ -373,7 +430,7 @@
           "conditions": [
             {
               "id": "4c22f3f7-107e-429b-bb5f-6d5d8512a149",
-              "leftValue": "={{ $json.complete || $items('Merge Result Into 2B Manifest')[0].json.complete || false }}",
+              "leftValue": "={{ $json.complete === true }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -398,14 +455,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.backendUrl || $items('Normalize 2B Input')[0].json.backendUrl || 'https://admin.littleherolabs.com' }}/api/webhooks/workflow-2b-complete",
+        "url": "https://admin.littleherolabs.com/api/webhooks/workflow-2b-complete",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -414,15 +467,22 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \n  orderId: $json.orderId || $items('Merge Result Into 2B Manifest')[0].json.orderId,\n  rootOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId,\n  amazonOrderId: $json.amazonOrderId || $items('Normalize 2B Input')[0].json.amazonOrderId,\n  manifestUrl: $json.manifest2bKey || $items('Merge Result Into 2B Manifest')[0].json.manifest2bKey,\n  characterHash: $json.characterHash || $items('Merge Result Into 2B Manifest')[0].json.characterHash,\n  needsReview: $json.needsHumanReview !== undefined ? $json.needsHumanReview : ($items('Merge Result Into 2B Manifest')[0].json.manifest2b?.summary?.needsHumanReview || false)\n} }}",
+        "jsonBody": "={{ { orderId: $json.orderId, rootOrderId: $json.amazonOrderId, amazonOrderId: $json.amazonOrderId, manifestUrl: $json.manifest2bKey, characterHash: $json.characterHash, needsReview: $json.needsHumanReview } }}",
         "options": {
           "response": {
             "response": {
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
-        }
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "7363c3b8-56f8-4e1f-86d4-301bbf7cffb1",
       "name": "Notify Backend (2B Complete)",
@@ -435,7 +495,27 @@
       "retryOnFail": true,
       "waitBetweenTries": 3000,
       "maxTries": 3,
-      "continueOnFail": true
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
+    },
+    {
+      "id": "b3d27959-604e-4e31-87c6-866049c1fced",
+      "name": "Restore 2B Manifest Upload Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4760,
+        -1768
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const ack = $json || {};\nconst context = $('Prep Manifest Binary').item.json;\nif (ack.success !== true || ack.error || !context || typeof context.complete !== 'boolean' || typeof context.needsHumanReview !== 'boolean' || typeof context.orderId !== 'string' || !context.characterHash || context.backendUrl !== 'https://admin.littleherolabs.com' || !String(context.manifest2bKey).includes('/orders/' + context.orderId + '/manifests/2b-manifest.json')) throw new Error('Manifest upload acknowledgement or paired context invalid');\nreturn { json: { ...context } };"
+      }
     }
   ],
   "connections": {
@@ -548,11 +628,6 @@
             "node": "Download 2B Manifest (if exists)",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Download 2A Manifest (for merge)",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -561,7 +636,7 @@
       "main": [
         [
           {
-            "node": "Merge Result Into 2B Manifest",
+            "node": "Download 2A Manifest (for merge)",
             "type": "main",
             "index": 0
           }
@@ -594,7 +669,7 @@
       "main": [
         [
           {
-            "node": "If Complete",
+            "node": "Restore 2B Manifest Upload Context",
             "type": "main",
             "index": 0
           }
@@ -624,6 +699,28 @@
         [
           {
             "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download 2A Manifest (for merge)": {
+      "main": [
+        [
+          {
+            "node": "Merge Result Into 2B Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore 2B Manifest Upload Context": {
+      "main": [
+        [
+          {
+            "node": "If Complete",
             "type": "main",
             "index": 0
           }

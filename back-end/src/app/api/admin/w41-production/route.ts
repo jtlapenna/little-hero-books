@@ -42,7 +42,7 @@ export function resolvePreflightAdminBaseUrl(url: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const approvedBy = adminAuth.mode === 'same_origin' ? 'same-origin-admin' : 'token-admin';
+    const approvedBy = adminAuth.actor;
     const approval = issueW41ProductionApprovalToken({
       rootGroupId: inspection.rootGroupId,
       approvedBy,

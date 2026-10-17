@@ -1,3 +1,5 @@
+import { verifyPrinterFileUrl } from '../src/lib/printer-file-grants';
+process.env.BACKEND_API_TOKEN = 'synthetic-printer-file-signing-authority-only-12345';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { gelatoSubmissionStore } from '../src/lib/books/gelato-submission-store';
@@ -181,7 +183,7 @@ async function scenario(mode: 'single' | 'siblings') {
       assert.equal(snapshot.request.items.length, ids.length);
       for (const [index, item] of snapshot.request.items.entries()) {
         assert.equal(item.pageCount, 32);
-        assert.equal(item.files[0].url, `${runtime.backendUrl}/api/pdf/${context.members[index].artifact_key}`);
+        assert.equal(await verifyPrinterFileUrl(item.files[0].url, context.members[index].artifact_key!, { now }), true);
       }
       return {};
     } },

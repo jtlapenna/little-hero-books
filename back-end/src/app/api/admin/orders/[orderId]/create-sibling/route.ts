@@ -19,8 +19,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  // Purpose: fail-closed admin auth (strict same-origin OR Bearer BACKEND_API_TOKEN).
-  const adminAuth = requireAdminAuth(request);
+  // Purpose: fail-closed admin auth (verified Access identity OR machine Bearer token).
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) return adminAuth.response;
 
   const { orderId: parentOrderId } = await params;

@@ -7,6 +7,8 @@ import { DEFAULT_PROD_API_BASE } from '../../lib/apiBase';
 // This is a server-rendered dynamic route (not pre-rendered)
 // We need to validate tokens at runtime, so we can't use static generation
 export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 
 // Get token from URL params
 const { token } = Astro.params;
@@ -379,6 +381,19 @@ const apiBase =
     updateHeaderForCurtain();
   }
 
+  function showReadOnlyPreview(message) {
+    previewApprovalAllowed = false;
+    const actions = document.getElementById('action-buttons-container');
+    if (approvalInfo) {
+      // Receipt remains visible when the action controls are hidden.
+      if (actions?.parentNode) actions.parentNode.insertBefore(approvalInfo, actions);
+      approvalInfo.textContent = message;
+      approvalInfo.style.display = 'block';
+    }
+    if (actions) actions.style.display = 'none';
+    updatePreviewReadiness();
+  }
+
   async function loadPreview() {
     try {
       const response = await fetch(`${API_BASE}/api/preview/validate-token`, {
@@ -388,23 +403,13 @@ const apiBase =
       });
 
       const data = await response.json();
-      previewApprovalAllowed = data.valid === true && Boolean(data.order) &&
+      previewApprovalAllowed = data.canApprove === true && Boolean(data.order) &&
         getCustomerApprovalStatus(data.order) !== 'approved';
 
-      // Backend now returns order data even when token is used/expired
-      // If we have order data, use it regardless of validation status
-      if (data.order) {
+      // Customer details are returned only for authorized, unexpired reads.
+      if (data.readValid === true && data.order) {
         orderData = data.order;
-        
-        // Cache order data in localStorage so we can retrieve it later if needed
-        if (orderData && orderData.orderId) {
-          try {
-            localStorage.setItem(`order_data_${orderData.orderId}`, JSON.stringify(orderData));
-          } catch (e) {
-            console.warn('[PREVIEW] Failed to cache order data:', e);
-          }
-        }
-        
+
         displayOrder(orderData);
         
         // On mobile, show preview immediately (curtain is hidden via CSS)
@@ -414,33 +419,13 @@ const apiBase =
         }
         // On desktop, showPreview() is called in loadPagesAndDisplay after spreads are loaded
         
-        // If token is valid, check order status normally
-        if (data.valid) {
-          checkOrderStatus(orderData);
+        if (getCustomerApprovalStatus(orderData) === 'approved') {
+          showApprovedState(orderData);
+        } else if (data.used) {
+          showReadOnlyPreview(getCustomerApprovalStatus(orderData) === 'revision_requested'
+            ? 'Your correction request has been received.' : 'This preview link is now read-only.');
         } else {
-          // Token is invalid (used or expired) but we have order data
-          // If token is used, it means customer already approved, so show approved state
-          // Expired links retain the server's approval state.
-          if (data.used) {
-            console.log('[PREVIEW] Token already used - customer has approved, showing approved state');
-            showApprovedState(orderData);
-            checkOrderStatus(orderData); // Same link: keep polling for shipping/tracking updates
-          } else if (data.expired) {
-            // Token expired - check if customer approved before expiration
-            console.log('[PREVIEW] Token expired - checking approval status', 
-              'customerApprovalStatus:', getCustomerApprovalStatus(orderData)
-            );
-            if (getCustomerApprovalStatus(orderData) === 'approved') {
-              showApprovedState(orderData);
-              checkOrderStatus(orderData); // Same link: keep polling for shipping/tracking updates
-            } else {
-              // Token expired but not approved - show error
-              showError('This preview link has expired. Please contact us for a new link.');
-            }
-          } else {
-            // Token invalid for other reason
-            showError('Invalid preview link. Please contact us for assistance.');
-          }
+          checkOrderStatus(orderData);
         }
         return;
       }
@@ -500,19 +485,20 @@ const apiBase =
     return 0;
   }
 
-  function syncReactViewer(spreadsToRender) {
+  function syncReactViewer(spreadsToRender, preservePosition = false) {
     if (!Array.isArray(spreadsToRender) || spreadsToRender.length === 0) {
       console.warn('[Preview] Viewer sync skipped: no spreads provided');
       return;
     }
 
-    currentInitialSpread = computeInitialSpreadIndex(spreadsToRender);
+    if (!preservePosition) currentInitialSpread = computeInitialSpreadIndex(spreadsToRender);
 
     window.dispatchEvent(
       new CustomEvent(BOOK_VIEWER_EVENT, {
         detail: {
           spreads: spreadsToRender,
-          initialSpread: currentInitialSpread
+          initialSpread: currentInitialSpread,
+          preservePosition
         }
       })
     );
@@ -582,13 +568,13 @@ const apiBase =
     
     console.log('[Preview] createSpreads called:', {
       pagesCount: orderedPages.length,
-      coverImageUrl: coverImageUrl || 'NULL',
+      coverAvailable: Boolean(coverImageUrl),
       hasCover: !!coverImageUrl
     });
     
     // Add front cover spread (blank left, cover right half) if cover is available
     if (coverImageUrl) {
-      console.log('[Preview] Adding front cover spread with URL:', coverImageUrl);
+      console.log('[Preview] Adding front cover spread');
       spreads.push({
         spreadNumber: 0,
         leftPage: null,
@@ -629,7 +615,7 @@ const apiBase =
     
     // Add back cover spread (cover left half, blank right) if cover is available
     if (coverImageUrl) {
-      console.log('[Preview] Adding back cover spread with URL:', coverImageUrl);
+      console.log('[Preview] Adding back cover spread');
       spreads.push({
         spreadNumber: spreads.length,
         leftPage: null,
@@ -651,229 +637,79 @@ const apiBase =
       isCover: s.isCover,
       isBackCover: s.isBackCover,
       hasCoverData: !!s.coverData,
-      coverUrl: s.coverData?.fullImageUrl ? s.coverData.fullImageUrl.substring(0, 100) + '...' : 'none'
+      coverAvailable: Boolean(s.coverData?.fullImageUrl)
     })));
     
     return spreads;
   }
 
-  // Load pages from manifest
-  async function loadPages(orderId) {
-    // Older backends omit this field. An explicit invalid key must not select another book.
-    const manifest3Key = Object.prototype.hasOwnProperty.call(orderData, 'manifest3Key')
-      ? orderData.manifest3Key
-      : `book-mvp-simple-adventure/orders/${orderId}/manifests/3-manifest.json`;
-    if (typeof manifest3Key !== 'string' ||
-        !/^[A-Za-z0-9_-]+\/orders\/[A-Za-z0-9_-]+\/manifests\/3-manifest\.json$/.test(manifest3Key)) {
-      throw new Error('Invalid book preview manifest key');
-    }
+  let previewFilesTimer = null;
+  let previewFilesExpiresAt = 0;
+  let refreshingPreviewFiles = false;
+  let previewAccessEnded = false;
+
+  function endPreviewAccess() {
+    previewAccessEnded = true;
+    clearTimeout(previewFilesTimer);
+    clearInterval(statusPollInterval);
+    previewApprovalAllowed = false;
+    previewPagesLoaded = false;
+    updatePreviewReadiness();
+    if (previewContent) previewContent.style.display = 'none';
+    showError('This preview link has expired or is no longer available. Please contact us for a new link.');
+  }
+
+  async function refreshPreviewFiles() {
+    if (document.hidden || refreshingPreviewFiles || previewAccessEnded || !orderData?.orderId) return;
+    refreshingPreviewFiles = true;
     try {
-      const manifest3Url = `${API_BASE}/api/manifests/${manifest3Key}?v=${Date.now()}`;
-      
-      const response = await fetch(manifest3Url, { cache: 'no-store' });
-      if (!response.ok) {
-        console.warn('[Preview] Manifest not found, pages may not be ready yet');
-        return { pages: [], coverImageUrl: null };
+      const files = await loadPages(orderData.orderId);
+      previewPagesLoaded = files.ready === true;
+      if (files.pages.length) {
+        spreads = createSpreads(files.pages, files.coverImageUrl);
+        syncReactViewer(spreads, true);
       }
-      
-      const manifest3Raw = await response.json();
-      const manifest3 = Array.isArray(manifest3Raw) ? manifest3Raw[0] : manifest3Raw;
-      
-      // Handle nested manifest structure
-      const manifest = manifest3?.manifest || manifest3;
-      const { pagePlanByNumber, pagePlanByLabel } = buildPagePlanMaps(manifest, manifest3);
+      updatePreviewReadiness();
+      if (!files.expiresAt && !previewAccessEnded) previewFilesTimer = setTimeout(() => void refreshPreviewFiles(), 30000);
+    } catch {
+      previewPagesLoaded = false; updatePreviewReadiness();
+      if (!previewAccessEnded) previewFilesTimer = setTimeout(() => void refreshPreviewFiles(), 30000);
+    } finally { refreshingPreviewFiles = false; }
+  }
 
-      const normalizePreviewImage = (img, fallbackKey = null) => {
-        const rawLabel =
-          img?.pageLabel ||
-          img?.originalKey ||
-          img?.label ||
-          fallbackKey ||
-          null;
-        const pageLabel = normalizeManifestPageLabel(rawLabel);
-        const numericPageNumber = Number(img?.pageNumber);
-        const parsedPageNumber =
-          pageLabel && pageLabel.startsWith('p')
-            ? Number.parseInt(pageLabel.slice(1), 10)
-            : NaN;
-        const fallbackPageNumber = Number.isFinite(numericPageNumber)
-          ? numericPageNumber
-          : Number.isFinite(parsedPageNumber)
-          ? parsedPageNumber
-          : 0;
-        const pageMeta =
-          (pageLabel && pagePlanByLabel.get(pageLabel)) ||
-          pagePlanByNumber.get(fallbackPageNumber) ||
-          null;
-
-        return {
-          pageNumber: pageMeta?.index ?? fallbackPageNumber,
-          pageLabel:
-            pageLabel ||
-            normalizeManifestPageLabel(pageMeta?.label) ||
-            `p${String(pageMeta?.index ?? fallbackPageNumber).padStart(2, '0')}`,
-          pageType: pageMeta?.type,
-          storyPageNumber: pageMeta?.storyPageNumber ?? null,
-          originalKey: fallbackKey || img?.originalKey || rawLabel,
-          r2Key: typeof img?.r2Key === 'string' ? img.r2Key : null,
-          imageUrl: typeof img?.imageUrl === 'string' ? img.imageUrl : null,
-          cloudflareImageUrl:
-            typeof img?.cloudflareImageUrl === 'string' ? img.cloudflareImageUrl : null
-        };
-      };
-      
-      // Get page preview images
-      let previewImages = manifest?.pagePreviewImages 
-        || manifest3?.pagePreviewImages
-        || manifest?.bookAssembly?.pagePreviewImages 
-        || [];
-      
-      // Fallback: Build from pngGeneration.pages
-      if (!previewImages || previewImages.length === 0) {
-        const pagesObj = manifest?.pngGeneration?.pages || {};
-        if (pagesObj && Object.keys(pagesObj).length > 0) {
-          console.log('[Preview] Building previewImages from pngGeneration.pages, found keys:', Object.keys(pagesObj));
-          previewImages = Object.entries(pagesObj)
-            .map(([key, r2Key]) =>
-              normalizePreviewImage(
-                {
-                  originalKey: key,
-                  r2Key: typeof r2Key === 'string' ? r2Key : null,
-                  imageUrl: typeof r2Key === 'string' ? `${API_BASE}/api/assets/${r2Key}` : null
-                },
-                key,
-              ),
-            )
-            .filter((img) => img.r2Key || img.imageUrl);
-
-          previewImages = dedupePreviewImages(previewImages);
-          console.log('[Preview] Built previewImages from pngGeneration.pages:', previewImages.length, 'pages');
-        }
-      }
-
-      previewImages = dedupePreviewImages(
-        (Array.isArray(previewImages) ? previewImages : [])
-          .map((img) => normalizePreviewImage(img))
-          .filter((img) => img.r2Key || img.imageUrl || img.cloudflareImageUrl),
-      );
-      
-      console.log('[Preview] Total previewImages found:', previewImages.length);
-      
-      // Get Cloudflare Images URLs if available
-      // pagesWithCloudflare is an object keyed by page keys (p01, p02, etc.), not an array
-      const pagesWithCloudflare = manifest?.pngGeneration?.pagesWithCloudflare 
-        || manifest3?.pngGeneration?.pagesWithCloudflare 
-        || {};
-      
-      // Build page data array
-      // Prefer R2 proxy URLs over Cloudflare Images so we do NOT show Cloudflare's PROOF watermark.
-      const isValidCloudflareUrl = (url) => {
-        if (!url || typeof url !== 'string') return false;
-        return url.startsWith('https://imagedelivery.net/') && url.split('/').length >= 5;
-      };
-      const isR2ProxyUrl = (url) => typeof url === 'string' && url.includes('/api/assets/') && !url.includes('imagedelivery.net');
-      
-      const pages = (Array.isArray(previewImages) ? previewImages : []).map((img) => {
-        const pageNum = Number(img.pageNumber || 0);
-        const pageLabel = normalizeManifestPageLabel(img.pageLabel) || `p${String(pageNum).padStart(2, '0')}`;
-        const cloudflareLookupKeys = pageLabel === 'p00' ? ['p00_dedication', 'p00'] : [pageLabel];
-        const cfData = cloudflareLookupKeys
-          .map((key) => pagesWithCloudflare[key] || null)
-          .find(Boolean);
-        const cloudflareImageUrl = img.cloudflareImageUrl || cfData?.cloudflareImageUrl || null;
-        
-        // Priority 1: Use R2 proxy URL when available (no PROOF overlay)
-        if (img.r2Key) {
-          return { pageNumber: pageNum, pageLabel, imageUrl: `${API_BASE}/api/assets/${img.r2Key}` };
-        }
-        if (img.imageUrl && isR2ProxyUrl(img.imageUrl)) {
-          return {
-            pageNumber: pageNum,
-            pageLabel,
-            imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}`
-          };
-        }
-        // Priority 2: Fall back to Cloudflare Images only when R2 not available
-        if (cloudflareImageUrl && isValidCloudflareUrl(cloudflareImageUrl)) {
-          return { pageNumber: pageNum, pageLabel, imageUrl: cloudflareImageUrl };
-        }
-        if (img.imageUrl && isValidCloudflareUrl(img.imageUrl)) {
-          return { pageNumber: pageNum, pageLabel, imageUrl: img.imageUrl };
-        }
-        if (img.imageUrl) {
-          return {
-            pageNumber: pageNum,
-            pageLabel,
-            imageUrl: img.imageUrl.startsWith('http') ? img.imageUrl : `${API_BASE}${img.imageUrl}`
-          };
-        }
-        return null;
-      }).filter(p => p && p.imageUrl); // Only include pages with valid URLs
-      
-      const uniquePages = Array.from(
-        new Map(
-          pages.map((page) => [page.pageLabel || `page-${page.pageNumber}`, page])
-        ).values()
-      );
-
-      // Sort pages by pageNumber to ensure correct order
-      uniquePages.sort((a, b) => a.pageNumber - b.pageNumber);
-      
-      console.log(
-        '[Preview] Final pages array:',
-        uniquePages.length,
-        'pages',
-        uniquePages.map((p) => p.pageLabel || `p${p.pageNumber}`),
-      );
-      
-      // Get cover image URL - check multiple possible locations
-      // Priority: Cloudflare Images URL (preview/watermarked), then direct URL, then R2 key
-      const pngGen = manifest?.pngGeneration || manifest3?.pngGeneration || {};
-      
-      // Check for Cloudflare Images URL first (preferred for preview)
-      let coverImageUrl = pngGen.coverCloudflareImageUrl 
-        || manifest?.coverCloudflareImageUrl
-        || manifest3?.coverCloudflareImageUrl
-        || null;
-      
-      // If Cloudflare URL exists, ensure it has a variant (add /public if missing)
-      if (coverImageUrl && typeof coverImageUrl === 'string') {
-        if (!coverImageUrl.includes('/public') && !coverImageUrl.includes('/backend')) {
-          coverImageUrl = coverImageUrl.endsWith('/') ? coverImageUrl + 'public' : coverImageUrl + '/public';
-        }
-      }
-      
-      // Fallback to direct coverImageUrl fields
-      if (!coverImageUrl) {
-        coverImageUrl = manifest?.coverImageUrl 
-          || manifest3?.coverImageUrl
-          || manifest?.bookAssembly?.coverImageUrl
-          || pngGen?.coverImageUrl
-          || null;
-      }
-      
-      // Fallback to R2 key (construct URL)
-      if (!coverImageUrl && pngGen?.coverImageR2Key) {
-        coverImageUrl = `${API_BASE}/api/assets/${pngGen.coverImageR2Key}`;
-      }
-      
-      console.log('[Preview] Cover image URL lookup:', {
-        'pngGeneration.coverCloudflareImageUrl': pngGen?.coverCloudflareImageUrl || 'not found',
-        'manifest.coverCloudflareImageUrl': manifest?.coverCloudflareImageUrl || 'not found',
-        'manifest3.coverCloudflareImageUrl': manifest3?.coverCloudflareImageUrl || 'not found',
-        'manifest.coverImageUrl': manifest?.coverImageUrl || 'not found',
-        'manifest3.coverImageUrl': manifest3?.coverImageUrl || 'not found',
-        'manifest.bookAssembly.coverImageUrl': manifest?.bookAssembly?.coverImageUrl || 'not found',
-        'pngGeneration.coverImageUrl': pngGen?.coverImageUrl || 'not found',
-        'pngGeneration.coverImageR2Key': pngGen?.coverImageR2Key || 'not found',
-        'final coverImageUrl': coverImageUrl || 'NULL - COVER NOT FOUND'
-      });
-      
-      return { pages: uniquePages, coverImageUrl };
-    } catch (error) {
-      console.error('[Preview] Error loading pages:', error);
-      return { pages: [], coverImageUrl: null };
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && previewFilesExpiresAt && previewFilesExpiresAt - Date.now() < 60000) {
+      void refreshPreviewFiles();
     }
+  });
+
+  // Only the authorized minimal page DTO reaches the customer browser.
+  async function loadPages(orderId) {
+    const response = await fetch(`${API_BASE}/api/preview/${encodeURIComponent(orderId)}/files`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }), cache: 'no-store', referrerPolicy: 'no-referrer'
+    });
+    if (response.status === 401 || response.status === 403) {
+      endPreviewAccess();
+      return { pages: [], coverImageUrl: null, ready: false };
+    }
+    if (!response.ok) return { pages: [], coverImageUrl: null, ready: false };
+    const data = await response.json();
+    if (previewAccessEnded) return { pages: [], coverImageUrl: null, ready: false };
+    const toImageUrl = (value) => typeof value === 'string' && value.startsWith('/api/assets/') ? `${API_BASE}${value}` : null;
+    const pages = (Array.isArray(data.pages) ? data.pages : []).map((page) => ({
+      pageNumber: page.pageNumber, pageLabel: page.pageLabel, imageUrl: toImageUrl(page.imageUrl)
+    })).filter((page) => Number.isInteger(page.pageNumber) && page.imageUrl);
+    const coverImageUrl = toImageUrl(data.coverImageUrl);
+    previewFilesExpiresAt = Date.parse(data.expiresAt);
+    clearTimeout(previewFilesTimer);
+    if (Number.isFinite(previewFilesExpiresAt)) {
+      const remaining = previewFilesExpiresAt - Date.now();
+      previewFilesTimer = remaining > 60000
+        ? setTimeout(() => void refreshPreviewFiles(), remaining - 60000)
+        : setTimeout(endPreviewAccess, Math.max(0, remaining));
+    }
+    return { pages, coverImageUrl, expiresAt: data.expiresAt, ready: data.ready === true && pages.length === data.pages.length && !!coverImageUrl };
   }
 
   function displayOrder(order) {
@@ -909,7 +745,8 @@ const apiBase =
 
   async function loadPagesAndDisplay(orderId) {
     try {
-      const { pages, coverImageUrl } = await loadPages(orderId);
+      const { pages, coverImageUrl, ready } = await loadPages(orderId);
+      if (previewAccessEnded) return;
       
       if (pages.length === 0) {
         // No pages available yet, update loading message
@@ -925,7 +762,7 @@ const apiBase =
       // Create spreads
       console.log('[Preview] Creating spreads with:', {
         pagesCount: pages.length,
-        coverImageUrl: coverImageUrl || 'NULL'
+        coverAvailable: Boolean(coverImageUrl)
       });
       spreads = createSpreads(pages, coverImageUrl);
 
@@ -965,7 +802,7 @@ const apiBase =
       
       // Dispatch spreads to the React viewer
       syncReactViewer(spreads);
-      previewPagesLoaded = true;
+      previewPagesLoaded = ready === true;
       updatePreviewReadiness();
       
       // Hide loading state now that preview is ready (after spreads are synced)
@@ -978,6 +815,7 @@ const apiBase =
         updateHeaderForCurtain();
       }
     } catch (error) {
+      if (previewAccessEnded) return;
       console.error('[Preview] Error loading pages:', error);
       // Show error in loading state
       if (loadingState && loadingState.querySelector('.loading-text')) {
@@ -1225,6 +1063,8 @@ const apiBase =
       correctionSuccess.style.display = 'block';
       correctionLocked.style.display = 'none';
 
+      orderData.customerApprovalStatus = 'revision_requested';
+      showReadOnlyPreview('Your correction request has been received.');
       orderData.revisionCount = (orderData.revisionCount || 0) + 1;
       updateCorrectionState(orderData);
     } catch (error) {
@@ -1258,33 +1098,8 @@ const apiBase =
       const needsDisplay = orderData !== orderDataFromResponse;
       orderData = orderDataFromResponse;
       if (needsDisplay) displayOrder(orderData);
-    } else {
-      // Try to extract order info from token if no order data provided
-      let extractedOrderId = null;
-      if (!orderDataFromResponse && token) {
-        // Token format might be like "E2E-005-5d397e5ff397645b" where first part is order ID
-        const tokenParts = token.split('-');
-        if (tokenParts.length >= 2) {
-          // Try to construct a partial order ID from token
-          extractedOrderId = tokenParts[0] + '-' + tokenParts[1];
-        }
-      }
-      
-      // Try to get cached order data from localStorage
-      if (extractedOrderId) {
-        try {
-          const cachedOrderData = localStorage.getItem(`order_data_${extractedOrderId}`);
-          if (cachedOrderData) {
-            const parsed = JSON.parse(cachedOrderData);
-            orderData = parsed;
-            displayOrder(orderData);
-          }
-        } catch (e) {
-          console.warn('[PREVIEW] Failed to retrieve cached order data:', e);
-        }
-      }
     }
-    
+
     // Hide action buttons and curtain
     const actionButtonsContainer = document.getElementById('action-buttons-container');
     if (actionButtonsContainer) {
@@ -1352,7 +1167,8 @@ const apiBase =
 
   async function fetchOrderStatus(orderId) {
     try {
-      const response = await fetch(`${API_BASE}/api/preview/${orderId}/status`);
+      const response = await fetch(`${API_BASE}/api/preview/${encodeURIComponent(orderId)}/status`, { headers: { 'X-Preview-Token': token }, cache: 'no-store', referrerPolicy: 'no-referrer' });
+      if (response.status === 401 || response.status === 403) { endPreviewAccess(); return; }
       if (!response.ok) {
         throw new Error('Failed to fetch status');
       }

@@ -8,13 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validatePreviewToken } from '@/lib/preview-tokens';
-import { getOrderFromSupabase } from '@/lib/supabase-client';
+import { authorizePreviewOrder, previewOrderPrefix, privatePreviewHeaders } from '@/lib/customer-preview-access';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { downloadManifest } from '@/lib/r2-service';
 import {
-  buildManifestKeyCandidates,
-  buildManifestKeyHintOptionsFromOrderLike,
   buildManifestKeyFromOrderPrefix,
 } from '@/lib/order-paths';
 import { Order } from '@/types/order';
@@ -24,7 +21,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      ...privatePreviewHeaders,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
@@ -42,7 +39,7 @@ export async function POST(request: NextRequest) {
         { 
           status: 400,
           headers: {
-            'Access-Control-Allow-Origin': '*',
+            ...privatePreviewHeaders,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
           },
@@ -50,67 +47,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate token
-    const validation = await validatePreviewToken(token);
-    
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    };
-
-    // If token is invalid but we have an orderId (token was used or expired),
-    // still fetch and return order data so the page can display customer details
-    if (!validation.valid && !validation.orderId) {
-      return NextResponse.json(
-        { 
-          valid: false,
-          error: validation.error || 'Invalid token',
-          expired: validation.expired,
-          used: validation.used
-        },
-        { 
-          status: 401,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    // If token is invalid but we have orderId, continue to fetch order data
-    // This allows the page to display customer details even when token is used/expired
-    const orderId = validation.orderId;
-    
-    if (!orderId) {
-      return NextResponse.json(
-        { error: 'Token validation failed' },
-        { 
-          status: 500,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    let supabaseRecord: any = null;
-    let supabaseOrder: Order | null = null;
-
-    try {
-      supabaseRecord = await getOrderFromSupabase(orderId);
-      if (supabaseRecord) {
-        supabaseOrder = await mapSupabaseOrderToOrder(supabaseRecord);
-      }
-    } catch (error: any) {
-      console.warn(
-        '[API] Preview token validation - failed to load order from Supabase:',
-        error?.message || error
-      );
-    }
+    const access = await authorizePreviewOrder(token);
+    if (!access.ok) return access.response;
+    const validation = access.validation;
+    const orderId = access.orderId;
+    const prefix = previewOrderPrefix(access);
+    const corsHeaders = privatePreviewHeaders;
+    const supabaseRecord = access.row;
+    const supabaseOrder = await mapSupabaseOrderToOrder(supabaseRecord, { includeStatus: false });
 
     let manifestOrder: Order | null = null;
     const manifestStages: Array<'2b' | '2a' | '3'> = ['2b', '2a', '3'];
-    const manifestHints = buildManifestKeyHintOptionsFromOrderLike(supabaseRecord);
 
     for (const stage of manifestStages) {
-      for (const key of buildManifestKeyCandidates(orderId, stage, manifestHints)) {
+      for (const key of [`${prefix}/manifests/${stage}-manifest.json`]) {
         try {
           const manifest = await downloadManifest(key);
           manifestOrder = mapManifestToOrder(orderId, manifest);
@@ -146,16 +96,15 @@ export async function POST(request: NextRequest) {
       ? `${mergedOrder.customer.firstName || ''} ${mergedOrder.customer.lastName || ''}`.trim() || null
       : null;
 
-    // Return order data even if token is invalid (used or expired)
-    // This allows the page to persist customer details after approval
+    // A consumed but unexpired link retains bounded read access only.
     return NextResponse.json(
       {
-        valid: validation.valid, // Return actual validation status
+        valid: !validation.used,
+        readValid: true,
+        canApprove: !validation.used && !['approved', 'revision_requested'].includes(String(supabaseRecord.customer_approval_status ?? '')),
         order: {
-          orderId: mergedOrder.orderId,
-          manifest3Key: mergedOrder.assetPrefix
-            ? buildManifestKeyFromOrderPrefix(mergedOrder.assetPrefix, '3')
-            : null,
+          orderId: access.orderId,
+          manifest3Key: buildManifestKeyFromOrderPrefix(prefix, '3'),
           amazonOrderId: mergedOrder.amazonOrderId || mergedOrder.orderId,
           customerName: customerName,
           characterSpecs: mergedOrder.characterSpecs || null,
@@ -167,10 +116,6 @@ export async function POST(request: NextRequest) {
             mergedOrder.customerApprovalStatus ||
             supabaseRecord?.customer_approval_status ||
             null,
-          execution_status: supabaseRecord?.execution_status || null,
-          next_workflow: supabaseRecord?.next_workflow || null,
-          status: supabaseRecord?.status || null,
-          finalBookUrl: mergedOrder.finalBookUrl || supabaseRecord?.final_book_url || null,
         },
         expired: validation.expired,
         used: validation.used,
@@ -187,7 +132,7 @@ export async function POST(request: NextRequest) {
       { 
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          ...privatePreviewHeaders,
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
         },

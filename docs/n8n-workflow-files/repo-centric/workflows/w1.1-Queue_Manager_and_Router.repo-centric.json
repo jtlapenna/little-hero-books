@@ -610,24 +610,28 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://admin.littleherolabs.com/api/internal/orders/{{$json.orderId}}/flags/missing-shipping",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = \"https://admin.littleherolabs.com/api/internal/orders/\" + String($json.orderId) + \"/flags/missing-shipping\"; if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.BACKEND_API_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { \"source\": \"w1.1\", \"workflow\": \"w1.1->w4 shipping validation\", \"reason\": \"Missing shipping_address for w4 path\", \"severity\": \"warning\", \"run_id\": $runId, \"timestamp\": new Date().toISOString(), \"orderDbId\": $json.orderDbId, \"orderId\": $json.orderId } }}",
-        "options": {}
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "da944f4c-507a-49c4-ad96-bd7ea8df875d",
       "name": "Flag Missing Shipping (Backend)",
@@ -637,7 +641,13 @@
         3648,
         -704
       ],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

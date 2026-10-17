@@ -31,7 +31,7 @@ async function inspect(orderId: string) {
       providerOrderId: member.provider_order_id, providerItemId: member.provider_item_id })) };
 }
 export async function GET(request: NextRequest) {
-  const auth = requireAdminAuth(request);
+  const auth = await requireAdminAuth(request);
   if (!auth.ok) return auth.response;
   const orderId = request.nextUrl.searchParams.get('orderId')?.trim();
   if (!orderId) return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 }
 const Action = z.object({ orderId: z.string().trim().min(1), action: z.enum(['refresh', 'recover', 'cancel']) }).strict();
 export async function POST(request: NextRequest) {
-  const auth = requireAdminAuth(request);
+  const auth = await requireAdminAuth(request);
   if (!auth.ok) return auth.response;
   const parsed = Action.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid Gelato print action' }, { status: 400 });

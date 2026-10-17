@@ -1,38 +1,15 @@
-// Next.js middleware for error handling and request context
 import { NextRequest, NextResponse } from 'next/server';
-import { errorHandler, ErrorType, ErrorSeverity } from './lib/error-handler';
+import { authorizeBackendBoundary, cleanBoundaryHeaders, newBoundaryRequestId } from './lib/access-boundary';
 
-export function middleware(request: NextRequest) {
-  // Add request ID for tracking
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Add request ID to headers for API routes to use
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-request-id', requestId);
-
-  // Create response with request ID
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-
-  // Add request ID to response headers for debugging
+export async function middleware(request: NextRequest) {
+  const requestId = newBoundaryRequestId();
+  const headers = cleanBoundaryHeaders(request.headers);
+  headers.set('x-request-id', requestId);
+  const rejection = await authorizeBackendBoundary(request);
+  const response = rejection ?? NextResponse.next({ request: { headers } });
   response.headers.set('x-request-id', requestId);
-
+  response.headers.set('Cache-Control', 'private, no-store');
   return response;
 }
 
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
-  ],
-};
-
+export const config = { matcher: ['/:path*'] };

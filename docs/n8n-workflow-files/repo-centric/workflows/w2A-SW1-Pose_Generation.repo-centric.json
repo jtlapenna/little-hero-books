@@ -737,14 +737,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{(($json.backendUrl || $json.orderContext?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2a/build-pose-input'}}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((($json.backendUrl || $json.orderContext?.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w2a/build-pose-input'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer REDACTED_BACKEND_API_TOKEN"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -758,11 +754,18 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 90000
+          "timeout": 90000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
         },
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}"
+        "body": "={{JSON.stringify($json.body && $json.body !== $json ? $json.body : $json)}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "92d8c3b3-1bfa-4de7-8dd8-8afe14f8e9e2",
       "name": "Fetch Repo W2A Pose Input",
@@ -771,7 +774,13 @@
       "position": [
         -1912,
         -80
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {

@@ -6,10 +6,12 @@
  * Receives status updates from Lulu's API when print job status changes.
  * Updates the database with the new status, tracking information, etc.
  * 
- * IMPORTANT: Always returns 200 OK (even on errors) - Lulu expects 200 to acknowledge receipt.
+ * Authenticated callbacks return200 even on downstream errors to acknowledge receipt.
+ * Missing/invalid signatures and malformed signed JSON are rejected before data work.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyLuluWebhook } from '@/lib/lulu-webhook-auth';
 import { supabase } from '@/lib/supabase-client';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { recordLuluLifecycleWorkflowEvents } from '@/lib/workflow-jobs';
@@ -190,11 +192,19 @@ async function hasRecentD2CShippedEmailLog(params: {
 }
 
 export async function POST(request: NextRequest) {
+  let verifiedPayload: unknown;
+  try {
+    const raw = new Uint8Array(await request.arrayBuffer());
+    if (!await verifyLuluWebhook(raw, request.headers.get('lulu-hmac-sha256'))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
+    verifiedPayload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw));
+  } catch {
+    return NextResponse.json({ error: 'Invalid webhook' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+  }
   let printJobId: string | null = null;
   let statusName: string | null = null;
   try {
     // Parse and unwrap (Lulu may send nested payload)
-    const raw = await request.json();
+    const raw = verifiedPayload;
     const payload = asRecord(unwrapPayload(raw));
     if (!payload) {
       await auditLog({ printJobId: null, statusName: null, orderFound: false, orderId: null, updated: false, errorMessage: 'Invalid webhook payload' });
@@ -203,7 +213,6 @@ export async function POST(request: NextRequest) {
         { status: 200, headers: corsHeaders }
       );
     }
-    console.log('[LULU WEBHOOK] Received payload:', JSON.stringify(payload, null, 2));
 
     // Extract print job ID (Lulu may use different field names)
     const printJobIdVal = payload.print_job_id ?? payload.id ?? payload.printJobId ?? null;

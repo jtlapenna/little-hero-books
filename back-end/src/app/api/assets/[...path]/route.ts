@@ -1,3 +1,4 @@
+import { requirePrivateFileAuth } from '@/lib/private-file-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject } from '@/lib/r2-client';
 import { getBucketFromKey, isOrderAssetKey } from '@/lib/r2-utils';
@@ -55,7 +56,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -79,6 +80,10 @@ export async function GET(
 
     // Reconstruct the key from path segments
     const key = path.join('/');
+    if (isOrderAssetKey(key)) {
+      const auth = await requirePrivateFileAuth(request, key, 'asset');
+      if (!auth.ok) return auth.response;
+    }
     
     // Check for cache-busting query parameter (e.g., ?v=1234567890)
     // This helps ensure fresh images after flips/replacements
@@ -116,7 +121,7 @@ export async function GET(
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           },
         }
       );
@@ -140,7 +145,7 @@ export async function GET(
         'Expires': '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
     
@@ -155,7 +160,7 @@ export async function GET(
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
       }
     );
@@ -167,7 +172,7 @@ export async function GET(
  * Handle HEAD requests (for checking if file exists)
  */
 export async function HEAD(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
@@ -184,6 +189,10 @@ export async function HEAD(
 
     // Reconstruct the key from path segments
     const key = path.join('/');
+    if (isOrderAssetKey(key)) {
+      const auth = await requirePrivateFileAuth(request, key, 'asset');
+      if (!auth.ok) return auth.response;
+    }
     
     console.log(`[HEAD /api/assets] Checking image: ${key}`);
     
@@ -212,7 +221,7 @@ export async function HEAD(
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           }
         }
       );
@@ -230,7 +239,7 @@ export async function HEAD(
         'Content-Length': r2Response.headers.get('content-length') || '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         // Purpose: HEAD should also never be cached (used for freshness checks).
         'Cache-Control': 'no-store, max-age=0',
         'CDN-Cache-Control': 'no-store, max-age=0',
@@ -248,7 +257,7 @@ export async function HEAD(
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
       }
     );

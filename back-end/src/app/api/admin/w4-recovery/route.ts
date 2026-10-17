@@ -43,7 +43,7 @@ function buildSummary(
 }
 
 export async function GET(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }

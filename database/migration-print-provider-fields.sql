@@ -594,8 +594,20 @@ BEGIN
        item->>'productUid' IS DISTINCT FROM o.print_product_uid OR (item->>'pageCount')::integer IS DISTINCT FROM o.print_api_page_count OR
        (item->>'quantity')::integer IS DISTINCT FROM coalesce((to_jsonb(o)->>'quantity')::integer,(to_jsonb(o)#>>'{product_info,quantity}')::integer,1) OR
        jsonb_array_length(item->'files')<>1 OR item#>>'{files,0,type}' IS DISTINCT FROM 'default' OR
-       coalesce(item#>>'{files,0,url}','') !~ '^https://[^/?#]+/api/pdf/' OR
-       right(item#>>'{files,0,url}',length('/api/pdf/'||i.artifact_key)) IS DISTINCT FROM '/api/pdf/'||i.artifact_key THEN RAISE EXCEPTION 'Gelato quote snapshot differs from registered print input'; END IF;
+       split_part(coalesce(item#>>'{files,0,url}',''), '?', 1) IS DISTINCT FROM 'https://admin.littleherolabs.com/api/pdf/'||i.artifact_key OR
+       (
+         -- Historical unsigned snapshots remain readable; source requires re-quote before a new send.
+         (item#>>'{files,0,url}' = 'https://admin.littleherolabs.com/api/pdf/'||i.artifact_key AND p_snapshot->'printerFiles' IS NULL)
+         OR (length(item#>>'{files,0,url}') <= length('https://admin.littleherolabs.com/api/pdf/'||i.artifact_key)+4110 AND
+           item#>>'{files,0,url}' = 'https://admin.littleherolabs.com/api/pdf/'||i.artifact_key||'?'||split_part(item#>>'{files,0,url}', '?', 2) AND
+           split_part(item#>>'{files,0,url}', '?', 2) ~ '^printerGrant=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$' AND
+           p_snapshot#>>'{printerFiles,version}' = '1' AND
+           coalesce(p_snapshot#>>'{printerFiles,issuedAt}','') ~ '^[0-9]{1,12}$' AND coalesce(p_snapshot#>>'{printerFiles,expiresAt}','') ~ '^[0-9]{1,12}$' AND
+           (p_snapshot#>>'{printerFiles,issuedAt}')::bigint <= extract(epoch FROM clock_timestamp()) AND
+           (p_snapshot#>>'{printerFiles,expiresAt}')::bigint > (p_snapshot#>>'{printerFiles,issuedAt}')::bigint AND
+           (p_snapshot#>>'{printerFiles,expiresAt}')::bigint - (p_snapshot#>>'{printerFiles,issuedAt}')::bigint <= 86400 AND
+           (p_snapshot#>>'{printerFiles,expiresAt}')::bigint >= extract(epoch FROM clock_timestamp())+3600)
+       ) IS NOT TRUE THEN RAISE EXCEPTION 'Gelato quote snapshot differs from registered print input'; END IF;
   END LOOP;
   UPDATE public.print_provider_submissions SET quote_snapshot=p_snapshot WHERE id=s.id;
 END $$;

@@ -81,6 +81,7 @@ export interface TokenValidationResult {
   error?: string;
   expired?: boolean;
   used?: boolean;
+  expiresAt?: string;
 }
 
 /**
@@ -100,52 +101,28 @@ export async function generatePreviewToken(orderId: string): Promise<string> {
  * @param token - The token to validate
  * @returns Validation result with orderId if valid
  */
-export async function validatePreviewToken(token: string): Promise<TokenValidationResult> {
-  // Query token from database
-  const { data, error } = await supabase
-    .from('preview_tokens')
-    .select('order_id, expires_at, used_at')
-    .eq('token', token)
-    .single();
-  
-  if (error || !data) {
-    return { 
-      valid: false, 
-      error: 'Invalid token' 
-    };
+async function validateToken(token: unknown, allowUsed: boolean): Promise<TokenValidationResult> {
+  if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{8,512}$/.test(token)) return { valid: false, error: 'Invalid token' };
+  const { data, error } = await supabase.from('preview_tokens')
+    .select('order_id, expires_at, used_at').eq('token', token).single();
+  if (error || !data || typeof data.order_id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(data.order_id)) {
+    return { valid: false, error: 'Invalid token' };
   }
-  
-  // Always include orderId in response, even if token is invalid
-  // This allows the API to fetch order data for used/expired tokens
-  const orderId = data.order_id;
-  
-  // Check if token has been used
-  if (data.used_at) {
-    return { 
-      valid: false, 
-      error: 'Token already used',
-      used: true,
-      orderId: orderId // Include orderId so we can still fetch order data
-    };
-  }
-  
-  // Check if token has expired
-  const expiresAt = new Date(data.expires_at);
-  const now = new Date();
-  
-  if (expiresAt < now) {
-    return { 
-      valid: false, 
-      error: 'Token expired',
-      expired: true,
-      orderId: orderId // Include orderId so we can still fetch order data
-    };
-  }
-  
-  return { 
-    valid: true, 
-    orderId: orderId 
-  };
+  const expires = Date.parse(data.expires_at);
+  if (!Number.isFinite(expires) || expires <= Date.now()) return { valid: false, expired: true, error: 'Token expired' };
+  const used = Boolean(data.used_at);
+  if (used && !allowUsed) return { valid: false, used: true, error: 'Token already used' };
+  return { valid: true, orderId: data.order_id, used, expiresAt: new Date(expires).toISOString() };
+}
+
+/** Read authority may survive consumption, but never expiration. */
+export async function validatePreviewReadToken(token: unknown): Promise<TokenValidationResult> {
+  return validateToken(token, true);
+}
+
+/** Mutation authority is single-use and expires independently of the UI. */
+export async function validatePreviewToken(token: unknown): Promise<TokenValidationResult> {
+  return validateToken(token, false);
 }
 
 /**
@@ -155,17 +132,10 @@ export async function validatePreviewToken(token: string): Promise<TokenValidati
  * @returns Success status
  */
 export async function markTokenAsUsed(token: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('preview_tokens')
-    .update({ used_at: new Date().toISOString() })
-    .eq('token', token);
-  
-  if (error) {
-    console.error(`[Preview Tokens] Error marking token as used:`, error);
-    return false;
-  }
-  
-  return true;
+  const { data, error } = await supabase.from('preview_tokens')
+    .update({ used_at: new Date().toISOString() }).eq('token', token)
+    .is('used_at', null).gt('expires_at', new Date().toISOString()).select('token').maybeSingle();
+  return !error && Boolean(data);
 }
 
 /**

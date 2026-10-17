@@ -1,3 +1,4 @@
+import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
 import { createHash } from 'node:crypto';
 import type { GelatoMember } from './gelato-submission-store';
 
@@ -63,7 +64,7 @@ export function createGelatoStoredFileVerifier(dependencies: {
     const match = key?.match(/^([A-Za-z0-9_-]+)\/orders\/([A-Za-z0-9_-]+)\/gelato\/print\/v([1-9]\d*)\/([a-f0-9]{24})\.pdf$/);
     if (!match || match[2] !== member.child_order_key || match[4] !== member.artifact_fingerprint ||
         !member.artifact_claim_token || !Number.isSafeInteger(member.pdf_page_count) || !member.pdf_page_count || member.pdf_page_count < 1 ||
-        new URL(expectedUrl).protocol !== 'https:' || new URL(expectedUrl).pathname !== `/api/pdf/${key!.split('/').map(encodeURIComponent).join('/')}`) {
+        !parsePrinterFileUrl(expectedUrl, key!) || (new URL(expectedUrl).search !== '' && !await verifyPrinterFileUrl(expectedUrl, key!, { historical: true, scope: { key: key!, submissionId: member.submission_id, itemReferenceId: member.item_reference_id, orderDbId: member.child_order_id, configVersion: Number(match[3]), inputFingerprint: member.artifact_fingerprint! } }))) {
       throw new Error('Gelato stored file has no matching artifact receipt');
     }
     if (!operationSignal) {

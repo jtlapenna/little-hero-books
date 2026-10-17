@@ -1,0 +1,57 @@
+name: Application Production Build
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      SUPABASE_URL: https://build-db.example.test
+      NEXT_PUBLIC_SUPABASE_URL: https://build-db.example.test
+      SUPABASE_SERVICE_ROLE_KEY: synthetic-build-server-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: synthetic-build-public-key
+      BACKEND_API_TOKEN: synthetic-build-machine-authority
+      STRIPE_SECRET_KEY: sk_test_synthetic_build_key
+      STRIPE_WEBHOOK_SECRET: synthetic-build-stripe-hook
+      CLOUDFLARE_ACCOUNT_ID: synthetic-build
+      R2_ACCESS_KEY_ID: synthetic-build-access
+      R2_SECRET_ACCESS_KEY: synthetic-build-secret
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: back-end/package-lock.json
+      - run: npm ci
+        working-directory: back-end
+      - name: Build actual Next, OpenNext and Pages package (no font fixture)
+        run: npm run pages:build
+        working-directory: back-end
+      - run: node scripts/security/test-hosted-release-checks.mjs
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUBLIC_SITE_URL: https://www.littleherolabs.com
+      PUBLIC_API_URL: https://admin.littleherolabs.com
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

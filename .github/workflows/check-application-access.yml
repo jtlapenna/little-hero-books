@@ -1,0 +1,65 @@
+name: Application Access Regression Checks
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'back-end/**'
+      - 'frontend/**'
+      - 'docs/n8n-workflow-files/**'
+      - 'database/20261016203550_lhl_printer_file_authority.sql'
+      - '.github/workflows/check-application-access.yml'
+  push:
+    paths:
+      - 'back-end/**'
+      - 'frontend/**'
+      - 'docs/n8n-workflow-files/**'
+      - 'database/20261016203550_lhl_printer_file_authority.sql'
+      - '.github/workflows/check-application-access.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: back-end
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: back-end/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify human and machine identities in Node and Worker
+        run: |
+          npm run test:admin-auth
+          npm run test:admin-auth:worker
+          npm run test:admin-login
+          npm run test:admin-session-client
+      - name: Verify customer authority and private file grants
+        run: |
+          npm run test:customer-preview-access
+          npm run test:preview-file-grants-worker
+          npm run test:printer-file-grants
+          npm run test:printer-file-grants-worker
+          npm run test:gelato-submission
+          npm run test:gelato-engineering-conversion
+      - name: Verify middleware and template packaging boundaries
+        run: |
+          npm run test:access-boundary
+          npm run test:pages-access-boundary
+      - name: Verify direct preview and print consumers
+        run: |
+          npm run test:preview-book-contract
+          npm run test:approval-gelato-status-consumer
+          npm run test:gelato-consumer-api
+      - name: Verify automation callers and actual Pages binding metadata
+        run: |
+          npm run test:workflow-backend-auth
+          npm run test:access-runtime-bindings
+          npm run test:gelato-runtime-bindings

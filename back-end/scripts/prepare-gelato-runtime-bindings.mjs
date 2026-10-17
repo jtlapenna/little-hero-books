@@ -1,3 +1,4 @@
+import { ACCESS_RUNTIME_CONFIG, assertAccessBindingSourceFormat, applyAccessRuntimeBindings, discoveredRuntimeConfig, writePreparedRuntimeConfig, verifyPreparedRuntimeBindings } from './prepare-access-runtime-bindings.mjs';
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -44,7 +45,9 @@ export async function prepareGelatoRuntimeBindingFile({ env, sourceSha, configPa
   requireValue(/^[a-f0-9]{32}$/i.test(env.CLOUDFLARE_ACCOUNT_ID ?? '') &&
     typeof env.CLOUDFLARE_API_TOKEN === 'string' && env.CLOUDFLARE_API_TOKEN.trim().length > 0,
   'Cloudflare deployment credentials are unavailable');
+  discoveredRuntimeConfig(configPath);
   const configText = await fs.readFile(configPath, 'utf8');
+  assertAccessBindingSourceFormat(configText);
   applyGelatoRuntimeBindings(configText, Object.fromEntries(GELATO_RUNTIME_FLAGS.map(flag => [flag, 'false'])));
   let body;
   try {
@@ -69,15 +72,26 @@ export async function prepareGelatoRuntimeBindingFile({ env, sourceSha, configPa
     'Invalid Gelato production flag setting');
     values[flag] = setting.value;
   }
-  const prepared = applyGelatoRuntimeBindings(configText, values);
-  await fs.writeFile(configPath, prepared);
+  const access = {};
+  for (const name of ACCESS_RUNTIME_CONFIG) {
+    const setting = settings[name];
+    requireValue(record(setting) && setting.type === 'plain_text' && typeof setting.value === 'string', 'Access runtime setting unavailable');
+    access[name] = setting.value;
+  }
+  let prepared;
+  try { prepared = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(configText, values), access); }
+  catch { throw new BindingPreparationError('Invalid Access runtime settings'); }
+  try { writePreparedRuntimeConfig(configPath, prepared, { ...values, ...access, ADMIN_ALLOWED_EMAILS: access.ADMIN_ALLOWED_EMAILS.split(',').map(value => value.trim().toLowerCase()).sort().join(',') }, sourceSha, configText); }
+  catch { throw new BindingPreparationError('Runtime binding configuration verification failed'); }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    await prepareGelatoRuntimeBindingFile({ env: process.env, sourceSha, configPath: new URL('../wrangler.toml', import.meta.url) });
-    console.log('Prepared Gelato runtime bindings');
+    const configPath = new URL('../wrangler.toml', import.meta.url).pathname;
+    if (process.argv[2] === '--verify') verifyPreparedRuntimeBindings(configPath, sourceSha);
+    else await prepareGelatoRuntimeBindingFile({ env: process.env, sourceSha, configPath });
+    console.log('Verified LHL runtime bindings');
   } catch (error) {
     console.error(error instanceof BindingPreparationError ? error.message : 'Gelato runtime binding preparation failed');
     process.exitCode = 1;

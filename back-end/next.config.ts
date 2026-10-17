@@ -32,13 +32,6 @@ if (existsSync(rootEnvPath)) {
 
       process.env[key] = value;
     }
-
-    console.log("[env debug]", {
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-      accessKey: process.env.CLOUDFLARE_R2_ACCESS_KEY,
-      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
-      keys: Object.keys(process.env).filter((k) => k.includes("R2")),
-    });
   } catch (error) {
     console.warn(
       "[next.config.ts] Failed to load root .env file. Environment variables may be missing.",

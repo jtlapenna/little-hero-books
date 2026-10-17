@@ -19,6 +19,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [archiveError, setArchiveError] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<OrderPhase | null>(null);
   const [viewMode, setViewMode] = useState<'buckets' | 'table'>('table');
   const [showRecentlyDelivered, setShowRecentlyDelivered] = useState(false);
@@ -89,9 +92,11 @@ export default function OrdersPage() {
       }
       const data: Order[] = await response.json();
       setOrders(mapOrderListItems(data));
+      setLoadError(false);
+      setHasLoaded(true);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      setOrders([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -114,9 +119,10 @@ export default function OrdersPage() {
 
       setArchivedOrders(archivedOnly);
       setArchivedLoaded(true);
+      setArchiveError(false);
     } catch (error) {
       console.error('Error fetching archived orders:', error);
-      setArchivedOrders([]);
+      setArchiveError(true);
     } finally {
       setArchivedLoading(false);
     }
@@ -217,9 +223,17 @@ export default function OrdersPage() {
     );
   }
 
+  if (loadError && !hasLoaded) return <main className="max-w-xl mx-auto p-8">
+    <h1 className="text-2xl font-bold">Orders could not be loaded</h1>
+    <p role="alert" className="my-4">Check your connection and try again.</p>
+    <button onClick={() => fetchActiveOrders()} className="underline text-blue-700 focus-visible:outline-2">Retry loading orders</button>
+  </main>;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loadError && <p role="alert" className="mb-4">Orders could not be refreshed. Showing the last loaded results. <button onClick={() => fetchActiveOrders(true)} className="underline text-blue-700 focus-visible:outline-2">Retry refresh</button></p>}
+        {archiveError && <p role="alert" className="mb-4">Archived orders could not be loaded. <button onClick={() => fetchArchivedOrders()} className="underline text-blue-700 focus-visible:outline-2">Retry archived orders</button></p>}
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">

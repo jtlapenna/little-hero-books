@@ -6,7 +6,7 @@ import { runRepoWorkflowWatchdog } from '@/lib/workflow-watchdog';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }

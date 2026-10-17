@@ -134,7 +134,7 @@ async function createSyntheticOrder(label: string, email: string): Promise<Synth
   };
 }
 
-async function expectStatusOk(pathname: string, label: string): Promise<void> {
+async function expectStatusOk(pathname: string, label: string, expectedStatus = 200): Promise<void> {
   const response = await requestWithRetry(`${ADMIN_BASE_URL}${pathname}`, {
     method: 'GET',
     headers: {
@@ -144,7 +144,7 @@ async function expectStatusOk(pathname: string, label: string): Promise<void> {
   });
 
   const raw = await response.text();
-  assert(response.ok, `[${label}] status lookup failed: ${response.status} ${raw}`);
+  assert(response.status === expectedStatus, `[${label}] status lookup expected ${expectedStatus}, got ${response.status} ${raw}`);
 }
 
 async function cleanupSyntheticOrders(orders: SyntheticOrder[]): Promise<void> {
@@ -202,8 +202,8 @@ async function main(): Promise<void> {
     );
     createdOrders.push(plusOrder);
 
-    await expectStatusOk(`/api/preview/${encodeURIComponent(plainOrder.displayOrderId)}/status`, 'display-id without email');
-    await expectStatusOk(`/api/preview/${encodeURIComponent(plainOrder.orderId)}/status`, 'uuid without email');
+    await expectStatusOk(`/api/preview/${encodeURIComponent(plainOrder.displayOrderId)}/status`, 'display-id without email', 401);
+    await expectStatusOk(`/api/preview/${encodeURIComponent(plainOrder.orderId)}/status`, 'uuid without email', 401);
     await expectStatusOk(
       `/api/preview/${encodeURIComponent(plainOrder.displayOrderId)}/status?email=${encodeURIComponent(plainOrder.email)}`,
       'display-id with plain email',

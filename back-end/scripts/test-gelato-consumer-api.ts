@@ -56,8 +56,8 @@ async function main() {
     for (const status of ['draft', 'in_production', 'shipped', 'delivered', 'canceled', 'returned']) {
       const type = status === 'draft' ? 'draft' : 'order';
       const packages = status === 'shipped' || status === 'delivered' ? [1, 2].map((id) => ({ providerOrderId: 'synthetic-provider', packageId: `package-${id}`, providerItemIds: ['synthetic-item'], trackingNumber: `tracking-${id}`, trackingUrl: `https://tracking.example.test/${id}`, carrier: 'USPS', quantity: 1 })) : [];
-      rows = [{ ...fresh()[0], gelato_status: status, gelato_order_type: type, gelato_tracking: packages, customer_approval_status: 'approved', character_specs: { childName: 'Test Child' } }];
-      const response = await customerStatus(new NextRequest(`http://localhost:3117/api/preview/${root}-item-1/status`), { params: Promise.resolve({ orderId: `${root}-item-1` }) });
+      rows = [{ ...fresh()[0], gelato_status: status, gelato_order_type: type, gelato_tracking: packages, customer_approval_status: 'approved', customer_email: 'parent@example.test', character_specs: { childName: 'Test Child' } }];
+      const response = await customerStatus(new NextRequest(`http://localhost:3117/api/preview/${root}-item-1/status?email=parent@example.test`), { params: Promise.resolve({ orderId: `${root}-item-1` }) });
       assert.equal(response.status, 200, status);
       const body = await response.json();
       const expected = gelatoCustomerStatusMessage(status, type);

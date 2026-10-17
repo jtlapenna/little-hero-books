@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
-import { validatePreviewToken } from '@/lib/preview-tokens';
-import { updateOrderStatus } from '@/lib/status-service';
+import { supabase } from '@/lib/supabase-client';
+import { authorizePreviewOrder, updateExactPreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
+import { correctionHistoryForTransition } from '@/lib/customer-corrections';
+import { markTokenAsUsed } from '@/lib/preview-tokens';
+import { calculateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-} as const;
+const corsHeaders = privatePreviewHeaders;
 
 const allowedReasons = [
   'name_typo',
@@ -249,26 +247,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate token and make sure it matches the order
-    const tokenValidation = await validatePreviewToken(payload.token);
-    if (!tokenValidation.valid || !tokenValidation.orderId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: tokenValidation.error || 'Invalid or expired token'
-        },
-        { status: 401, headers: corsHeaders }
-      );
-    }
-
-    if (tokenValidation.orderId !== payload.orderId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Token does not match order'
-        },
-        { status: 403, headers: corsHeaders }
-      );
+    const access = await authorizePreviewOrder(payload.token, payload.orderId, true);
+    if (!access.ok) return access.response;
+    const canonicalOrderId = access.orderId;
+    if (['approved', 'revision_requested'].includes(String(access.row.customer_approval_status ?? ''))) {
+      return NextResponse.json({ success: false, error: 'Preview action unavailable' }, { status: 409, headers: corsHeaders });
     }
 
     // Enforce single correction per order
@@ -278,7 +261,7 @@ export async function POST(request: NextRequest) {
     } = await supabase
       .from('customer_feedback')
       .select('id', { count: 'exact', head: true })
-      .eq('order_id', payload.orderId);
+      .eq('order_id', canonicalOrderId);
 
     if (
       feedbackCountError &&
@@ -296,7 +279,7 @@ export async function POST(request: NextRequest) {
 
     const priorCorrections = feedbackCount ?? 0;
 
-    if (strictMode && priorCorrections >= 1) {
+    if (strictMode && (priorCorrections >= 1 || Number(access.row.revision_count ?? 0) >= 1)) {
       return NextResponse.json(
         {
           success: false,
@@ -312,9 +295,7 @@ export async function POST(request: NextRequest) {
         : null;
 
     const targetStage = reasonStageMap[payload.reason] ?? 'postPdf';
-    const orderRecord = await getOrderFromSupabase(payload.orderId).catch(
-      () => null
-    );
+    const orderRecord = access.row;
 
     const nextReviewStages = resetStagesForRevision(
       orderRecord?.review_stages,
@@ -322,19 +303,29 @@ export async function POST(request: NextRequest) {
     );
 
     const newRevisionCount = Math.max(
-      (orderRecord?.revision_count ?? 0) + 1,
+      Number(orderRecord.revision_count ?? 0) + 1,
       priorCorrections + 1
     );
 
+    const rejectionHistory = correctionHistoryForTransition(orderRecord, canonicalOrderId, {
+      reason: payload.reason, message: payload.message || null, payload: structuredFields,
+      email: normalizedEmail, name: payload.name || null, revisionCount: newRevisionCount,
+    });
+
+    if (!await markTokenAsUsed(payload.token)) return NextResponse.json({ success: false, error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
+
     try {
-      await updateOrderStatus(payload.orderId, {
+      if (!await transitionPreviewOrder(access.row, {
         review_stages: nextReviewStages,
+        rejection_history: rejectionHistory,
         workflow_step: 'customer_revision',
         customer_approval_status: 'revision_requested',
+        human_approved: false, next_workflow: null,
         customer_approval_required: true,
         customer_approval_approved_at: null,
         revision_count: newRevisionCount
-      });
+      })) return NextResponse.json({ success: false, error: 'Preview action already completed' }, { status: 409, headers: corsHeaders });
+
     } catch (updateError) {
       console.error(
         '[API] Error updating order review state after correction request',
@@ -349,13 +340,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Derived status is secondary to the accepted order+correction CAS.
+    try {
+      const calculatedStatus = await calculateOrderStatus(canonicalOrderId);
+      await updateExactPreviewOrder(access.row, { status: calculatedStatus });
+    } catch {
+      console.warn('[API] Correction accepted; derived status needs recovery');
+    }
+
     if (strictMode) {
       const nowIso = new Date().toISOString();
       try {
         await supabase
           .from('preview_tokens')
           .update({ used_at: nowIso })
-          .eq('order_id', payload.orderId)
+          .eq('order_id', canonicalOrderId)
           .is('used_at', null);
       } catch (tokenError) {
         console.error(
@@ -378,7 +377,7 @@ export async function POST(request: NextRequest) {
     };
 
     const feedbackInsert = {
-      order_id: payload.orderId,
+      order_id: canonicalOrderId,
       page_number: 0,
       issue_type: reasonIssueTypeMap[payload.reason] || 'other',
       description: buildFeedbackDescription(descriptionPayload),
@@ -386,27 +385,12 @@ export async function POST(request: NextRequest) {
       revision_count: newRevisionCount
     };
 
-    const { error: feedbackInsertError } = await supabase
-      .from('customer_feedback')
-      .insert(feedbackInsert);
-
-    if (feedbackInsertError) {
-      if (isTableMissingError(feedbackInsertError, 'customer_feedback')) {
-        console.warn(
-          '[API] customer_feedback table not found when saving correction; skipping persistence for this environment.'
-        );
-      } else {
-        console.error('[API] Error saving customer feedback', feedbackInsertError);
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Failed to save contact details'
-          },
-          { status: 500, headers: corsHeaders }
-        );
-      }
+    try {
+      const { error } = await supabase.from('customer_feedback').insert(feedbackInsert);
+      if (error) console.warn('[API] Correction accepted; auxiliary feedback persistence needs recovery');
+    } catch {
+      console.warn('[API] Correction accepted; auxiliary feedback transport needs recovery');
     }
-
     return NextResponse.json(
       {
         success: true,

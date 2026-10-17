@@ -29,7 +29,7 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const adminAuth = requireAdminAuth(request);
+  const adminAuth = await requireAdminAuth(request);
   if (!adminAuth.ok) {
     return adminAuth.response;
   }

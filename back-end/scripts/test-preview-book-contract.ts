@@ -7,6 +7,7 @@ async function main() {
     SUPABASE_URL: 'https://db.example.test',
     SUPABASE_SERVICE_ROLE_KEY: 'synthetic-preview-proof',
     CLOUDFLARE_ACCOUNT_ID: 'synthetic-preview',
+    BACKEND_API_TOKEN: 'synthetic-preview-file-authority-with-enough-entropy',
     R2_ACCESS_KEY_ID: 'synthetic-access',
     R2_SECRET_ACCESS_KEY: 'synthetic-secret',
   });
@@ -29,7 +30,7 @@ async function main() {
       const body = request.headers.get('Accept')?.includes('vnd.pgrst.object') ? row : [row];
       return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
     }
-    assert.equal(url.hostname, 'synthetic-preview.r2.cloudflarestorage.com', 'unexpected external transport');
+    assert.ok(url.hostname.endsWith('.synthetic-preview.r2.cloudflarestorage.com'), 'unexpected external transport');
     assert.ok(url.pathname.includes(`/${bookId}/orders/${orderId}/manifests/`));
     return new Response(JSON.stringify({ order: { orderId, assetPrefix: `${bookId}/orders/${orderId}/`, characterSpecs: { childName: 'Test Child', age: 6 } } }));
   };
@@ -41,8 +42,11 @@ async function main() {
       for (tokenState of ['valid', 'used', 'expired']) {
         for (approval of ['pending', 'approved']) {
           const response = await POST(new NextRequest('http://localhost:3117/api/preview/validate-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'synthetic-preview-token' }) }));
-          assert.equal(response.status, 200);
+          assert.equal(response.status, tokenState === 'expired' ? 401 : 200);
           const body = await response.json();
+          if (tokenState === 'expired') { assert.equal(body.order, undefined); assert.equal(body.canApprove, false); continue; }
+          assert.equal(body.readValid, true);
+          assert.equal(body.canApprove, tokenState === 'valid' && approval !== 'approved');
           assert.equal(body.order.manifest3Key, `${bookId}/orders/${orderId}/manifests/3-manifest.json`);
           assert.equal(body.order.customerApprovalStatus, approval);
           assert.equal(body.valid, tokenState === 'valid');

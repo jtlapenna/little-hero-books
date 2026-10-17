@@ -26,7 +26,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const auth = requireAdminAuth(request);
+  const auth = await requireAdminAuth(request);
   if (!auth.ok) return auth.response;
 
   const { orderId } = await params;

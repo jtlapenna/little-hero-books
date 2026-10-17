@@ -8,14 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validatePreviewToken, markTokenAsUsed } from '@/lib/preview-tokens';
-import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
+import { markTokenAsUsed } from '@/lib/preview-tokens';
+import { authorizePreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+const corsHeaders = privatePreviewHeaders;
 
 // Handle CORS preflight requests
 export async function OPTIONS() {
@@ -27,10 +23,10 @@ export async function OPTIONS() {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId: requestedOrderId } = await params;
     const body = await request.json();
     const { token } = body;
 
@@ -44,48 +40,22 @@ export async function POST(
       );
     }
 
-    // Validate token
-    const validation = await validatePreviewToken(token);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error || 'Invalid or expired token' },
-        { 
-          status: 401,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    // Verify order exists and matches token
-    const order = await getOrderFromSupabase(orderId);
-    if (!order) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { 
-          status: 404,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    if (validation.orderId !== orderId && validation.orderId !== order.amazon_order_id) {
-      return NextResponse.json(
-        { error: 'Token does not match order' },
-        { 
-          status: 403,
-          headers: corsHeaders,
-        }
-      );
+    const access = await authorizePreviewOrder(token, requestedOrderId, true);
+    if (!access.ok) return access.response;
+    const orderId = access.orderId;
+    const order = access.row;
+    if (['approved', 'revision_requested'].includes(String(order.customer_approval_status ?? ''))) {
+      return NextResponse.json({ error: 'Preview action unavailable' }, { status: 409, headers: corsHeaders });
     }
 
     // Mark token as used
-    await markTokenAsUsed(token);
+    if (!await markTokenAsUsed(token)) return NextResponse.json({ error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
 
     // Update order status
     // IMPORTANT: Update execution_status to prevent "stuck processing" detection
     // After customer approval, order is ready for print workflow (4) or completed
     const nowIso = new Date().toISOString();
-    await updateOrderInSupabase(orderId, {
+    if (!await transitionPreviewOrder(access.row, {
       customer_approval_status: 'approved',
       customer_approval_approved_at: nowIso,
       execution_status: 'ready_for_processing', // Clear 'processing' state to prevent stuck detection
@@ -96,7 +66,7 @@ export async function POST(
       human_approved: true,
       human_reviewed_at: nowIso,
       human_reviewer: 'customer',
-    });
+    })) return NextResponse.json({ error: 'Preview action already completed' }, { status: 409, headers: corsHeaders });
 
     return NextResponse.json({
       success: true,

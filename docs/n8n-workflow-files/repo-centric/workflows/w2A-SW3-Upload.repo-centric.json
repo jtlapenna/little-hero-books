@@ -249,7 +249,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ (() => { const orderId = String($json.orderId || $json.orderData?.orderId || $json.orderContext?.orderId || $json.__meta?.orderId || '').trim(); const rootOrderId = String($json.rootOrderId || $json.amazonOrderId || $json.orderData?.amazonOrderId || $json.orderContext?.rootOrderId || $json.orderContext?.amazonOrderId || $json.__meta?.rootOrderId || $json.__meta?.amazonOrderId || '').trim(); const manifestKey = String($json.manifestKey || $json.__meta?.manifestKey || $json.oneManifestKey || $json.oneManifestUrl || $json.one_manifest_url || '').trim(); const manifestMatch = manifestKey.match(/\\/orders\\/([^/]+)/i); const manifestOrderId = manifestMatch ? manifestMatch[1] : ''; const explicitSiblingOrderId = String($json.lineItemOrderId || $json.childOrderId || $json.orderData?.lineItemOrderId || $json.orderData?.childOrderId || $json.orderContext?.lineItemOrderId || $json.orderContext?.childOrderId || $json.__meta?.lineItemOrderId || $json.__meta?.childOrderId || '').trim(); const claimGroupSize = Number($json.claimGroupSize || $json.orderData?.claimGroupSize || $json.orderContext?.claimGroupSize || $json.__meta?.claimGroupSize || 0) || 0; const siblingHints = [explicitSiblingOrderId, manifestOrderId, orderId].filter(Boolean); const isSiblingMode = siblingHints.some((value) => String(value).includes('-item-')) || !!explicitSiblingOrderId || claimGroupSize > 1; let publishOrderId = orderId || rootOrderId; if (publishOrderId === rootOrderId && manifestOrderId && manifestOrderId !== rootOrderId) { publishOrderId = manifestOrderId; } if (!publishOrderId) { throw new Error('Missing orderId/rootOrderId for replace-image publish'); } if (!rootOrderId) { throw new Error('Missing rootOrderId/amazonOrderId for replace-image publish'); } if (publishOrderId === rootOrderId && isSiblingMode) { throw new Error('Canonical publish would target the root order ID instead of the per-item orderId'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(publishOrderId) + '/replace-image'; })() }}",
+        "url": "={{ (() => { /* LHL pinned backend */ const value = String((() => { const orderId = String($json.orderId || $json.orderData?.orderId || $json.orderContext?.orderId || $json.__meta?.orderId || '').trim(); const rootOrderId = String($json.rootOrderId || $json.amazonOrderId || $json.orderData?.amazonOrderId || $json.orderContext?.rootOrderId || $json.orderContext?.amazonOrderId || $json.__meta?.rootOrderId || $json.__meta?.amazonOrderId || '').trim(); const manifestKey = String($json.manifestKey || $json.__meta?.manifestKey || $json.oneManifestKey || $json.oneManifestUrl || $json.one_manifest_url || '').trim(); const manifestMatch = manifestKey.match(/\\/orders\\/([^/]+)/i); const manifestOrderId = manifestMatch ? manifestMatch[1] : ''; const explicitSiblingOrderId = String($json.lineItemOrderId || $json.childOrderId || $json.orderData?.lineItemOrderId || $json.orderData?.childOrderId || $json.orderContext?.lineItemOrderId || $json.orderContext?.childOrderId || $json.__meta?.lineItemOrderId || $json.__meta?.childOrderId || '').trim(); const claimGroupSize = Number($json.claimGroupSize || $json.orderData?.claimGroupSize || $json.orderContext?.claimGroupSize || $json.__meta?.claimGroupSize || 0) || 0; const siblingHints = [explicitSiblingOrderId, manifestOrderId, orderId].filter(Boolean); const isSiblingMode = siblingHints.some((value) => String(value).includes('-item-')) || !!explicitSiblingOrderId || claimGroupSize > 1; let publishOrderId = orderId || rootOrderId; if (publishOrderId === rootOrderId && manifestOrderId && manifestOrderId !== rootOrderId) { publishOrderId = manifestOrderId; } if (!publishOrderId) { throw new Error('Missing orderId/rootOrderId for replace-image publish'); } if (!rootOrderId) { throw new Error('Missing rootOrderId/amazonOrderId for replace-image publish'); } if (publishOrderId === rootOrderId && isSiblingMode) { throw new Error('Canonical publish would target the root order ID instead of the per-item orderId'); } return 'https://admin.littleherolabs.com/api/orders/' + encodeURIComponent(publishOrderId) + '/replace-image'; })()); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -291,8 +291,15 @@
             "response": {
               "responseFormat": "json"
             }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
           }
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
@@ -301,7 +308,13 @@
         -6432
       ],
       "id": "63ec9e44-9c30-4e72-8b61-a411a9b447b3",
-      "name": "HTTP Request Finalize Canonical Publish"
+      "name": "HTTP Request Finalize Canonical Publish",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
+        }
+      }
     },
     {
       "parameters": {
