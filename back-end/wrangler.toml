@@ -13,6 +13,7 @@ GELATO_DRAFT_SUBMISSION_ENABLED = "false"
 GELATO_CANCEL_ENABLED = "false"
 GELATO_STATUS_RELAY_ENABLED = "false"
 GELATO_STATUS_POLLING_ENABLED = "false"
+GELATO_SCHEDULED_STATUS_ENABLED = "false"
 GELATO_NOTIFICATIONS_ENABLED = "false"
 
 # Runtime-only identity metadata. Actual values come from the reviewed Access app

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { GelatoDraftOrderRequest } from './gelato-api-contract';
+import { GelatoFinancialObservationSchema, bindGelatoFinancialGraph } from './gelato-financial-observation';
 
 const optionalText = z.string().nullish().transform((value) => value ?? undefined).optional();
 export const GelatoIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/);
@@ -11,6 +12,7 @@ export const GelatoProviderOrderSchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
   fulfillmentStatus: z.string().min(1).max(80),
   updatedAt: z.string().datetime({ offset: true }),
+  financialObservation: GelatoFinancialObservationSchema.optional(),
   connectedOrderIds: z.array(GelatoIdSchema).max(100).default([]),
   shippingAddress: z.object({ country: z.string(), firstName: z.string(), lastName: z.string(),
     addressLine1: z.string(), addressLine2: optionalText, city: z.string(), postCode: z.string(),
@@ -73,7 +75,7 @@ export function validateGelatoConnectedOrders(orders: GelatoProviderOrder[], req
     }
   }
   if (seen.size !== expected.size) throw new Error('Gelato connected graph membership is incomplete');
-  return orders;
+  return bindGelatoFinancialGraph(orders);
 }
 
 export async function validateGelatoConnectedOrdersWithFiles(

@@ -120,6 +120,11 @@ ALTER TABLE public.print_provider_submission_orders
   ADD COLUMN IF NOT EXISTS action_reason text,
   ADD COLUMN IF NOT EXISTS progress_status text,
   ADD COLUMN IF NOT EXISTS last_checked_at timestamptz;
+ALTER TABLE public.print_provider_submission_orders
+  ADD COLUMN IF NOT EXISTS observation_revision bigint NOT NULL DEFAULT 0 CHECK(observation_revision>=0),
+  ADD COLUMN IF NOT EXISTS financial_observation jsonb,
+  ADD COLUMN IF NOT EXISTS financial_observed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS financial_action_reason text;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.orders'::regclass AND conname = 'orders_print_submission_fk') THEN
@@ -665,8 +670,10 @@ BEGIN
        external->>'customerReferenceId' IS DISTINCT FROM s.root_order_id OR external->>'currency' IS DISTINCT FROM s.request_snapshot#>>'{request,currency}' THEN RAISE EXCEPTION 'Gelato result identity mismatch'; END IF;
     IF EXISTS(SELECT 1 FROM jsonb_array_elements_text(external->'connectedOrderIds') cid WHERE NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p_orders) e WHERE e->>'id'=cid)) THEN RAISE EXCEPTION 'Gelato connected graph is incomplete'; END IF;
     IF public.normalized_gelato_recipient(external->'shippingAddress') IS DISTINCT FROM public.normalized_gelato_recipient(s.request_snapshot#>'{request,shippingAddress}') THEN RAISE EXCEPTION 'Gelato result recipient mismatch'; END IF;
-    INSERT INTO public.print_provider_submission_orders(submission_id,provider,provider_order_id,status,last_event_at,order_type,snapshot,snapshot_digest)
-    VALUES(s.id,'gelato',external->>'id',external->>'fulfillmentStatus',(external->>'updatedAt')::timestamptz,external->>'orderType',external,md5(external::text))
+    INSERT INTO public.print_provider_submission_orders(submission_id,provider,provider_order_id,status,last_event_at,order_type,snapshot,snapshot_digest,financial_observation,financial_observed_at,financial_action_reason)
+    VALUES(s.id,'gelato',external->>'id',external->>'fulfillmentStatus',(external->>'updatedAt')::timestamptz,external->>'orderType',external-'financialObservation',md5((external-'financialObservation')::text),
+      CASE WHEN external#>>'{financialObservation,reviewReason}' IS NULL THEN nullif(external->'financialObservation','null'::jsonb) ELSE NULL END,
+      CASE WHEN jsonb_typeof(external->'financialObservation')='object' AND external#>>'{financialObservation,reviewReason}' IS NULL THEN clock_timestamp() ELSE NULL END,external#>>'{financialObservation,reviewReason}')
     ON CONFLICT(submission_id,provider_order_id) DO NOTHING;
     UPDATE public.print_provider_submission_orders SET last_checked_at=clock_timestamp(),progress_status=CASE WHEN external->>'fulfillmentStatus'<>'on_hold' THEN external->>'fulfillmentStatus' ELSE NULL END WHERE submission_id=s.id AND provider_order_id=external->>'id';
     FOR item IN SELECT value FROM jsonb_array_elements(external->'items') LOOP
@@ -765,7 +772,8 @@ BEGIN
  FOR result IN SELECT value FROM jsonb_array_elements(p_results) LOOP
    SELECT * INTO STRICT prior FROM public.print_provider_submission_orders WHERE submission_id=s.id AND provider_order_id=result->>'providerOrderId' FOR UPDATE;
    SELECT value INTO STRICT expected FROM jsonb_array_elements(p_expected) WHERE value->>'providerOrderId'=prior.provider_order_id;
-   IF prior.snapshot_digest IS DISTINCT FROM expected->>'digest' OR prior.last_event_at IS DISTINCT FROM (expected->>'eventAt')::timestamptz THEN RAISE EXCEPTION 'Gelato refresh snapshot changed concurrently'; END IF;
+   IF prior.snapshot_digest IS DISTINCT FROM expected->>'digest' OR prior.last_event_at IS DISTINCT FROM (expected->>'eventAt')::timestamptz OR
+      prior.observation_revision IS DISTINCT FROM coalesce((expected->>'observationRevision')::bigint,0) THEN RAISE EXCEPTION 'Gelato refresh snapshot changed concurrently'; END IF;
    provider_snapshot:=result->'snapshot';
    IF provider_snapshot->>'id' IS DISTINCT FROM prior.provider_order_id OR provider_snapshot->>'orderReferenceId' IS DISTINCT FROM s.order_reference_id OR
       provider_snapshot->>'customerReferenceId' IS DISTINCT FROM s.root_order_id OR provider_snapshot->>'currency' IS DISTINCT FROM s.request_snapshot#>>'{request,currency}' OR
@@ -777,6 +785,11 @@ BEGIN
    ELSE
      UPDATE public.print_provider_submission_orders SET action_reason=result->>'actionReason' WHERE id=prior.id;
    END IF;
+   UPDATE public.print_provider_submission_orders SET observation_revision=observation_revision+1,
+     financial_observation=CASE WHEN coalesce((result->>'accepted')::boolean,false) AND coalesce((result->>'financialAccepted')::boolean,false) AND jsonb_typeof(result->'financialObservation')='object' THEN result->'financialObservation' ELSE financial_observation END,
+     financial_observed_at=CASE WHEN coalesce((result->>'accepted')::boolean,false) AND coalesce((result->>'financialAccepted')::boolean,false) AND jsonb_typeof(result->'financialObservation')='object' THEN clock_timestamp() ELSE financial_observed_at END,
+     financial_action_reason=CASE WHEN coalesce((result->>'accepted')::boolean,false) AND jsonb_typeof(result->'financialObservation')='object' THEN result->>'financialActionReason' ELSE financial_action_reason END
+     WHERE id=prior.id;
    FOR item IN SELECT value FROM jsonb_array_elements(result->'items') LOOP
      UPDATE public.print_provider_submission_items SET status=item->>'status',progress_status=CASE WHEN item->>'status'<>'on_hold' THEN item->>'status' ELSE progress_status END,action_reason=item->>'actionReason',tracking=coalesce(nullif(item->'tracking','null'::jsonb),tracking),
        last_event_at=CASE WHEN item->>'actionReason' IS NULL OR item->>'actionReason'='awaiting_draft_review' THEN (provider_snapshot->>'updatedAt')::timestamptz ELSE last_event_at END
@@ -820,10 +833,13 @@ DECLARE s public.print_provider_submissions%ROWTYPE;
 BEGIN
  PERFORM public.lock_gelato_submission_root(p_submission_id);
  SELECT * INTO STRICT s FROM public.print_provider_submissions WHERE id=p_submission_id FOR UPDATE;
+ IF jsonb_typeof(p_expected) IS DISTINCT FROM 'array' OR jsonb_array_length(p_expected)<>(SELECT count(*) FROM public.print_provider_submission_orders WHERE submission_id=s.id) OR
+   (SELECT count(DISTINCT value->>'providerOrderId') FROM jsonb_array_elements(p_expected))<>jsonb_array_length(p_expected) THEN RAISE EXCEPTION 'Invalid Gelato refresh hold graph'; END IF;
  IF s.request_state<>'submitted' OR EXISTS(SELECT 1 FROM public.print_provider_submission_orders po
    LEFT JOIN jsonb_array_elements(p_expected) e ON e->>'providerOrderId'=po.provider_order_id
-   WHERE po.submission_id=s.id AND (po.snapshot_digest IS DISTINCT FROM e->>'digest' OR po.last_event_at IS DISTINCT FROM (e->>'eventAt')::timestamptz)) THEN RAISE EXCEPTION 'Stale Gelato refresh hold'; END IF;
- UPDATE public.print_provider_submission_orders SET action_reason=p_reason WHERE submission_id=s.id;
+   WHERE po.submission_id=s.id AND (po.snapshot_digest IS DISTINCT FROM e->>'digest' OR po.last_event_at IS DISTINCT FROM (e->>'eventAt')::timestamptz OR
+     po.observation_revision IS DISTINCT FROM coalesce((e->>'observationRevision')::bigint,0))) THEN RAISE EXCEPTION 'Stale Gelato refresh hold'; END IF;
+ UPDATE public.print_provider_submission_orders SET action_reason=p_reason,observation_revision=observation_revision+1 WHERE submission_id=s.id;
  UPDATE public.print_provider_submission_items SET action_reason=p_reason WHERE submission_id=s.id;
  UPDATE public.orders o SET gelato_action_reason=p_reason FROM public.print_provider_submission_items i WHERE i.submission_id=s.id AND o.id=i.child_order_id;
  UPDATE public.print_provider_submissions SET action_reason=p_reason,updated_at=clock_timestamp() WHERE id=s.id;

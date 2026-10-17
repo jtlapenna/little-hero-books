@@ -14,7 +14,14 @@ concurrency:
   group: lhl-production-release
   cancel-in-progress: false
 jobs:
+  # A reusable workflow runs from this exact caller commit. Production cannot
+  # deploy until BOTH scan/runtime and migrated database/notification jobs pass.
+  safety:
+    uses: ./.github/workflows/check-workflow-export-secrets.yml
+    permissions:
+      contents: read
   deploy:
+    needs: safety
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30

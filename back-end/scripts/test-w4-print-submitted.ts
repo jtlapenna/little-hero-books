@@ -35,13 +35,13 @@ async function testSandboxCompletionStaysNonProduction(): Promise<void> {
     },
     {
       getOrder: async () => ({
+        print_provider: 'lulu',
         orderId: 'W4-SANDBOX-PROOF-009',
         platform: 'd2c',
         customer_email: 'parent@example.com',
       }),
-      updateOrderStatus: async () => {
+      persistCompletion: async () => {
         calls.push({ fn: 'updateOrderStatus' });
-        return null;
       },
       getActivePreviewToken: async () => {
         calls.push({ fn: 'getActivePreviewToken' });
@@ -129,6 +129,7 @@ async function testProductionD2CCompletionStillNotifies(): Promise<void> {
       },
       {
         getOrder: async () => ({
+          print_provider: 'lulu',
           orderId: 'W4-PROD-PROOF-010',
           platform: 'd2c',
           customer_email: 'parent@example.com',
@@ -136,12 +137,13 @@ async function testProductionD2CCompletionStillNotifies(): Promise<void> {
             childName: 'Ada',
           },
         }),
-        updateOrderStatus: async (_orderId, updates) => {
+        persistCompletion: async (_orderId, updates) => {
           calls.push({ fn: 'updateOrderStatus', payload: updates as JsonRecord });
-          return null;
         },
-        getActivePreviewToken: async () => ({
+        getActivePreviewToken: async orderId => ({
           token: 'preview-token-010',
+          orderId,
+          expiresAt: '2999-01-01T00:00:00Z',
         }),
         getPreviewTokenForOrderLink: async () => null,
         sendAmazonPrintSubmittedMessage: async () => {
@@ -227,13 +229,13 @@ async function testSandboxSiblingCompletionMarksSharedWorkflowOnce(): Promise<vo
     },
     {
       getOrder: async (orderId) => ({
+        print_provider: 'lulu',
         orderId,
         platform: 'd2c',
         customer_email: 'parent@example.com',
       }),
-      updateOrderStatus: async () => {
+      persistCompletion: async () => {
         calls.push({ fn: 'updateOrderStatus' });
-        return null;
       },
       getActivePreviewToken: async () => {
         calls.push({ fn: 'getActivePreviewToken' });
@@ -311,13 +313,13 @@ async function testSiblingFallbackCompletesSharedGroupOnceWithoutWorkflowMetadat
     },
     {
       getOrder: async (orderId) => ({
+        print_provider: 'lulu',
         orderId,
         platform: 'd2c',
         customer_email: 'parent@example.com',
       }),
-      updateOrderStatus: async () => {
+      persistCompletion: async () => {
         calls.push({ fn: 'updateOrderStatus' });
-        return null;
       },
       getActivePreviewToken: async () => null,
       getPreviewTokenForOrderLink: async () => null,

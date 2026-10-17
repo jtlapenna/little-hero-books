@@ -127,7 +127,12 @@
     "test:workflow-backend-auth": "tsx scripts/test-workflow-backend-auth.ts",
     "test:access-runtime-bindings": "node scripts/test-access-runtime-bindings.mjs",
     "test:admin-login": "tsx scripts/test-admin-login.ts",
-    "test:admin-session-client": "tsx scripts/test-admin-session-client.ts"
+    "test:admin-session-client": "tsx scripts/test-admin-session-client.ts",
+    "test:gelato-webhook-status": "tsx scripts/test-gelato-webhook-status.ts",
+    "test:print-submitted-provider-boundary": "tsx scripts/test-print-submitted-provider-boundary.ts && tsx scripts/test-print-submitted-persistence.ts",
+    "test:gelato-scheduled-status": "tsx scripts/test-gelato-scheduled-status.ts",
+    "test:gelato-financial-observation": "tsx scripts/test-gelato-financial-observation.ts",
+    "test:gelato-admin-inspection": "tsx scripts/test-gelato-admin-inspection.tsx"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

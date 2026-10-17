@@ -4,7 +4,7 @@ import {gelatoLifecycleRuntime} from './gelato-lifecycle-runtime';
 import {getGelatoOrder} from './gelato-api-client';
 import type {EngineeringAutomationDependencies} from './gelato-engineering-automation';
 
-const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED'];
+const flags=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED','GELATO_SCHEDULED_STATUS_ENABLED'];
 export function gelatoEngineeringAutomationRuntime():EngineeringAutomationDependencies {
  return {
   conversion:gelatoEngineeringConversionRuntime(),

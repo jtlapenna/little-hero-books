@@ -9,6 +9,7 @@ import { loadGelatoConnectedOrders, validateGelatoConnectedOrdersWithFiles, type
 import type { GelatoStoredFileVerifier } from './gelato-stored-file';
 import type { GelatoSubmissionContext, GelatoSubmissionStore } from './gelato-submission-store';
 import type { W4GelatoPrintInput } from './w4-gelato-print-input';
+import { GelatoMonetaryQuoteSchema, observeGelatoMonetaryQuote } from './gelato-financial-observation';
 
 const ItemSchema = z.object({ itemReferenceId: z.string().min(1), productUid: z.string().min(1), pageCount: z.number().int().positive(),
   quantity: z.number().int().positive(), files: z.array(z.object({ type: z.literal('default'), url: z.string().url() })).length(1) });
@@ -19,7 +20,7 @@ export const GelatoSavedSnapshotSchema = z.object({
   request: z.object({ orderType: z.literal('draft'), orderReferenceId: z.string().min(1), customerReferenceId: z.string().min(1),
     currency: z.string().regex(/^[A-Z]{3}$/), items: z.array(ItemSchema).min(1).max(100), shipmentMethodUid: z.string().min(1), shippingAddress: RecipientSchema }),
   notificationTargets: z.array(GelatoNotificationTargetSchema).min(1).max(100).optional(),
-  config: GelatoPrintConfigSchema, shippingTier: z.string().min(1), printerFiles: PrinterFileWindowSchema.optional(),
+  config: GelatoPrintConfigSchema, shippingTier: z.string().min(1), printerFiles: PrinterFileWindowSchema.optional(), monetaryQuote: GelatoMonetaryQuoteSchema.optional(),
 });
 export type GelatoSavedSnapshot = z.infer<typeof GelatoSavedSnapshotSchema>;
 export type GelatoSubmissionIdentity = { submissionId: string; claimToken: string; executionId: string; mode: 'single' | 'siblings' };
@@ -105,11 +106,13 @@ export async function quoteGelatoSubmission(identity: GelatoSubmissionIdentity, 
   const input = await buildRequest(context, identity, dependencies, printerFiles);
   const quotedAt = (dependencies.now ?? (() => new Date()))();
   await assertPrinterSendAuthority(input.request.products, (dependencies.now ?? (() => new Date()))());
-  const selected = validateGelatoQuote({ response: await (dependencies.quote ?? requestGelatoQuote)(input.request), request: input.request,
+  const rawQuote = await (dependencies.quote ?? requestGelatoQuote)(input.request);
+  const selected = validateGelatoQuote({ response: rawQuote, request: input.request,
     config: input.config, shippingTier: input.shippingTier, quotedAt: quotedAt.toISOString(), now: (dependencies.now ?? (() => new Date()))() });
   const request = buildGelatoDraftOrderRequest({ ...input.request, items: input.request.products.map((item) => ({ ...item, fileUrl: item.files[0].url })),
     recipient: input.request.recipient, config: input.config, selectedQuote: selected, now: (dependencies.now ?? (() => new Date()))() });
-  const snapshot = GelatoSavedSnapshotSchema.parse({ request, config: input.config, shippingTier: input.shippingTier, printerFiles, notificationTargets: input.notificationTargets });
+  const monetaryQuote = observeGelatoMonetaryQuote(rawQuote, selected, input.request.currency);
+  const snapshot = GelatoSavedSnapshotSchema.parse({ request, config: input.config, shippingTier: input.shippingTier, printerFiles, notificationTargets: input.notificationTargets, monetaryQuote });
   await dependencies.store.transition('record_gelato_quote_snapshot', { ...parameters(identity), p_quote_id: selected.quoteId,
     p_shipment_method_uid: selected.shipmentMethodUid, p_policy_version: selected.shipmentPolicyVersion, p_quoted_at: selected.quotedAt,
     p_item_reference_ids: request.items.map((item) => item.itemReferenceId), p_request_fingerprint: selected.requestFingerprint, p_snapshot: snapshot });

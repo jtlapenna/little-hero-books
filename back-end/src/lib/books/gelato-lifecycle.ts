@@ -1,11 +1,12 @@
 import { buildGelatoNotificationIntents } from './gelato-notifications';
 import { createHash, randomUUID } from 'node:crypto';
-import { cancelGelatoOrder, getGelatoOrder, searchGelatoOrders } from './gelato-api-client';
+import { cancelGelatoOrder, getGelatoOrder, searchGelatoOrders, GelatoProviderReadError } from './gelato-api-client';
 import { GelatoSavedSnapshotSchema } from './gelato-submission';
 import { GelatoProviderOrderSchema, loadGelatoConnectedOrders, validateGelatoConnectedOrdersWithFiles, type GelatoProviderOrder } from './gelato-provider-snapshot';
 import type { GelatoStoredFileVerifier } from './gelato-stored-file';
 import type { GelatoSubmissionStore, GelatoSubmissionContext } from './gelato-submission-store';
 import { canCancelGelatoOrder, gelatoTransitionReason } from './gelato-status';
+import { bindGelatoFinancialGraph } from './gelato-financial-observation';
 
 export interface GelatoLifecycleDependencies {
   store: GelatoSubmissionStore;
@@ -23,6 +24,10 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 export function gelatoSnapshotDigest(value: unknown): string { return createHash('sha256').update(canonical(value)).digest('hex'); }
+function fulfillmentSnapshot(order: GelatoProviderOrder) {
+  const { financialObservation: _financial, ...snapshot } = order;
+  return snapshot;
+}
 export function gelatoPackagesForItem(order: GelatoProviderOrder, itemId: string, quantity: number) {
   const packages = (order.shipment?.packages ?? []).filter((parcel) => parcel.orderItemIds.includes(itemId));
   if (packages.length > 1 && quantity > 1) return { tracking: [], reason: 'package_quantity_allocation_unknown' };
@@ -37,17 +42,17 @@ function unchangedTimeDraftConversion(previous: GelatoSubmissionContext['provide
       order.fulfillmentStatus !== 'created' || !order.items.length || order.items.some(item => item.fulfillmentStatus !== 'created')) return false;
   const prior = GelatoProviderOrderSchema.safeParse(previous.snapshot);
   return prior.success && prior.data.orderType === 'draft' && prior.data.fulfillmentStatus === 'draft' &&
-    canonical(prior.data) === canonical({ ...order, orderType: 'draft', fulfillmentStatus: 'draft' });
+    canonical(fulfillmentSnapshot(prior.data)) === canonical(fulfillmentSnapshot({ ...order, orderType: 'draft', fulfillmentStatus: 'draft' }));
 }
 export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, graph: GelatoProviderOrder[]) {
-  return graph.map((order) => {
+  return bindGelatoFinancialGraph(graph).map((order) => {
     const previous = context.providerOrders.find((entry) => entry.provider_order_id === order.id);
     if (!previous) throw new Error('Gelato refresh cannot introduce an unmapped external order');
-    const digest = gelatoSnapshotDigest(order);
+    const digest = gelatoSnapshotDigest(fulfillmentSnapshot(order));
     const time = Date.parse(order.updatedAt);
     const before = previous.last_event_at ? Date.parse(previous.last_event_at) : NaN;
     let reason = !Number.isFinite(time) || !Number.isFinite(before) ? 'provider_timestamp_missing' : time < before ? 'older_provider_snapshot' :
-      time === before && digest !== gelatoSnapshotDigest(GelatoProviderOrderSchema.parse(previous.snapshot)) && !unchangedTimeDraftConversion(previous, order) ? 'conflicting_provider_snapshot' :
+      time === before && digest !== gelatoSnapshotDigest(fulfillmentSnapshot(GelatoProviderOrderSchema.parse(previous.snapshot))) && !unchangedTimeDraftConversion(previous, order) ? 'conflicting_provider_snapshot' :
       gelatoTransitionReason(previous.status, order.fulfillmentStatus, previous.order_type, order.orderType, previous.progress_status);
     const accepted = !reason;
     const items = order.items.map((item) => {
@@ -60,26 +65,32 @@ export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, gr
         tracking: itemReason ? null : mapping.tracking };
     });
     if (items.some((item) => item.actionReason && item.actionReason !== 'awaiting_draft_review')) reason ??= 'item_requires_review';
-    return { providerOrderId: order.id, snapshot: order, digest, status: accepted ? order.fulfillmentStatus : previous.status,
-      orderType: accepted ? order.orderType : previous.order_type, actionReason: reason, accepted, items };
+    const financial = order.financialObservation;
+    const priorFinancial = previous.financial_observation ?? GelatoProviderOrderSchema.parse(previous.snapshot).financialObservation;
+    const financialConflict = Boolean(financial && priorFinancial && time === before && canonical(financial) !== canonical(priorFinancial) && !unchangedTimeDraftConversion(previous, order));
+    return { providerOrderId: order.id, snapshot: fulfillmentSnapshot(order), digest, status: accepted ? order.fulfillmentStatus : previous.status,
+      orderType: accepted ? order.orderType : previous.order_type, actionReason: reason, accepted, items,
+      financialObservation: financial ?? null, financialAccepted: accepted && !financialConflict && !financial?.reviewReason,
+      financialActionReason: financial?.reviewReason ?? (financialConflict ? 'same_timestamp_financial_change' : null) };
   });
 }
 export async function refreshGelatoSubmission(submissionId: string, dependencies: GelatoLifecycleDependencies) {
   const context = await dependencies.store.load(submissionId);
   if (context.submission.request_state !== 'submitted') throw new Error('Gelato submission requires recovery before refresh');
   const saved = GelatoSavedSnapshotSchema.parse(context.submission.request_snapshot);
-  const expected = context.providerOrders.map((entry) => ({ providerOrderId: entry.provider_order_id, digest: entry.snapshot_digest, eventAt: entry.last_event_at }));
+  const expected = context.providerOrders.map((entry) => ({ providerOrderId: entry.provider_order_id, digest: entry.snapshot_digest, eventAt: entry.last_event_at, observationRevision: entry.observation_revision ?? 0 }));
   let results: ReturnType<typeof buildGelatoLifecycleResults>;
   try { const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders(context.providerOrders.map((entry) => entry.provider_order_id), dependencies.get ?? getGelatoOrder), saved.request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); }); results = buildGelatoLifecycleResults(context, graph); }
-  catch {
+  catch (error) {
     await dependencies.store.transition('hold_gelato_provider_refresh', { p_submission_id: submissionId, p_expected: expected, p_reason: 'provider_refresh_requires_review' });
+    if (error instanceof GelatoProviderReadError) throw error;
     throw new Error('Gelato refresh did not establish a valid provider snapshot');
   }
   const rows = dependencies.loadOrder ? (await Promise.all(context.members.map((member) => dependencies.loadOrder!(member.child_order_key)))).filter((row): row is Record<string, unknown> => row !== null) : [];
   const notifications = dependencies.loadOrder ? buildGelatoNotificationIntents(context, results, rows, dependencies.notificationFrom ?? 'Little Hero Labs <notifications@littleherolabs.com>') : { intents: [], holds: [] };
   await dependencies.store.transition('apply_gelato_provider_snapshots', { p_submission_id: submissionId,
     p_expected: expected, p_results: results, p_notifications: notifications.intents, p_notification_holds: notifications.holds });
-  return { submissionId, refreshed: true, needsAttention: results.some((result) => result.actionReason) };
+  return { submissionId, refreshed: true, needsAttention: results.some((result) => result.actionReason || result.financialActionReason) };
 }
 export async function recoverGelatoSubmission(submissionId: string, dependencies: GelatoLifecycleDependencies) {
   const execution = `gelato-recovery-${randomUUID()}`;
@@ -128,7 +139,7 @@ export async function cancelGelatoSubmission(submissionId: string, dependencies:
     updated.members.every((member) => member.status === 'canceled' && !member.action_reason);
   if (!canceled) {
     await dependencies.store.transition('hold_gelato_provider_refresh', { p_submission_id: submissionId,
-      p_expected: updated.providerOrders.map((entry) => ({ providerOrderId: entry.provider_order_id, digest: entry.snapshot_digest, eventAt: entry.last_event_at })),
+      p_expected: updated.providerOrders.map((entry) => ({ providerOrderId: entry.provider_order_id, digest: entry.snapshot_digest, eventAt: entry.last_event_at, observationRevision: entry.observation_revision ?? 0 })),
       p_reason: 'partial_cancellation_requires_review' });
   }
   return { submissionId, canceled, needsAttention: !canceled, providerOrders: attempts };

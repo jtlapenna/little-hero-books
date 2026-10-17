@@ -17,23 +17,25 @@ import {pollGelatoPrintProvider} from '../src/lib/books/gelato-polling';
 
 const hash=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
 const token='22222222-2222-4222-8222-222222222222',aid='33333333-3333-4333-8333-333333333333',owner='44444444-4444-4444-8444-444444444444';
-export async function fixture(format:'standard'|'amazon'='standard',count=1,index=0,storedFiles=false,clock=new Date('2026-10-16T12:00:00Z')){
+export async function fixture(format:'standard'|'amazon'='standard',count=1,index=0,storedFiles=false,clockOrPrefix:Date|string=new Date('2026-10-16T12:00:00Z'),monetary=false){
+ const clock=clockOrPrefix instanceof Date?clockOrPrefix:new Date('2026-10-16T12:00:00Z');
+ const rootPrefix=typeof clockOrPrefix==='string'?clockOrPrefix:'TEST-GELATO-AUTOMATION';
  const at=(minutes=0)=>new Date(clock.getTime()+minutes*60_000).toISOString();
  const id=index?'11111111-1111-4111-8111-'+String(index).padStart(12,'0'):'11111111-1111-4111-8111-111111111111',aid=index?'33333333-3333-4333-8333-'+String(index).padStart(12,'0'):'33333333-3333-4333-8333-333333333333';
  const providerId=index?'provider-automatic-'+index:'provider-automatic';
- const root='TEST-GELATO-AUTOMATION-'+format+(index?'-'+index:''),config=GelatoPrintConfigSchema.parse(configFile.formats[format].print);
+ const root=rootPrefix+'-'+format+(index?'-'+index:''),config=GelatoPrintConfigSchema.parse(configFile.formats[format].print);
  const blobs=new Map<string,Buffer>(),rows=new Map<string,Record<string,unknown>>();
  const context:GelatoSubmissionContext={submission:{id,provider:'gelato',root_order_id:root,order_reference_id:'lhb-automatic-test-'+index,workflow_job_idempotency_key:'synthetic-job',claim_token:token,lease_expires_at:at(15),request_state:'claimed',owning_execution_id:null,send_started_at:null,accepted_root_order_id:null,quote_snapshot:null,request_snapshot:null,quote_id:null,shipment_method_uid:null,shipment_policy_version:null,quoted_at:null,quote_request_fingerprint:null},members:[],providerOrders:[]};
  for(let index=0;index<count;index++){
   const child=count===1?root:root+'-item-'+(index+1),key=`book-finding-our-inner-voice/orders/${child}/gelato/print/v2/${'a'.repeat(24)}.pdf`;
   blobs.set(key,Buffer.from('Synthetic child '+index+' '+format));
   context.members.push({submission_id:id,child_order_id:index+1,child_order_key:child,item_reference_id:'lhb-item-'+index,artifact_key:key,artifact_fingerprint:'a'.repeat(24),artifact_claim_token:token,pdf_page_count:35,provider_order_id:null,provider_item_id:null,status:null});
-  rows.set(child,{id:index+1,orderId:child,root_order_id:root,book_specs:{testMode:true},print_provider:'gelato',print_submission_id:id,print_claim_token:token,print_book_id:'book-finding-our-inner-voice',print_format_id:format,print_config_version:2,print_product_uid:config.productUid,print_inner_page_count:32,print_api_page_count:32,print_expected_pdf_page_count:35,quantity:1,shipping_tier:'standard',customer_email:'synthetic@example.com',shipping_address:{name:'Taylor Example',street1:'1 Test St',city:'Seattle',state:'WA',zip:'98101',country:'US'}});
+  rows.set(child,{id:index+1,orderId:child,root_order_id:root,book_specs:{testMode:rootPrefix.startsWith('TEST-')},print_provider:'gelato',print_submission_id:id,print_claim_token:token,print_book_id:'book-finding-our-inner-voice',print_format_id:format,print_config_version:2,print_product_uid:config.productUid,print_inner_page_count:32,print_api_page_count:32,print_expected_pdf_page_count:35,quantity:1,shipping_tier:'standard',customer_email:'synthetic@example.com',shipping_address:{name:'Taylor Example',street1:'1 Test St',city:'Seattle',state:'WA',zip:'98101',country:'US'}});
  }
  const producer:GelatoSubmissionDependencies={backendUrl:'https://admin.littleherolabs.com',draftsEnabled:false,now:()=>new Date(clock),artifactExists:async key=>blobs.has(key),loadOrder:async key=>rows.get(key)??null,
   loadPrintInput:async key=>({orderId:key,orderDbId:rows.get(key)!.id,orderPrefix:'book-finding-our-inner-voice/orders/'+key,rootOrderId:root,bookConfigVersion:2,providerPrintConfig:config} as W4GelatoPrintInput),
   store:{load:async()=>context,transition:async(name,p)=>{assert.equal(name,'record_gelato_quote_snapshot');Object.assign(context.submission,{quote_snapshot:p.p_snapshot,quote_id:p.p_quote_id,shipment_method_uid:p.p_shipment_method_uid,shipment_policy_version:p.p_policy_version,quoted_at:p.p_quoted_at,quote_request_fingerprint:p.p_request_fingerprint});return null;}},
-  quote:async r=>({orderReferenceId:r.orderReferenceId,quotes:[{id:'native',itemReferenceIds:r.products.map(p=>p.itemReferenceId),products:r.products,shipmentMethods:[{shipmentMethodUid:'usps_ground_advantage',type:'normal'}]}]})};
+  quote:async r=>({orderReferenceId:r.orderReferenceId,privateBilling:'PRIVATE-QUOTE-MARKER',quotes:[{id:'native',itemReferenceIds:r.products.map(p=>p.itemReferenceId),products:r.products.map(p=>({...p,...(monetary?{price:12.18*p.quantity,currency:'USD'}:{})})),shipmentMethods:[{shipmentMethodUid:'usps_ground_advantage',type:'normal',...(monetary?{price:5,initialPrice:7,currency:'USD',numberOfParcels:1}:{})}]}]})};
  await quoteGelatoSubmission({submissionId:id,claimToken:token,executionId:'synthetic-native',mode:count===1?'single':'siblings'},producer);
  const saved=context.submission.quote_snapshot as GelatoSavedSnapshot;
  let converted=false,patches=0,applies=0,holds=0;let connected:string[]=[],off=true,providerTime=at();const gets:string[]=[];

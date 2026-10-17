@@ -2,6 +2,7 @@
 set -euo pipefail
 task_root=$(cd "$(dirname "$0")/../.." && pwd)
 node "$task_root/back-end/scripts/check-gelato-scoped-migration.mjs"
+node "$task_root/back-end/scripts/check-gelato-financial-migration.mjs"
 task_pg_bin=${GELATO_TEST_PG_BIN:-/opt/homebrew/opt/postgresql@17/bin}
 if [[ ! -x "$task_pg_bin/initdb" ]]; then
   task_pg_bin=$(dirname "$(command -v initdb)")
@@ -55,6 +56,32 @@ for task_iteration in 1 2; do
   "${task_psql[@]}" -f "$task_root/database/20261016203550_lhl_printer_file_authority.sql" >"$task_pg_dir/printer-file-migration.log" 2>&1
 done
 "${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-print-submissions.sql"
+# Upgrade a populated disposable database; the new cohort must remain empty.
+"${task_psql[@]}" -q -c "CREATE TABLE public.test_scheduled_upgrade_baseline AS SELECT jsonb_agg(to_jsonb(s) ORDER BY id) AS saved FROM public.print_provider_submissions s" >/dev/null
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "$task_root/database/20261017200507_gelato_scheduled_status.sql" >"$task_pg_dir/scheduled-migration.log" 2>&1 || { tail -15 "$task_pg_dir/scheduled-migration.log"; exit 1; }
+done
+"${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-scheduled-status.sql"
+# Two connections must not claim the same due job while the first transaction owns it.
+"${task_psql[@]}" -At >"$task_pg_dir/scheduled-owner.log" 2>&1 <<SQL &
+BEGIN;
+SET ROLE service_role;
+SELECT * FROM public.claim_gelato_scheduled_status(repeat('a',64),30);
+\! touch '$task_pg_dir/scheduled-claim-held'
+SELECT pg_sleep(2);
+COMMIT;
+SQL
+task_scheduled_owner=$!
+for task_probe in {1..50}; do [[ -f "$task_pg_dir/scheduled-claim-held" ]] && break;sleep 0.05;done
+[[ -f "$task_pg_dir/scheduled-claim-held" ]] || { echo 'Scheduled claim owner missing';exit 1; }
+[[ $("${task_psql[@]}" -At -c "SET statement_timeout='500ms'; SELECT count(*) FROM public.claim_gelato_scheduled_status(repeat('a',64),30)" | tail -1) == 0 ]] || { echo 'Concurrent scheduler claimed owned work';exit 1; }
+wait "$task_scheduled_owner"
+echo 'Scheduled two-connection SKIP LOCKED ownership: ok'
+for task_iteration in 1 2; do
+  "${task_psql[@]}" -f "$task_root/database/20261017201742_gelato_financial_observations.sql" >"$task_pg_dir/financial-migration.log" 2>&1 || { tail -15 "$task_pg_dir/financial-migration.log"; exit 1; }
+done
+# Financial observations and both manual/scheduled race directions use real SQL.
+"${task_psql[@]}" -f "$task_root/back-end/scripts/test-gelato-financial-observations.sql"
 # Force a started engineering sender and prove the forward migration refuses it.
 "${task_psql[@]}" >"$task_pg_dir/engineering-flight-setup.log" 2>&1 <<'SQL'
 UPDATE public.print_provider_submission_notifications SET delivery_state='delivering',attempt_started_at=clock_timestamp(),attempt_token=gen_random_uuid()
@@ -292,3 +319,4 @@ END $$;
 SELECT public.close_gelato_engineering_conversion(authorization_id) FROM public.test_conversion_cases WHERE kind LIKE 'expiry-%';
 SQL
 echo 'Conversion concurrent begin/send and expiry after blocked roots: one authorization, expired send never marked, normal gate OFF'
+bash "$task_root/back-end/scripts/test-gelato-forward-upgrade.sh" "$task_root" "$task_pg_bin" "$task_pg_dir"

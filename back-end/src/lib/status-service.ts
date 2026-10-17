@@ -18,7 +18,19 @@ import { OrderStatus, LuluStatus } from '@/constants/statuses';
 export async function calculateOrderStatus(orderId: string): Promise<string> {
   // Get order from Supabase
   const order = await getOrderFromSupabase(orderId).catch(() => null);
-  
+  return calculateOrderStatusFromOrder(order as StatusCalculationOrder | null);
+}
+
+export type StatusCalculationOrder = {
+  execution_status?: string; has_flags?: boolean;
+  flags?: { total?: number; preBria?: number; postBria?: number; postPdf?: number };
+  review_stages?: { preBria?: { status?: string }; postBria?: { status?: string }; postPdf?: { status?: string } };
+  print_provider?: string | null; gelato_status?: string | null; gelato_order_type?: string | null; gelato_action_reason?: string | null;
+  lulu_status?: string | null; customer_approval_required?: boolean; customer_approval_status?: string; workflow_step?: string; queued_at?: unknown;
+};
+
+// Pure form lets exact-row writers calculate the same status without resolving an alias again.
+export function calculateOrderStatusFromOrder(order: StatusCalculationOrder | null): string {
   if (!order) {
     // TODO: Fallback to R2 manifest if needed
     // For now, return default status
@@ -40,16 +52,16 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
   const flags = order.flags || {};
   const hasFlags = order.has_flags || false;
   
-  if (hasFlags && flags.total > 0) {
+  if (hasFlags && (flags.total ?? 0) > 0) {
     const reviewStages = order.review_stages || {};
     
-    if (flags.preBria > 0 && reviewStages.preBria?.status !== 'approved') {
+    if ((flags.preBria ?? 0) > 0 && reviewStages.preBria?.status !== 'approved') {
       return OrderStatus.REVISION_BASE;
     }
-    if (flags.postBria > 0 && reviewStages.postBria?.status !== 'approved') {
+    if ((flags.postBria ?? 0) > 0 && reviewStages.postBria?.status !== 'approved') {
       return OrderStatus.REVISION_BG_REMOVAL;
     }
-    if (flags.postPdf > 0 && reviewStages.postPdf?.status !== 'approved') {
+    if ((flags.postPdf ?? 0) > 0 && reviewStages.postPdf?.status !== 'approved') {
       return OrderStatus.REVISION_ASSEMBLY;
     }
   }
