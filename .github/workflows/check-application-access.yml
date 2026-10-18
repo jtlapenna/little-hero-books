@@ -7,6 +7,8 @@ on:
       - 'frontend/**'
       - 'docs/n8n-workflow-files/**'
       - 'database/20261016203550_lhl_printer_file_authority.sql'
+      - 'database/*_customer_preview_actions.sql'
+      - 'scripts/testing/local-preview-database.ts'
       - '.github/workflows/check-application-access.yml'
   push:
     paths:
@@ -14,6 +16,8 @@ on:
       - 'frontend/**'
       - 'docs/n8n-workflow-files/**'
       - 'database/20261016203550_lhl_printer_file_authority.sql'
+      - 'database/*_customer_preview_actions.sql'
+      - 'scripts/testing/local-preview-database.ts'
       - '.github/workflows/check-application-access.yml'
 permissions:
   contents: read

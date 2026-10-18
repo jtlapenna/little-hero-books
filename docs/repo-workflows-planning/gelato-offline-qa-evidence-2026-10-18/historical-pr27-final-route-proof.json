@@ -1,0 +1,111 @@
+{
+  "at": "2026-10-18T05:00:50.222617+00:00",
+  "source": "e9d28a8586c7228062b5834333c02dd3115633c6",
+  "syntheticEventOnly": true,
+  "realOrderIdentifiersUsed": false,
+  "databaseProviderMessageFundingOperations": 0,
+  "effectsEvidence": "Exact-source early OFF branches and bounded client requests; no server-side traffic measurement",
+  "checks": [
+    {
+      "label": "polling authenticated OFF",
+      "method": "POST",
+      "path": "/api/cron/gelato-status",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "label": "polling anonymous denied",
+      "method": "POST",
+      "path": "/api/cron/gelato-status",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "backend cannot substitute cron",
+      "method": "POST",
+      "path": "/api/cron/gelato-status",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "webhook anonymous denied",
+      "method": "POST",
+      "path": "/api/webhooks/gelato",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "backend cannot substitute webhook",
+      "method": "POST",
+      "path": "/api/webhooks/gelato",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "wrong webhook secret denied",
+      "method": "POST",
+      "path": "/api/webhooks/gelato",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "polling unsupported method",
+      "method": "GET",
+      "path": "/api/cron/gelato-status",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "webhook unsupported method",
+      "method": "GET",
+      "path": "/api/webhooks/gelato",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "polling suffix denied",
+      "method": "POST",
+      "path": "/api/cron/gelato-status/extra",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "webhook suffix denied",
+      "method": "POST",
+      "path": "/api/webhooks/gelato/extra",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "anonymous admin denied",
+      "method": "GET",
+      "path": "/api/admin/session",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "label": "draft submission runtime OFF",
+      "method": "GET",
+      "path": "/api/internal/w4/submit-gelato-draft",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "label": "former webhook secret rejected",
+      "method": "POST",
+      "path": "/api/webhooks/gelato",
+      "status": 401,
+      "passed": true
+    }
+  ],
+  "projection": {
+    "sourceFile": "final-route-proof.json",
+    "sourceSha256": "c893b3d208f4c1a2cda6123d1dec5da9bbbf329588bd7af02f2353c11e51e317",
+    "sourceCheckCount": 26,
+    "publishedOneBasedRange": [
+      14,
+      26
+    ],
+    "omittedFirst13": "Identical allowlisted records to the separately included temporary-window receipt; cumulative source retained privately unchanged"
+  }
+}

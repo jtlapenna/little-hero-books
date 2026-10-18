@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { markTokenAsUsed } from '@/lib/preview-tokens';
-import { authorizePreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
+import { authorizePreviewOrder, commitPreviewTokenAction, privatePreviewHeaders } from '@/lib/customer-preview-access';
 
 const corsHeaders = privatePreviewHeaders;
 
@@ -48,14 +47,12 @@ export async function POST(
       return NextResponse.json({ error: 'Preview action unavailable' }, { status: 409, headers: corsHeaders });
     }
 
-    // Mark token as used
-    if (!await markTokenAsUsed(token)) return NextResponse.json({ error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
 
     // Update order status
     // IMPORTANT: Update execution_status to prevent "stuck processing" detection
     // After customer approval, order is ready for print workflow (4) or completed
     const nowIso = new Date().toISOString();
-    if (!await transitionPreviewOrder(access.row, {
+    if (!await commitPreviewTokenAction(access.row, token, 'approve', {
       customer_approval_status: 'approved',
       customer_approval_approved_at: nowIso,
       execution_status: 'ready_for_processing', // Clear 'processing' state to prevent stuck detection

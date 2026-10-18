@@ -1,3 +1,4 @@
+import { gelatoApprovalBlocker, hasGelatoPrintSubmission } from './books/gelato-print-admission';
 type OrderLike = Record<string, unknown>;
 
 function toTrimmedString(value: unknown): string {
@@ -95,8 +96,10 @@ export function isReadyForSiblingPrintRouting(order: OrderLike): boolean {
   return (
     toTrimmedString(order.execution_status) === 'ready_for_processing' &&
     !toTrimmedString(order.current_workflow) &&
+    !order.started_at &&
     (nextWorkflow === '4' || nextWorkflow === '4-aggregate') &&
     !hasLuluSubmission(order) &&
+    !(order.print_provider === 'gelato' && (hasGelatoPrintSubmission(order) || gelatoApprovalBlocker(order))) &&
     (!approvalRequired || approved)
   );
 }
@@ -121,6 +124,9 @@ export function describeSiblingPrintSubmissionBlockers(order: OrderLike): string
   if (currentWorkflow) {
     blockers.push(`currently processing ${currentWorkflow}`);
   }
+
+  if (order.print_provider === 'gelato' && hasGelatoPrintSubmission(order)) blockers.push('existing Gelato submission requires inspection');
+  if (order.print_provider === 'gelato' && gelatoApprovalBlocker(order)) blockers.push('customer approval not current');
 
   if (hasLuluSubmission(order)) {
     blockers.push('already submitted to Lulu');

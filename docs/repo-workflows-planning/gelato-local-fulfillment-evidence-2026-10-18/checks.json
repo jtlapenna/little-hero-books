@@ -1,0 +1,116 @@
+{
+  "baseline": "d423177a515e88f7b800cf3bbe16fc4de7344def",
+  "node": "24.5.0",
+  "dependencyLockSha256": "c84b628ae22f56eadb3cae85769ef056234e9b11db91ed175b9b64f5494544a5",
+  "checks": [
+    {
+      "test": "test-customer-preview-access.ts",
+      "exitCode": 0,
+      "seconds": 0.88
+    },
+    {
+      "test": "test-gelato-submission.ts",
+      "exitCode": 0,
+      "seconds": 0.2
+    },
+    {
+      "test": "test-gelato-intake-replay.ts",
+      "exitCode": 0,
+      "seconds": 0.15
+    },
+    {
+      "test": "test-w1-gelato-claim-routing.ts",
+      "exitCode": 0,
+      "seconds": 0.09
+    },
+    {
+      "test": "test-gelato-ordinary-router.ts",
+      "exitCode": 0,
+      "seconds": 0.3
+    },
+    {
+      "test": "test-gelato-print-routing.ts",
+      "exitCode": 0,
+      "seconds": 0.34
+    },
+    {
+      "test": "test-gelato-workflow-copies.ts",
+      "exitCode": 0,
+      "seconds": 0.13
+    },
+    {
+      "test": "test-w0-build-readonly.ts",
+      "exitCode": 0,
+      "seconds": 0.42
+    },
+    {
+      "test": "test-w0-publication-worker.ts",
+      "exitCode": 0,
+      "seconds": 1.29
+    },
+    {
+      "test": "test-w0-manifest-freeze.ts",
+      "exitCode": 0,
+      "seconds": 0.32
+    },
+    {
+      "test": "test-w0-legacy-rollout.ts",
+      "exitCode": 0,
+      "seconds": 0.45
+    },
+    {
+      "test": "test-w3-manifest.ts",
+      "exitCode": 0,
+      "seconds": 0.25
+    },
+    {
+      "test": "test-w3-manifest-publish.ts",
+      "exitCode": 0,
+      "seconds": 0.26
+    },
+    {
+      "test": "test-w3-assembly-input.ts",
+      "exitCode": 0,
+      "seconds": 0.28
+    },
+    {
+      "test": "test-preview-action-transaction.ts",
+      "exitCode": 0,
+      "seconds": 26.14
+    },
+    {
+      "test": "test-preview-print-schema.ts",
+      "exitCode": 0,
+      "seconds": 3.93
+    },
+    {
+      "test": "test-gelato-local-journey.ts",
+      "exitCode": 0,
+      "seconds": 2.49
+    },
+    {
+      "test": "test-gelato-webhook-status.ts",
+      "exitCode": 0,
+      "seconds": 1.62
+    }
+  ],
+  "hostedChecksRun": false,
+  "liveRequests": 0,
+  "note": "Individual assertion counts are not summed across overlapping suites.",
+  "supplementalChecks": [
+    {
+      "test": "test-gelato-webhook-status.ts",
+      "mode": "optional retained dummy-PDF byte benchmark, updated dependency lock",
+      "exitCode": 0,
+      "measurements": 16,
+      "liveRequests": 0
+    },
+    {
+      "test": "test-preview-book-contract.ts",
+      "exitCode": 0,
+      "cases": 90,
+      "liveRequests": 0,
+      "scope": "Publication CI follow-up; readiness, read access and approval contracts"
+    }
+  ]
+}

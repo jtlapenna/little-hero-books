@@ -1,5 +1,7 @@
 # Gelato polling-first fulfillment verification
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 October 17 local implementation now covers the callback boundary, registered scheduler, reliability/terminal checks, financial projection and CI portions of this plan. See [current implementation results and deployment prerequisites](gelato-unpaid-fixes-results-2026-10-17.md). This plan's descriptions of the October 16 source and five control receipts remain historical; the follow-up adds a sixth OFF flag and has not been installed or activated.
 
 ## Decision and scope

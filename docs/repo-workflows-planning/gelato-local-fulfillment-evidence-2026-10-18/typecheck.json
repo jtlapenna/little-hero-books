@@ -1,0 +1,8 @@
+{
+  "passed": false,
+  "baselineTrackedSourceDiagnostics": 353,
+  "currentTrackedAndLocalSourceDiagnostics": 353,
+  "newFileAndDiagnosticCodeCounts": {},
+  "retainedGeneratedNextDiagnostics": 35,
+  "comparison": "Exact baseline archive with matching locked dependencies and docs; compare file and diagnostic code counts, ignoring line shifts and union display order. Generated .next files absent from archive. This is not a green typecheck or a deployment build."
+}

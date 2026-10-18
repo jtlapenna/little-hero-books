@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "README.md": "7415c0bb5552d8ff646fac71a936c96bc84894b2cc8fe7c439c1a83ce1662d5f",
+    "browser-review.json": "fd7b1e484acf0ce83af40f3e8f09f81507805b4265679912d70e919f8857b55b",
+    "cases.json": "ba0ba4e09d599a4629904d00d2a374a83dd551a73ecc1ae892c4d46e8de64f7e",
+    "checks.json": "0f4d68c97ae057aa7814de263a7ceab6a940d98e03bce98220a8583a66b462c2",
+    "financial-review.png": "0f1b23eb58f4f7d81d4cd872491d0be970bc08fdd82446cf765f67ecee8b3d9e",
+    "historical-pr27-final-route-proof.json": "7c3c08eb9190052596dc4c3d0249d148a2638a46cb15a97e4a95d8a8a192b854",
+    "historical-pr27-final-state-verification.json": "305c1853bc9eba195033e7a2d032fafd0475a1d486b46bb0ddf3cd0fdc2af6fc",
+    "historical-pr27-temporary-route-proof.json": "18fcd917380bc7f5856461cd922df84ea138caff8c17beb92344304a9cb3e628",
+    "inspection-error.png": "12771e23b5ca54a03f981f8543ee64b7804c3800898e5f0a8bb1f28a44a0accf",
+    "overdue-recovered.png": "07f0f9c7b81304532276adf5ba9e2264cfdd34cdc2744f06fc932ed3be5e0655",
+    "polling-benchmark.json": "f3b9d8c2c5c8513140e68b47062e2abcd3515d1cbc7166ea460bf05907c7106d",
+    "review.json": "e0981df045d743e99b31fe1b095c9b465c04025122326bc370bd76ca8365c04a",
+    "unknown-off.png": "2c02e30b0f84a233289ad3732afc883462f213c8e8378245c1c9abfe64f514ce",
+    "verify.py": "ef0164ddd2512d310e3858d659012a1360da52d3f5bc85cd295766c50b47f762"
+  },
+  "sourceFiles": {
+    "back-end/scripts/test-gelato-submission.ts": "cc7d72829c88e18e9bd569304a8a05d34c98b739fc6ae60e4e61cdadd5392b74",
+    "back-end/scripts/test-gelato-webhook-status.ts": "03a0e8e6413121325d2c3b4ab1fb6759d4be2d9581c9645a8604b8ab58bbbb5c",
+    "back-end/scripts/test-gelato-admin-inspection.tsx": "45b2dd99175e0aff9047025aa84a7042d88192fa93ca4cfe292adad0f70074f6",
+    "back-end/scripts/gelato-browser-review.tsx": "164c5566e12f00c5fee33815a886d6baae1eee971ba67f9f2af5aac8247e0f31",
+    "back-end/scripts/build-gelato-browser-review.mjs": "375dc307108d1f2202c2480ffca8323cc286de9066618246d289592ec6767a58",
+    "docs/repo-workflows-planning/gelato-coverage-current-2026-10-18.md": "0e6e7c9527e14c054bbedcbc252a34a8aed43a197369a15872d989db80c29343"
+  }
+}

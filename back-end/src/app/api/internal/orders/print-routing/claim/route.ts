@@ -1,3 +1,4 @@
+import { assertGelatoCustomerApproval } from '@/lib/books/gelato-print-admission';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
@@ -22,12 +23,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid print routing claim request' }, { status: 400 });
   }
   try {
+    const loadedRows = new Map<number, PrintRoutingOrder>();
     const routes = await resolvePrintRoutingRequest(
       parsed.data.orderDbIds,
       async (ids) => {
         const { data, error } = await supabase.from('orders').select('*').in('id', ids);
         if (error) throw new Error('Print order lookup failed');
-        return (data ?? []) as PrintRoutingOrder[];
+        const rows = (data ?? []) as PrintRoutingOrder[];
+        for (const row of rows) loadedRows.set(row.id, row);
+        return rows;
       },
       async (root) => loadPrintRoutingGroupMembers(root, {
         byRootOrderId: async (id) => {
@@ -49,6 +53,9 @@ export async function POST(request: NextRequest) {
       }),
       downloadManifest,
     );
+    for (const route of routes) {
+      if (route.provider === 'gelato') assertGelatoCustomerApproval(loadedRows.get(route.orderDbId)!);
+    }
     const result = await claimGelatoPrintRouting(routes, parsed.data.idempotencyKey, async (claimRoutes, idempotencyKey) => {
       const rpc = supabase.rpc as unknown as (
         name: string,

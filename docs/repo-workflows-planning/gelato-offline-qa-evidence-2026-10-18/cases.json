@@ -1,0 +1,454 @@
+{
+  "overdue-siblings": {
+    "status": 200,
+    "body": {
+      "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+      "submissionId": "11111111-1111-4111-8111-000000000098",
+      "notifications": [],
+      "state": "submitted",
+      "canRefresh": true,
+      "canCancel": false,
+      "canRecover": false,
+      "monetaryQuote": {
+        "version": 1,
+        "quoteId": "native",
+        "quotedAt": "2026-10-16T12:00:00.000Z",
+        "requestFingerprint": "4e8026467c3b2dab02c4c0e08d1e6906526f3a22935d2d2c345fc5e4b1015106",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "products": [
+          {
+            "itemReferenceId": "lhb-item-0",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          },
+          {
+            "itemReferenceId": "lhb-item-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          }
+        ],
+        "shippingOptions": [
+          {
+            "shipmentMethodUid": "usps_ground_advantage",
+            "name": null,
+            "type": "normal",
+            "price": "5",
+            "initialPrice": "7",
+            "currency": "USD",
+            "minDeliveryDate": null,
+            "maxDeliveryDate": null,
+            "numberOfParcels": 1
+          }
+        ]
+      },
+      "polling": {
+        "registered": true,
+        "enabled": true,
+        "lastAttemptAt": "2000-01-03T00:00:00Z",
+        "lastSuccessfulCheckAt": "2000-01-02T00:00:00Z",
+        "nextAttemptAt": "2000-01-04T00:00:00Z",
+        "lastResult": "failed",
+        "lastErrorClass": "timeout",
+        "monitoringComplete": false,
+        "stale": true
+      },
+      "orders": [
+        {
+          "id": "provider-automatic-98",
+          "status": "draft",
+          "orderType": "draft",
+          "actionReason": null,
+          "updatedAt": "2026-10-16T12:00:00.000Z",
+          "lastCheckedAt": "2026-10-16T13:00:00Z",
+          "financial": {
+            "version": 1,
+            "status": "pending",
+            "currency": "USD",
+            "receipts": [
+              {
+                "id": "synthetic-receipt",
+                "orderId": null,
+                "transactionType": "unknown",
+                "currency": "USD",
+                "isCalculated": true,
+                "amounts": {
+                  "productsPrice": null,
+                  "productsPriceVat": null,
+                  "productsPriceInclVat": null,
+                  "shippingPrice": null,
+                  "shippingPriceVat": null,
+                  "shippingPriceInclVat": null,
+                  "packagingPrice": null,
+                  "packagingPriceVat": null,
+                  "packagingPriceInclVat": null,
+                  "discount": null,
+                  "discountVat": null,
+                  "discountInclVat": null,
+                  "total": "0",
+                  "totalVat": null,
+                  "totalInclVat": null
+                },
+                "items": null
+              }
+            ],
+            "reviewReason": null,
+            "processedFiles": [
+              {
+                "providerItemId": "provider-item-0",
+                "present": false
+              },
+              {
+                "providerItemId": "provider-item-1",
+                "present": false
+              }
+            ]
+          },
+          "financialObservedAt": "2026-10-16T13:00:00Z",
+          "financialActionReason": null
+        }
+      ],
+      "items": [
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-0"
+        },
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-2",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-1"
+        }
+      ]
+    }
+  },
+  "current-siblings": {
+    "status": 200,
+    "body": {
+      "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+      "submissionId": "11111111-1111-4111-8111-000000000098",
+      "notifications": [],
+      "state": "submitted",
+      "canRefresh": true,
+      "canCancel": false,
+      "canRecover": false,
+      "monetaryQuote": {
+        "version": 1,
+        "quoteId": "native",
+        "quotedAt": "2026-10-16T12:00:00.000Z",
+        "requestFingerprint": "4e8026467c3b2dab02c4c0e08d1e6906526f3a22935d2d2c345fc5e4b1015106",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "products": [
+          {
+            "itemReferenceId": "lhb-item-0",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          },
+          {
+            "itemReferenceId": "lhb-item-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          }
+        ],
+        "shippingOptions": [
+          {
+            "shipmentMethodUid": "usps_ground_advantage",
+            "name": null,
+            "type": "normal",
+            "price": "5",
+            "initialPrice": "7",
+            "currency": "USD",
+            "minDeliveryDate": null,
+            "maxDeliveryDate": null,
+            "numberOfParcels": 1
+          }
+        ]
+      },
+      "polling": {
+        "registered": true,
+        "enabled": true,
+        "lastAttemptAt": "2026-10-18T18:02:53.883Z",
+        "lastSuccessfulCheckAt": "2026-10-18T18:02:53.883Z",
+        "nextAttemptAt": "2026-10-18T18:07:53.883Z",
+        "lastResult": "success",
+        "lastErrorClass": "timeout",
+        "monitoringComplete": false,
+        "stale": false
+      },
+      "orders": [
+        {
+          "id": "provider-automatic-98",
+          "status": "draft",
+          "orderType": "draft",
+          "actionReason": null,
+          "updatedAt": "2026-10-16T12:00:00.000Z",
+          "lastCheckedAt": "2026-10-16T13:00:00Z",
+          "financial": {
+            "version": 1,
+            "status": "pending",
+            "currency": "USD",
+            "receipts": [
+              {
+                "id": "synthetic-receipt",
+                "orderId": null,
+                "transactionType": "unknown",
+                "currency": "USD",
+                "isCalculated": true,
+                "amounts": {
+                  "productsPrice": null,
+                  "productsPriceVat": null,
+                  "productsPriceInclVat": null,
+                  "shippingPrice": null,
+                  "shippingPriceVat": null,
+                  "shippingPriceInclVat": null,
+                  "packagingPrice": null,
+                  "packagingPriceVat": null,
+                  "packagingPriceInclVat": null,
+                  "discount": null,
+                  "discountVat": null,
+                  "discountInclVat": null,
+                  "total": "0",
+                  "totalVat": null,
+                  "totalInclVat": null
+                },
+                "items": null
+              }
+            ],
+            "reviewReason": null,
+            "processedFiles": [
+              {
+                "providerItemId": "provider-item-0",
+                "present": false
+              },
+              {
+                "providerItemId": "provider-item-1",
+                "present": false
+              }
+            ]
+          },
+          "financialObservedAt": "2026-10-16T13:00:00Z",
+          "financialActionReason": null
+        }
+      ],
+      "items": [
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-0"
+        },
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-2",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-1"
+        }
+      ]
+    }
+  },
+  "financial-review": {
+    "status": 200,
+    "body": {
+      "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+      "submissionId": "11111111-1111-4111-8111-000000000098",
+      "notifications": [],
+      "state": "submitted",
+      "canRefresh": true,
+      "canCancel": false,
+      "canRecover": false,
+      "monetaryQuote": {
+        "version": 1,
+        "quoteId": "native",
+        "quotedAt": "2026-10-16T12:00:00.000Z",
+        "requestFingerprint": "4e8026467c3b2dab02c4c0e08d1e6906526f3a22935d2d2c345fc5e4b1015106",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "products": [
+          {
+            "itemReferenceId": "lhb-item-0",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          },
+          {
+            "itemReferenceId": "lhb-item-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "quantity": 1,
+            "price": "12.18",
+            "currency": "USD"
+          }
+        ],
+        "shippingOptions": [
+          {
+            "shipmentMethodUid": "usps_ground_advantage",
+            "name": null,
+            "type": "normal",
+            "price": "5",
+            "initialPrice": "7",
+            "currency": "USD",
+            "minDeliveryDate": null,
+            "maxDeliveryDate": null,
+            "numberOfParcels": 1
+          }
+        ]
+      },
+      "polling": {
+        "registered": true,
+        "enabled": true,
+        "lastAttemptAt": "2026-10-18T18:02:53.883Z",
+        "lastSuccessfulCheckAt": "2026-10-18T18:02:53.883Z",
+        "nextAttemptAt": "2026-10-18T18:07:53.883Z",
+        "lastResult": "success",
+        "lastErrorClass": "timeout",
+        "monitoringComplete": false,
+        "stale": false
+      },
+      "orders": [
+        {
+          "id": "provider-automatic-98",
+          "status": "draft",
+          "orderType": "draft",
+          "actionReason": null,
+          "updatedAt": "2026-10-16T12:00:00.000Z",
+          "lastCheckedAt": "2026-10-16T13:00:00Z",
+          "financial": {
+            "version": 1,
+            "status": "pending",
+            "currency": "USD",
+            "receipts": [
+              {
+                "id": "synthetic-receipt",
+                "orderId": null,
+                "transactionType": "unknown",
+                "currency": "USD",
+                "isCalculated": true,
+                "amounts": {
+                  "productsPrice": null,
+                  "productsPriceVat": null,
+                  "productsPriceInclVat": null,
+                  "shippingPrice": null,
+                  "shippingPriceVat": null,
+                  "shippingPriceInclVat": null,
+                  "packagingPrice": null,
+                  "packagingPriceVat": null,
+                  "packagingPriceInclVat": null,
+                  "discount": null,
+                  "discountVat": null,
+                  "discountInclVat": null,
+                  "total": "0",
+                  "totalVat": null,
+                  "totalInclVat": null
+                },
+                "items": null
+              }
+            ],
+            "reviewReason": "malformed_receipts",
+            "processedFiles": [
+              {
+                "providerItemId": "provider-item-0",
+                "present": false
+              },
+              {
+                "providerItemId": "provider-item-1",
+                "present": false
+              }
+            ]
+          },
+          "financialObservedAt": "2026-10-16T13:00:00Z",
+          "financialActionReason": null
+        }
+      ],
+      "items": [
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-0"
+        },
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-2",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-1"
+        }
+      ]
+    }
+  },
+  "unknown-off": {
+    "status": 200,
+    "body": {
+      "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+      "submissionId": "11111111-1111-4111-8111-000000000098",
+      "notifications": [],
+      "state": "submitted",
+      "canRefresh": true,
+      "canCancel": false,
+      "canRecover": false,
+      "monetaryQuote": null,
+      "polling": {
+        "registered": true,
+        "enabled": false,
+        "lastAttemptAt": "2026-10-18T18:02:53.883Z",
+        "lastSuccessfulCheckAt": "2026-10-18T18:02:53.883Z",
+        "nextAttemptAt": "2026-10-18T18:07:53.883Z",
+        "lastResult": "success",
+        "lastErrorClass": "timeout",
+        "monitoringComplete": false,
+        "stale": false
+      },
+      "orders": [
+        {
+          "id": "provider-automatic-98",
+          "status": "draft",
+          "orderType": "draft",
+          "actionReason": null,
+          "updatedAt": "2026-10-16T12:00:00.000Z",
+          "lastCheckedAt": "2026-10-16T13:00:00Z",
+          "financial": null,
+          "financialObservedAt": null,
+          "financialActionReason": null
+        }
+      ],
+      "items": [
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-1",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-0"
+        },
+        {
+          "active": true,
+          "orderId": "ORDINARY-ADMIN-amazon-98-item-2",
+          "status": "created",
+          "providerOrderId": "provider-automatic-98",
+          "providerItemId": "provider-item-1"
+        }
+      ]
+    }
+  },
+  "inspection-error": {
+    "status": 409,
+    "body": {
+      "error": "Gelato print details unavailable"
+    }
+  }
+}

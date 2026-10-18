@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-18T05:01:13.115Z",
+  "records": [
+    {
+      "project": "little-hero-labs-admin",
+      "deployment": "6ced66f4-7ab8-448b-8455-0cb8fe48ff66",
+      "source": "e9d28a8586c7228062b5834333c02dd3115633c6",
+      "productionAutoDeploy": false,
+      "previewAutoDeploy": "none",
+      "allSixSettingsAndServingControlsOff": true,
+      "temporaryWebhookSecretAbsentFromSettingsAndServing": true
+    },
+    {
+      "project": "little-hero-labs",
+      "deployment": "02bfc6af-9b0c-423b-9132-f24bba8fb704",
+      "source": "5bccf890da26b0c1c9b752d18229d15608e55d4b",
+      "productionAutoDeploy": false,
+      "previewAutoDeploy": "none"
+    }
+  ],
+  "temporaryLocalKeyFileAbsent": true,
+  "readOnlyMetadataCheck": true
+}

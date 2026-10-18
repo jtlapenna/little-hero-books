@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-18T18:13:09.512563+00:00",
+  "baseline": "3cbe04b88e9b810dadd29e5839f8ac6c8c9f32cc",
+  "node": "22.17.1",
+  "environment": "minimal process environment; no dotenv files",
+  "publication": "local uncommitted; no push or deployment",
+  "checks": [
+    {
+      "command": "node --import tsx scripts/test-gelato-submission.ts",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-api-contract.ts",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-financial-observation.ts",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-scheduled-status.ts",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-poll-stored-file.ts",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-admin-inspection.tsx",
+      "result": "passed"
+    },
+    {
+      "command": "node --import tsx scripts/test-gelato-webhook-status.ts",
+      "result": "passed"
+    }
+  ],
+  "browserBuild": {
+    "command": "node scripts/build-gelato-browser-review.mjs /tmp/gelato-browser-review",
+    "result": "passed"
+  },
+  "browser": {
+    "runtime": "CUA in-app browser",
+    "observations": 6,
+    "result": "passed",
+    "evidence": "browser-review.json"
+  },
+  "typecheck": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit --pretty false",
+    "exitCode": 2,
+    "diagnostics": 388,
+    "changedFileDiagnostics": 0,
+    "result": "existing repository failures; not full pass"
+  },
+  "liveOperations": {
+    "controlWrites": 0,
+    "pendingOrderReadsOrWrites": 0,
+    "funding": 0,
+    "paidPrinting": 0,
+    "customerMessages": 0,
+    "basis": "only local harness commands and browser fixture used; source transport allowlists; not production traffic measurement"
+  }
+}

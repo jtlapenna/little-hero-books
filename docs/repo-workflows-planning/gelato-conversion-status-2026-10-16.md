@@ -1,5 +1,7 @@
 # Gelato unchanged-time draft conversion reconciliation
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 The three real unpaid conversions (website W4 54695, Amazon W4 54691, sibling W4.1 54692) returned HTTP 200 and the same provider roots/items, with order type `order`, financial status `pending`, fulfillment `created`, no processing logs/processed files/print jobs, and no observed paid/production state. All normal controls remain OFF; authorizations/windows are closed, eight workflow copies inactive and customer notification intents zero. No payment setting changed.
 
 Comparing all three recorded normalized provider snapshots offline showed only `/orderType` and `/fulfillmentStatus` changed; `updatedAt` remained identical. Current refresh therefore classifies these valid conversions as `conflicting_provider_snapshot` and leaves the app showing stale draft state. This is a real admin/database status gap, not a provider acceptance failure. The sibling diagnostic also addressed a root ID with no child row; its subsequent GET-only observer must use an exact mapped child key, without replaying conversion.

@@ -23,7 +23,7 @@ async function main() {
   let manifest: Row = {};
   const reset = () => {
     rows = [
-      { id: 11, orderId: id, root_order_id: 'ORDER-A', amazon_order_id: 'ORDER-A', asset_prefix: prefix, book_specs: { bookId: 'book-test' }, character_specs: { childName: 'Synthetic Child', age: 6 }, customer_name: 'Synthetic Parent', customer_email: 'parent@example.test', status: 'pending', customer_approval_status: 'pending', revision_count: 0 },
+      { id: 11, orderId: id, root_order_id: 'ORDER-A', amazon_order_id: 'ORDER-A', asset_prefix: prefix, book_specs: { bookId: 'book-test' }, character_specs: { childName: 'Synthetic Child', age: 6 }, customer_name: 'Synthetic Parent', customer_email: 'parent@example.test', status: 'pending', customer_approval_status: 'pending', revision_count: 0, updated_at: '2026-10-18T00:00:00Z', manifest_3_url: prefix + '/manifests/3-manifest.json', workflow_step: 'customer_approval', execution_status: 'done', review_stages: { postPdf: { status: 'approved' } } },
       { id: 12, orderId: sibling, root_order_id: 'ORDER-A', amazon_order_id: 'ORDER-A', status: 'pending' },
       { id: 13, orderId: foreign, root_order_id: 'ORDER-B', amazon_order_id: 'ORDER-B', status: 'pending' },
     ];
@@ -49,6 +49,14 @@ async function main() {
   globalThis.fetch = async (input, init) => {
     const req = new Request(input, init), url = new URL(req.url);
     if (url.hostname === 'preview-db.example.test') {
+      if (url.pathname.endsWith('/rpc/commit_customer_preview_action')) {
+        assert.equal(req.method, 'POST'); const p = await req.json() as Row;
+        const row = rows.find(row => row.id === p.p_order_id); const link = tokens.find(link => link.token === p.p_token);
+        if (!row || !link || link.used_at || Date.parse(String(link.expires_at)) <= Date.now() ||
+          !Object.entries(p.p_expected as Row).every(([key,value]) => JSON.stringify(row[key] ?? null) === JSON.stringify(value)) ||
+          ['approved','revision_requested'].includes(String(row.customer_approval_status))) return Response.json(false);
+        Object.assign(row, p.p_changes); link.used_at = new Date().toISOString(); writes.push('preview-action:RPC'); return Response.json(true);
+      }
       const table = url.pathname.split('/').pop();
       let items = table === 'orders' ? rows : table === 'preview_tokens' ? tokens : table === 'customer_feedback' ? feedback : [];
       if (table === 'orders') lookups.push(url.searchParams.toString());
@@ -170,6 +178,21 @@ async function main() {
     reset();
     assert.equal((await contact(request('/api/preview/contact', 'POST', { token, orderId: id, reason: 'name_typo', fields: { childName: 'Corrected Synthetic' }, email: 'parent@example.test' }))).status, 200);
     assert.equal(rows[0].customer_approval_status, 'revision_requested'); assert.ok(tokens[0].used_at);
+    // Missing/unavailable RPC must leave both records unchanged and keep the link retryable.
+    for (const kind of ['approve','reject','contact'] as const) {
+      reset(); const healthy=globalThis.fetch;
+      globalThis.fetch=async(input,init)=>{
+        const r=new Request(input,init);
+        if(new URL(r.url).pathname.endsWith('/rpc/commit_customer_preview_action')) return Response.json({message:'Synthetic RPC unavailable'},{status:503});
+        return healthy(r);
+      };
+      const action=()=>kind==='approve'?approve(approveRequest(),context()):kind==='reject'?reject(request(`/api/preview/${id}/reject`,'POST',{token,feedback:{pageNumber:1,issueType:'text',description:'Synthetic'}}),context()):contact(request('/api/preview/contact','POST',{token,orderId:id,reason:'name_typo',fields:{childName:'Synthetic'},email:'parent@example.test'}));
+      assert.equal((await action()).status,500); assert.equal(rows[0].customer_approval_status,'pending'); assert.equal(tokens[0].used_at,null);assert.deepEqual(writes,[]);
+      globalThis.fetch=healthy;assert.equal((await action()).status,200);
+    }
+    for (const busy of [{current_workflow:'3'},{started_at:new Date().toISOString()},{execution_status:'processing'},{manifest_3_url:null},{review_stages:{}}]) {
+      reset();Object.assign(rows[0],busy);assert.equal((await approve(approveRequest(),context())).status,409);assert.equal(tokens[0].used_at,null);assert.deepEqual(writes,[]);
+    }
     // Distinct live links must compete on one atomic order transition, not just token use.
     for (const correction of ['reject', 'contact']) {
       reset();
