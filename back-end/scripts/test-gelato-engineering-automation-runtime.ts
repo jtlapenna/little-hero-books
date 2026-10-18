@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {build} from 'esbuild';
-import {Miniflare,Response as WorkerResponse} from 'miniflare';
+import {Miniflare, convertV4MiniflareOptions,Response as WorkerResponse} from 'miniflare';
 import {NextRequest} from 'next/server';
 const bindings={SUPABASE_URL:'https://synthetic-automation.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-automation-bearer-authority-at-least-thirty-two-bytes',GELATO_API_KEY:'explicit-test-key',CLOUDFLARE_ACCOUNT_ID:'synthetic-automatic',CLOUDFLARE_R2_ACCESS_KEY_ID:'synthetic-access',CLOUDFLARE_R2_SECRET_ACCESS_KEY:'synthetic-secret',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_CANCEL_ENABLED:'false',GELATO_STATUS_RELAY_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_SCHEDULED_STATUS_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'};
 async function main(){
@@ -42,7 +42,7 @@ async function main(){
   const entry=`import {runEngineeringAutomation} from ${JSON.stringify(resolve('src/lib/books/gelato-engineering-automation.ts'))};import {gelatoEngineeringAutomationRuntime} from ${JSON.stringify(resolve('src/lib/books/gelato-engineering-automation-runtime.ts'))};export default {async fetch(r){return Response.json(await runEngineeringAutomation(await r.json(),gelatoEngineeringAutomationRuntime()));}};`;
   const settings=await fs.readFile('wrangler.toml','utf8'),date=settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1],flags=[...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1]??'').matchAll(/"([^"]+)"/g)].map(m=>m[1]);assert(date&&flags.length);
   const bundle=await build({stdin:{contents:entry,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['browser','module','main'],external:['node:*'],logLevel:'silent'});
-  const worker=new Miniflare({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:date,compatibilityFlags:flags,bindings,outboundService:async request=>{const response=await handle(new Request(request.url,{method:request.method,headers:[...request.headers],...(request.method==='GET'?{}:{body:await request.text()})}));return new WorkerResponse(response.status===204?null:await response.arrayBuffer(),{status:response.status,headers:[...response.headers]});}});
+  const worker=new Miniflare(convertV4MiniflareOptions({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:date,compatibilityFlags:flags,bindings,outboundService:async request=>{const response=await handle(new Request(request.url,{method:request.method,headers:[...request.headers],...(request.method==='GET'?{}:{body:await request.text()})}));return new WorkerResponse(response.status===204?null:await response.arrayBuffer(),{status:response.status,headers:[...response.headers]});}}));
   try{for(const action of ['queue','poll','signal'] as const){const response=await worker.dispatchFetch('https://local/engineering',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body(action))});const result=await response.json() as {completed:boolean};assert.equal(result.completed,true,action);}}finally{await worker.dispose();}
   assert.equal(current.stats().patches,1);assert.equal(current.stats().applies,2);assert(artifactReads>0&&storedReads>0);assert(requests.every(r=>!r.includes('search')&&!r.includes('cancel')));
  }finally{globalThis.fetch=previous;}

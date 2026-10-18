@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare, Response as WorkerResponse } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 import { loadBundledBookConfig } from '../src/lib/books/load-book-config';
 import { buildBookConfigPublishPayload } from '../src/lib/books/runtime-book-config';
 
@@ -23,7 +23,7 @@ export default {async fetch(request){try{const x=await request.json();const cand
   const objects = new Map<string, unknown>();
   let objectWrites = 0; let databaseWrites = 0; let denied = false; let scenario = 'normal';
   const calls: string[] = [];
-  const worker = new Miniflare({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
+  const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
     bindings: { SUPABASE_URL: 'https://db.example.test', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-only', CLOUDFLARE_ACCOUNT_ID: 'synthetic-intake', CLOUDFLARE_R2_ACCESS_KEY_ID: 'synthetic-access', CLOUDFLARE_R2_SECRET_ACCESS_KEY: 'synthetic-secret' },
     outboundService: async request => {
       const url = new URL(request.url); calls.push(request.method + ' ' + url.hostname + url.pathname);
@@ -44,7 +44,7 @@ export default {async fetch(request){try{const x=await request.json();const cand
       if (scenario === 'collision') return new WorkerResponse(null, { status: 412 });
       if (scenario === 'lost-response') return new WorkerResponse('Receipt unavailable after accepted synthetic write', { status: 503 });
       return new WorkerResponse(null, { status: 200 });
-    } });
+    } }));
   try {
     for (const formatId of ['standard', 'amazon']) {
       row = null; objects.clear(); objectWrites = 0; databaseWrites = 0; calls.length = 0;

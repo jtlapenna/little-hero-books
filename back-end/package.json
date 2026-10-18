@@ -137,7 +137,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
     "@aws-sdk/s3-request-presigner": "^3.911.0",
-    "@opennextjs/cloudflare": "^1.11.0",
+    "@opennextjs/cloudflare": "1.20.12",
     "@paschendale/r2-presigned-url": "^1.0.0",
     "@squoosh/lib": "^0.3.1",
     "@supabase/supabase-js": "^2.79.0",
@@ -145,17 +145,17 @@
     "aws4fetch": "^1.0.20",
     "clsx": "^2.1.1",
     "fast-png": "^8.0.0",
-    "fast-xml-parser": "^5.3.1",
+    "fast-xml-parser": "5.11.2",
     "jose": "6.2.12",
     "jpeg-js": "^0.4.4",
     "lucide-react": "^0.546.0",
-    "next": "^15.5.7",
-    "next-auth": "^4.24.11",
+    "next": "15.5.28",
+    "next-auth": "4.24.15",
     "papaparse": "^5.4.1",
     "pdfjs-dist": "^5.4.394",
     "pngjs": "^7.0.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
     "react-pdf": "^10.2.0",
     "recharts": "^3.8.0",
     "resend": "^4.8.0",
@@ -178,9 +178,9 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5",
-    "wrangler": "^4.45.2"
+    "wrangler": "4.151.1"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   }
 }

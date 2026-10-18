@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare, Response as WorkerResponse } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 
 async function main() {
@@ -35,14 +35,14 @@ async function main() {
     external: ['node:*'], logLevel: 'silent',
   });
   let keyRequests = 0;
-  const worker = new Miniflare({ modules: true, script: bundle.outputFiles[0].text,
+  const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundle.outputFiles[0].text,
     compatibilityDate: date, compatibilityFlags: flags, bindings,
     outboundService: async (request) => {
       assert.equal(request.url, `${issuer}/cdn-cgi/access/certs`, 'only synthetic JWKS transport is allowed');
       keyRequests++;
       return new WorkerResponse(JSON.stringify({ keys: [jwk] }), { headers: { 'Content-Type': 'application/json' } });
     },
-  });
+  }));
   try {
     assert.equal((await worker.dispatchFetch(origin, { headers: { origin, referer: origin, 'x-admin-email': 'john@example.test' } })).status, 401);
     assert.equal((await worker.dispatchFetch(origin, { headers: { 'cf-access-jwt-assertion': token } })).status, 200);

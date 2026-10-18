@@ -47,6 +47,7 @@ jobs:
           npm run test:preview-file-grants-worker
           npm run test:printer-file-grants
           npm run test:printer-file-grants-worker
+          npm run test:r2-client
           npm run test:gelato-submission
           npm run test:gelato-engineering-conversion
       - name: Verify middleware and template packaging boundaries
