@@ -3,8 +3,9 @@
   "baseline": "d423177a515e88f7b800cf3bbe16fc4de7344def",
   "sourceState": "uncommitted source plus preserved earlier QA; hashes identify exact bytes, not publication or blanket review authority",
   "files": {
-    "README.md": "ada3d5a2cd14357a2fc04dc46a27d38e9b42c621094329645e455a4101594e4c",
-    "checks.json": "4a23943b5f607bf8d8111ba018a8e973284f7223331ce92bace74f5eb2912873",
+    "README.md": "1a231aecbb3ed0272963a4a356fdc84f6fb35c0e5570144f6a627d5419d0061e",
+    "checks.json": "dcd52ab607e388cd9db04b0631ec6e70866ac59d343491092cf16de5c55ba140",
+    "ci-followup.json": "2b86efeae66619884c0eb76a5b06348a6df28575e71fd4cf39a67e219b67ae07",
     "dummy-pdf-benchmark.json": "93da2069e0346ab3e02411231168a9959f498a4860130b562eed12fc345c3ee6",
     "existing-schema.json": "3ba532909ffa99be5a8b1f5c9acaf1466ff17b24a1fba510d5a9956dc39e861e",
     "local-journey.json": "650125782758f0ebe41093a19a060539b6b5d166c689741c290bd1bd22573a00",
@@ -62,6 +63,10 @@
     {
       "path": "back-end/scripts/test-preview-action-transaction.ts",
       "sha256": "514b6580b4f9afa735f91252fbe23d45f40af0040b0c69dd817913e604ad4335"
+    },
+    {
+      "path": "back-end/scripts/test-preview-book-contract.ts",
+      "sha256": "d1073493967509d586be9bff5bb3d596368ff832ffd52cc3cb4fd3454c41157c"
     },
     {
       "path": "back-end/scripts/test-preview-print-schema.ts",
@@ -137,7 +142,7 @@
     },
     {
       "path": "docs/repo-workflows-planning/gelato-local-fulfillment-results-2026-10-18.md",
-      "sha256": "72d27ef6f82e6d464c442919b3833db5d1a79e8ec553a8f0b209145c80139e68"
+      "sha256": "1515759113bd0cf352702e27b40d812de4fee98d4eb79ac4a142de5da83a08b3"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-polling-first-plan-2026-10-16.md",

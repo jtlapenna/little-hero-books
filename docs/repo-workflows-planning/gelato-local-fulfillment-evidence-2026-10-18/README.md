@@ -2,6 +2,7 @@
 
 This package records local synthetic engineering checks on baseline d423177a. It contains no new live provider results, recipient data, credentials or six pending-order records. `local-journey.json` uses synthetic account hashes, IDs, costs and destination hashes. The three “creates” are fake transport calls, not dashboard orders.
 
+- `ci-followup.json`: initial PR check failure, fixture correction and 90 local read/approval cases; latest hosted status belongs to PR #30.
 - `checks.json`: 18 successful selected commands and exact dependency-lock hash.
 - `local-journey.json`: website/Amazon/sibling paths, file hashes/counts, read-only release packets and limitations.
 - `preview-transaction.json`: 32 disposable PostgreSQL transaction checks.

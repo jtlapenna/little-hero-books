@@ -1,0 +1,17 @@
+{
+  "scope": "PR #30 source-only CI follow-up",
+  "initialCommit": "71e68421fb8fed8b0446b3c8ce924d960c194eee",
+  "initialFailedRuns": [
+    "https://github.com/jtlapenna/little-hero-books/actions/runs/39164358385",
+    "https://github.com/jtlapenna/little-hero-books/actions/runs/39164358434"
+  ],
+  "diagnosis": "Both failed at the same legacy preview-book-contract fixture. The fixture omitted completed preview, review and ownership state while expecting canApprove=true.",
+  "change": "Fixture models completed/reviewed preview and tests busy, unreviewed, missing-manifest and claimed states across books/token/approval states. Production safety predicate unchanged.",
+  "localResult": {
+    "passed": true,
+    "cases": 90,
+    "liveRequests": 0
+  },
+  "hostedRerun": "Required for updated PR head before merge; see PR status.",
+  "deployment": "Not performed or authorized"
+}

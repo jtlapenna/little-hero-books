@@ -104,6 +104,13 @@
       "exitCode": 0,
       "measurements": 16,
       "liveRequests": 0
+    },
+    {
+      "test": "test-preview-book-contract.ts",
+      "exitCode": 0,
+      "cases": 90,
+      "liveRequests": 0,
+      "scope": "Publication CI follow-up; readiness, read access and approval contracts"
     }
   ]
 }
