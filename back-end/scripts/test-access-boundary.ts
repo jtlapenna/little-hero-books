@@ -6,12 +6,16 @@ import { createHmac } from 'node:crypto';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
+import { verifyGelatoStatusRouting } from './gelato-status-routing-cases';
 
 async function main() {
   const origin = 'https://admin.example.test', issuer = 'https://boundary-synthetic.cloudflareaccess.com';
   const machine = 'synthetic-boundary-machine-authority-long-value';
+  const cron = 'synthetic-boundary-cron-'.padEnd(64, 'c'), webhook = 'synthetic-boundary-webhook-'.padEnd(64, 'w');
   Object.assign(process.env, { CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: 'a'.repeat(64), ADMIN_ALLOWED_EMAILS: 'john@example.test,jeff@example.test', ADMIN_SITE_ORIGIN: origin,
-    BACKEND_API_TOKEN: machine, CRON_SECRET: 'synthetic-cron-only', SUPABASE_URL: 'https://boundary-db.example.test', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-server-key',
+    BACKEND_API_TOKEN: machine, CRON_SECRET: cron, GELATO_WEBHOOK_SECRET: webhook,
+    GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
+    GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false', SUPABASE_URL: 'https://boundary-db.example.test', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-server-key',
     CLOUDFLARE_ACCOUNT_ID: 'synthetic-boundary', R2_ACCESS_KEY_ID: 'synthetic-access', R2_SECRET_ACCESS_KEY: 'synthetic-secret',
     LULU_CLIENT_SECRET: 'synthetic-lulu-owner-secret', STRIPE_SECRET_KEY: 'synthetic-stripe-secret', STRIPE_WEBHOOK_SECRET: 'synthetic-stripe-hook' });
   const pair = await generateKeyPair('RS256', { extractable: true });
@@ -65,15 +69,28 @@ async function main() {
     assert.equal((await run(make('/api/orders', 'POST', { authorization: `Bearer ${machine}` }, '{}'))).status, 200);
     for (const path of ['/api/cron/router', '/api/cron/amazon-orders', '/api/cron/health-monitor', '/api/cron/book-config-integrity']) {
       assert.equal((await run(make(path, 'GET', { authorization: `Bearer ${machine}` }))).status, 401);
-      assert.equal((await run(make(path, 'GET', { authorization: 'Bearer synthetic-cron-only' }))).status, 200);
+      assert.equal((await run(make(path, 'GET', { authorization: `Bearer ${cron}` }))).status, 200);
     }
-    process.env.CRON_SECRET = ''; assert.equal((await run(make('/api/cron/router', 'GET', { authorization: 'Bearer undefined' }))).status, 401); process.env.CRON_SECRET = 'synthetic-cron-only';
+    process.env.CRON_SECRET = ''; assert.equal((await run(make('/api/cron/router', 'GET', { authorization: 'Bearer undefined' }))).status, 401); process.env.CRON_SECRET = cron;
+    const { POST: pollGelato } = await import('../src/app/api/cron/gelato-status/route');
+    const { POST: hookGelato } = await import('../src/app/api/webhooks/gelato/route');
+    const beforeGelato = businessFetches;
+    await verifyGelatoStatusRouting((path, init) => run(make(path, init.method, init.headers, init.body),
+      req => new URL(req.url).pathname === '/api/cron/gelato-status' ? pollGelato(req) : hookGelato(req)), { backend: machine, cron, webhook });
+    assert.equal(businessFetches, beforeGelato, 'OFF and rejected Gelato requests must not touch database/provider/storage/messages');
+    process.env.CRON_SECRET = '';
+    assert.equal((await run(make('/api/cron/gelato-status', 'POST', { authorization: `Bearer ${cron}` }, '{}'), pollGelato)).status, 401);
+    process.env.CRON_SECRET = cron;
+    delete process.env.GELATO_WEBHOOK_SECRET;
+    assert.equal((await run(make('/api/webhooks/gelato', 'POST', { 'x-lhl-gelato-webhook-token': webhook }, '{}'), hookGelato)).status, 401);
+    process.env.GELATO_WEBHOOK_SECRET = webhook;
+    assert.equal(businessFetches, beforeGelato);
     const beforePreflight = businessFetches, calls = routeCalls;
     const preflight = await run(make('/api/unknown', 'OPTIONS')); assert.equal(preflight.status, 204); assert.equal(routeCalls, calls); assert.equal(businessFetches, beforePreflight); assert.match(preflight.headers.get('access-control-allow-headers')!, /X-Preview-Token/);
-    for (const path of ['/api/checkout/create', '/api/preview/generate', '/api/preview/check', '/api/preview/validate-token', '/api/preview/contact', '/api/preview/X/approve', '/api/preview/X/reject', '/api/preview/X/files', '/api/webhooks/stripe', '/api/webhooks/lulu/status']) { assert.equal(boundaryPolicy(path, 'POST'), 'public-route'); assert.equal(boundaryPolicy(path, 'DELETE'), 'privileged'); assert.equal(boundaryPolicy(path + '/extra', 'POST'), 'privileged'); }
+    for (const path of ['/api/checkout/create', '/api/preview/generate', '/api/preview/check', '/api/preview/validate-token', '/api/preview/contact', '/api/preview/X/approve', '/api/preview/X/reject', '/api/preview/X/files', '/api/webhooks/stripe', '/api/webhooks/lulu/status', '/api/webhooks/gelato']) { assert.equal(boundaryPolicy(path, 'POST'), 'public-route'); assert.equal(boundaryPolicy(path, 'DELETE'), 'privileged'); assert.equal(boundaryPolicy(path + '/extra', 'POST'), 'privileged'); }
     const { assertPublicRouteInventory, readAppRouteInventory, routePatternsIntersect } = await import('./security-public-routes.mjs');
     const inventory = readAppRouteInventory('src/app'); assertPublicRouteInventory(inventory);
-    for (const source of ['api/preview/[...path]/route.ts', 'api/preview/[[...path]]/route.ts', '(regrouped)/api/preview/[orderId]/status/route.ts', 'api/(regrouped)/preview/[orderId]/status/route.ts', 'api/assets/book/[...path]/route.ts', 'api/assets/internal/page.tsx', 'api/preview/admin/status/route.js']) {
+    for (const source of ['api/preview/[...path]/route.ts', 'api/preview/[[...path]]/route.ts', '(regrouped)/api/preview/[orderId]/status/route.ts', 'api/(regrouped)/preview/[orderId]/status/route.ts', 'api/assets/book/[...path]/route.ts', 'api/assets/internal/page.tsx', 'api/preview/admin/status/route.js', 'api/webhooks/[...path]/route.ts', '(regrouped)/api/webhooks/gelato/route.ts']) {
       assert.throws(() => assertPublicRouteInventory([...inventory, { source, methods: ['GET'] }]), /Unreviewed/);
     }
     assert.throws(() => assertPublicRouteInventory(inventory.filter(row => row.source !== 'api/checkout/create/route.ts')), /missing/);

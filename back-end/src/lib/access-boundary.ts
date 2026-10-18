@@ -5,11 +5,18 @@ import { isOrderAssetKey } from './order-paths';
 import { ADMIN_LOGIN_PATH, ADMIN_SIGN_IN_HEADER, adminReturnPath, adminLoginHref, canonicalAdminOrigin } from './admin-login-target';
 
 const publicStatic = new Set(['/favicon.ico', '/window.svg', '/globe.svg', '/next.svg', '/vercel.svg', '/file.svg', '/pdf.worker.min.mjs']);
-const cronPaths = new Set(['/api/cron/amazon-orders', '/api/cron/book-config-integrity', '/api/cron/health-monitor', '/api/cron/router']);
+// Exact method/path contracts: new POST polling must not open legacy cron methods.
+const cronMethods = new Map([
+  ['/api/cron/amazon-orders', ['GET']], ['/api/cron/book-config-integrity', ['GET']],
+  ['/api/cron/health-monitor', ['GET']], ['/api/cron/router', ['GET']],
+  ['/api/cron/gelato-status', ['POST']],
+]);
 const publicMethods = new Map([
   ['/api/checkout/create', ['POST']], ['/api/preview/check', ['GET', 'POST']],
   ['/api/preview/generate', ['POST']], ['/api/preview/validate-token', ['POST']],
   ['/api/preview/contact', ['POST']], ['/api/webhooks/stripe', ['POST']], ['/api/webhooks/lulu/status', ['POST']],
+  // Provider ingress retains its independent shared-header authentication in the handler.
+  ['/api/webhooks/gelato', ['POST']],
 ]);
 
 export type BoundaryPolicy = 'static' | 'public-route' | 'asset' | 'cron' | 'privileged';
@@ -19,7 +26,7 @@ export function boundaryPolicy(path: string, method: string): BoundaryPolicy {
   if (method === 'POST' && /^\/api\/preview\/[^/]+\/(?:approve|reject|files)$/.test(path)) return 'public-route';
   if (method === 'GET' && /^\/api\/preview\/[^/]+\/status$/.test(path)) return 'public-route';
   if (['GET', 'HEAD'].includes(method) && path.startsWith('/api/assets/') && path.length > '/api/assets/'.length) return 'asset';
-  if (method === 'GET' && cronPaths.has(path)) return 'cron';
+  if (cronMethods.get(path)?.includes(method)) return 'cron';
   return 'privileged';
 }
 

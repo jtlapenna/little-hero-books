@@ -6,7 +6,7 @@ export const reviewedPublicOwners = new Map<string, string[]>([
   ['api/checkout/create/route.ts', ['POST']], ['api/preview/check/route.ts', ['GET', 'POST']],
   ['api/preview/generate/route.ts', ['POST']], ['api/preview/validate-token/route.ts', ['POST']],
   ['api/preview/contact/route.ts', ['POST']], ['api/webhooks/stripe/route.ts', ['POST']],
-  ['api/webhooks/lulu/status/route.ts', ['POST']], ['api/preview/[orderId]/approve/route.ts', ['POST']],
+  ['api/webhooks/lulu/status/route.ts', ['POST']], ['api/webhooks/gelato/route.ts', ['POST']], ['api/preview/[orderId]/approve/route.ts', ['POST']],
   ['api/preview/[orderId]/reject/route.ts', ['POST']], ['api/preview/[orderId]/files/route.ts', ['POST']],
   ['api/preview/[orderId]/status/route.ts', ['GET']], ['api/assets/[...path]/route.ts', ['GET', 'HEAD']],
 ]);

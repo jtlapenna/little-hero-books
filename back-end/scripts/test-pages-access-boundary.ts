@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { Miniflare, Response as WorkerResponse } from 'miniflare';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { verifyGelatoStatusRouting } from './gelato-status-routing-cases';
 
 async function main() {
   // Actual installed OpenNext worker, init, image and skew templates; only Next env/routing/business transports are fixtures.
@@ -16,6 +17,7 @@ async function main() {
   assert.throws(() => patchWorkerForAccessBoundary('unsupported template'), /Unsupported/);
   const folder = await mkdtemp(join(tmpdir(), 'lhl-pages-access-'));
   let assets = 0, adapter = 0;
+  const cron = 'synthetic-pages-cron-'.padEnd(64, 'c'), webhook = 'synthetic-pages-webhook-'.padEnd(64, 'w');
   const issuer = 'https://pages-synthetic.cloudflareaccess.com', origin = 'https://admin.example.test', audience = 'a'.repeat(64);
   const pair = await generateKeyPair('RS256', { extractable: true });
   const jwk = { ...await exportJWK(pair.publicKey), kid: 'pages-key', alg: 'RS256' };
@@ -32,7 +34,7 @@ async function main() {
     await copyFile(join(templates, 'init.js'), join(folder, 'cloudflare/init.js'));
     await writeFile(join(folder, 'cloudflare/next-env.mjs'), 'export const production = {};');
     await writeFile(join(folder, 'middleware/handler.mjs'), 'export async function handler(r){await fetch("https://adapter.example.test/called");return r;}');
-    await writeFile(join(folder, 'server-functions/default/handler.mjs'), `import {verifyLuluWebhook} from ${JSON.stringify(resolve('src/lib/lulu-webhook-auth.ts'))};export async function handler(r){if(new URL(r.url).pathname==='/api/webhooks/lulu/status'){const valid=await verifyLuluWebhook(new Uint8Array(await r.arrayBuffer()),r.headers.get('lulu-hmac-sha256'));return Response.json({valid},{status:valid?200:401});}return Response.json({requestId:r.headers.get('x-request-id'),internal:r.headers.get('x-middleware-subrequest'),body:r.method==='POST'?await r.text():null});}`);
+    await writeFile(join(folder, 'server-functions/default/handler.mjs'), `import {verifyLuluWebhook} from ${JSON.stringify(resolve('src/lib/lulu-webhook-auth.ts'))};import {POST as gelatoPoll} from ${JSON.stringify(resolve('src/app/api/cron/gelato-status/route.ts'))};import {POST as gelatoHook} from ${JSON.stringify(resolve('src/app/api/webhooks/gelato/route.ts'))};export async function handler(r){if(new URL(r.url).pathname==='/api/cron/gelato-status')return gelatoPoll(r);if(new URL(r.url).pathname==='/api/webhooks/gelato')return gelatoHook(r);if(new URL(r.url).pathname==='/api/webhooks/lulu/status'){const valid=await verifyLuluWebhook(new Uint8Array(await r.arrayBuffer()),r.headers.get('lulu-hmac-sha256'));return Response.json({valid},{status:valid?200:401});}return Response.json({requestId:r.headers.get('x-request-id'),internal:r.headers.get('x-middleware-subrequest'),body:r.method==='POST'?await r.text():null});}`);
     for (const [file, name] of [['queue.js', 'DOQueueHandler'], ['sharded-tag-cache.js', 'DOShardedTagCache'], ['bucket-cache-purge.js', 'BucketCachePurge']]) await writeFile(join(folder, '.build/durable-objects', file), `export class ${name} {}`);
     await emitPagesAccessBoundary(folder);
     assert.deepEqual(JSON.parse(await readFile(join(folder, '_routes.json'), 'utf8')), pagesRoutes);
@@ -42,7 +44,9 @@ async function main() {
     const bundle = await build({ entryPoints: [join(folder, '_worker.js')], bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent',
       define: { __BUILD_TIMESTAMP_MS__: '0', __NEXT_BASE_PATH__: '""', __ASSETS_RUN_WORKER_FIRST__: 'false', __DEPLOYMENT_ID__: '""', __TRAILING_SLASH__: 'false', __SKEW_PROTECTION_ENABLED__: 'false', __IMAGES_LOCAL_PATTERNS__: '[]', __IMAGES_REMOTE_PATTERNS__: '[]', __IMAGES_ALLOW_SVG__: 'false', __IMAGES_CONTENT_DISPOSITION__: '"inline"', __IMAGES_CONTENT_SECURITY_POLICY__: '"default-src none"' } });
     const worker = new Miniflare({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
-      bindings: { CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: audience, ADMIN_ALLOWED_EMAILS: 'john@example.test', ADMIN_SITE_ORIGIN: origin, BACKEND_API_TOKEN: 'synthetic-pages-machine-secret-value', LULU_CLIENT_SECRET: 'synthetic-worker-lulu-owner-secret' },
+      bindings: { CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: audience, ADMIN_ALLOWED_EMAILS: 'john@example.test', ADMIN_SITE_ORIGIN: origin, BACKEND_API_TOKEN: 'synthetic-pages-machine-secret-value', LULU_CLIENT_SECRET: 'synthetic-worker-lulu-owner-secret', CRON_SECRET: cron, GELATO_WEBHOOK_SECRET: webhook,
+        GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
+        GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false' },
       serviceBindings: { ASSETS: async () => { assets++; return new WorkerResponse('synthetic-static-sentinel', { headers: { 'Cache-Control': 'public, max-age=3600' } }); } },
       outboundService: async request => {
         if (request.url === issuer + '/cdn-cgi/access/certs') return new WorkerResponse(JSON.stringify({ keys: [jwk] }), { headers: { 'Content-Type': 'application/json' } });
@@ -63,6 +67,10 @@ async function main() {
       const machine = await worker.dispatchFetch(origin + '/api/internal/synthetic', { method: 'POST', headers: { authorization: 'Bearer synthetic-pages-machine-secret-value', 'x-request-id': 'caller-id', 'x-middleware-subrequest': 'bypass' }, body: 'synthetic-request-body' });
       assert.equal(machine.status, 200); const body = await machine.json() as { requestId: string; internal: null; body: string };
       assert.equal(body.requestId, machine.headers.get('x-request-id')); assert.notEqual(body.requestId, 'caller-id'); assert.equal(body.internal, null); assert.equal(body.body, 'synthetic-request-body');
+      const beforeGelatoAssets = assets;
+      await verifyGelatoStatusRouting((path, init) => worker.dispatchFetch(origin + path, init),
+        { backend: 'synthetic-pages-machine-secret-value', cron, webhook });
+      assert.equal(assets, beforeGelatoAssets, 'OFF Gelato routes must not read assets');
       const rawLulu = ' {"data":{"note":"Unicode ☃ whitespace"}} ';
       const luluDigest = createHmac('sha256', 'synthetic-worker-lulu-owner-secret').update(rawLulu).digest('base64');
       const signed = await worker.dispatchFetch(origin + '/api/webhooks/lulu/status', { method: 'POST', headers: { 'lulu-hmac-sha256': luluDigest }, body: rawLulu }); assert.equal(signed.status, 200); assert.deepEqual(await signed.json(), { valid: true });
