@@ -88,6 +88,51 @@ SELECT public.upsert_from_manifest_2b('1','{"entries":[{"poseNumber":1,"bgRemove
   sql(`SET ROLE service_role; SELECT public.upsert_from_manifest_2a('1','{"entries":[{"poseNumber":1,"publicUrl":"https://synthetic.invalid/retry"}]}');`);
   check('2a retry conflict updates one existing pose', sql("SELECT (count(*)=1 AND min(original_image_url)='https://synthetic.invalid/retry')::text FROM public.character_generations WHERE order_id=1 AND pose_number=1;").stdout.trim()==='true');
   sql(migration); check('safe replay remains restrictive', true);
+  const workflowMigration = readFileSync(path.join(root,'database/20261018045135_lhl_private_workflow_tables.sql'),'utf8');
+  const privateTables = ['audit_logs','character_generations','failed_orders','human_review_queue','workflow_execution_logs'];
+  for (const table of privateTables) {
+    if(table!=='character_generations') sql(`CREATE TABLE public.${table}(id integer PRIMARY KEY,status text); INSERT INTO public.${table} VALUES(1,'synthetic');`);
+    sql(`ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY; GRANT ALL ON public.${table} TO service_role,authenticated;
+CREATE POLICY "Authenticated users can view ${table}" ON public.${table} FOR SELECT TO authenticated USING(true);`);
+  }
+  const auxFingerprint = `SELECT jsonb_build_object('acl',(SELECT jsonb_agg(jsonb_build_object('table',c.relname,'acl',c.relacl,'rls',c.relrowsecurity) ORDER BY c.relname) FROM pg_class c WHERE c.oid IN (${privateTables.map(t=>`'public.${t}'::regclass`).join(',')})),'policies',(SELECT jsonb_agg(to_jsonb(p) ORDER BY tablename,policyname) FROM pg_policies p WHERE schemaname='public' AND tablename IN (${privateTables.map(t=>`'${t}'`).join(',')})));`;
+  const auxRows = privateTables.map(t=>`SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY id),'[]'::jsonb) FROM public.${t} t;`).join('\n');
+  const beforeRows = sql(auxRows).stdout;
+  for(const db of ['aux_policy','aux_column','aux_service','aux_rls','aux_injected']) sql(`CREATE DATABASE ${db} TEMPLATE postgres;`);
+  sql(`ALTER POLICY "Authenticated users can view failed_orders" ON public.failed_orders USING(id>0);`,'aux_policy');
+  sql(`GRANT SELECT(id) ON public.failed_orders TO inherited_column_reader;`,'aux_column');
+  sql(`REVOKE UPDATE ON public.failed_orders FROM service_role;`,'aux_service');
+  sql(`ALTER TABLE public.failed_orders DISABLE ROW LEVEL SECURITY;`,'aux_rls');
+  for(const db of ['aux_policy','aux_column','aux_service','aux_rls','aux_injected']) {
+    const beforeAux=sql(auxFingerprint,db).stdout;
+    const candidate=db==='aux_injected'?workflowMigration.replace(/COMMIT;\s*$/,"DO $$ BEGIN RAISE EXCEPTION 'injected failure'; END $$; COMMIT;"):workflowMigration;
+    sql(candidate,db,false);
+    check(`${db} rejection atomically preserves all ACLs and policies`,sql(auxFingerprint,db).stdout===beforeAux);
+    check(`${db} preserves every synthetic row`,sql(auxRows,db).stdout===beforeRows);
+  }
+  sql(workflowMigration);
+  check('workflow boundary changes no synthetic row bytes',sql(auxRows).stdout===beforeRows);
+  for(const table of privateTables) {
+    for(const role of ['anon','authenticated']) {
+      for(const statement of [`SELECT * FROM public.${table}`,`UPDATE public.${table} SET id=id`,`INSERT INTO public.${table}(id) VALUES(999)`,`DELETE FROM public.${table}`]) {
+        check(`${role} ${table} operation denied`,sql(`SET ROLE ${role}; ${statement}`,'postgres',false).stderr.includes('permission denied for table'));
+      }
+    }
+    // No actual production schema assumption: this exercises grants with the synthetic fixture.
+    const insert = table==='character_generations' ? `INSERT INTO public.${table}(id,order_id,pose_number) VALUES(999,1,2)` : `INSERT INTO public.${table}(id) VALUES(999)`;
+    sql(`SET ROLE service_role; SELECT * FROM public.${table}; ${insert}; UPDATE public.${table} SET id=998 WHERE id=999; DELETE FROM public.${table} WHERE id=998;`);
+    check(`service actual CRUD preserved on ${table}`,true);
+  }
+  check('all five workflow policies removed and RLS kept',sql(`SELECT count(*)=5 AND bool_and(relrowsecurity) FROM pg_class WHERE oid IN (${privateTables.map(t=>`'public.${t}'::regclass`).join(',')});`).stdout.trim()==='t' && JSON.parse(sql(auxFingerprint).stdout).policies===null);
+  sql(`SET ROLE service_role; SELECT public.upsert_from_manifest_2a('1','{"entries":[{"poseNumber":1,"publicUrl":"https://synthetic.invalid/private-workflow"}]}'); SELECT public.upsert_from_manifest_2b('1','{"entries":[{"poseNumber":1,"bgRemovedImageUrl":"https://synthetic.invalid/private-result"}]}');`);
+  check('actual manifest producer still writes restricted character table',sql(`SELECT (original_image_url='https://synthetic.invalid/private-workflow' AND background_removed_url='https://synthetic.invalid/private-result')::text FROM public.character_generations WHERE order_id=1 AND pose_number=1;`).stdout.trim()==='true');
+  sql(workflowMigration); check('workflow restriction safe replay',true);
+  // The canonical advisor script must not reopen the five reviewed tables.
+  const advisor = readFileSync(path.join(root,'database/migration-security-advisor-rls.sql'),'utf8');
+  sql(`CREATE SCHEMA auth; CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$SELECT current_user::text$$;`);
+  for(const table of privateTables) sql(`GRANT SELECT ON public.${table} TO authenticated; CREATE POLICY "Authenticated users can view ${table}" ON public.${table} FOR SELECT TO authenticated USING(true);`);
+  sql(advisor);
+  check('canonical advisor closes legacy five-table access',privateTables.every(t=>sql(`SELECT NOT has_table_privilege('anon','public.${t}','SELECT,INSERT,UPDATE,DELETE') AND NOT has_table_privilege('authenticated','public.${t}','SELECT,INSERT,UPDATE,DELETE');`).stdout.trim()==='t'));
   const hardenedBlock = setup.slice(setup.indexOf('-- Internal manifest RPC definitions and ACLs must commit together.')).split('COMMIT;')[0] + 'COMMIT;';
   sql(hardenedBlock);
   check('canonical setup producer keeps both RPCs service-only', sql("SELECT bool_and(NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND has_function_privilege('service_role',p.oid,'EXECUTE') AND 'search_path=pg_catalog, public, pg_temp'=ANY(p.proconfig)) FROM pg_proc p WHERE p.oid IN ('public.upsert_from_manifest_2a(text,jsonb)'::regprocedure,'public.upsert_from_manifest_2b(text,jsonb)'::regprocedure);").stdout.trim()==='t');
