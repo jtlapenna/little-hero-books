@@ -80,7 +80,10 @@ async function testStreamUploadsUseUnsignedPayload(): Promise<void> {
     const { createGelatoStoredFileVerifier } = await import('@/lib/books/gelato-stored-file');
     let buffered = false;
     let canceled = false;
+    let errorFetches = 0;
+    const { PRINTER_FILE_ORIGIN } = await import('@/lib/printer-file-grants');
     globalThis.fetch = (async (_input: RequestInfo | URL, options?: RequestInit) => {
+      errorFetches++;
       assert(options?.redirect === 'error', 'Verifier R2 fetch must reject redirects');
       assert(Boolean(options?.signal), 'Verifier R2 fetch must carry the shared deadline');
       const response = new Response(new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(1024)); }, cancel() { canceled = true; } }), { status: 403 });
@@ -92,8 +95,8 @@ async function testStreamUploadsUseUnsignedPayload(): Promise<void> {
     const key = `book/orders/child-1/gelato/print/v2/${'a'.repeat(24)}.pdf`;
     let fileRejected = false;
     try { await verifier({ child_order_key: 'child-1', artifact_key: key, artifact_fingerprint: 'a'.repeat(24), artifact_claim_token: 'token', pdf_page_count: 35 } as import('@/lib/books/gelato-submission-store').GelatoMember,
-      'https://gelato-api-live.s3.eu-west-1.amazonaws.com/synthetic.pdf', `https://files.example.test/api/pdf/${key}`); } catch { fileRejected = true; }
-    assert(fileRejected && canceled && !buffered, 'Actual R2 error transport must cancel without buffering before verifier limits');
+      'https://gelato-api-live.s3.eu-west-1.amazonaws.com/synthetic.pdf', `${PRINTER_FILE_ORIGIN}/api/pdf/${key}`); } catch { fileRejected = true; }
+    assert(fileRejected && errorFetches === 1 && canceled && !buffered, 'Actual R2 error transport must cancel without buffering before verifier limits');
 
   } finally {
     globalThis.fetch = originalFetch;

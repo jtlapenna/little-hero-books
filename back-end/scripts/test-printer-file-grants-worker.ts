@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 async function main() {
   const settings = await readFile('wrangler.toml', 'utf8');
@@ -18,11 +18,11 @@ async function main() {
     }};`;
   const bundle = await build({ stdin: { contents: entry, resolveDir: process.cwd(), loader: 'ts' },
     bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent' });
-  const worker = new Miniflare({ modules: true, script: bundle.outputFiles[0].text,
+  const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundle.outputFiles[0].text,
     compatibilityDate: date, compatibilityFlags: flags,
     bindings: { BACKEND_API_TOKEN: 'synthetic-worker-preview-signing-authority-only' },
     outboundService: async () => { throw new Error('No outbound requests permitted'); },
-  });
+  }));
   const key = 'book-synthetic/orders/ORDER-SYNTHETIC/gelato/print/v2/' + 'a'.repeat(24) + '.pdf';
   const call = (body: unknown) => worker.dispatchFetch('https://worker.example.test', { method: 'POST', body: JSON.stringify(body) });
   try {

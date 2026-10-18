@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare, Response as WorkerResponse } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 import { handleGelatoWebhook, GELATO_WEBHOOK_HEADER, type GelatoWebhookReceipt } from '../src/lib/books/gelato-webhook';
 const secret = 'synthetic-webhook-'.padEnd(64, 'w'), cron = 'synthetic-cron-'.padEnd(64, 'c');
 const event = { id: 'os_synthetic', event: 'order_status_updated', orderId: 'provider-automatic', orderReferenceId: 'lhb-automatic-test-0', fulfillmentStatus: 'shipped', trackingUrl: 'https://DO-NOT-FETCH.invalid/private', privateContact: 'PRIVATE-CUSTOMER' };
@@ -114,11 +114,11 @@ async function main() {
   const send = async (w: Miniflare, r: Request) => { cronMode = r.url.includes('/cron/'); leaseAvailable = cronMode; try { return await w.dispatchFetch(r.url, { method: r.method, headers: [...r.headers], body: await r.text() }); } finally { cronMode = false; } };
   for (let cold = 0; cold < 3; cold++) {
    let outbound = 0;
-   const w: Miniflare = new Miniflare({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { GELATO_WEBHOOK_SECRET: secret, CRON_SECRET: cron, GELATO_STATUS_RELAY_ENABLED: 'false', GELATO_STATUS_POLLING_ENABLED: 'false' }, outboundService: async () => { outbound++; throw Error('OFF must not access network'); } });
+   const w: Miniflare = new Miniflare(convertV4MiniflareOptions({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { GELATO_WEBHOOK_SECRET: secret, CRON_SECRET: cron, GELATO_STATUS_RELAY_ENABLED: 'false', GELATO_STATUS_POLLING_ENABLED: 'false' }, outboundService: async () => { outbound++; throw Error('OFF must not access network'); } }));
    try { assert.equal((await send(w, request())).status, 200); assert.equal((await send(w, cronRequest())).status, 200); assert.equal((await send(w, request(event, null))).status, 401); assert.equal(outbound, 0); } finally { await w.dispose(); }
   }
   workerTransport = true;
-  const w: Miniflare = new Miniflare({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { ...bindings, GELATO_STATUS_RELAY_ENABLED: 'true', GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'true' }, outboundService: async r => { const response = await transport(new Request(r.url, { method: r.method, redirect: r.redirect, headers: [...r.headers], ...(r.method === 'GET' ? {} : { body: await r.text() }) })); return new WorkerResponse(await response.arrayBuffer(), { status: response.status, headers: [...response.headers] }); } });
+  const w: Miniflare = new Miniflare(convertV4MiniflareOptions({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { ...bindings, GELATO_STATUS_RELAY_ENABLED: 'true', GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'true' }, outboundService: async r => { const response = await transport(new Request(r.url, { method: r.method, redirect: r.redirect, headers: [...r.headers], ...(r.method === 'GET' ? {} : { body: await r.text() }) })); return new WorkerResponse(await response.arrayBuffer(), { status: response.status, headers: [...response.headers] }); } }));
   try { assert.equal((await send(w, request())).status, 200); const polled = await send(w, cronRequest()); assert.equal(polled.status, 200); assert.equal((await polled.json() as { delivered: number }).delivered, 0); redirectProvider = true; assert.equal((await send(w, request())).status, 503); redirectProvider = false; } finally { await w.dispose(); }
   console.log('PASS: actual webhook + dedicated scheduler; ordinary website/Amazon/siblings; authoritative PDF bytes; stale/CAS/retry/failure paths; zero customer intents/delivery with notification flag true; cold OFF Workers zero I/O; enabled Worker synthetic only.');
   assert(logged.length > 0 && !logged.join('').includes('PRIVATE-CUSTOMER') && !logged.join('').includes(event.orderId));

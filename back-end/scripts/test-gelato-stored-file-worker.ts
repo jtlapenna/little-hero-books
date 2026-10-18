@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare, Response as WorkerResponse } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 
 async function main() {
   const source = await fs.readFile('wrangler.toml', 'utf8');
@@ -24,7 +24,7 @@ export default {async fetch(request) {
 }};`;
   const bundled = await build({ stdin: { contents: entry, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent' });
   let scenario = 'match', redirectStatus = 302; const calls: string[] = [];
-  const worker = new Miniflare({ modules: true, script: bundled.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
+  const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundled.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
     bindings: { CLOUDFLARE_ACCOUNT_ID: 'synthetic-worker', CLOUDFLARE_R2_ACCESS_KEY_ID: 'synthetic-access', CLOUDFLARE_R2_SECRET_ACCESS_KEY: 'synthetic-secret' },
     outboundService: async request => {
       const url = new URL(request.url), leg = url.hostname === 'little-hero-orders.synthetic-worker.r2.cloudflarestorage.com' ? 'r2' :
@@ -33,7 +33,7 @@ export default {async fetch(request) {
       assert.notEqual(leg, 'forbidden', 'Engine must never follow a redirect or use an external service'); assert.equal(request.method, 'GET');
       if (scenario === `${leg}-redirect`) return new WorkerResponse('identical', { status: redirectStatus, headers: { Location: 'https://unapproved.example/never-follow' } });
       return new WorkerResponse(scenario === 'mismatch' && leg === 'provider' ? 'changed' : 'identical');
-    } });
+    } }));
   try {
     assert.deepEqual(await (await worker.dispatchFetch('http://local/legacy')).json(), { unsupported: true }); assert.equal(calls.length, 0, 'Old redirect mode fails in real engine before outbound access');
     assert.deepEqual(await (await worker.dispatchFetch('http://local/verify')).json(), { verified: true }); assert.deepEqual(calls, ['r2', 'provider']);

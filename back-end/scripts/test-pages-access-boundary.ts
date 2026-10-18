@@ -6,7 +6,7 @@ import { createHmac } from 'node:crypto';
 import { dirname } from 'node:path';
 import { join, resolve } from 'node:path';
 import { build } from 'esbuild';
-import { Miniflare, Response as WorkerResponse } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { verifyGelatoStatusRouting } from './gelato-status-routing-cases';
 
@@ -17,6 +17,7 @@ async function main() {
   assert.throws(() => patchWorkerForAccessBoundary('unsupported template'), /Unsupported/);
   const folder = await mkdtemp(join(tmpdir(), 'lhl-pages-access-'));
   let assets = 0, adapter = 0;
+  const syntheticPng = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+X9UkKQAAAABJRU5ErkJggg==', 'base64'));
   const cron = 'synthetic-pages-cron-'.padEnd(64, 'c'), webhook = 'synthetic-pages-webhook-'.padEnd(64, 'w');
   const issuer = 'https://pages-synthetic.cloudflareaccess.com', origin = 'https://admin.example.test', audience = 'a'.repeat(64);
   const pair = await generateKeyPair('RS256', { extractable: true });
@@ -41,18 +42,18 @@ async function main() {
     assert.deepEqual(pagesRoutes.exclude, ['/_next/static/*', '/favicon.ico']);
     const source = await readFile(join(folder, '_worker.js'), 'utf8'); assert.throws(() => patchWorkerForAccessBoundary(source), /Unsupported/);
     assert.ok(source.indexOf('withBackendAccess(request,') < source.indexOf('maybeGetSkewProtectionResponse(request)'));
-    const bundle = await build({ entryPoints: [join(folder, '_worker.js')], bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent',
-      define: { __BUILD_TIMESTAMP_MS__: '0', __NEXT_BASE_PATH__: '""', __ASSETS_RUN_WORKER_FIRST__: 'false', __DEPLOYMENT_ID__: '""', __TRAILING_SLASH__: 'false', __SKEW_PROTECTION_ENABLED__: 'false', __IMAGES_LOCAL_PATTERNS__: '[]', __IMAGES_REMOTE_PATTERNS__: '[]', __IMAGES_ALLOW_SVG__: 'false', __IMAGES_CONTENT_DISPOSITION__: '"inline"', __IMAGES_CONTENT_SECURITY_POLICY__: '"default-src none"' } });
-    const worker = new Miniflare({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
+    const bundle = await build({ entryPoints: [join(folder, '_worker.js')], nodePaths: [resolve('node_modules')], bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent',
+      define: { __BUILD_TIMESTAMP_MS__: '0', __NEXT_BASE_PATH__: '""', __ASSETS_RUN_WORKER_FIRST__: 'false', __DEPLOYMENT_ID__: '""', __TRAILING_SLASH__: 'false', __SKEW_PROTECTION_ENABLED__: 'false', __IMAGES_LOCAL_PATTERNS__: JSON.stringify([{ pathname: '^/private-sentinel[.]png$', search: '' }]), __IMAGES_REMOTE_PATTERNS__: '[]', __IMAGES_ALLOW_SVG__: 'false', __IMAGES_FORMATS__: '["image/webp"]', __IMAGES_DEVICE_SIZES__: '[640]', __IMAGES_IMAGE_SIZES__: '[16,32]', __IMAGES_QUALITIES__: '[75]', __IMAGES_MAX_REDIRECTS__: '3', __IMAGES_CONTENT_DISPOSITION__: '"inline"', __IMAGES_CONTENT_SECURITY_POLICY__: '"default-src none"' } });
+    const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
       bindings: { CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: audience, ADMIN_ALLOWED_EMAILS: 'john@example.test', ADMIN_SITE_ORIGIN: origin, BACKEND_API_TOKEN: 'synthetic-pages-machine-secret-value', LULU_CLIENT_SECRET: 'synthetic-worker-lulu-owner-secret', CRON_SECRET: cron, GELATO_WEBHOOK_SECRET: webhook,
         GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
         GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false' },
-      serviceBindings: { ASSETS: async () => { assets++; return new WorkerResponse('synthetic-static-sentinel', { headers: { 'Cache-Control': 'public, max-age=3600' } }); } },
+      serviceBindings: { ASSETS: async () => { assets++; return new WorkerResponse(syntheticPng, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } }); } },
       outboundService: async request => {
         if (request.url === issuer + '/cdn-cgi/access/certs') return new WorkerResponse(JSON.stringify({ keys: [jwk] }), { headers: { 'Content-Type': 'application/json' } });
         assert.equal(request.url, 'https://adapter.example.test/called', 'no real provider transport'); adapter++; return new WorkerResponse('synthetic');
       },
-    });
+    }));
     try {
       for (const path of ['/api/orders', '/_next/data/wrong-build/orders.json', '/_next/data/current-build/api/admin/send-amazon-message.json', '/_next/unknown', '/_next/image?url=/private-sentinel.png', '/cdn-cgi/image/width=100/private-sentinel.png']) {
         const beforeAssets = assets, beforeAdapter = adapter;
@@ -63,7 +64,9 @@ async function main() {
         const response = await worker.dispatchFetch(origin + '/_next/data/current-build/api/admin/send-amazon-message.json', { method, headers: { cookie: 'CF_Authorization=' + jwt, 'sec-fetch-site': 'cross-site', referer: 'https://evil.example/' } }); assert.equal(response.status, 403);
       }
       const human = { cookie: 'CF_Authorization=' + jwt, 'sec-fetch-site': 'same-origin', referer: origin + '/orders' };
-      const image = await worker.dispatchFetch(origin + '/_next/image?url=/private-sentinel.png', { headers: human }); assert.equal(image.status, 200); assert.equal(await image.text(), 'synthetic-static-sentinel'); assert.equal(assets, 1); assert.match(image.headers.get('cache-control')!, /private.*no-store/); assert.ok(image.headers.get('x-request-id'));
+      const image = await worker.dispatchFetch(origin + '/_next/image?url=/private-sentinel.png&w=640&q=75', { headers: human }); assert.equal(image.status, 200); assert.deepEqual(new Uint8Array(await image.arrayBuffer()), syntheticPng); assert.equal(assets, 1); assert.match(image.headers.get('cache-control')!, /private.*no-store/); assert.ok(image.headers.get('x-request-id'));
+      const deniedImage = await worker.dispatchFetch(origin + '/_next/image?url=/not-allowed.png&w=640&q=75', { headers: human });
+      assert.equal(deniedImage.status, 400); assert.equal(assets, 1, 'unmatched image pattern must not read assets');
       const machine = await worker.dispatchFetch(origin + '/api/internal/synthetic', { method: 'POST', headers: { authorization: 'Bearer synthetic-pages-machine-secret-value', 'x-request-id': 'caller-id', 'x-middleware-subrequest': 'bypass' }, body: 'synthetic-request-body' });
       assert.equal(machine.status, 200); const body = await machine.json() as { requestId: string; internal: null; body: string };
       assert.equal(body.requestId, machine.headers.get('x-request-id')); assert.notEqual(body.requestId, 'caller-id'); assert.equal(body.internal, null); assert.equal(body.body, 'synthetic-request-body');
