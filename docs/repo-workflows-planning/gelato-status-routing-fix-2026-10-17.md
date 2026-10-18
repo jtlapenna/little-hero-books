@@ -1,5 +1,7 @@
 # Gelato polling and webhook routing fix
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 ## Scope and design
 
 The deployed PR26 source blocked the new status endpoints at the outer access boundary before their existing route-specific authentication could run. This patch adds exact method/path contracts:

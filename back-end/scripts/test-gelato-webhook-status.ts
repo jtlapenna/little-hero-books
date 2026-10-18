@@ -43,6 +43,16 @@ async function main() {
   let leaseAvailable = false, cronMode = false;
   const scheduledRequest = async () => { leaseAvailable = true; cronMode = true; try { return await scheduled(cronRequest()); } finally { cronMode = false; } };
   let calls = 0, providerReads = 0, artifactReads = 0, storedReads = 0, applies = 0, holds = 0;
+  let streamDelay = 0, byteReads = 0;
+  const byteResponse = (bytes: Uint8Array) => {
+   let offset = 0, canceled = false;
+   return new Response(new ReadableStream({ async pull(controller) {
+    if (streamDelay) await new Promise(resolve => setTimeout(resolve, streamDelay));
+    if (canceled) return;
+    if (offset === bytes.length) { controller.close(); return; }
+    const chunk = bytes.slice(offset, offset + 65536); offset += chunk.length; byteReads += chunk.length; controller.enqueue(chunk);
+   }, cancel() { canceled = true; } }), { headers: { 'content-length': String(bytes.length) } });
+  };
   let positive = false, failed = false, wrongFile = false, stale = false, cas = false, workerTransport = false, redirectProvider = false;
   function ordinary() {
    Object.assign(f.context.providerOrders[0], { order_type: 'order', status: 'created', snapshot: { ...f.raw(), orderType: 'order', fulfillmentStatus: 'created', financialStatus: 'pending' } });
@@ -80,12 +90,59 @@ async function main() {
    }
    assert.equal(r.method, 'GET', 'No provider/storage mutation');
    if (u.hostname === 'order.gelatoapis.com') { providerReads++; assert.equal(r.headers.get('x-api-key'), cronMode ? bindings.GELATO_STATUS_API_KEY : bindings.GELATO_API_KEY); if (!workerTransport) assert.equal(r.redirect, 'manual'); assert.equal(u.pathname, '/v4/orders/' + f.a.provider_root_id); return redirectProvider ? new Response(null, { status: 302, headers: { Location: 'https://DO-NOT-FETCH.invalid/redirect' } }) : failed ? new Response(null, { status: 503 }) : Response.json(provider()); }
-   if (u.hostname === 'little-hero-orders.synthetic-webhook.r2.cloudflarestorage.com') { artifactReads++; assert(r.headers.get('authorization')?.startsWith('AWS4-HMAC-SHA256')); return new Response(Uint8Array.from(f.blobs.get(decodeURIComponent(u.pathname.slice(1)))!)); }
+   if (u.hostname === 'little-hero-orders.synthetic-webhook.r2.cloudflarestorage.com') { artifactReads++; assert(r.headers.get('authorization')?.startsWith('AWS4-HMAC-SHA256')); return byteResponse(Uint8Array.from(f.blobs.get(decodeURIComponent(u.pathname.slice(1)))!)); }
    assert.equal(u.hostname, 'gelato-api-live.s3.eu-west-1.amazonaws.com', 'No event URL/customer service'); storedReads++;
    const i = Number(u.pathname.match(/automatic-fixture-(\d+)\.pdf/)?.[1]); assert(Number.isInteger(i));
-   return new Response(wrongFile ? 'wrong PDF' : Uint8Array.from(f.blobs.get(c.members[i].artifact_key!)!));
+   return byteResponse(wrongFile ? new TextEncoder().encode('wrong PDF') : Uint8Array.from(f.blobs.get(c.members[i].artifact_key!)!));
   };
   globalThis.fetch = (input, init) => transport(new Request(input, init));
+  const measurements: unknown[] = [], fixtures: Array<{ role: string; bytes: number; sha256: string }> = [];
+  const fixtureDirectory = process.env.GELATO_BENCH_PDF_DIR;
+  const setBenchmarkCase = async (format: 'standard' | 'amazon', count: number) => {
+   assert(fixtureDirectory && process.env.GELATO_BENCH_OUTPUT, 'Both benchmark paths are required');
+   f = await fixture(format, count, 0, true, 'ORDINARY-SYNTHETIC'); ordinary();
+   const receipt = JSON.parse(await fs.readFile(resolve(fixtureDirectory, 'pdf-receipts.json'), 'utf8'));
+   const { createHash } = await import('node:crypto');
+   for (let index = 0; index < count; index++) {
+    const role = count === 2 ? ['SIB-A', 'SIB-B'][index] : format === 'standard' ? 'WEB-A' : 'AMZ-A';
+    const bytes = await fs.readFile(resolve(fixtureDirectory, role + '.pdf'));
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const recorded = receipt.receipts.find((entry: { role: string }) => entry.role === role);
+    assert(recorded && recorded.sha256 === hash && recorded.bytes === bytes.length && recorded.uploadedPages === 35 && recorded.apiPageCount === 32 && recorded.physicalInnerPages === 32);
+    f.blobs.set(f.context.members[index].artifact_key!, bytes);
+    if (!fixtures.some(entry => entry.role === role)) fixtures.push({ role, bytes: bytes.length, sha256: hash });
+   }
+  };
+  const measure = async (runtime: string, format: string, count: number, run: () => Promise<{ status: number; json(): Promise<unknown> }>, expectedErrors = 0) => {
+   const start = performance.now(), cpu = process.cpuUsage(), before = byteReads, beforeProvider = providerReads, beforeApplies = applies;
+   const response = await run(); assert.equal(response.status, expectedErrors ? 503 : 200);
+   const summary = await response.json() as { checked: number; refreshed: number; errors: number; delivered: number; customerMessages: boolean };
+   assert.equal(summary.refreshed, expectedErrors ? 0 : 1);
+   const used = process.cpuUsage(cpu), elapsedMs = performance.now() - start;
+   assert.equal(summary.checked, 1); assert.equal(summary.delivered, 0); assert.equal(summary.customerMessages, false);
+   assert.equal(summary.errors, expectedErrors, JSON.stringify(summary));
+   assert.equal(providerReads - beforeProvider, 1);
+   const expectedBytes = [...f.blobs.values()].reduce((sum, bytes) => sum + bytes.length, 0) * 2;
+   if (!expectedErrors) assert.equal(byteReads - before, expectedBytes, 'Every original and provider copy is verified');
+   else assert(byteReads - before < expectedBytes, 'Deadline must interrupt the body');
+   assert.equal(applies - beforeApplies, expectedErrors ? 0 : 1);
+   measurements.push({ runtime, format, children: count, chunkBytes: 65536, simulatedChunkDelayMs: streamDelay, elapsedMs: Math.round(elapsedMs * 100) / 100, processCpuMs: (used.user + used.system) / 1000, processRssBytes: process.memoryUsage().rss, downloadedBytes: byteReads - before, providerReads: providerReads - beforeProvider, summary });
+  };
+  if (fixtureDirectory) {
+   process.env.GELATO_SCHEDULED_STATUS_ENABLED = 'true';
+   for (const [format, count] of [['standard', 1], ['amazon', 1], ['amazon', 2]] as const) {
+    for (const delay of [0, 10]) {
+     streamDelay = delay;
+     for (let repeat = 0; repeat < (delay ? 1 : 3); repeat++) {
+      await setBenchmarkCase(format, count); await measure('node-actual-route-streamed', format, count, scheduledRequest);
+     }
+    }
+   }
+   streamDelay = 100; await setBenchmarkCase('amazon', 2);
+   await measure('node-actual-route-streamed-deadline', 'amazon', 2, scheduledRequest, 1);
+   assert((measurements.at(-1) as { elapsedMs: number }).elapsedMs < 4000, 'Candidate timeout must remain bounded');
+   streamDelay = 0; process.env.GELATO_SCHEDULED_STATUS_ENABLED = 'false';
+  }
   for (const [format, count] of [['standard', 1], ['amazon', 1], ['amazon', 2]] as const) {
    f = await fixture(format, count, 0, true, 'ORDINARY-SYNTHETIC'); ordinary(); const before = calls;
    assert.equal((await webhook(request())).status, 200); assert.equal((await scheduledRequest()).status, 200); assert.equal(calls, before, 'OFF zero I/O');
@@ -120,9 +177,22 @@ async function main() {
   workerTransport = true;
   const w: Miniflare = new Miniflare(convertV4MiniflareOptions({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { ...bindings, GELATO_STATUS_RELAY_ENABLED: 'true', GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'true' }, outboundService: async r => { const response = await transport(new Request(r.url, { method: r.method, redirect: r.redirect, headers: [...r.headers], ...(r.method === 'GET' ? {} : { body: await r.text() }) })); return new WorkerResponse(await response.arrayBuffer(), { status: response.status, headers: [...response.headers] }); } }));
   try { assert.equal((await send(w, request())).status, 200); const polled = await send(w, cronRequest()); assert.equal(polled.status, 200); assert.equal((await polled.json() as { delivered: number }).delivered, 0); redirectProvider = true; assert.equal((await send(w, request())).status, 503); redirectProvider = false; } finally { await w.dispose(); }
+  if (fixtureDirectory) {
+   const benchmarkWorker = new Miniflare(convertV4MiniflareOptions({ modules: true, script, compatibilityDate: date, compatibilityFlags: flags, bindings: { ...bindings, GELATO_STATUS_RELAY_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'true' }, outboundService: async r => {
+    const response = await transport(new Request(r.url, { method: r.method, headers: [...r.headers], ...(r.method === 'GET' ? {} : { body: await r.text() }) }));
+    return new WorkerResponse(await response.arrayBuffer(), { status: response.status, headers: [...response.headers] });
+   } }));
+   try {
+    for (const [format, count] of [['standard', 1], ['amazon', 1], ['amazon', 2]] as const) {
+     await setBenchmarkCase(format, count); await measure('focused-worker-buffered-bridge', format, count, () => send(benchmarkWorker, cronRequest()));
+    }
+   } finally { await benchmarkWorker.dispose(); }
+   assert.equal(f.stats().patches, 0);
+   await fs.writeFile(process.env.GELATO_BENCH_OUTPUT!, JSON.stringify({ schemaVersion: 1, fixtures, measurements, liveRequests: 0, constraints: ['Synthetic transport only', 'Focused Worker is not complete OpenNext deployment', 'Worker bridge buffers bodies; no real network latency or streaming measurement', 'CPU/RSS are whole local Node process, not billed Worker CPU or peak memory', 'Sparse labelled raster PDFs do not represent all final artwork sizes', 'Local process flags only; live controls were not accessed'] }, null, 2) + '\n');
+  }
   console.log('PASS: actual webhook + dedicated scheduler; ordinary website/Amazon/siblings; authoritative PDF bytes; stale/CAS/retry/failure paths; zero customer intents/delivery with notification flag true; cold OFF Workers zero I/O; enabled Worker synthetic only.');
   assert(logged.length > 0 && !logged.join('').includes('PRIVATE-CUSTOMER') && !logged.join('').includes(event.orderId));
  } finally { globalThis.fetch = previous; console.info = originalInfo; }
 }
-const watchdog = setTimeout(() => { throw Error('Webhook regression stalled'); }, 40_000);
+const watchdog = setTimeout(() => { throw Error('Webhook regression stalled'); }, process.env.GELATO_BENCH_PDF_DIR ? 120_000 : 40_000);
 void main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => clearTimeout(watchdog));

@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "baseline": "d423177a515e88f7b800cf3bbe16fc4de7344def",
+  "sourceState": "uncommitted source plus preserved earlier QA; hashes identify exact bytes, not publication or blanket review authority",
+  "files": {
+    "README.md": "ada3d5a2cd14357a2fc04dc46a27d38e9b42c621094329645e455a4101594e4c",
+    "checks.json": "4a23943b5f607bf8d8111ba018a8e973284f7223331ce92bace74f5eb2912873",
+    "dummy-pdf-benchmark.json": "93da2069e0346ab3e02411231168a9959f498a4860130b562eed12fc345c3ee6",
+    "existing-schema.json": "3ba532909ffa99be5a8b1f5c9acaf1466ff17b24a1fba510d5a9956dc39e861e",
+    "local-journey.json": "650125782758f0ebe41093a19a060539b6b5d166c689741c290bd1bd22573a00",
+    "ordinary-router.json": "48b134de0457668b0686523aa54c5ded744b3481b50461d12a2d9c4dcb68a20a",
+    "preview-transaction.json": "a5009418d574c231b8bc51f450055a5d1fb379b6b4811b22d9bff8512f0e2250",
+    "review.json": "365fc6c40a9ea84ff83e56840133f414ba0d107bffe3921fdb56addbb837c30a",
+    "typecheck.json": "2d367122e49e99043a8a204e01710eed9c1ddcded551179ced59f3aa65173072",
+    "verify.py": "7692d338779c4810352ef7971ff3050662c69ba162df1761002c4c7933e7b4ad"
+  },
+  "sources": [
+    {
+      "path": ".github/workflows/check-application-access.yml",
+      "sha256": "16a81d50258432b54598d6d661403702b88ae6e10b50cf642f3412ea69f19b72"
+    },
+    {
+      "path": ".github/workflows/check-workflow-export-secrets.yml",
+      "sha256": "9f8e745b5d65d6e712e71f525707394438115aca1001f255d16d667df57dfba2"
+    },
+    {
+      "path": "back-end/package-lock.json",
+      "sha256": "c84b628ae22f56eadb3cae85769ef056234e9b11db91ed175b9b64f5494544a5"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "09d571bee45f5d93cc3ecea65143615b4e4522fa9280acf50b02a76d6e3772d6"
+    },
+    {
+      "path": "back-end/scripts/create-gelato-engineering-rasters.py",
+      "sha256": "ee85b5d19ef9cdb40b358e3a0d25bd6144837033a35176b89bc50aa38ceefbeb"
+    },
+    {
+      "path": "back-end/scripts/test-customer-preview-access.ts",
+      "sha256": "46031853c825b65ee37e4cc82f4767f26c3a2819f9c07dc7fd624f7ae7149d8b"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-admin-inspection.tsx",
+      "sha256": "45b2dd99175e0aff9047025aa84a7042d88192fa93ca4cfe292adad0f70074f6"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "sha256": "655b31951b4f50bd5d8fa1a4588d22870be1378489a448b6144d72b53895e863"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-ordinary-router.ts",
+      "sha256": "909a214390c31489251fd99b12ff271945b5ef4225a7d002e0bc7aa5b8e9562e"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-submission.ts",
+      "sha256": "cc7d72829c88e18e9bd569304a8a05d34c98b739fc6ae60e4e61cdadd5392b74"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-webhook-status.ts",
+      "sha256": "b8bd1a608ca118d59bd4d7ee26cfd700d5cf0a8ee63c204a44a05325cbab9663"
+    },
+    {
+      "path": "back-end/scripts/test-preview-action-transaction.ts",
+      "sha256": "514b6580b4f9afa735f91252fbe23d45f40af0040b0c69dd817913e604ad4335"
+    },
+    {
+      "path": "back-end/scripts/test-preview-print-schema.ts",
+      "sha256": "1bdfd9489ba59e23e91a7e873d00204f89d18fc5a455f8a3c1f59a24abb912e8"
+    },
+    {
+      "path": "back-end/src/app/api/cron/router/route.ts",
+      "sha256": "aba8e59f3aca540d7fc76e04a52032bf787017b1328eb93a1e7eb8153a37fced"
+    },
+    {
+      "path": "back-end/src/app/api/internal/orders/print-routing/claim/route.ts",
+      "sha256": "f0eea960ca71bc3e05629ba5c92445e65aabd7a21fe1eed32cce231ef6957318"
+    },
+    {
+      "path": "back-end/src/app/api/preview/[orderId]/approve/route.ts",
+      "sha256": "08b0cbc486e98190dd1a30f8ac5b09f95fe64611b4b12001ecc35e43efc05cb4"
+    },
+    {
+      "path": "back-end/src/app/api/preview/[orderId]/reject/route.ts",
+      "sha256": "3e0a15214701cbffc7e8e0d7c0c00f56b72bf092310e8658be9179c11a6e5e0e"
+    },
+    {
+      "path": "back-end/src/app/api/preview/contact/route.ts",
+      "sha256": "30459ee2f77bdd5cdecd30300688fa86fb9fecc801b37a5cf82c2e63b04ea2f6"
+    },
+    {
+      "path": "back-end/src/app/api/preview/validate-token/route.ts",
+      "sha256": "0f204b67939d288f02bf60c5f7f54aa0b7ab8fccfe12510fae5cc69bb11030e6"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-print-admission.ts",
+      "sha256": "1305da9fd334aca852b47b5c7bbc1a0983044c0d44c7856f78021eaeadd085c4"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-release-review.ts",
+      "sha256": "420131abf85a1b69a83ea6a2142cecbd17a05f3eaab65c4d82600cbe459b0714"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-submission.ts",
+      "sha256": "089d7ba3d39373ab5e13eb37afba5bb03cd5bb0931de9cd26cbfe0c42343dbfa"
+    },
+    {
+      "path": "back-end/src/lib/customer-preview-access.ts",
+      "sha256": "3213ad4cf54701dc91a0a802620f092660addebe1abfffa8dd95deee08099db1"
+    },
+    {
+      "path": "back-end/src/lib/sibling-print-policy.ts",
+      "sha256": "7c6b6625ae8e85faed47a16ca2bb6df1b56303ae6461e6d66267be361287d21b"
+    },
+    {
+      "path": "database/20261018192718_customer_preview_actions.sql",
+      "sha256": "69bd863e54c1407a1a80d7c90ad02b9d3877e4b147467a7c6758da76178dfe2d"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+      "sha256": "d823172f973372348ab3165682e65eaba5d0520968e94af10e707308b871dae1"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-automatic-unpaid-engineering-2026-10-16.md",
+      "sha256": "3513053b6d46b8ecd7b21a16f3e880d6aad5577b381a3a153f70ae23bc5cc018"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-conversion-status-2026-10-16.md",
+      "sha256": "ae3dc2e230f16a75a5763cb7fa2a0a2c0e6005830f8dae57717d927cd7cbce83"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-fulfillment-coverage-2026-10-15.md",
+      "sha256": "d0f633c46f4bc1cda79d4455c37cc4ca1d1ce877cf4b4b6b8b83eca68a1ed6c6"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-local-fulfillment-plan-2026-10-18.md",
+      "sha256": "d14cc576e7103d137d71be797f0397f225bcc7b9e077f313d2c27ac93fe750b3"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-local-fulfillment-results-2026-10-18.md",
+      "sha256": "72d27ef6f82e6d464c442919b3833db5d1a79e8ec553a8f0b209145c80139e68"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-polling-first-plan-2026-10-16.md",
+      "sha256": "6edd06fac129393e662368a36a86e450727a20a21973c13b1b9ee8913e6d7489"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-status-routing-fix-2026-10-17.md",
+      "sha256": "7ab1b006b46882593466a8c21e7880e07b85859182a723b139c3d7a9fab0ec27"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-unpaid-fixes-results-2026-10-17.md",
+      "sha256": "ab3d2ecb3e71450b329d829151aa9a9deb1e8000f08f76209c5a5402cf706979"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-webhook-status-automation-2026-10-16.md",
+      "sha256": "46f192b8f390d014877255f120f890e8972ebd11107ca8bd942c44d3149a7257"
+    },
+    {
+      "path": "scripts/testing/local-preview-database.ts",
+      "sha256": "258663af9fa4f993f5cb4207d7a3c59f5abefd2d17eea43f7ce438faa2d62119"
+    }
+  ]
+}

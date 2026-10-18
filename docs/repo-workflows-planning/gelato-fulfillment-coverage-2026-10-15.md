@@ -1,5 +1,7 @@
 # Gelato expanded fulfillment verification - October 15, 2026
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 This is an in-progress requirements ledger for the expanded engineering scope. Dummy assets are sufficient. Completed draft tests remain valid for their stated boundaries; paid printing, actual billing, shipment and delivery are not complete. Normal ordering and customer communications remain closed.
 
 ## Verified starting point

@@ -17,13 +17,14 @@ async function main() {
     const observed = await getGelatoOrder(f.a.provider_root_id, { apiKey: 'synthetic', fetcher: async () => Response.json({ ...f.raw(), financialStatus: 'pending',
       receipts: [{ id: 'synthetic-receipt', currency: 'USD', isCalculated: true, total: 0, privateBilling: 'PRIVATE-RECEIPT' }] }) });
     Object.assign(f.context.providerOrders[0], { last_checked_at: '2026-10-16T13:00:00Z', financial_observation: { ...observed.financialObservation, private: 'PRIVATE-OBSERVATION' }, financial_observed_at: '2026-10-16T13:00:00Z', observation_revision: 1 });
-    let calls = 0;
+    let calls = 0, databaseFailure = false;
     const job = { enabled: true, registered_at: '2000-01-01T00:00:00Z', last_attempt_at: '2000-01-03T00:00:00Z', last_success_at: '2000-01-02T00:00:00Z',
       next_attempt_at: '2000-01-04T00:00:00Z', last_result: 'failed', last_error_class: 'timeout', active_interval_seconds: 300, terminal_interval_seconds: 3600, terminal_until: null,
       account_key_sha256: 'PRIVATE-KEY-HASH', lease_token: 'PRIVATE-LEASE' };
     globalThis.fetch = async (input, init) => {
       const r = new Request(input, init), url = new URL(r.url); calls++;
       assert.equal(url.origin, 'https://db.example.test'); assert.equal(r.method, 'GET', 'Admin inspection must not refresh or mutate anything');
+      if (databaseFailure) return Response.json({ message: 'PRIVATE-DB-FAILURE' }, { status: 503 });
       const table = url.pathname.split('/').pop();
       let rows: unknown[];
       if (table === 'orders') { rows = [...f.rows.values()]; const key = url.searchParams.get('orderId'); if (key?.startsWith('eq.')) rows = rows.filter(row => (row as Record<string, unknown>).orderId === key.slice(3)); }
@@ -46,6 +47,31 @@ async function main() {
     for (const text of ['Payment status: pending', 'USD 12.18', 'USD 5', 'USD 0', 'Calculated estimate', 'Status checks are overdue', 'Failed; last known status retained', 'does not confirm a settled charge']) assert(html.includes(text), text);
     const unknown = renderToStaticMarkup(<GelatoObservationDetails details={{ ...data, monetaryQuote: null, polling: null, orders: data.orders.map(order => ({ ...order, financial: null, financialObservedAt: null })) }} />);
     assert(unknown.includes('Payment status: Not recorded')); assert(unknown.includes('Original monetary quote was not retained')); assert(!unknown.includes('USD 0'));
+    if (process.env.GELATO_UI_REVIEW_DIR) {
+      const fs = await import('node:fs/promises'); const path = await import('node:path');
+      const directory = path.resolve(process.env.GELATO_UI_REVIEW_DIR); await fs.mkdir(directory, { recursive: true });
+      const read = async () => { const response = await GET(new NextRequest(target, { headers: { authorization: 'Bearer ' + adminToken } })); return { status: response.status, body: await response.json() }; };
+      const cases: Record<string, Awaited<ReturnType<typeof read>>> = { 'overdue-siblings': await read() };
+      job.last_result = 'success'; job.last_success_at = new Date().toISOString(); job.last_attempt_at = job.last_success_at;
+      job.next_attempt_at = new Date(Date.now() + 300_000).toISOString();
+      cases['current-siblings'] = await read(); assert.equal(cases['current-siblings'].body.polling.stale, false);
+      const finance = f.context.providerOrders[0].financial_observation!;
+      f.context.providerOrders[0].financial_observation = { ...finance, reviewReason: 'malformed_receipts' };
+      cases['financial-review'] = await read();
+      f.context.providerOrders[0].financial_observation = null; f.context.providerOrders[0].financial_observed_at = null;
+      for (const saved of [f.context.submission.quote_snapshot, f.context.submission.request_snapshot]) {
+        if (saved && typeof saved === 'object') delete (saved as Record<string, unknown>).monetaryQuote;
+      }
+      process.env.GELATO_SCHEDULED_STATUS_ENABLED = 'false';
+      cases['unknown-off'] = await read();
+      assert.equal(cases['unknown-off'].body.monetaryQuote, null); assert.equal(cases['unknown-off'].body.polling.enabled, false);
+      assert.equal(cases['unknown-off'].body.orders[0].financial, null);
+      databaseFailure = true; cases['inspection-error'] = await read(); databaseFailure = false;
+      assert.equal(cases['inspection-error'].status, 409);
+      assert(!JSON.stringify(cases).includes('PRIVATE-'));
+      await fs.writeFile(path.join(directory, 'cases.json'), JSON.stringify(cases, null, 2) + '\n');
+      console.log('PASS: five browser cases generated through actual authenticated inspection route and stored-schema parsers');
+    }
     if (process.env.GELATO_UI_REVIEW_OUTPUT) {
       const fs = await import('node:fs/promises');
       await fs.writeFile(process.env.GELATO_UI_REVIEW_OUTPUT, '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gelato synthetic status review</title><body><main style="max-width:760px;margin:32px auto;padding:20px;font-family:system-ui;line-height:1.5">'+html+'</main></body></html>');

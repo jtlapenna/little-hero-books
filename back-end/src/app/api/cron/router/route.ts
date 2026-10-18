@@ -1,11 +1,12 @@
+import { ordinaryPrintRoutingBlocker } from '@/lib/books/gelato-print-admission';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
 import {
   getPerBookOrderId,
+  getRootOrderId,
   isReadyForSiblingPrintRouting,
-  isSiblingChildOrder,
 } from '@/lib/sibling-print-policy';
 
 export const dynamic = 'force-dynamic';
@@ -495,7 +496,7 @@ export async function GET(request: NextRequest) {
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier')
+      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier,print_provider,print_submission_id,print_claim_token,gelato_order_id,gelato_status')
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)
@@ -530,7 +531,8 @@ export async function GET(request: NextRequest) {
     // - For W4, only allow routing if: Lulu fields cleared AND (customer approval not required OR customer approved).
     const eligibleOrders = (orders || []).filter((o) => {
       const next = String(o.next_workflow || '');
-      if (next !== '4') return true;
+      if (next !== '4' && next !== '4-aggregate') return true;
+      if (ordinaryPrintRoutingBlocker(o, process.env.GELATO_DRAFT_SUBMISSION_ENABLED === 'true')) return false;
       if (o.lulu_job_id || o.lulu_status) return false;
       const approvalRequired = o.customer_approval_required === true;
       const approved = o.customer_approval_status === 'approved';
@@ -556,16 +558,21 @@ export async function GET(request: NextRequest) {
 
     const heldSiblingGroups: HeldSiblingGroup[] = [];
     const siblingOrders = cronEligibleOrders.filter(
-      (o) => String(o.next_workflow || '') === '4' && isSiblingChildOrder(o),
+      (o) => ['4', '4-aggregate'].includes(String(o.next_workflow || '')),
     );
-    const siblingRootIds = [...new Set(siblingOrders.map((o) => String(o.root_order_id)))];
+    const siblingRootIds = [...new Set(siblingOrders.map(order => getRootOrderId(order) || getPerBookOrderId(order)))];
     const siblingGroupMembers = new Map<string, any[]>();
 
     if (siblingRootIds.length > 0) {
-      const { data: siblingRows, error: siblingRowsError } = await supabase
-        .from('orders')
-        .select('id,"orderId",root_order_id,execution_status,current_workflow,next_workflow,customer_approval_required,customer_approval_status,lulu_job_id,lulu_status')
-        .in('root_order_id', siblingRootIds);
+      // Match the same modern, legacy-Amazon and self-root membership paths as W1/claim.
+      const fields = 'id,"orderId",amazon_order_id,root_order_id,execution_status,current_workflow,started_at,next_workflow,customer_approval_required,customer_approval_status,lulu_job_id,lulu_status,print_provider,print_submission_id,print_claim_token,gelato_order_id,gelato_status';
+      const lookups = await Promise.all([
+        supabase.from('orders').select(fields).in('root_order_id', siblingRootIds),
+        supabase.from('orders').select(fields).is('root_order_id', null).in('amazon_order_id', siblingRootIds),
+        supabase.from('orders').select(fields).is('root_order_id', null).is('amazon_order_id', null).in('orderId', siblingRootIds),
+      ]);
+      const siblingRowsError = lookups.find(result => result.error)?.error;
+      const siblingRows = lookups.flatMap(result => result.data || []);
 
       if (siblingRowsError) {
         console.error(`[Cron Router] [${executionId}] Failed to fetch sibling group states:`, {
@@ -584,18 +591,24 @@ export async function GET(request: NextRequest) {
         });
       } else {
         for (const row of siblingRows || []) {
-          const rootOrderId = String(row.root_order_id || '');
+          const rootOrderId = getRootOrderId(row) || getPerBookOrderId(row);
           if (!siblingGroupMembers.has(rootOrderId)) siblingGroupMembers.set(rootOrderId, []);
-          siblingGroupMembers.get(rootOrderId)!.push(row);
+          if (!siblingGroupMembers.get(rootOrderId)!.some(member => member.id === row.id)) siblingGroupMembers.get(rootOrderId)!.push(row);
         }
 
         for (const rootOrderId of siblingRootIds) {
-          const members = (siblingGroupMembers.get(rootOrderId) || []).filter(
-            (row) => getPerBookOrderId(row) !== rootOrderId,
-          );
+          const members = siblingGroupMembers.get(rootOrderId) || [];
           if (members.length < 2) continue;
 
-          const allReady = members.every((member) => isReadyForSiblingPrintRouting(member));
+          // The W1 router rehydrates the complete group. Count every member before
+          // dispatch so a limited candidate window cannot undercount capacity.
+          const candidates = new Set(cronEligibleOrders.filter(order => (getRootOrderId(order) || getPerBookOrderId(order)) === rootOrderId).map(order => order.id));
+          if (members.some(member => !candidates.has(member.id))) {
+            heldSiblingGroups.push({ rootOrderId, reason: 'group_not_in_candidate_window', members: [] });
+            continue;
+          }
+
+          const allReady = members.every((member) => isReadyForSiblingPrintRouting(member) && !ordinaryPrintRoutingBlocker(member, process.env.GELATO_DRAFT_SUBMISSION_ENABLED === 'true'));
 
           if (!allReady) {
             heldSiblingGroups.push({
@@ -616,10 +629,8 @@ export async function GET(request: NextRequest) {
     const heldSiblingRootIds = new Set(heldSiblingGroups.map((group) => group.rootOrderId));
     const routableEligibleOrders = cronEligibleOrders.filter((order) => {
       const next = String(order.next_workflow || '');
-      if (next !== '4' || !order.root_order_id || !order.orderId || order.root_order_id === order.orderId) {
-        return true;
-      }
-      return !heldSiblingRootIds.has(String(order.root_order_id));
+      if (next !== '4' && next !== '4-aggregate') return true;
+      return !heldSiblingRootIds.has(getRootOrderId(order) || getPerBookOrderId(order));
     });
 
     // 6. If no eligible orders, return early (0 n8n executions)
@@ -654,8 +665,8 @@ export async function GET(request: NextRequest) {
     const siblingOrdersByRoot = new Map<string, typeof routableEligibleOrders>();
     for (const order of routableEligibleOrders) {
       const next = String(order.next_workflow || '');
-      if (next !== '4' || !order.root_order_id || !order.orderId || order.root_order_id === order.orderId) continue;
-      const rootOrderId = String(order.root_order_id);
+      const rootOrderId = getRootOrderId(order) || getPerBookOrderId(order);
+      if (!['4', '4-aggregate'].includes(next) || (siblingGroupMembers.get(rootOrderId)?.length || 0) < 2) continue;
       if (!siblingOrdersByRoot.has(rootOrderId)) siblingOrdersByRoot.set(rootOrderId, []);
       siblingOrdersByRoot.get(rootOrderId)!.push(order);
     }
@@ -669,14 +680,14 @@ export async function GET(request: NextRequest) {
       if (remainingSlots <= 0) break;
 
       const next = String(order.next_workflow || '');
-      const isSiblingChild = next === '4' && !!order.root_order_id && !!order.orderId && order.root_order_id !== order.orderId;
+      const rootOrderId = getRootOrderId(order) || getPerBookOrderId(order);
+      const isSiblingChild = ['4', '4-aggregate'].includes(next) && siblingOrdersByRoot.has(rootOrderId);
       if (!isSiblingChild) {
         ordersToRoute.push(order);
         remainingSlots -= 1;
         continue;
       }
 
-      const rootOrderId = String(order.root_order_id);
       if (routedSiblingRoots.has(rootOrderId)) continue;
 
       const groupOrders = siblingOrdersByRoot.get(rootOrderId) || [order];

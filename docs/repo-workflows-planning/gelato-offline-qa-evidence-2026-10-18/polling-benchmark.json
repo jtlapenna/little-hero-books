@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "role": "WEB-A",
+      "bytes": 1996195,
+      "sha256": "3958dd3b8ed9cb421b423bd5dc60ac91048e56a9adc2aab1a289a65ce3b3a9fe"
+    },
+    {
+      "role": "AMZ-A",
+      "bytes": 1900057,
+      "sha256": "c88a684b7afb1580850d5ca7e833407135373f67e246b8e044ca478f017c12a5"
+    },
+    {
+      "role": "SIB-A",
+      "bytes": 1948450,
+      "sha256": "849970c0c3508173e9871be6d739f07ad16564f1179f045e5dd3c877aa6f4c87"
+    },
+    {
+      "role": "SIB-B",
+      "bytes": 1933564,
+      "sha256": "0a0e651874e80b591d43a8bd5743693a3727f9c78778c9a056eed1949dac1b20"
+    }
+  ],
+  "measurements": [
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "standard",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 41.28,
+      "processCpuMs": 52.024,
+      "processRssBytes": 236621824,
+      "downloadedBytes": 3992390,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "standard",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 16.83,
+      "processCpuMs": 17.792,
+      "processRssBytes": 247504896,
+      "downloadedBytes": 3992390,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "standard",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 16.92,
+      "processCpuMs": 17.118,
+      "processRssBytes": 254152704,
+      "downloadedBytes": 3992390,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "standard",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 10,
+      "elapsedMs": 809.72,
+      "processCpuMs": 68.579,
+      "processRssBytes": 261525504,
+      "downloadedBytes": 3992390,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 21.94,
+      "processCpuMs": 22.971,
+      "processRssBytes": 266674176,
+      "downloadedBytes": 3800114,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 19.14,
+      "processCpuMs": 25.827,
+      "processRssBytes": 273809408,
+      "downloadedBytes": 3800114,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 12.21,
+      "processCpuMs": 12.301,
+      "processRssBytes": 275128320,
+      "downloadedBytes": 3800114,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 10,
+      "elapsedMs": 735.94,
+      "processCpuMs": 32.218,
+      "processRssBytes": 280702976,
+      "downloadedBytes": 3800114,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 33.18,
+      "processCpuMs": 36.39,
+      "processRssBytes": 286515200,
+      "downloadedBytes": 7764028,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 29.66,
+      "processCpuMs": 33.691,
+      "processRssBytes": 296071168,
+      "downloadedBytes": 7764028,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 22.15,
+      "processCpuMs": 22.248,
+      "processRssBytes": 299835392,
+      "downloadedBytes": 7764028,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 10,
+      "elapsedMs": 1515.03,
+      "processCpuMs": 116.109,
+      "processRssBytes": 307200000,
+      "downloadedBytes": 7764028,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "node-actual-route-streamed-deadline",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 100,
+      "elapsedMs": 2510.53,
+      "processCpuMs": 56.635,
+      "processRssBytes": 295428096,
+      "downloadedBytes": 1572864,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 0,
+        "errors": 1,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "focused-worker-buffered-bridge",
+      "format": "standard",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 247.07,
+      "processCpuMs": 30.784,
+      "processRssBytes": 429568000,
+      "downloadedBytes": 3992390,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "focused-worker-buffered-bridge",
+      "format": "amazon",
+      "children": 1,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 38.84,
+      "processCpuMs": 9.803,
+      "processRssBytes": 436981760,
+      "downloadedBytes": 3800114,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    },
+    {
+      "runtime": "focused-worker-buffered-bridge",
+      "format": "amazon",
+      "children": 2,
+      "chunkBytes": 65536,
+      "simulatedChunkDelayMs": 0,
+      "elapsedMs": 63.56,
+      "processCpuMs": 24.5,
+      "processRssBytes": 451092480,
+      "downloadedBytes": 7764028,
+      "providerReads": 1,
+      "summary": {
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "needsAttention": 0,
+        "disabled": false,
+        "delivered": 0,
+        "customerMessages": false,
+        "requiresReview": false
+      }
+    }
+  ],
+  "liveRequests": 0,
+  "constraints": [
+    "Synthetic transport only",
+    "Focused Worker is not complete OpenNext deployment",
+    "Worker bridge buffers bodies; no real network latency or streaming measurement",
+    "CPU/RSS are whole local Node process, not billed Worker CPU or peak memory",
+    "Sparse labelled raster PDFs do not represent all final artwork sizes",
+    "Local process flags only; live controls were not accessed"
+  ]
+}

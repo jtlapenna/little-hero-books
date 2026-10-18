@@ -10,8 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { correctionHistoryForTransition } from '@/lib/customer-corrections';
-import { markTokenAsUsed } from '@/lib/preview-tokens';
-import { authorizePreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
+import { authorizePreviewOrder, commitPreviewTokenAction, privatePreviewHeaders } from '@/lib/customer-preview-access';
 import { supabase } from '@/lib/supabase-client';
 
 const corsHeaders = privatePreviewHeaders;
@@ -67,9 +66,8 @@ export async function POST(
       email: null, name: null, revisionCount: currentRevisionCount + 1,
     });
 
-    if (!await markTokenAsUsed(token)) return NextResponse.json({ error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
 
-    if (!await transitionPreviewOrder(access.row, {
+    if (!await commitPreviewTokenAction(access.row, token, 'reject', {
       customer_approval_status: 'revision_requested',
       rejection_history: rejectionHistory,
       customer_approval_approved_at: null, human_approved: false, next_workflow: null,

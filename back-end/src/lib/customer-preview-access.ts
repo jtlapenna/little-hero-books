@@ -101,3 +101,25 @@ export async function findExactPreviewGroup(identifier: string): Promise<Preview
   if (root !== identifier && data.some(row => typeof row.display_order_id !== 'string' || !row.display_order_id.startsWith(`${identifier}-`))) return [];
   return data as PreviewOrderRow[];
 }
+
+/** Canonical row state required before a customer can approve or request a revision. */
+export function previewMutationReady(row: Record<string, unknown>): boolean {
+  const stages = row.review_stages as Record<string, { status?: unknown }> | null;
+  const reviewed = String(stages?.postPdf?.status ?? stages?.post_pdf?.status ?? '').toLowerCase() === 'approved';
+  return typeof row.manifest_3_url === 'string' && Boolean(row.manifest_3_url.trim()) &&
+    ['book_assembly_completed', 'customer_approval'].includes(String(row.workflow_step)) && row.execution_status === 'done' &&
+    !row.current_workflow && !row.started_at && reviewed && !row.print_submission_id && !row.lulu_job_id && !row.lulu_status;
+}
+export const PREVIEW_ACTION_SNAPSHOT_FIELDS = ['orderId', 'order_id', 'root_order_id', 'amazon_order_id', 'updated_at', 'manifest_3_url',
+  'customer_approval_status', 'customer_approval_required', 'revision_count', 'execution_status', 'workflow_step', 'current_workflow', 'started_at',
+  'review_stages', 'print_submission_id', 'lulu_job_id', 'lulu_status'] as const;
+/** Requires the matching service-only transaction migration. Missing RPC fails closed. */
+export async function commitPreviewTokenAction(row: PreviewOrderRow, token: string, action: 'approve' | 'reject', changes: Record<string, unknown>, revisionLimit: number | null = 1): Promise<boolean> {
+  if (!previewMutationReady(row)) return false;
+  const expected = Object.fromEntries(PREVIEW_ACTION_SNAPSHOT_FIELDS.map(name => [name, row[name] ?? null]));
+  const { data, error } = await supabase.rpc('commit_customer_preview_action', {
+    p_order_id: row.id, p_token: token, p_expected: expected, p_action: action, p_changes: changes, p_revision_limit: revisionLimit,
+  });
+  if (error) throw new Error('Preview action could not be confirmed. Reload before retrying.');
+  return data === true;
+}

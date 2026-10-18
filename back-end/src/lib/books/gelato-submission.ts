@@ -1,3 +1,4 @@
+import { assertGelatoCustomerApproval } from './gelato-print-admission';
 import { createPrinterFileUrl, newPrinterFileWindow, PrinterFileWindowSchema, PRINTER_FILE_SEND_MARGIN_SECONDS, verifyPrinterFileUrl, type PrinterFileWindow } from '../printer-file-grants';
 import { GelatoNotificationTargetSchema, gelatoNotificationTarget } from './gelato-notification-target';
 import { z } from 'zod';
@@ -49,7 +50,7 @@ function assertIdentity(context: GelatoSubmissionContext, identity: GelatoSubmis
   if (s.id !== identity.submissionId || s.claim_token !== identity.claimToken || (claimed && (s.request_state !== 'claimed' || Date.parse(s.lease_expires_at) <= now.getTime())) ||
       (identity.mode === 'single' ? members.length !== 1 : members.length < 2)) throw new Error('Gelato submission claim or membership is stale');
 }
-function recipient(row: Record<string, unknown>, merchantEmail?: string) {
+export function gelatoRecipientFromOrder(row: Record<string, unknown>, merchantEmail?: string) {
   const address = object(row.shipping_address);
   const name = string(address.name ?? address.recipient_name ?? row.customer_name).split(/\s+/);
   const pick = (...values: unknown[]) => values.map(string).find(Boolean);
@@ -72,10 +73,11 @@ async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSu
         member.pdf_page_count !== input.providerPrintConfig.expectedPdfPageCount || !(await dependencies.artifactExists(member.artifact_key))) {
       throw new Error('Gelato quote input differs from canonical order and PDF receipt');
     }
+    assertGelatoCustomerApproval(row);
     const quantity = z.number().int().positive().parse(row.quantity ?? object(row.product_info).quantity ?? 1);
     const tier = string(row.shipping_tier).toLowerCase();
     if (!tier) throw new Error('Gelato saved shipping tier is missing');
-    inputs.push({ input, member, row, quantity, recipient: recipient(row, dependencies.merchantEmail), tier });
+    inputs.push({ input, member, row, quantity, recipient: gelatoRecipientFromOrder(row, dependencies.merchantEmail), tier });
   }
   const first = inputs[0];
   if (inputs.some((entry) => JSON.stringify(entry.recipient) !== JSON.stringify(first.recipient) || entry.tier !== first.tier ||

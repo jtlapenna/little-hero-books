@@ -1,5 +1,7 @@
 # Unpaid queued fulfillment and scoped status engineering
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 ## Design and boundaries
 
 Normal W4/W4.1 still create held drafts; normal dispatch, conversion, status relay/polling, cancellation and customer delivery remain OFF. The authenticated engineering-automation endpoint accepts only a strict action and at most three unique, already stored exact conversion-authorization IDs. It cannot supply a replacement recipient, product, item, provider root, PDF or API key. The queue uses the existing atomic one-owner/one-send conversion core, with the existing short-lived no-payment attestation and SQL authority checks. This is an isolated queued executor, not approval to enable ordinary paid fulfillment.

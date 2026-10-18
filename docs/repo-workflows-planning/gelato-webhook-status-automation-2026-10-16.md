@@ -1,5 +1,7 @@
 # Gelato webhook receiver and dedicated status scheduler
 
+> Historical phase record. For consolidated coverage and remaining gates, see [the October 18 ledger](gelato-coverage-current-2026-10-18.md). Later milestones do not change the original phase observations below.
+
 **October 17 implementation update:** The local follow-up replaces this route's shared-poller wiring with a separate OFF-by-default `GELATO_SCHEDULED_STATUS_ENABLED` flag, dedicated status key and explicit empty registered cohort. It also adds forward migrations and financial/freshness inspection. See [current results and rollout prerequisites](gelato-unpaid-fixes-results-2026-10-17.md). The original behavior, test counts and five-flag control receipt below describe the October 16 committed checkpoint; they are historical evidence, not the current activation procedure. No follow-up changes have been deployed.
 
 **Approach revision:** Scheduled API polling is now the primary status path. Webhooks remain an optional enhancement; missing dashboard webhook access does not block remaining unpaid engineering. See the [polling-first plan](gelato-polling-first-plan-2026-10-16.md). Historical provider-delivery limitations below remain unproved, rather than being relabeled as passed. Controls remain OFF and the six pending orders must remain untouched.

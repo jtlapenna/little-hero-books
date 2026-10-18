@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "existingSqlSuites": [
+    "print-submissions",
+    "scheduled-status",
+    "financial-observations"
+  ],
+  "newChecks": [
+    "pending sibling claim rolls back all membership/state",
+    "approved claim uses existing RPC",
+    "failed claim resume rechecks approval",
+    "post-send fence and read-only recovery remain available after revocation",
+    "service-role preview transaction with established UPDATE rights",
+    "revision after quote blocks real authorize RPC without send marker",
+    "approval restored permits existing authorize RPC",
+    "disposable normal gate restored OFF"
+  ],
+  "liveRequests": 0,
+  "physicalProduction": false
+}

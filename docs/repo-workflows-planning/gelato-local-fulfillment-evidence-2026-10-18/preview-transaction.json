@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "checks": 32,
+  "disposablePostgres": true,
+  "liveRequests": 0,
+  "scope": "Atomic preview action + current sibling approval send fence; no provider execution"
+}

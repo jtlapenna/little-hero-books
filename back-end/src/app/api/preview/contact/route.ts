@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { supabase } from '@/lib/supabase-client';
-import { authorizePreviewOrder, updateExactPreviewOrder, transitionPreviewOrder, privatePreviewHeaders } from '@/lib/customer-preview-access';
+import { authorizePreviewOrder, updateExactPreviewOrder, commitPreviewTokenAction, privatePreviewHeaders } from '@/lib/customer-preview-access';
 import { correctionHistoryForTransition } from '@/lib/customer-corrections';
-import { markTokenAsUsed } from '@/lib/preview-tokens';
 import { calculateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 
@@ -312,10 +311,9 @@ export async function POST(request: NextRequest) {
       email: normalizedEmail, name: payload.name || null, revisionCount: newRevisionCount,
     });
 
-    if (!await markTokenAsUsed(payload.token)) return NextResponse.json({ success: false, error: 'Preview link already consumed or expired' }, { status: 409, headers: corsHeaders });
 
     try {
-      if (!await transitionPreviewOrder(access.row, {
+      if (!await commitPreviewTokenAction(access.row, payload.token, 'reject', {
         review_stages: nextReviewStages,
         rejection_history: rejectionHistory,
         workflow_step: 'customer_revision',
@@ -324,7 +322,7 @@ export async function POST(request: NextRequest) {
         customer_approval_required: true,
         customer_approval_approved_at: null,
         revision_count: newRevisionCount
-      })) return NextResponse.json({ success: false, error: 'Preview action already completed' }, { status: 409, headers: corsHeaders });
+      }, strictMode ? 1 : null)) return NextResponse.json({ success: false, error: 'Preview action already completed' }, { status: 409, headers: corsHeaders });
 
     } catch (updateError) {
       console.error(

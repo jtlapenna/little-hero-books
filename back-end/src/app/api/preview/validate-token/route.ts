@@ -1,3 +1,4 @@
+import { previewMutationReady } from '@/lib/customer-preview-access';
 /**
  * API Route: Validate Preview Token
  * 
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
       {
         valid: !validation.used,
         readValid: true,
-        canApprove: !validation.used && !['approved', 'revision_requested'].includes(String(supabaseRecord.customer_approval_status ?? '')),
+        canApprove: previewMutationReady(supabaseRecord) && !validation.used && !['approved', 'revision_requested'].includes(String(supabaseRecord.customer_approval_status ?? '')),
         order: {
           orderId: access.orderId,
           manifest3Key: buildManifestKeyFromOrderPrefix(prefix, '3'),

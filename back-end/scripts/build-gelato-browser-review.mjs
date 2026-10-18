@@ -1,0 +1,15 @@
+import { build } from 'esbuild';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import postcss from 'postcss';
+import tailwind from '@tailwindcss/postcss';
+const directory = path.resolve(process.argv[2] ?? '');
+if (!process.argv[2]) throw Error('Pass directory containing generated cases.json');
+const cases = await fs.readFile(path.join(directory, 'cases.json'), 'utf8');
+JSON.parse(cases);
+await build({ entryPoints: ['scripts/gelato-browser-review.tsx'], outfile: path.join(directory, 'review.js'), bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"', GELATO_QA_CASES: cases } });
+const from = path.resolve('src/app/globals.css');
+const css = await postcss([tailwind()]).process(await fs.readFile(from, 'utf8'), { from });
+await fs.writeFile(path.join(directory, 'review.css'), css.css);
+await fs.writeFile(path.join(directory, 'index.html'), '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'self\'; connect-src \'none\'; style-src \'self\'; script-src \'self\'; object-src \'none\'; base-uri \'none\'"><title>Local Gelato QA</title><link rel="stylesheet" href="review.css"></head><body><div id="root"></div><script src="review.js"></script></body></html>');
+console.log('Built actual GelatoStage with local route-produced cases and application Tailwind CSS. Serve on 127.0.0.1 only.');

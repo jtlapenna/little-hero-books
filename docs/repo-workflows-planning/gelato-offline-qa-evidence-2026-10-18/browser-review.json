@@ -1,0 +1,52 @@
+{
+  "runtime": "CUA in-app browser; actual GelatoStage; local intercepted transport",
+  "localOnly": true,
+  "checks": [
+    {
+      "scenario": "overdue-siblings",
+      "expectedVisible": "Status checks are overdue",
+      "expectedAbsent": "Financial information needs review",
+      "passed": true
+    },
+    {
+      "scenario": "current-siblings",
+      "expectedVisible": "Automatic checks: Enabled",
+      "expectedAbsent": "Status checks are overdue",
+      "passed": true
+    },
+    {
+      "scenario": "financial-review",
+      "expectedVisible": "Financial information needs review",
+      "expectedAbsent": "Status checks are overdue",
+      "passed": true
+    },
+    {
+      "scenario": "unknown-off",
+      "expectedVisible": "Payment status: Not recorded",
+      "expectedAbsent": "USD 0",
+      "passed": true
+    },
+    {
+      "scenario": "inspection-error",
+      "expectedVisible": "Print details unavailable. Reload to try again.",
+      "expectedAbsent": "Refresh Gelato status",
+      "passed": true
+    },
+    {
+      "scenario": "failed-refresh-then-reload",
+      "lastKnownFiguresRetained": true,
+      "errorClearedAfterReload": true,
+      "passed": true
+    }
+  ],
+  "siblingLinks": [
+    "/orders/ORDINARY-ADMIN-amazon-98-item-1",
+    "/orders/ORDINARY-ADMIN-amazon-98-item-2"
+  ],
+  "limitations": [
+    "Complete admin shell not loaded",
+    "Child destination routes not navigated",
+    "Refresh response intentionally simulated 409",
+    "No live order data or network"
+  ]
+}
