@@ -1550,7 +1550,8 @@ curl -I "$SUPABASE_URL/rest/v1/" \
    - Updates `character_generations` table with quality scores and review flags
    
    ```sql
-   CREATE OR REPLACE FUNCTION upsert_from_manifest_2a(p_order_id TEXT, p_manifest JSONB)
+   -- HISTORICAL EXAMPLE: do not execute this definition directly. Use database/migration-manifest-support.sql and its private-order-boundaries migration.
+CREATE OR REPLACE FUNCTION upsert_from_manifest_2a(p_order_id TEXT, p_manifest JSONB)
    RETURNS VOID AS $$
    DECLARE
      v_orders_id INTEGER;
@@ -1610,7 +1611,8 @@ curl -I "$SUPABASE_URL/rest/v1/" \
    - Links to final processed images
    
    ```sql
-   CREATE OR REPLACE FUNCTION upsert_from_manifest_2b(p_order_id TEXT, p_manifest JSONB)
+   -- HISTORICAL EXAMPLE: do not execute this definition directly. Use the canonical hardened setup and migration.
+CREATE OR REPLACE FUNCTION upsert_from_manifest_2b(p_order_id TEXT, p_manifest JSONB)
    RETURNS VOID AS $$
    DECLARE
      v_orders_id INTEGER;

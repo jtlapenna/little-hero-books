@@ -90,6 +90,9 @@ CREATE INDEX IF NOT EXISTS idx_human_review_queue_priority ON human_review_queue
 -- Task 5: Create RPC Function - Upsert from 2A Manifest
 -- ========================================
 
+-- Internal manifest RPC definitions and ACLs must commit together.
+BEGIN;
+
 CREATE OR REPLACE FUNCTION upsert_from_manifest_2a(p_order_id TEXT, p_manifest JSONB)
 RETURNS VOID AS $$
 DECLARE
@@ -144,7 +147,8 @@ BEGIN
       updated_at = NOW();
   END LOOP;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp;
 
 COMMENT ON FUNCTION upsert_from_manifest_2a IS 'Upserts character generation data from Workflow 2A manifest';
 
@@ -192,9 +196,18 @@ BEGIN
     WHERE order_id = v_orders_id AND pose_number = v_pose;
   END LOOP;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp;
 
 COMMENT ON FUNCTION upsert_from_manifest_2b IS 'Upserts background removal data from Workflow 2B manifest';
+
+-- These RPCs are internal server operations, never customer API authority.
+REVOKE EXECUTE ON FUNCTION public.upsert_from_manifest_2a(text,jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.upsert_from_manifest_2b(text,jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_from_manifest_2a(text,jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_from_manifest_2b(text,jsonb) TO service_role;
+COMMIT;
+
 
 -- ========================================
 -- Task 7: Create Dashboard View for Orders Review

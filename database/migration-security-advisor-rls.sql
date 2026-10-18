@@ -90,6 +90,19 @@ BEGIN
   END LOOP;
 END $$;
 
+-- These five workflow tables have no browser consumer. Authentication alone
+-- must not expose their rows; canonical setup must keep the live boundary closed.
+DO $$
+DECLARE table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY['audit_logs','character_generations','failed_orders','human_review_queue','workflow_execution_logs'] LOOP
+    IF to_regclass(format('public.%I',table_name)) IS NOT NULL THEN
+      EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC,anon,authenticated',table_name);
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I','Authenticated users can view '||table_name,table_name);
+    END IF;
+  END LOOP;
+END $$;
+
 -- Make views obey the querying role instead of the creating role.
 DO $$
 DECLARE
