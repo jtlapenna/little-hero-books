@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "workerSource": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+  "privateJournalSha256": "3594720602ca3accd81f8a111301d2cae9666b6def9f55a0e443f2a7381955dc",
+  "signalBoundary": "Synthetic inbound signal into deployed handler with authoritative real provider GET; external provider webhook delivery is not proved.",
+  "proofs": [
+    {
+      "recordedAt": "2026-10-16T08:35:27.285Z",
+      "case": "website-single",
+      "mode": "poll",
+      "authorityClosed": true,
+      "providerOrderId": "c76f3ee9-4b5a-4953-b789-17305b7429d1",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:35:27.285Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "poll",
+        "completed": true,
+        "requiresReview": false,
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "delivered": 0,
+        "accepted": null,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-W-0ulvnk2k6v9f6pvuogfh1om4g4",
+        "submissionId": "e54e54e9-1468-4751-a460-4e653aaa0104",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    },
+    {
+      "recordedAt": "2026-10-16T08:35:48.491Z",
+      "case": "amazon-single",
+      "mode": "poll",
+      "authorityClosed": true,
+      "providerOrderId": "2f61e5be-64bc-486c-b1b9-f25fd04cdfd3",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:35:48.491Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "poll",
+        "completed": true,
+        "requiresReview": false,
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "delivered": 0,
+        "accepted": null,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-A-5f23h1gvbh92s88elvr4vd3ncm",
+        "submissionId": "45a27de7-c0a8-4a62-a767-aeec1c490177",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    },
+    {
+      "recordedAt": "2026-10-16T08:36:12.047Z",
+      "case": "amazon-siblings",
+      "mode": "poll",
+      "authorityClosed": true,
+      "providerOrderId": "ec3e437d-9db7-4ee4-baa1-7bafe102872a",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:36:12.047Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "poll",
+        "completed": true,
+        "requiresReview": false,
+        "checked": 1,
+        "refreshed": 1,
+        "errors": 0,
+        "delivered": 0,
+        "accepted": null,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-S-5f23h1gvbh92s88elvr4vd3ncm-item-1",
+        "submissionId": "ecf43b26-bb78-4ec4-8327-c15b9eacc52f",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    },
+    {
+      "recordedAt": "2026-10-16T08:36:32.972Z",
+      "case": "website-single",
+      "mode": "signal",
+      "authorityClosed": true,
+      "providerOrderId": "c76f3ee9-4b5a-4953-b789-17305b7429d1",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:36:32.972Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "signal",
+        "completed": true,
+        "requiresReview": false,
+        "checked": null,
+        "refreshed": null,
+        "errors": null,
+        "delivered": null,
+        "accepted": true,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-W-0ulvnk2k6v9f6pvuogfh1om4g4",
+        "submissionId": "e54e54e9-1468-4751-a460-4e653aaa0104",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    },
+    {
+      "recordedAt": "2026-10-16T08:36:54.053Z",
+      "case": "amazon-single",
+      "mode": "signal",
+      "authorityClosed": true,
+      "providerOrderId": "2f61e5be-64bc-486c-b1b9-f25fd04cdfd3",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:36:54.053Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "signal",
+        "completed": true,
+        "requiresReview": false,
+        "checked": null,
+        "refreshed": null,
+        "errors": null,
+        "delivered": null,
+        "accepted": true,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-A-5f23h1gvbh92s88elvr4vd3ncm",
+        "submissionId": "45a27de7-c0a8-4a62-a767-aeec1c490177",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    },
+    {
+      "recordedAt": "2026-10-16T08:37:17.108Z",
+      "case": "amazon-siblings",
+      "mode": "signal",
+      "authorityClosed": true,
+      "providerOrderId": "ec3e437d-9db7-4ee4-baa1-7bafe102872a",
+      "orderType": "order",
+      "financialStatus": "pending",
+      "fulfillmentStatus": "created",
+      "providerMutations": 0,
+      "ordinaryDataPreserved": true,
+      "controls": {
+        "at": "2026-10-16T08:37:17.108Z",
+        "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+        "deployment": "9a819255-6739-4fef-b36a-e1211bddc04b",
+        "normalFlagsOff": true,
+        "normalDispatch": false,
+        "allWorkflowCopiesInactive": true,
+        "customerIntents": 0,
+        "openConversionAuthorizations": 0
+      },
+      "sharedExecutor": {
+        "action": "signal",
+        "completed": true,
+        "requiresReview": false,
+        "checked": null,
+        "refreshed": null,
+        "errors": null,
+        "delivered": null,
+        "accepted": true,
+        "customerMessages": false,
+        "normalControlsEnabled": false
+      },
+      "admin": {
+        "orderId": "TEST-GELATO-S-5f23h1gvbh92s88elvr4vd3ncm-item-1",
+        "submissionId": "ecf43b26-bb78-4ec4-8327-c15b9eacc52f",
+        "state": "submitted",
+        "canRefresh": true,
+        "canCancel": false,
+        "customerNotificationCount": 0
+      }
+    }
+  ]
+}
