@@ -17,6 +17,18 @@ async function main() {
     assert(!saved.includes('PRIVATE-QUOTE-MARKER')); assert.equal(monetary.shippingOptions.length, 1, 'Shared shipping is retained once');
     assert.equal((await runEngineeringConversion(f.a.id, 'convert', f.d.conversion)).state, 'converted');
     assert.equal(JSON.stringify(f.context.submission.request_snapshot), saved, 'A later diagnostic reprice cannot replace the submitted monetary quote');
+    // The persisted review must honor a provider deadline after quote admission.
+    const { buildGelatoReleaseReview } = await import('../src/lib/books/gelato-release-review');
+    const reviewTime=f.d.now!();
+    const reviewInputs={accountKeySha256:f.a.account_key_sha256,intendedAccountKeySha256:f.a.account_key_sha256,
+      cohortSubmissionIds:[f.context.submission.id],artifactSha256:new Map(f.a.artifacts.map(a=>[a.artifact_key,a.sha256])),
+      loadArtifact:async(key:string)=>f.blobs.get(key)!,loadOrder:async(key:string)=>f.rows.get(key)??null,now:reviewTime};
+    monetary.providerExpiresAt=new Date(reviewTime.getTime()+60000).toISOString();
+    assert(!(await buildGelatoReleaseReview(f.context,reviewInputs)).blockers.includes('fresh_bound_quote_required'));
+    monetary.providerExpiresAt=new Date(reviewTime.getTime()-1).toISOString();
+    assert((await buildGelatoReleaseReview(f.context,reviewInputs)).blockers.includes('fresh_bound_quote_required'));
+    delete monetary.providerExpiresAt;
+    assert.equal(JSON.stringify(f.context.submission.request_snapshot),saved,'Expiry regression restores the exact immutable legacy fixture');
     const raw = { ...f.raw(), privateBilling: 'PRIVATE-RAW-MARKER', receipts: [{ id: 'receipt-1', orderId: f.a.provider_root_id, transactionType: 'purchase', currency: 'USD', isCalculated: false,
       total: 0, privateBilling: 'PRIVATE-RECEIPT-MARKER', items: [{ id: 'line-1', referenceId: 'provider-item-0', type: 'product', amount: 1, price: 0, vat: 0, priceInclVat: 0, currency: 'USD', billingAddress: 'PRIVATE-LINE-MARKER' }] }] };
     const parsed = await getGelatoOrder(f.a.provider_root_id, { apiKey: 'synthetic', fetcher: async () => Response.json(raw) });

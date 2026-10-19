@@ -132,6 +132,7 @@
     "test:print-submitted-provider-boundary": "tsx scripts/test-print-submitted-provider-boundary.ts && tsx scripts/test-print-submitted-persistence.ts",
     "test:gelato-scheduled-status": "tsx scripts/test-gelato-scheduled-status.ts",
     "test:gelato-financial-observation": "tsx scripts/test-gelato-financial-observation.ts",
+    "test:gelato-pricing-replay": "tsx scripts/test-gelato-pricing-replay.ts",
     "test:gelato-admin-inspection": "tsx scripts/test-gelato-admin-inspection.tsx",
     "test:gelato-ordinary-router": "tsx scripts/test-gelato-ordinary-router.ts",
     "test:preview-action-transaction": "tsx scripts/test-preview-action-transaction.ts",

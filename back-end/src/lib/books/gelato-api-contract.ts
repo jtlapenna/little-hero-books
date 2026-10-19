@@ -92,7 +92,9 @@ export interface GelatoQuoteResponse {
 
 const GelatoQuoteResponseSchema = schema.object({
   orderReferenceId: schema.string().trim().min(1),
+  errors: schema.array(schema.unknown()).max(100).optional(),
   quotes: schema.array(schema.object({
+    expirationDateTime: schema.string().datetime({ offset: true }).nullable().optional(),
     id: schema.string().trim().min(1),
     itemReferenceIds: schema.array(schema.string().trim().min(1)),
     shipmentMethods: schema.array(schema.object({
@@ -201,6 +203,7 @@ export function validateGelatoQuote(input: {
 }): GelatoSelectedQuote {
   const response = GelatoQuoteResponseSchema.parse(input.response);
   const { request, config } = input;
+  if (response.errors?.length) throw new Error('Gelato quote contains provider errors');
   validateDestination(request.recipient, config);
   if (response.orderReferenceId !== request.orderReferenceId || !Array.isArray(response.quotes) || response.quotes.length !== 1) {
     throw new Error('Gelato must return exactly one matching quote');
@@ -230,6 +233,10 @@ export function validateGelatoQuote(input: {
   const nowMs = (input.now ?? new Date()).getTime();
   if (!Number.isFinite(quotedAtMs) || quotedAtMs > nowMs || nowMs - quotedAtMs > 15 * 60 * 1000) {
     throw new Error('Gelato quote expired');
+  }
+  // A provider expiry may shorten, but never extend, our own freshness limit.
+  if (quote.expirationDateTime != null && Date.parse(quote.expirationDateTime) <= nowMs) {
+    throw new Error('Gelato quote expired at the provider');
   }
   return { quoteId: quote.id, shipmentMethodUid: methods[0], shipmentPolicyVersion: config.shipmentMethodPolicy.version, quotedAt: new Date(quotedAtMs).toISOString(), requestFingerprint: gelatoQuoteRequestFingerprint(request, config.shipmentMethodPolicy, input.shippingTier, methods[0]), shippingTier: input.shippingTier };
 }

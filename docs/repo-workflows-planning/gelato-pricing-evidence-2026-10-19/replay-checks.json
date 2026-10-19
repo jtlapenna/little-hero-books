@@ -1,0 +1,33 @@
+{
+  "kind": "offline-real-response-replay-and-synthetic-negatives",
+  "checks": 24,
+  "passed": [
+    "website-single: standard exact service, aggregate cost and single quoted parcel",
+    "website-single: priority exact service, aggregate cost and single quoted parcel",
+    "website-single: expedited exact service, aggregate cost and single quoted parcel",
+    "amazon-single: standard exact service, aggregate cost and single quoted parcel",
+    "amazon-single: priority exact service, aggregate cost and single quoted parcel",
+    "amazon-single: expedited exact service, aggregate cost and single quoted parcel",
+    "amazon-siblings: standard exact service, aggregate cost and single quoted parcel",
+    "amazon-siblings: priority exact service, aggregate cost and single quoted parcel",
+    "amazon-siblings: expedited exact service, aggregate cost and single quoted parcel",
+    "quantity-two-one-item: standard exact service, aggregate cost and single quoted parcel",
+    "quantity-two-one-item: priority exact service, aggregate cost and single quoted parcel",
+    "quantity-two-one-item: expedited exact service, aggregate cost and single quoted parcel",
+    "Partial provider errors reject even with an apparently valid quote",
+    "Provider-expired quote rejects inside the local 15 minute window",
+    "Malformed provider expiry rejects",
+    "Provider 24 hour expiry never extends the local 15 minute maximum",
+    "Legacy quote parsing preserves exact shape without inserting expiry defaults",
+    "Missing requested service rejects without an unintended fallback",
+    "Duplicate exact shipping UID rejects",
+    "Documented legacy numberOfParcels remains supported",
+    "Matching parcel aliases accepted",
+    "Conflicting parcel aliases reject",
+    "Negative, fractional, string and NaN parcel counts reject",
+    "Missing parcel count stays unknown"
+  ],
+  "providerCalls": 0,
+  "ordersRead": 0,
+  "ordersWritten": 0
+}

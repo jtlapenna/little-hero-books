@@ -70,6 +70,8 @@ export function bindGelatoFinancialGraph<T extends { id: string; items: { id: st
 }
 
 export const GelatoMonetaryQuoteSchema = z.object({ version: z.literal(1), quoteId: z.string(), quotedAt: z.string(), requestFingerprint: z.string(),
+  // Optional without a default: parsing immutable historical snapshots must not add fields.
+  providerExpiresAt: z.string().datetime({ offset: true }).optional(),
   currency: Currency, selectedShipmentMethodUid: z.string(),
   products: z.array(z.object({ itemReferenceId: z.string(), productUid: z.string(), quantity: z.number().int().positive(),
     price: Amount.nullable(), currency: Currency.nullable() })).min(1).max(100),
@@ -78,6 +80,13 @@ export const GelatoMonetaryQuoteSchema = z.object({ version: z.literal(1), quote
     minDeliveryDate: z.string().max(40).nullable(), maxDeliveryDate: z.string().max(40).nullable(), numberOfParcels: z.number().int().nonnegative().nullable() })).max(100),
 });
 export type GelatoMonetaryQuote = z.infer<typeof GelatoMonetaryQuoteSchema>;
+function quotedParcelCount(method: Record<string, unknown>): number | null {
+  // Live V4 responses use packageCount; the published contract uses numberOfParcels.
+  const counts = [method.numberOfParcels, method.packageCount].filter(value => value != null);
+  if (counts.some(value => !Number.isSafeInteger(value) || Number(value) < 0) ||
+      (counts.length === 2 && counts[0] !== counts[1])) throw Error('Gelato quote parcel count is unresolved');
+  return counts.length ? counts[0] as number : null;
+}
 export function observeGelatoMonetaryQuote(raw: unknown, selection: { quoteId: string; quotedAt: string; requestFingerprint: string; shipmentMethodUid: string }, expectedCurrency: string) {
   const source = record(raw), quotes = Array.isArray(source.quotes) ? source.quotes : [];
   const quote = record(quotes.find(value => record(value).id === selection.quoteId));
@@ -87,10 +96,11 @@ export function observeGelatoMonetaryQuote(raw: unknown, selection: { quoteId: s
   const text = (value: unknown, max: number) => typeof value === 'string' && value.length <= max ? value : null;
   return GelatoMonetaryQuoteSchema.parse({ version: 1, quoteId: selection.quoteId, quotedAt: selection.quotedAt, requestFingerprint: selection.requestFingerprint,
     currency: expectedCurrency, selectedShipmentMethodUid: selection.shipmentMethodUid,
+    ...(quote.expirationDateTime == null ? {} : { providerExpiresAt: quote.expirationDateTime }),
     products: (Array.isArray(quote.products) ? quote.products : []).map(value => { const p = record(value); return { itemReferenceId: p.itemReferenceId, productUid: p.productUid,
       quantity: p.quantity, price: gelatoDecimal(p.price), currency: checkedCurrency(p.currency, p.price) }; }),
     shippingOptions: (Array.isArray(quote.shipmentMethods) ? quote.shipmentMethods : []).map(value => { const s = record(value); return { shipmentMethodUid: s.shipmentMethodUid,
       name: text(s.name, 200), type: text(s.type, 80), price: gelatoDecimal(s.price), initialPrice: gelatoDecimal(s.initialPrice), currency: checkedCurrency(s.currency, s.price ?? s.initialPrice),
-      minDeliveryDate: text(s.minDeliveryDate, 40), maxDeliveryDate: text(s.maxDeliveryDate, 40), numberOfParcels: Number.isSafeInteger(s.numberOfParcels) ? s.numberOfParcels : null }; }),
+      minDeliveryDate: text(s.minDeliveryDate, 40), maxDeliveryDate: text(s.maxDeliveryDate, 40), numberOfParcels: quotedParcelCount(s) }; }),
   });
 }

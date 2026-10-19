@@ -12,7 +12,7 @@ import type { GelatoDraftOrderRequest } from '../src/lib/books/gelato-api-contra
 const config = GelatoPrintConfigSchema.parse(configFile.formats.standard.print);
 const identity = { submissionId: '11111111-1111-4111-8111-111111111111', claimToken: '22222222-2222-4222-8222-222222222222', executionId: 'execution-1', mode: 'siblings' as const };
 async function runScenario(failGet = false, storedCopy = false, changedBytes = false, optionalFields = false,
-  corruption?: 'recipient' | 'file' | 'items' | 'null' | 'expiry-during-send', engineering?: 'allowed' | 'denied' | 'unavailable' | 'missing', shippingFailure?: 'missing-tier' | 'missing-service' | 'unsupported-country') {
+  corruption?: 'recipient' | 'file' | 'items' | 'null' | 'expiry-during-send', engineering?: 'allowed' | 'denied' | 'unavailable' | 'missing', shippingFailure?: 'missing-tier' | 'missing-service' | 'unsupported-country', quoteFailure?: 'provider-errors' | 'expired-provider' | 'parcel-conflict' | 'expires-before-draft' | 'expires-during-send') {
   const context: GelatoSubmissionContext = { providerOrders: [], submission: {
     id: identity.submissionId, provider: 'gelato', root_order_id: 'group-1', order_reference_id: 'lhb-gelato-1',
     workflow_job_idempotency_key: 'job-1', claim_token: identity.claimToken, lease_expires_at: '2026-10-11T12:15:00Z',
@@ -43,15 +43,16 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
         Object.assign(s, { quote_snapshot: JSON.parse(JSON.stringify(p.p_snapshot)), quote_id: p.p_quote_id, shipment_method_uid: p.p_shipment_method_uid,
           shipment_policy_version: p.p_policy_version, quoted_at: p.p_quoted_at, quote_request_fingerprint: p.p_request_fingerprint });
       } else if (name === 'begin_gelato_print_submission') { s.request_state = 'submitting'; s.request_snapshot = s.quote_snapshot; }
-      else if (name === 'authorize_gelato_print_send') { if (corruption === 'expiry-during-send') now = new Date('2026-10-12T11:01:00Z'); assert.equal(s.send_started_at, null); s.send_started_at = '2026-10-11T12:00:00Z'; }
+      else if (name === 'authorize_gelato_print_send') { if (quoteFailure === 'expires-during-send') now = new Date('2026-10-11T12:05:00Z'); if (corruption === 'expiry-during-send') now = new Date('2026-10-12T11:01:00Z'); assert.equal(s.send_started_at, null); s.send_started_at = '2026-10-11T12:00:00Z'; }
       else if (name === 'record_gelato_accepted_root') s.accepted_root_order_id = String(p.p_root_id);
       else if (name === 'persist_gelato_draft_result') { assert.equal((p.p_orders as unknown[]).length, 2); s.request_state = 'submitted'; }
       else if (name === 'fence_gelato_print_submission') s.request_state = 'outcome_unknown';
       return {};
     } },
-    quote: async (request) => { quotedUrls = request.products.map(item => item.files[0].url); return { orderReferenceId: request.orderReferenceId, quotes: [{ id: 'quote-1',
+    quote: async (request) => { quotedUrls = request.products.map(item => item.files[0].url); return { orderReferenceId: request.orderReferenceId, errors: quoteFailure === 'provider-errors' ? [{message:'partial product error'}] : [], quotes: [{ id: 'quote-1',
+      ...(quoteFailure === 'expired-provider' ? {expirationDateTime:'2026-10-11T11:59:00Z'} : quoteFailure === 'expires-before-draft' ? {expirationDateTime:'2026-10-11T12:01:00Z'} : quoteFailure === 'expires-during-send' ? {expirationDateTime:'2026-10-11T12:04:00Z'} : {}),
       itemReferenceIds: request.products.map((item) => item.itemReferenceId), products: request.products,
-      shipmentMethods: [{ shipmentMethodUid: shippingFailure === 'missing-service' ? 'unintended-fallback' : 'usps_ground_advantage', type: 'normal' }] }] }; },
+      shipmentMethods: [{ shipmentMethodUid: shippingFailure === 'missing-service' ? 'unintended-fallback' : 'usps_ground_advantage', type: 'normal', packageCount:1, ...(quoteFailure === 'parcel-conflict' ? {numberOfParcels:2} : {}) }] }] }; },
     create: async (request) => { sends++; assert.deepEqual(request.items.map(item => item.files[0].url), quotedUrls, 'Exact signed URLs survive persisted snapshot and advancing clock'); draft = request; return { id: 'provider-1', orderType: 'draft', orderReferenceId: request.orderReferenceId, connectedOrderIds: ['provider-2'], items: [request.items[0]] }; },
     get: async (id) => {
       if (failGet) throw new Error('synthetic GET timeout');
@@ -61,7 +62,7 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     },
   };
   assert.equal((await handleGelatoSubmission({ ...identity, fileUrl: 'https://attacker.example.test' }, 'quote', dependencies)).status, 400);
-  if (shippingFailure) {
+  if (shippingFailure || quoteFailure && ['provider-errors','expired-provider','parcel-conflict'].includes(quoteFailure)) {
     const response = await handleGelatoSubmission(identity, 'quote', dependencies);
     assert.equal(response.status, 409, 'Unavailable shipping must be a visible endpoint error');
     assert.equal(sends, 0); assert.deepEqual(calls, []); assert.equal(context.submission.quote_snapshot, null);
@@ -69,6 +70,13 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
   }
   await quoteGelatoSubmission(identity, dependencies);
   now = new Date('2026-10-11T12:03:00Z');
+  if (quoteFailure === 'expires-before-draft' || quoteFailure === 'expires-during-send') {
+    await assert.rejects(submitGelatoDraft(identity,dependencies), quoteFailure === 'expires-before-draft' ? /provider quote expired/ : /inspect/);
+    assert.equal(sends,0,'Provider expiry must stop the actual draft transport');
+    if(quoteFailure === 'expires-before-draft')assert.deepEqual(calls,['record_gelato_quote_snapshot']);
+    else {assert.equal(context.submission.request_state,'outcome_unknown');assert.equal(calls.at(-1),'fence_gelato_print_submission');}
+    return;
+  }
   if (corruption === 'expiry-during-send') {
     await assert.rejects(submitGelatoDraft(identity, dependencies), /inspect/);
     assert.equal(sends, 0); assert.equal(context.submission.request_state, 'outcome_unknown'); return;
@@ -110,6 +118,6 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     assert.equal(draft.shippingAddress.phone, '+12065550123');
   }
 }
-void Promise.all([...(['missing-tier', 'missing-service', 'unsupported-country'] as const).map(mode => runScenario(false, false, false, false, undefined, undefined, mode)), ...(['allowed','denied','unavailable','missing'] as const).map(mode => runScenario(false,false,false,false,undefined,mode)), runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true),
+void Promise.all([...(['provider-errors','expired-provider','parcel-conflict','expires-before-draft','expires-during-send'] as const).map(mode=>runScenario(false,false,false,false,undefined,undefined,undefined,mode)), ...(['missing-tier', 'missing-service', 'unsupported-country'] as const).map(mode => runScenario(false, false, false, false, undefined, undefined, mode)), ...(['allowed','denied','unavailable','missing'] as const).map(mode => runScenario(false,false,false,false,undefined,mode)), runScenario(), runScenario(true), runScenario(false, true), runScenario(false, true, true),
   runScenario(false, false, false, true), ...(['recipient', 'file', 'items', 'null', 'expiry-during-send'] as const).map(corruption => runScenario(false, false, false, false, corruption)),
-]).then(() => console.log('Gelato persisted quote-to-draft service and connected graph checks passed')).catch((error) => { console.error(error); process.exitCode = 1; });
+]).then(() => console.log('Gelato persisted quote-to-draft service, provider quote errors/expiry/parcel guards and connected graph checks passed')).catch((error) => { console.error(error); process.exitCode = 1; });

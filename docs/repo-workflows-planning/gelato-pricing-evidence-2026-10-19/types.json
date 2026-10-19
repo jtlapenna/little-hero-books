@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-19T19:55:25.488538+00:00",
+  "exitCode": 2,
+  "diagnostics": 388,
+  "changedFileDiagnostics": [],
+  "status": "No new type diagnostics; baseline remains non-green",
+  "baselineSha": "8cb880714f80aab336ac801a89ae41713f817918",
+  "baselineDiagnostics": 388,
+  "sameFileCodeMessageMultiset": true,
+  "fullTypecheckGreen": false
+}

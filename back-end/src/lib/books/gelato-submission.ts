@@ -120,6 +120,10 @@ export async function quoteGelatoSubmission(identity: GelatoSubmissionIdentity, 
     p_item_reference_ids: request.items.map((item) => item.itemReferenceId), p_request_fingerprint: selected.requestFingerprint, p_snapshot: snapshot });
   return { submissionId: identity.submissionId, quoteId: selected.quoteId, shipmentMethodUid: selected.shipmentMethodUid, quotedAt: selected.quotedAt };
 }
+function assertSavedProviderQuoteFresh(snapshot: GelatoSavedSnapshot, now: Date) {
+  const expiresAt = snapshot.monetaryQuote?.providerExpiresAt;
+  if (expiresAt && Date.parse(expiresAt) <= now.getTime()) throw new Error('Gelato provider quote expired; obtain a fresh quote');
+}
 export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies) {
   if (!dependencies.draftsEnabled && !(await dependencies.engineeringDraftsAllowed?.(identity))) throw new Error('Gelato draft submission is disabled');
   const context = await dependencies.store.load(identity.submissionId);
@@ -127,6 +131,7 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
   if (context.submission.request_state === 'submitted') return { submissionId: identity.submissionId, outcome: 'draft', reused: true };
   const s = context.submission;
   const snapshot = GelatoSavedSnapshotSchema.parse(s.quote_snapshot);
+  assertSavedProviderQuoteFresh(snapshot, (dependencies.now ?? (() => new Date()))());
   if (!snapshot.printerFiles) throw new Error('Gelato printer authority requires a fresh quote');
   const input = await buildRequest(context, identity, dependencies, snapshot.printerFiles);
   const selection: GelatoSelectedQuote = { quoteId: s.quote_id ?? '', shipmentMethodUid: s.shipment_method_uid ?? '',
@@ -144,6 +149,7 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
     begun = true;
     await dependencies.store.transition('authorize_gelato_print_send', { ...parameters(identity), p_execution_id: identity.executionId, p_request_fingerprint: selection.requestFingerprint });
     await assertPrinterSendAuthority(request.items, (dependencies.now ?? (() => new Date()))());
+    assertSavedProviderQuoteFresh(snapshot, (dependencies.now ?? (() => new Date()))());
     const accepted = await (dependencies.create ?? createGelatoDraft)(request);
     await dependencies.store.transition('record_gelato_accepted_root', { ...parameters(identity), p_execution_id: identity.executionId, p_root_id: accepted.id });
     const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders([accepted.id], dependencies.get ?? getGelatoOrder), request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); }, true);

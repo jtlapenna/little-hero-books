@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-19T19:45:37.630068+00:00",
+  "sourceSha": "8cb880714f80aab336ac801a89ae41713f817918",
+  "backendDeploymentUnchanged": true,
+  "frontendUnchanged": true,
+  "sixSettingsAndServingBindingsOff": true,
+  "automaticGitDeploymentsOff": true,
+  "normalDispatchOff": true,
+  "ordinaryGateOff": true,
+  "newLedgerEmpty": true,
+  "positiveCronOffProbe": "Not attempted: no readable non-exposed credential",
+  "liveOrderReads": 0,
+  "liveOrderWrites": 0,
+  "gelatoRequests": {
+    "quotes": 4,
+    "orders": 0,
+    "payments": 0
+  },
+  "controlsChanged": false,
+  "customerMessages": false,
+  "deployment": false,
+  "scope": "Actual live control/gate reads after four quote-only requests; all regressions use synthetic transports"
+}
