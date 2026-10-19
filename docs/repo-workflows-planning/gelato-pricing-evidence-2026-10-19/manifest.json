@@ -1,0 +1,98 @@
+{
+  "at": "2026-10-19T19:55:54.017106+00:00",
+  "scope": "Local source and redacted evidence. Does not authenticate provider origin or rerun checks.",
+  "files": [
+    {
+      "path": ".github/workflows/check-workflow-export-secrets.yml",
+      "sha256": "8a7e483605b712acd114c75195628afec3fe41fd2e1953eff96ba293ccc46a1a"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "c425d40dd4efcc87a1421c16f965191d1aa9f1b95a0f0891ca5f866bcc92fb6f"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-financial-observation.ts",
+      "sha256": "2ccceeb9d92b697bb2a24ae326d1a2e64037defa9a98cf804ca5303cf7fad6b9"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-pricing-replay.ts",
+      "sha256": "22533fa35dec4a79c56c197d9218b882db7d6c1a380331ec1bd03363c9d89b3f"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-submission.ts",
+      "sha256": "559d76ad03fac8f5fbcb721be51c003800e6a8fddd40fd75855bb513bcacea3a"
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json",
+      "sha256": "dec968a10ee94a0292341044171efb00607efbf5c2b8060cdd91e5e49728f6db"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-api-contract.ts",
+      "sha256": "f5c3b354c49c407d2b689cbf4cb2e2367303450067c5e87c3649fc3f80b5bbaa"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-financial-observation.ts",
+      "sha256": "eead0b6564ba602d2bdb42e449d7f79b35c814d8545ad43d4ae897e6458c0cea"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-release-review.ts",
+      "sha256": "cb56203d79cfc408d0578f2656964b664fb11964bc15f89e923d69df9b45f128"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-submission.ts",
+      "sha256": "4a1358d1fb2ba326b39b6f45cff32d8be214ca42b97211fb8baa3de8934c43b8"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/README.md",
+      "sha256": "1df2deddb9e1f463a7d429141ab279785d970fe001b9d21b21e5a6767bdcb663"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/before-after.json",
+      "sha256": "5f9d4f05b73fc054596fbf3e2dba0b0a034a85656e9adce68b10ccc035b93bc4"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/controls.json",
+      "sha256": "f45b479bdab8eb80c299eaccc49c810404f6baaa7d07f6ff2f71cc891d693537"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/local-suites.json",
+      "sha256": "bc640a37b64fdf2fc308488260642451439a73e1e275db0cbed2e704d1c9772c"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/pages-build.json",
+      "sha256": "925ddbacef8746078804a7e48ed5000d3a50f3f16020c3d2a77f1588365ea77a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/publication-review.json",
+      "sha256": "33b43f453c8be10b735d58829bf39c68316424d947d40b922412302444895620"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/quotes.json",
+      "sha256": "2e65e20fd9fac88fd29180160679f453e845070e8cc9a11acb480bebb3fb3025"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/replay-checks.json",
+      "sha256": "8cf42201c6fa7a5493d52679d6fd23fac85c47bcec423c066f70a1ee17eb37e7"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/repository-scan.json",
+      "sha256": "23ee9bbdbd866b7afe5eac54fb20a9fc7c2c8966c1572d83d6b1283c861851aa"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/review.json",
+      "sha256": "4eb30e6c447a93be0b744f95747cca7b16461378f4e899cbde039e82b8d87279"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/types.json",
+      "sha256": "8585c43fc64334cc63724d7f89bbfa4cf0808a2c40341368b58c047a3798f7ff"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-pricing-evidence-2026-10-19/verify.py",
+      "sha256": "381d2241c24b191e33fe2ebd181afc734f1aa9cd5516537123239aeb058e7438"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-unpaid-pricing-results-2026-10-19.md",
+      "sha256": "4806de7732907cbb9cf7c51cfad254a8e2a39b4bd9d5efc80ec95103cb0fd1f4"
+    }
+  ]
+}

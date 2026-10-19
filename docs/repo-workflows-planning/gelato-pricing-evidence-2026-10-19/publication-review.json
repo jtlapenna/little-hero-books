@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-19T20:17:32.870629+00:00",
+  "scope": "Source publication only: commit/push/PR and merge after hosted checks; deployment forbidden",
+  "verdict": "READY WITH RESIDUAL RISK",
+  "reviewers": [
+    {
+      "task": "pricing_contract_release_review",
+      "slice": "Quote schema, normalization, legacy shape, direct consumers and evidence privacy",
+      "findings": "No blocker",
+      "checks": [
+        "24 pricing replay groups",
+        "API contract",
+        "Financial observation",
+        "Offline evidence verifier"
+      ]
+    },
+    {
+      "task": "pricing_submission_release_review",
+      "slice": "Submission timing, persisted expiry, recovery, CI and rollout",
+      "findings": "No blocker; fixture-only CI path follow-up addressed",
+      "checks": [
+        "Submission",
+        "Submission runtime",
+        "24 pricing replay groups",
+        "Financial observation",
+        "API contract",
+        "61 ordinary release checks",
+        "44 native queue checks"
+      ]
+    }
+  ],
+  "coordinatorVerification": [
+    "Personally reviewed complete code and evidence diff and direct writers/consumers",
+    "Current main refreshed and unchanged; Cloudflare automatic Git deployment holds verified",
+    "Fixture path added to PR and main push filters; reusable safety remains manual for deployment"
+  ],
+  "hostedCi": "Required on exact PR head before merge; not claimed by this pre-publication receipt",
+  "residual": [
+    "Full typecheck retains unchanged 388 baseline diagnostics",
+    "Complete payable total and provider spending cap unresolved",
+    "No enabled fresh workflow, prepress, paid printing, actual charge, shipment, delivery or live cancellation proof",
+    "Redacted artifact hashes prove consistency, not provider origin or current account funding configuration"
+  ],
+  "externalMutationsDuringPublication": {
+    "orders": 0,
+    "controls": 0,
+    "deployments": 0,
+    "funding": 0,
+    "messages": 0
+  }
+}

@@ -1,0 +1,860 @@
+{
+  "version": 1,
+  "kind": "redacted-live-quote-only",
+  "sourceSha": "8cb880714f80aab336ac801a89ae41713f817918",
+  "recordedAt": "2026-10-19",
+  "scope": "Four fresh quote-only calls. No orders created/read/converted, no files uploaded or validated, no enabled workflow proof. Addresses, contact data, key identity and provider opaque IDs replaced.",
+  "cases": [
+    {
+      "name": "website-single",
+      "observedAt": "2026-10-19T19:42:16.346Z",
+      "edition": "standard",
+      "originalResponseBodySha256": "aefa0215cc60dad3d725cc9d975d9da55916b3a6cea10bcd7a6b856c0a54950c",
+      "request": {
+        "orderReferenceId": "REDACTED-QUOTE-website-single",
+        "customerReferenceId": "REDACTED-CUSTOMER-website-single",
+        "currency": "USD",
+        "allowMultipleQuotes": false,
+        "recipient": {
+          "country": "US",
+          "firstName": "Redacted",
+          "lastName": "Recipient",
+          "addressLine1": "REDACTED",
+          "city": "REDACTED",
+          "state": "CA",
+          "postCode": "REDACTED",
+          "email": "redacted@example.invalid"
+        },
+        "products": [
+          {
+            "itemReferenceId": "website-single-child-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "pageCount": 32,
+            "quantity": 1,
+            "files": [
+              {
+                "type": "default",
+                "url": "https://example.invalid/quote-only/website-single-child-1.pdf"
+              }
+            ]
+          }
+        ]
+      },
+      "raw": {
+        "orderReferenceId": "REDACTED-QUOTE-website-single",
+        "quotes": [
+          {
+            "id": "REDACTED-QUOTE-ID-website-single",
+            "itemReferenceIds": [
+              "website-single-child-1"
+            ],
+            "products": [
+              {
+                "itemReferenceId": "website-single-child-1",
+                "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+                "quantity": 1,
+                "pageCount": 32,
+                "price": 12.18,
+                "currency": "USD",
+                "options": [],
+                "customTrim": null
+              }
+            ],
+            "fulfillmentCountry": "US",
+            "shipmentMethods": [
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-1",
+                "name": "USPS Ground Advantage",
+                "shipmentMethodUid": "usps_ground_advantage",
+                "price": 3.81,
+                "initialPrice": 3.81,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 9,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-28",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-2",
+                "name": "USPS Priority Mail Standard",
+                "shipmentMethodUid": "usps_priority_mail_standard",
+                "price": 9.22,
+                "initialPrice": 9.22,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-3",
+                "name": "UPS Surepost",
+                "shipmentMethodUid": "ups_surepost",
+                "price": 14.32,
+                "initialPrice": 14.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 8,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-27",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-4",
+                "name": "UPS Ground Residential",
+                "shipmentMethodUid": "ups_ground_residential",
+                "price": 18.61,
+                "initialPrice": 18.61,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-5",
+                "name": "UPS 3 Day Select",
+                "shipmentMethodUid": "ups_3_day_select",
+                "price": 25.35,
+                "initialPrice": 25.35,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-6",
+                "name": "USPS Priority Mail Express",
+                "shipmentMethodUid": "usps_priority_mail_express",
+                "price": 29.12,
+                "initialPrice": 29.12,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-website-single-7",
+                "name": "UPS 2 Day",
+                "shipmentMethodUid": "ups_2_day",
+                "price": 29.81,
+                "initialPrice": 29.81,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 4,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-23",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              }
+            ],
+            "expirationDateTime": "2026-10-20T19:42:19+00:00",
+            "productionTimeZone": "America/Los_Angeles",
+            "productionCountry": "US",
+            "carrierSurcharge": null
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "name": "amazon-single",
+      "observedAt": "2026-10-19T19:42:19.410Z",
+      "edition": "amazon",
+      "originalResponseBodySha256": "433b37588e928d5dece65ef3d3eb9f50a9003e0c95987d011b9284545ce4bc43",
+      "request": {
+        "orderReferenceId": "REDACTED-QUOTE-amazon-single",
+        "customerReferenceId": "REDACTED-CUSTOMER-amazon-single",
+        "currency": "USD",
+        "allowMultipleQuotes": false,
+        "recipient": {
+          "country": "US",
+          "firstName": "Redacted",
+          "lastName": "Recipient",
+          "addressLine1": "REDACTED",
+          "city": "REDACTED",
+          "state": "CA",
+          "postCode": "REDACTED",
+          "email": "redacted@example.invalid"
+        },
+        "products": [
+          {
+            "itemReferenceId": "amazon-single-child-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "pageCount": 32,
+            "quantity": 1,
+            "files": [
+              {
+                "type": "default",
+                "url": "https://example.invalid/quote-only/amazon-single-child-1.pdf"
+              }
+            ]
+          }
+        ]
+      },
+      "raw": {
+        "orderReferenceId": "REDACTED-QUOTE-amazon-single",
+        "quotes": [
+          {
+            "id": "REDACTED-QUOTE-ID-amazon-single",
+            "itemReferenceIds": [
+              "amazon-single-child-1"
+            ],
+            "products": [
+              {
+                "itemReferenceId": "amazon-single-child-1",
+                "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+                "quantity": 1,
+                "pageCount": 32,
+                "price": 12.18,
+                "currency": "USD",
+                "options": [],
+                "customTrim": null
+              }
+            ],
+            "fulfillmentCountry": "US",
+            "shipmentMethods": [
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-1",
+                "name": "USPS Ground Advantage",
+                "shipmentMethodUid": "usps_ground_advantage",
+                "price": 3.81,
+                "initialPrice": 3.81,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 9,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-28",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-2",
+                "name": "USPS Priority Mail Standard",
+                "shipmentMethodUid": "usps_priority_mail_standard",
+                "price": 9.22,
+                "initialPrice": 9.22,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-3",
+                "name": "UPS Surepost",
+                "shipmentMethodUid": "ups_surepost",
+                "price": 14.32,
+                "initialPrice": 14.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 8,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-27",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-4",
+                "name": "UPS Ground Residential",
+                "shipmentMethodUid": "ups_ground_residential",
+                "price": 18.61,
+                "initialPrice": 18.61,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-5",
+                "name": "UPS 3 Day Select",
+                "shipmentMethodUid": "ups_3_day_select",
+                "price": 25.35,
+                "initialPrice": 25.35,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-6",
+                "name": "USPS Priority Mail Express",
+                "shipmentMethodUid": "usps_priority_mail_express",
+                "price": 29.12,
+                "initialPrice": 29.12,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-single-7",
+                "name": "UPS 2 Day",
+                "shipmentMethodUid": "ups_2_day",
+                "price": 29.81,
+                "initialPrice": 29.81,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 4,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-23",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 229,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              }
+            ],
+            "expirationDateTime": "2026-10-20T19:42:21+00:00",
+            "productionTimeZone": "America/Los_Angeles",
+            "productionCountry": "US",
+            "carrierSurcharge": null
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "name": "amazon-siblings",
+      "observedAt": "2026-10-19T19:42:21.447Z",
+      "edition": "amazon",
+      "originalResponseBodySha256": "65577ead2a4eb723f49612b3738a720be2324f1717b9538e33e51de2fe5845fa",
+      "request": {
+        "orderReferenceId": "REDACTED-QUOTE-amazon-siblings",
+        "customerReferenceId": "REDACTED-CUSTOMER-amazon-siblings",
+        "currency": "USD",
+        "allowMultipleQuotes": false,
+        "recipient": {
+          "country": "US",
+          "firstName": "Redacted",
+          "lastName": "Recipient",
+          "addressLine1": "REDACTED",
+          "city": "REDACTED",
+          "state": "CA",
+          "postCode": "REDACTED",
+          "email": "redacted@example.invalid"
+        },
+        "products": [
+          {
+            "itemReferenceId": "amazon-siblings-child-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "pageCount": 32,
+            "quantity": 1,
+            "files": [
+              {
+                "type": "default",
+                "url": "https://example.invalid/quote-only/amazon-siblings-child-1.pdf"
+              }
+            ]
+          },
+          {
+            "itemReferenceId": "amazon-siblings-child-2",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "pageCount": 32,
+            "quantity": 1,
+            "files": [
+              {
+                "type": "default",
+                "url": "https://example.invalid/quote-only/amazon-siblings-child-2.pdf"
+              }
+            ]
+          }
+        ]
+      },
+      "raw": {
+        "orderReferenceId": "REDACTED-QUOTE-amazon-siblings",
+        "quotes": [
+          {
+            "id": "REDACTED-QUOTE-ID-amazon-siblings",
+            "itemReferenceIds": [
+              "amazon-siblings-child-1",
+              "amazon-siblings-child-2"
+            ],
+            "products": [
+              {
+                "itemReferenceId": "amazon-siblings-child-1",
+                "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+                "quantity": 1,
+                "pageCount": 32,
+                "price": 12.18,
+                "currency": "USD",
+                "options": [],
+                "customTrim": null
+              },
+              {
+                "itemReferenceId": "amazon-siblings-child-2",
+                "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+                "quantity": 1,
+                "pageCount": 32,
+                "price": 12.18,
+                "currency": "USD",
+                "options": [],
+                "customTrim": null
+              }
+            ],
+            "fulfillmentCountry": "US",
+            "shipmentMethods": [
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-1",
+                "name": "USPS Ground Advantage",
+                "shipmentMethodUid": "usps_ground_advantage",
+                "price": 5.32,
+                "initialPrice": 5.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 9,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-28",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-2",
+                "name": "USPS Priority Mail Standard",
+                "shipmentMethodUid": "usps_priority_mail_standard",
+                "price": 9.22,
+                "initialPrice": 9.22,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-3",
+                "name": "UPS Surepost",
+                "shipmentMethodUid": "ups_surepost",
+                "price": 14.32,
+                "initialPrice": 14.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 8,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-27",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-4",
+                "name": "UPS Ground Residential",
+                "shipmentMethodUid": "ups_ground_residential",
+                "price": 18.61,
+                "initialPrice": 18.61,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-5",
+                "name": "UPS 3 Day Select",
+                "shipmentMethodUid": "ups_3_day_select",
+                "price": 25.35,
+                "initialPrice": 25.35,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-6",
+                "name": "USPS Priority Mail Express",
+                "shipmentMethodUid": "usps_priority_mail_express",
+                "price": 29.12,
+                "initialPrice": 29.12,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-amazon-siblings-7",
+                "name": "UPS 2 Day",
+                "shipmentMethodUid": "ups_2_day",
+                "price": 29.81,
+                "initialPrice": 29.81,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 4,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-23",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              }
+            ],
+            "expirationDateTime": "2026-10-20T19:42:24+00:00",
+            "productionTimeZone": "America/Los_Angeles",
+            "productionCountry": "US",
+            "carrierSurcharge": null
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "name": "quantity-two-one-item",
+      "observedAt": "2026-10-19T19:42:24.501Z",
+      "edition": "amazon",
+      "originalResponseBodySha256": "490cf59ef0e318fa3393426002d2793453f547eb01194cb1521f90535386829d",
+      "request": {
+        "orderReferenceId": "REDACTED-QUOTE-quantity-two-one-item",
+        "customerReferenceId": "REDACTED-CUSTOMER-quantity-two-one-item",
+        "currency": "USD",
+        "allowMultipleQuotes": false,
+        "recipient": {
+          "country": "US",
+          "firstName": "Redacted",
+          "lastName": "Recipient",
+          "addressLine1": "REDACTED",
+          "city": "REDACTED",
+          "state": "CA",
+          "postCode": "REDACTED",
+          "email": "redacted@example.invalid"
+        },
+        "products": [
+          {
+            "itemReferenceId": "quantity-two-one-item-child-1",
+            "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+            "pageCount": 32,
+            "quantity": 2,
+            "files": [
+              {
+                "type": "default",
+                "url": "https://example.invalid/quote-only/quantity-two-one-item-child-1.pdf"
+              }
+            ]
+          }
+        ]
+      },
+      "raw": {
+        "orderReferenceId": "REDACTED-QUOTE-quantity-two-one-item",
+        "quotes": [
+          {
+            "id": "REDACTED-QUOTE-ID-quantity-two-one-item",
+            "itemReferenceIds": [
+              "quantity-two-one-item-child-1"
+            ],
+            "products": [
+              {
+                "itemReferenceId": "quantity-two-one-item-child-1",
+                "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+                "quantity": 2,
+                "pageCount": 32,
+                "price": 24.36,
+                "currency": "USD",
+                "options": [],
+                "customTrim": null
+              }
+            ],
+            "fulfillmentCountry": "US",
+            "shipmentMethods": [
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-1",
+                "name": "USPS Ground Advantage",
+                "shipmentMethodUid": "usps_ground_advantage",
+                "price": 5.32,
+                "initialPrice": 5.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 9,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-28",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-2",
+                "name": "USPS Priority Mail Standard",
+                "shipmentMethodUid": "usps_priority_mail_standard",
+                "price": 9.22,
+                "initialPrice": 9.22,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-3",
+                "name": "UPS Surepost",
+                "shipmentMethodUid": "ups_surepost",
+                "price": 14.32,
+                "initialPrice": 14.32,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 8,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-27",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-4",
+                "name": "UPS Ground Residential",
+                "shipmentMethodUid": "ups_ground_residential",
+                "price": 18.61,
+                "initialPrice": 18.61,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-5",
+                "name": "UPS 3 Day Select",
+                "shipmentMethodUid": "ups_3_day_select",
+                "price": 25.35,
+                "initialPrice": 25.35,
+                "currency": "USD",
+                "minDeliveryDays": 7,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-26",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "normal",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-6",
+                "name": "USPS Priority Mail Express",
+                "shipmentMethodUid": "usps_priority_mail_express",
+                "price": 29.12,
+                "initialPrice": 29.12,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 7,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-26",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              },
+              {
+                "deliveryPromiseId": "REDACTED-PROMISE-quantity-two-one-item-7",
+                "name": "UPS 2 Day",
+                "shipmentMethodUid": "ups_2_day",
+                "price": 29.81,
+                "initialPrice": 29.81,
+                "currency": "USD",
+                "minDeliveryDays": 4,
+                "maxDeliveryDays": 4,
+                "minDeliveryDate": "2026-10-23",
+                "maxDeliveryDate": "2026-10-23",
+                "type": "express",
+                "isPrivate": true,
+                "isBusiness": true,
+                "totalWeight": 344,
+                "packageCount": 1,
+                "incoTerms": "",
+                "speedType": "",
+                "priority": 0
+              }
+            ],
+            "expirationDateTime": "2026-10-20T19:42:26+00:00",
+            "productionTimeZone": "America/Los_Angeles",
+            "productionCountry": "US",
+            "carrierSurcharge": null
+          }
+        ],
+        "errors": []
+      }
+    }
+  ]
+}

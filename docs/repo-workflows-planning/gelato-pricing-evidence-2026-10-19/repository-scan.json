@@ -1,0 +1,9 @@
+{
+  "scannedTextFiles": 2262,
+  "skippedBinaryLargeSymlinkPaths": 574,
+  "findings": 0,
+  "exitCode": 0,
+  "scanner": "checksum-verified retained gitleaks 8.30.1 and repository fingerprint rules",
+  "scope": "Final source and completed redacted evidence",
+  "manifestFormat": "Separate path and sha256 fields; no scanner exception added"
+}

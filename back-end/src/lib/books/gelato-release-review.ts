@@ -44,7 +44,7 @@ export async function buildGelatoReleaseReview(context: GelatoSubmissionContext,
   if(!Number.isFinite(age)||age<0||age>15*60000||q.quoteId!==context.submission.quote_id||q.requestFingerprint!==context.submission.quote_request_fingerprint)blockers.add('fresh_bound_quote_required');
   try {
    const request={orderReferenceId:saved.request.orderReferenceId,customerReferenceId:saved.request.customerReferenceId,currency:saved.request.currency,recipient:saved.request.shippingAddress,allowMultipleQuotes:false as const,products:saved.request.items};
-   const selected=validateGelatoQuote({request,config:saved.config,shippingTier:saved.shippingTier,quotedAt:q.quotedAt,now:inputs.now??new Date(),response:{orderReferenceId:request.orderReferenceId,quotes:[{id:q.quoteId,itemReferenceIds:q.products.map(p=>p.itemReferenceId),products:q.products,shipmentMethods:q.shippingOptions.map(s=>({shipmentMethodUid:s.shipmentMethodUid,...(s.type?{type:s.type}:{})}))}]}});
+   const selected=validateGelatoQuote({request,config:saved.config,shippingTier:saved.shippingTier,quotedAt:q.quotedAt,now:inputs.now??new Date(),response:{orderReferenceId:request.orderReferenceId,quotes:[{id:q.quoteId,...(q.providerExpiresAt?{expirationDateTime:q.providerExpiresAt}:{}),itemReferenceIds:q.products.map(p=>p.itemReferenceId),products:q.products,shipmentMethods:q.shippingOptions.map(s=>({shipmentMethodUid:s.shipmentMethodUid,...(s.type?{type:s.type}:{})}))}]}});
    if(selected.requestFingerprint!==q.requestFingerprint)blockers.add('fresh_bound_quote_required');
   } catch { blockers.add('fresh_bound_quote_required'); }
   if(q.currency!=='USD'||saved.request.currency!==q.currency)blockers.add('currency_mismatch');

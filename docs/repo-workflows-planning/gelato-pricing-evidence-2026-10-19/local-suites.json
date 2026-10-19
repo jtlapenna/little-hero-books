@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-19T19:54:41.489141+00:00",
+  "suites": [
+    {
+      "suite": "test-gelato-pricing-replay.ts",
+      "exitCode": 0,
+      "output": "test-gelato-pricing-replay.ts.log"
+    },
+    {
+      "suite": "test-gelato-api-contract.ts",
+      "exitCode": 0,
+      "output": "test-gelato-api-contract.ts.log"
+    },
+    {
+      "suite": "test-gelato-financial-observation.ts",
+      "exitCode": 0,
+      "output": "test-gelato-financial-observation.ts.log"
+    },
+    {
+      "suite": "test-gelato-submission.ts",
+      "exitCode": 0,
+      "output": "test-gelato-submission.ts.log"
+    },
+    {
+      "suite": "test-gelato-ordinary-release.ts",
+      "exitCode": 0,
+      "output": "test-gelato-ordinary-release.ts.log"
+    },
+    {
+      "suite": "test-gelato-native-queue.ts",
+      "exitCode": 0,
+      "output": "test-gelato-native-queue.ts.log"
+    },
+    {
+      "suite": "test-gelato-admin-inspection.tsx",
+      "exitCode": 0,
+      "output": "test-gelato-admin-inspection.tsx.log"
+    }
+  ],
+  "network": "These suites use synthetic transports; no business credentials are supplied",
+  "controls": "OFF"
+}

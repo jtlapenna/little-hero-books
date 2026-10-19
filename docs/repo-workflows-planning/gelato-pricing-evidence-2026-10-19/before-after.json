@@ -1,0 +1,27 @@
+{
+  "baselineSha": "8cb880714f80aab336ac801a89ae41713f817918",
+  "checks": [
+    {
+      "name": "Live parcel alias preserved",
+      "before": null,
+      "after": 1
+    },
+    {
+      "name": "Expired provider quote rejected",
+      "before": "accepted",
+      "after": "rejected"
+    },
+    {
+      "name": "Partial provider errors rejected",
+      "before": "accepted",
+      "after": "rejected"
+    },
+    {
+      "name": "Saved provider expiry blocks draft before preparation and at transport",
+      "before": "New producer metadata plus baseline draft consumer fails: missing expected rejection",
+      "after": "Current draft consumer passes both boundary cases, with zero provider creates",
+      "proof": "Only draft consumer reverted for the negative test; all changes restored"
+    }
+  ],
+  "networkCalls": 0
+}
