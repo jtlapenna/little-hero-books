@@ -1,0 +1,32 @@
+{
+  "suite": "ordinary-release-disposable-postgres",
+  "postgres": "17.10 (Debian 17.10-1.pgdg13+1)",
+  "checks": [
+    "idempotent additive migration, populated legacy orders/submissions unchanged, empty OFF gate before lookup",
+    "anonymous/authenticated denied; RLS on; service RPCs invoker rights",
+    "website W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+    "Amazon W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+    "Amazon siblings W4.1 real SQL store/core path, one intercepted PATCH, replay blocked",
+    "canonical nested quantity two accepted by SQL and release review",
+    "canonical object/string nested JSON-null quantities default to one",
+    "two concurrent workers, same permit: one durable owner and one PATCH",
+    "two independently approved permits for same provider root: one PATCH across approvals",
+    "independent roots progress concurrently",
+    "missing payable date, binding fingerprint, taxes or total rejected atomically",
+    "current name, approval and shipping revocations roll back send authorization/root consumption",
+    "OFF revocation, immutable packet, NULL/infinite/overlong direct-DML leases rejected",
+    "lost acquire acknowledgement: held, expired preparation fenced; new approval can send once",
+    "lost durable-send acknowledgement consumes permit; OFF read-only draft observation never retries",
+    "crashed sender fenced, active sender protected, expired OFF observer records conversion without PATCH",
+    "provider accepted but readback lost: durable unknown then read-only recovery, no second send",
+    "lost finish acknowledgement preserves committed closure across retries",
+    "final local gate OFF, no notification intents, legacy rows intact"
+  ],
+  "passed": 19,
+  "provider": "intercepted only",
+  "hostedDatabase": false,
+  "liveOrdersRead": 0,
+  "liveOrdersWritten": 0,
+  "normalControlsChanged": false,
+  "finalLocalGate": false
+}

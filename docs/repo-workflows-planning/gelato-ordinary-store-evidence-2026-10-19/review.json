@@ -1,0 +1,25 @@
+{
+  "mode": "checkpoint source review before publication",
+  "slices": [
+    {
+      "name": "SQL",
+      "result": "clear",
+      "independentDatabaseRerun": false
+    },
+    {
+      "name": "TypeScript core/store",
+      "result": "clear",
+      "independentlyPassedCoreChecks": 61
+    },
+    {
+      "name": "CI/queue/rollout",
+      "result": "clear",
+      "independentlyPassedNativeQueueChecks": 44
+    }
+  ],
+  "confirmedFindingsRemaining": [],
+  "pricingResolved": false,
+  "hostedInstalled": false,
+  "deploymentApproved": false,
+  "physicalApproved": false
+}

@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "recordedAt": "2026-10-19T08:48:53.496357+00:00",
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "files": {
+    "README.md": "f743d511a868ff10a51a3d09b1296320251af29f53db26656b3d9b365ecd1947",
+    "core-checks.json": "58a19ff301705e3d35e8f32cb9b401174f2ecfab670225d5c193c138495b8525",
+    "pages-build.json": "3ed22710f5542807f129e3661b7b8160eea37886a85e5e22429434a20251eae5",
+    "regressions.json": "a85956f8e794cced4329204d5a29be5a0ccf979bd5636650e7874fb029a4b495",
+    "repository-scan.json": "5a5f99f05ba6a91741ed0c6da0d7e7409736290c2b5b70f4935c7c6360007b64",
+    "review.json": "763385fb74ce9f78e7e55c5cc26ba9ba1768bbe2f095a4fa6fc73f2d20c47f1a",
+    "store-checks.json": "77a190693e2bb2c91c0cc98f5123769d52b909b4443ba90f4a17934e71486ace",
+    "types.json": "32188da7387f8cc25ba83d257bb404dd0bfb5c555bd8c7f07bd9c56489499dcf",
+    "verify.py": "7c5d46752d1c8103140e851f1e66a574eacb8c8e4c383fd1a53607f191918742"
+  },
+  "sources": [
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "sha256": "b3c9a4c4bb5d2d523db03f63870fea31f95816462a4014b41488f7eed92ec999"
+    },
+    {
+      "path": ".github/workflows/check-workflow-export-secrets.yml",
+      "sha256": "464825c88ba9d19c05f70457c1248e2a0bf69ee6c0dd3ba6c1cd97cd6c86dda7"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "2a5e65b066198bfd08040672f5543687c93a25ad775b8671aaf8a2f84ed7ad4c"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-local-status-journey.ts",
+      "sha256": "4555735b876d71954ecc5c8bc89ed5e36bcf1a1d918da62f7318b5f89c7a32c3"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+      "sha256": "b9aee90f01a8b81294360c3a01fea049e6aef4432864923221c53c86ae363d91"
+    },
+    {
+      "path": "back-end/scripts/helpers/prepare-w1-native-queue.ts",
+      "sha256": "8e6266f08d193bde9f2e6cadeef6f93d2900122930e0f775f1ea64cf619aa1b7"
+    },
+    {
+      "path": "back-end/scripts/prepare-w1-gelato-queue.ts",
+      "sha256": "0b56b68f4a28afcb42c0813cc957d6f5d5e6c6cce191a2765329f7c75714dbfa"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-engineering-automation.ts",
+      "sha256": "d50ae8584f61989e05cc1dc763400a33594b7c1b13e77e74ae6bc831beb19118"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "sha256": "da5953af94576d7fbe26f8d5752daf56574735e06379a8d1005bfac37f906b10"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-native-queue.ts",
+      "sha256": "31ebe15f9e6b354135c2ee08362254da27a3a2ca4671a6e66303d2c7a29a86b2"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-ordinary-release-store.ts",
+      "sha256": "77915b3e5c22d93ac43eeb660ea8233b8340a2898bef25646b952c862aba3b86"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-ordinary-release.ts",
+      "sha256": "42343583101a8b15bac80bc0ef7e93030bb2c29bcc1f97fecdae9c86b92f9adc"
+    },
+    {
+      "path": "back-end/src/app/api/internal/orders/print-routing/claim/route.ts",
+      "sha256": "b701c10918a59ed38c531a9a6ec198a76137b13fca0d4208d83e3a0f432bd2bb"
+    },
+    {
+      "path": "back-end/src/app/api/internal/orders/print-routing/queue/route.ts",
+      "sha256": "6be2fae22ecb04941347760266de0c92bc7c5c9703449463fa710ed91b56a3c7"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-native-queue.ts",
+      "sha256": "292d9cb3891eebf07506f7a1da49968aea27aa5a7735452532116b7399b9d603"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
+      "sha256": "63fd4cd860b1c0e67c3d8add3af02dd04ebe23dc95bf2ac69d1a783144e17f24"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-store.ts",
+      "sha256": "bbaf9e632db98ff8c123cea53ba1c1cefade70dca3b7ce96a6c4173cff62217e"
+    },
+    {
+      "path": "back-end/src/lib/books/print-routing-claim-runtime.ts",
+      "sha256": "bb5b84ae3a70d0524db1ebba9a6bdace4421cb1f26cd51387f84e4604429e3cc"
+    },
+    {
+      "path": "database/20261019081857_gelato_ordinary_release_store.sql",
+      "sha256": "482e5dc095d55c32dff85d73b72559de37f6a9188560b0da0a781c90fec4c6a9"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
+      "sha256": "f118077ec865f0c707800fb0fb3f904c67a1cdedc50d6ea75f0f46d54be22dea"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-connected-status-results-2026-10-19.md",
+      "sha256": "e70734bb7994eb171bffa3297bb83ae3de7eef0037eb6824340951f3f64add05"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-final-pricing-and-physical-proof-2026-10-19.md",
+      "sha256": "cf207739dab283ace4d5e6c9c5c7ca72c0f9758a0fa6341d3bbcdf6264922a07"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-native-queue-results-2026-10-18.md",
+      "sha256": "b87ffdfc6a6b8d458429f3559df29c704ea756eb809e27d2bace7c7a28ce479b"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-ordinary-release-adapter-plan-2026-10-19.md",
+      "sha256": "132367ce466f1949356c64a4c3afde00e1a7db07078d5d2f354053b9b4c93969"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-ordinary-release-results-2026-10-19.md",
+      "sha256": "c3a68e13569f3f24d90991c035a6be7cd0319d884e080f06144e570c26dd5efb"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-ordinary-store-results-2026-10-19.md",
+      "sha256": "efc66a6b9195b0f63a5e10ac187eec263f98135d72df365120704bbfbec35da9"
+    },
+    {
+      "path": "scripts/security/require-hosted-release-checks.mjs",
+      "sha256": "6bc2b1994dc59d006f6dadf59200c21c23a1802301c1a82b91ac4e554529166b"
+    },
+    {
+      "path": "scripts/security/test-hosted-release-checks.mjs",
+      "sha256": "d558fe92a48e00b6846275cb9ff637a6c54a041192481a5b62b4f0005df04e1d"
+    }
+  ],
+  "historicalManifests": {
+    "docs/repo-workflows-planning/gelato-native-queue-evidence-2026-10-18/manifest.json": "2daea345388eabd78ab9419bfb6f8f5c5436ea8cbc58b47d55b8303a7d755ecf",
+    "docs/repo-workflows-planning/gelato-connected-status-evidence-2026-10-19/manifest.json": "cf04d516081162a6a83df976b8c69bfabdb43294555ad7cdfcaccb2dd0f635db",
+    "docs/repo-workflows-planning/gelato-ordinary-release-evidence-2026-10-19/manifest.json": "8c060761c8cd591ce5f22c431ac15463a7d91759cbae993c97e3ee11d5edbfed"
+  }
+}

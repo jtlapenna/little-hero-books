@@ -1,0 +1,62 @@
+{
+  "phase": "Connected local status follow-on",
+  "recordedAt": "2026-10-19T07:18:37.891811+00:00",
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "files": {
+    "README.md": "dd795c5b8a791f70cd9d00c31bd2577922fa16b37fbd1ab2327f22a59c370b52",
+    "checks.json": "f1d8df5b6d9e7ece4399e8c83ae91b293c557ba589e59bb303592155752f140a",
+    "connected-journey.json": "e0814a2728e124995a6072bf21dbf42b4036e8aa45bd108cd5679b7d97a42a2b",
+    "review.json": "b99482d712b310c0785b3ae6603cb25d0f7c2cc4c473781bfaff23df27f9cb6c",
+    "verify.py": "1e0202064d5fa32e85a68650a86092dce3335e629dd6dfa5bc476f1c0928e0f6"
+  },
+  "sources": [
+    {
+      "path": "back-end/scripts/helpers/gelato-local-status-journey.ts",
+      "sha256": "4555735b876d71954ecc5c8bc89ed5e36bcf1a1d918da62f7318b5f89c7a32c3"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "sha256": "da5953af94576d7fbe26f8d5752daf56574735e06379a8d1005bfac37f906b10"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-scheduled-status.ts",
+      "sha256": "9ac1c3f8ae0c5ae05a71083615f2f955ac856a3e32e25b8837f223d104012ce7"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-lifecycle-runtime.ts",
+      "sha256": "511bac073b5ebae9085ae7d37d380068ad8f5b0a8d9073e67188a91f02f7865f"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-lifecycle.ts",
+      "sha256": "ef4e27dff62510ea53a1f5e1490d27a7bd944baefefd02a1b65202f72f7db6b5"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-submission-store.ts",
+      "sha256": "b2e6344de98f97699d44b73644ee156c28e16ca29c69845903ab96e51102bdfb"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-stored-file.ts",
+      "sha256": "2d6c10ee9ff7fd8c7c8cca35a10b4ab8d641a5735a306f1912edf73999689803"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-provider-snapshot.ts",
+      "sha256": "830f5c19a246114337f47d59a5cd3a0d69edeb78b999b32f302e32f6c591de81"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-financial-observation.ts",
+      "sha256": "96ad71333c2b421adbfb467706a55bd021da690557c24abe3c330f3c3322a648"
+    },
+    {
+      "path": "back-end/src/app/api/admin/gelato-print/route.ts",
+      "sha256": "21614574af3b8ea7720d1887372e8c0ca256d93cf3e21223bc83bf9f3a1c6c05"
+    },
+    {
+      "path": "database/20261017201742_gelato_financial_observations.sql",
+      "sha256": "b01ba50f0ab0a2ab2e622c071b7cc9270c42594f05f9b169303d27de34f2d3ab"
+    },
+    {
+      "path": "database/20261017200507_gelato_scheduled_status.sql",
+      "sha256": "df410f1950053aa3f79550b893b64b6daf203f6947cbf7c53845ace786452f5a"
+    }
+  ]
+}

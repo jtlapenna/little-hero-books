@@ -1,0 +1,31 @@
+{
+  "schema": "lhl.w1-native-queue-preparation@1",
+  "canDeploy": false,
+  "review": {
+    "existingNodesPreserved": 28,
+    "addedNodes": [
+      "Prepare Native Print Queue",
+      "Claim Native Print Queue",
+      "Expand Native Print Queue",
+      "IF Native Gelato Provider",
+      "IF Native Gelato Siblings",
+      "Trigger Native W4 Gelato",
+      "Trigger Native W4.1 Gelato",
+      "Capture Failed Native Gelato Claim",
+      "Fence Failed Native Gelato Claim",
+      "Confirm Native Gelato Fence"
+    ],
+    "supportedLegacyBoundary": "Prep Workflow 4 Orders \u2192 Classify W4 Orders \u2192 Validate Shipping for w4",
+    "existingSettingsAndCredentialsPreserved": true,
+    "activationIncluded": false,
+    "dynamicStateIncluded": false,
+    "newCredentialBindings": "Unresolved backend header-auth placeholders; no secrets in patch",
+    "limitations": [
+      "Archived input is not a fresh hosted readback",
+      "Requires reviewed backend queue route and separately verified W4/W4.1 targets",
+      "No activation, execution, polling registration, conversion, funding or customer messages"
+    ]
+  },
+  "inputScope": "Protected archived security-cutover definition, not fresh live state",
+  "hostedMutation": false
+}

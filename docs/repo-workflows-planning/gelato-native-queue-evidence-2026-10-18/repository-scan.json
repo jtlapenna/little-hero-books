@@ -1,0 +1,7 @@
+{
+  "tool": "Repository compromised-key denylist and gitleaks 8.30.1",
+  "scannedTextFiles": 2210,
+  "skippedBinaryLargeOrSymlinkPaths": 574,
+  "findings": 0,
+  "scope": "Git-visible local source/evidence snapshot; ignored private candidates and credentials excluded"
+}

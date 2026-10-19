@@ -1,0 +1,9 @@
+{
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "baselineSourceDiagnostics": 353,
+  "currentSourceDiagnostics": 353,
+  "baselineGeneratedDiagnostics": 35,
+  "currentGeneratedDiagnostics": 35,
+  "sameFileCodeMessageMultiset": true,
+  "method": "Read-only virtual compiler host loads main source using git show; current source compiles normally, same dependency tree and retained generated validators. No checkout changes."
+}

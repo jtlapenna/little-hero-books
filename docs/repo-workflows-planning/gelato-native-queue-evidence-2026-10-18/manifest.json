@@ -1,0 +1,69 @@
+{
+  "phase": "Local native queue update",
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "recordedAt": "2026-10-19T06:57:41.256622+00:00",
+  "files": {
+    "README.md": "8db63b12a80e448c55ab609752ceb0466c93326b57522f59220054ccfb237bf7",
+    "archive-preservation.json": "88e8d83b96337d9b3e6585932b319670ecb67006c7a47fecb7588c2932b44769",
+    "checks.json": "aa8743638717fe459c8f95fc86d157109cac789c852e716ba80cb0377add7216",
+    "existing-journey.json": "888445ce771e9c9297b070f9fffc9a33afbcc74873e7f762899296501ab56ac1",
+    "native-journey.json": "eb5057e8bc4a7d615d06b70c808a28300a91dbb98c296916c17961a75c296487",
+    "pages-build.json": "95227efec37399045203a17fdb03e9eaa09f65fbb48509fe40b391ed4a566d9c",
+    "queue-checks.json": "6de4737eedf11f849822142a2da42d1be769489e2c2d91d1d6702101caa2101b",
+    "review.json": "303b0bdfffcd32acde278021a55ec5dc3ba53d3b8eefccb0ca149dd21004062a",
+    "types.json": "64d4288ab6d71bba6893ed8b28d9862710312ec0e1fd489f93ec56a15b86ee05",
+    "verify.py": "7c2ab49767e2be0cbc01ab22b8c09318066e8ed37acee34d5844227fe1f8a417",
+    "repository-scan.json": "b68be61b13fda8ecf5be4ae3d92089e3997218f166811c568493a931036cf4d7"
+  },
+  "sources": [
+    {
+      "path": ".github/workflows/check-workflow-export-secrets.yml",
+      "sha256": "464825c88ba9d19c05f70457c1248e2a0bf69ee6c0dd3ba6c1cd97cd6c86dda7"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "b70ac633a4451bc851c6d051c4f1070b9342a73e06feb9b591d154f5817705e8"
+    },
+    {
+      "path": "back-end/scripts/helpers/prepare-w1-native-queue.ts",
+      "sha256": "8e6266f08d193bde9f2e6cadeef6f93d2900122930e0f775f1ea64cf619aa1b7"
+    },
+    {
+      "path": "back-end/scripts/prepare-w1-gelato-queue.ts",
+      "sha256": "0b56b68f4a28afcb42c0813cc957d6f5d5e6c6cce191a2765329f7c75714dbfa"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-native-queue.ts",
+      "sha256": "31ebe15f9e6b354135c2ee08362254da27a3a2ca4671a6e66303d2c7a29a86b2"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "sha256": "da5953af94576d7fbe26f8d5752daf56574735e06379a8d1005bfac37f906b10"
+    },
+    {
+      "path": "back-end/src/app/api/internal/orders/print-routing/claim/route.ts",
+      "sha256": "b701c10918a59ed38c531a9a6ec198a76137b13fca0d4208d83e3a0f432bd2bb"
+    },
+    {
+      "path": "back-end/src/app/api/internal/orders/print-routing/queue/route.ts",
+      "sha256": "6be2fae22ecb04941347760266de0c92bc7c5c9703449463fa710ed91b56a3c7"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-native-queue.ts",
+      "sha256": "292d9cb3891eebf07506f7a1da49968aea27aa5a7735452532116b7399b9d603"
+    },
+    {
+      "path": "back-end/src/lib/books/print-routing-claim-runtime.ts",
+      "sha256": "bb5b84ae3a70d0524db1ebba9a6bdace4421cb1f26cd51387f84e4604429e3cc"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
+      "sha256": "f118077ec865f0c707800fb0fb3f904c67a1cdedc50d6ea75f0f46d54be22dea"
+    }
+  ],
+  "testOnlyReverification": {
+    "recordedAt": "2026-10-19T07:18:37.891811+00:00",
+    "reason": "Optional connected-status hook; original and native modes rerun with hook disabled. Production build source unchanged.",
+    "initialJourneySourceSha256": "11c1c142afcbe1bc75998fb01815d9b910d9ed96883cf8c3afc16223c80430db"
+  }
+}

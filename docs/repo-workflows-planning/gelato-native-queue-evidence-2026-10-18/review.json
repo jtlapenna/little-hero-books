@@ -1,0 +1,30 @@
+{
+  "verdict": "Passed for local/offline scope after confirmed fixes",
+  "reviewers": 2,
+  "resolved": [
+    {
+      "finding": "Default local-journey branch shadowed the outer envelope variable",
+      "fix": "Assign the outer variable and rerun both existing and native modes"
+    },
+    {
+      "finding": "Preparation helper directory matched lib/ ignore rule",
+      "fix": "Move helper into scripts/helpers and verify normal git discovery"
+    },
+    {
+      "finding": "Byte preservation accepted an unsupported environment-dependent classifier continuation",
+      "fix": "Require Prep \u2192 Classify \u2192 Validate Shipping and a single original classifier entry; reject the 36-node canonical template and alternate branches"
+    }
+  ],
+  "independentChecks": [
+    "44 offline queue cases",
+    "Canonical print-routing and 23 ordinary-router cases",
+    "Eight independent unsupported-graph probes",
+    "Synthetic supported legacy seam preserves original definitions and credential references",
+    "CLI file-only candidate and 0700 directory/0600 files; existing output refused"
+  ],
+  "residual": [
+    "Native multi-item HTTP error pairing not exercised",
+    "W4 acknowledges before assembly; dispatch ACK is not downstream completion",
+    "No hosted import, credential binding, enabled timer, current safe cron credential, provider regular release or physical fulfillment proof"
+  ]
+}

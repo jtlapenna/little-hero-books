@@ -1,0 +1,191 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "case": "website",
+      "children": 1,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "releaseReview": {
+        "version": 1,
+        "canRelease": false,
+        "accountIdentityDigest": "50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575",
+        "submissionId": "11111111-1111-4111-8111-000000000001",
+        "artifacts": [
+          {
+            "childOrderId": 1,
+            "itemReferenceId": "local-item-1",
+            "providerItemId": "local-provider-1-item-0",
+            "sha256": "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d",
+            "pdfPageCount": 35
+          }
+        ],
+        "destinationSha256": "5203bc4e9dbb3d44a75b3c43a27ea3240667e9cbb687fda67633bb518027ee51",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "productsCents": "1218",
+        "shippingCents": "500",
+        "knownSubtotalCents": "1718",
+        "payableTotalCents": null,
+        "blockers": [
+          "ordinary_release_transport_not_installed",
+          "specific_paid_test_approval_required",
+          "taxes_fees_and_payable_total_unverified"
+        ],
+        "sideEffects": "none"
+      },
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": false,
+      "liveControlsAccessed": false,
+      "testProcessControlRestoredOff": true,
+      "upstream": "canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters",
+      "config": "in-memory active clone; bundled v2 stays draft"
+    },
+    {
+      "case": "amazon-single",
+      "children": 1,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "releaseReview": {
+        "version": 1,
+        "canRelease": false,
+        "accountIdentityDigest": "50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575",
+        "submissionId": "11111111-1111-4111-8111-000000000002",
+        "artifacts": [
+          {
+            "childOrderId": 1,
+            "itemReferenceId": "local-item-1",
+            "providerItemId": "local-provider-2-item-0",
+            "sha256": "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69",
+            "pdfPageCount": 35
+          }
+        ],
+        "destinationSha256": "5203bc4e9dbb3d44a75b3c43a27ea3240667e9cbb687fda67633bb518027ee51",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "productsCents": "1218",
+        "shippingCents": "500",
+        "knownSubtotalCents": "1718",
+        "payableTotalCents": null,
+        "blockers": [
+          "ordinary_release_transport_not_installed",
+          "specific_paid_test_approval_required",
+          "taxes_fees_and_payable_total_unverified"
+        ],
+        "sideEffects": "none"
+      },
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": false,
+      "liveControlsAccessed": false,
+      "testProcessControlRestoredOff": true,
+      "upstream": "canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters",
+      "config": "in-memory active clone; bundled v2 stays draft"
+    },
+    {
+      "case": "amazon-siblings",
+      "children": 2,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+        "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975"
+      ],
+      "pdfPageCounts": [
+        35,
+        35
+      ],
+      "providerCreates": 1,
+      "releaseReview": {
+        "version": 1,
+        "canRelease": false,
+        "accountIdentityDigest": "50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575",
+        "submissionId": "11111111-1111-4111-8111-000000000003",
+        "artifacts": [
+          {
+            "childOrderId": 1,
+            "itemReferenceId": "local-item-1",
+            "providerItemId": "local-provider-3-item-0",
+            "sha256": "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+            "pdfPageCount": 35
+          },
+          {
+            "childOrderId": 2,
+            "itemReferenceId": "local-item-2",
+            "providerItemId": "local-provider-3-item-1",
+            "sha256": "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975",
+            "pdfPageCount": 35
+          }
+        ],
+        "destinationSha256": "5203bc4e9dbb3d44a75b3c43a27ea3240667e9cbb687fda67633bb518027ee51",
+        "currency": "USD",
+        "selectedShipmentMethodUid": "usps_ground_advantage",
+        "productsCents": "2436",
+        "shippingCents": "500",
+        "knownSubtotalCents": "2936",
+        "payableTotalCents": null,
+        "blockers": [
+          "ordinary_release_transport_not_installed",
+          "specific_paid_test_approval_required",
+          "taxes_fees_and_payable_total_unverified"
+        ],
+        "sideEffects": "none"
+      },
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-sibling-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": false,
+      "liveControlsAccessed": false,
+      "testProcessControlRestoredOff": true,
+      "upstream": "canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters",
+      "config": "in-memory active clone; bundled v2 stays draft"
+    }
+  ],
+  "liveRequests": 0,
+  "providerSimulation": {
+    "creates": 3,
+    "quotes": 3
+  },
+  "limitations": [
+    "Positive submission uses a temporary process-local true binding with fake services; live controls never accessed",
+    "No hosted n8n engine",
+    "Upstream image generation and admin decision simulated",
+    "Atomic SQL independently tested, not PostgREST",
+    "No regular release/conversion or physical production"
+  ]
+}

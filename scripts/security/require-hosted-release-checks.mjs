@@ -1,7 +1,7 @@
 /** Require successful trusted main-branch runs for the exact upload SHA. No tokens in output. */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-export const requiredWorkflows = ['security-secrets.yml', 'check-application-access.yml', 'check-workflow-export-secrets.yml', 'check-production-build.yml'];
+export const requiredWorkflows = ['security-secrets.yml', 'check-application-access.yml', 'check-workflow-export-secrets.yml', 'check-production-build.yml', 'check-gelato-ordinary-release.yml'];
 export function successfulRun(runs, sha, path) {
   const eligible = runs.filter(run => run.head_sha === sha && run.head_branch === 'main' &&
     ['push', 'workflow_dispatch'].includes(run.event) && run.path === `.github/workflows/${path}`);

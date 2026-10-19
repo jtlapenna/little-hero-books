@@ -1,0 +1,28 @@
+{
+  "recordedAt": "2026-10-19T07:18:37.891811+00:00",
+  "passed": true,
+  "checks": [
+    {
+      "check": "connected-native-PDF-status-admin-journey",
+      "exitCode": 0,
+      "scenarios": 125
+    },
+    {
+      "check": "original-journey-optional-status-disabled",
+      "exitCode": 0
+    },
+    {
+      "check": "native-journey-optional-status-disabled",
+      "exitCode": 0
+    }
+  ],
+  "typeComparison": {
+    "sameFileCodeMessageMultiset": true,
+    "baselineSourceDiagnostics": 353,
+    "currentSourceDiagnostics": 353,
+    "baselineGeneratedDiagnostics": 35,
+    "currentGeneratedDiagnostics": 35,
+    "greenTypecheck": false
+  },
+  "build": "Retained queue-phase package build; no production source, dependencies or build configuration changed in this test-only follow-on."
+}

@@ -1,0 +1,396 @@
+{
+  "schema": "lhl.w1-native-queue-patch@1",
+  "insertAfter": "Prep Workflow 4 Orders",
+  "legacyNext": "Classify W4 Orders",
+  "nodes": [
+    {
+      "name": "Prepare Native Print Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const originals=$input.all().map(item=>item.json);\nconst orderDbIds=originals.map(row=>Number(row.orderDbId??row.id));\nif(!orderDbIds.length||orderDbIds.length>5||orderDbIds.some(id=>!Number.isSafeInteger(id)||id<=0)||new Set(orderDbIds).size!==orderDbIds.length)throw Error('Invalid native queue candidate identity');\nreturn [{json:{orderDbIds,originals}}];"
+      },
+      "id": "9e920100-8123-4123-8123-000000000001",
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "name": "Claim Native Print Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "stopWorkflow",
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/orders/print-routing/queue",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({orderDbIds:$json.orderDbIds}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend header auth (bind only after review)"
+        }
+      },
+      "id": "9e920100-8123-4123-8123-000000000002",
+      "position": [
+        2240,
+        400
+      ]
+    },
+    {
+      "name": "Expand Native Print Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const source=$('Prepare Native Print Queue').first().json;\nconst body=$input.first().json;\nif(body.success!==true||body.customerMessages!==false||!Array.isArray(body.groups)||body.groups.length>5)throw Error('Native queue result was not confirmed');\nconst ids=source.orderDbIds,seen=new Set(),output=[];\nfor(const group of body.groups){\n if(!Array.isArray(group.orderDbIds)||!group.orderDbIds.length||group.orderDbIds.length>5||new Set(group.orderDbIds).size!==group.orderDbIds.length||group.orderDbIds.some(id=>!ids.includes(id)||seen.has(id)))throw Error('Native queue group identity differs');\n group.orderDbIds.forEach(id=>seen.add(id));\n if(group.dispatchRoute==='hold'){if(group.provider!=='unresolved')throw Error('Invalid native queue hold');continue;}\n if(group.provider==='lulu'&&group.dispatchRoute==='legacy'){\n  for(const id of group.orderDbIds){const original=source.originals.find(row=>Number(row.orderDbId??row.id)===id);if(!original)throw Error('Legacy identity missing');output.push({json:{...original,provider:'lulu'},pairedItem:{item:0}});}continue;\n }\n if(group.provider!=='gelato'||group.dispatchRoute!=='dispatch'||!['single','sibling'].includes(group.routeKind)||!Array.isArray(group.orders)||group.orders.length!==group.orderDbIds.length||\n  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(group.submissionId)||\n  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(group.claimToken)||\n  typeof group.idempotencyKey!=='string'||!group.idempotencyKey.startsWith('w1.1:')||\n  group.routeKind!==(group.orderDbIds.length>1?'sibling':'single')||\n  new Set(group.orders.map(row=>row.orderDbId)).size!==group.orderDbIds.length||\n  group.orders.some(row=>!group.orderDbIds.includes(row.orderDbId)||row.provider!=='gelato'||!row.orderId||!row.bookId||!row.formatId||!Number.isSafeInteger(row.configVersion)))throw Error('Native Gelato dispatch identity differs');\n output.push({json:group,pairedItem:{item:0}});\n}\nif(seen.size!==ids.length)throw Error('Native queue response omitted candidates');\nreturn output;"
+      },
+      "id": "9e920100-8123-4123-8123-000000000003",
+      "position": [
+        2480,
+        400
+      ]
+    },
+    {
+      "name": "IF Native Gelato Provider",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "if-native-gelato-provider",
+              "leftValue": "={{ $json.provider }}",
+              "rightValue": "gelato",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9e920100-8123-4123-8123-000000000004",
+      "position": [
+        2720,
+        400
+      ]
+    },
+    {
+      "name": "IF Native Gelato Siblings",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "if-native-gelato-siblings",
+              "leftValue": "={{ $json.routeKind }}",
+              "rightValue": "sibling",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9e920100-8123-4123-8123-000000000005",
+      "position": [
+        2960,
+        400
+      ]
+    },
+    {
+      "name": "Trigger Native W4 Gelato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-gelato-print-repo",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "9e920100-8123-4123-8123-000000000006",
+      "position": [
+        2000,
+        700
+      ]
+    },
+    {
+      "name": "Trigger Native W4.1 Gelato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://thepeakbeyond.app.n8n.cloud/webhook/w4-1-sibling-aggregation-gelato-repo",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "9e920100-8123-4123-8123-000000000007",
+      "position": [
+        2240,
+        700
+      ]
+    },
+    {
+      "name": "Capture Failed Native Gelato Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const claim=$('Expand Native Print Queue').item.json;\nconst uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nif(claim.provider!=='gelato'||claim.dispatchRoute!=='dispatch'||!uuid.test(claim.submissionId)||!uuid.test(claim.claimToken))throw Error('Failed dispatch has no paired claim identity');\nreturn {json:{submissionId:claim.submissionId,claimToken:claim.claimToken}};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "9e920100-8123-4123-8123-000000000008",
+      "position": [
+        2480,
+        700
+      ]
+    },
+    {
+      "name": "Fence Failed Native Gelato Claim",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "continueOnFail": false,
+      "onError": "stopWorkflow",
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/orders/print-routing/claim/fence",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({submissionId:$json.submissionId,claimToken:$json.claimToken}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": false
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend header auth (bind only after review)"
+        }
+      },
+      "id": "9e920100-8123-4123-8123-000000000009",
+      "position": [
+        2720,
+        700
+      ]
+    },
+    {
+      "name": "Confirm Native Gelato Fence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "for(const item of $input.all()){if(item.json.success!==true||item.json.fenced!==true)throw Error('Native dispatch fence was not confirmed');}return [];"
+      },
+      "id": "9e920100-8123-4123-8123-000000000010",
+      "position": [
+        2960,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Prepare Native Print Queue": {
+      "main": [
+        [
+          {
+            "node": "Claim Native Print Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Native Print Queue": {
+      "main": [
+        [
+          {
+            "node": "Expand Native Print Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Native Print Queue": {
+      "main": [
+        [
+          {
+            "node": "IF Native Gelato Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Native Gelato Provider": {
+      "main": [
+        [
+          {
+            "node": "IF Native Gelato Siblings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classify W4 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Native Gelato Siblings": {
+      "main": [
+        [
+          {
+            "node": "Trigger Native W4.1 Gelato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Native W4 Gelato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Native W4 Gelato": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Capture Failed Native Gelato Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Native W4.1 Gelato": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Capture Failed Native Gelato Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Failed Native Gelato Claim": {
+      "main": [
+        [
+          {
+            "node": "Fence Failed Native Gelato Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fence Failed Native Gelato Claim": {
+      "main": [
+        [
+          {
+            "node": "Confirm Native Gelato Fence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Native Gelato Fence": {
+      "main": [
+        []
+      ]
+    }
+  }
+}
