@@ -466,13 +466,9 @@ async function testMaterializePrintPdfRouteRefreshesPdfMonkeyDownloadUrlAfterWar
       pdfMonkeyDocumentId: 'pdfmonkey-materialize-123',
       pdfMonkeyStatusUrl: 'https://api.pdfmonkey.io/api/v1/documents/pdfmonkey-materialize-123',
       pdfR2Key: 'book/orders/W4-SANDBOX-PROOF-003A2/interior_W4-SANDBOX-PROOF-003A2.pdf',
-      CONFIG: {
-        pdfMonkey: {
-          token: 'stub-pdfmonkey-key',
-        },
-      },
     },
     {
+      pdfMonkeyApiKey: 'stub-pdfmonkey-key',
       headObjectImpl: async () => new Response(null, { status: 404 }),
       sleep: async () => undefined,
       fetchImpl: async (input) => {
@@ -1347,7 +1343,75 @@ async function testManifestPublishSuccessAndError(): Promise<void> {
   );
 }
 
+async function testPdfMonkeyCredentialsStayServerOwned(): Promise<void> {
+  const originalKey = process.env.PDFMONKEY_API_KEY;
+  const input = {
+    documentKind: 'interior-pdf',
+    orderId: 'W4-SANDBOX-CREDENTIAL-BOUNDARY',
+    CONFIG: { pdfMonkey: { token: 'fixture-payload-key' } },
+    pageImageUrls: ['https://assets.example.test/page.png'],
+    pdfR2Key: 'book/orders/W4-SANDBOX-CREDENTIAL-BOUNDARY/interior.pdf',
+    pdfFilename: 'interior.pdf',
+  };
+  try {
+    process.env.PDFMONKEY_API_KEY = 'fixture-runtime-key';
+    for (const override of [undefined, 'fixture-server-override']) {
+      const headers: string[] = [];
+      await renderW4PrintDocumentResponse(input, {
+        pdfMonkeyApiKey: override,
+        sleep: async () => undefined,
+        signObjectUrl: async () => 'https://assets.example.test/signed.png',
+        fetchImpl: async (_url, init) => {
+          headers.push(new Headers(init?.headers).get('Authorization') ?? '');
+          return jsonResponse({ data: init?.method === 'POST'
+            ? { id: 'fixture-document', status: 'pending' }
+            : { id: 'fixture-document', status: 'success', download_url: 'https://download.example.test/document.pdf' } });
+        },
+      });
+      assert(headers.length === 2 && headers.every(value => value === `Bearer ${override ?? 'fixture-runtime-key'}`),
+        'Payload CONFIG must not select PDFMonkey credentials for create or poll');
+    }
+    let refreshedWith = '';
+    await materializeW4PrintPdfResponse({
+      ...input,
+      pdfDownloadUrl: 'https://download.example.test/stale.pdf',
+      pdfMonkeyDocumentId: 'fixture-document',
+    }, {
+      sleep: async () => undefined,
+      materializeDownloadAttempts: 2,
+      materializeDownloadRetryDelayMs: 0,
+      headObjectImpl: async () => new Response(null, { status: 404 }),
+      putObjectImpl: async () => ({ ok: true }),
+      fetchImpl: async (url, init) => {
+        if (resolveUrl(url).includes('api.pdfmonkey.io')) {
+          refreshedWith = new Headers(init?.headers).get('Authorization') ?? '';
+          return jsonResponse({ data: { id: 'fixture-document', status: 'success', download_url: 'https://download.example.test/fresh.pdf' } });
+        }
+        if (resolveUrl(url).endsWith('/stale.pdf')) return new Response(null, { status: 503 });
+        return new Response('%PDF-fixture', { headers: { 'Content-Type': 'application/pdf' } });
+      },
+    });
+    assert(refreshedWith === 'Bearer fixture-runtime-key',
+      'Materialization refresh must ignore credentials supplied through CONFIG');
+    delete process.env.PDFMONKEY_API_KEY;
+    let providerCalled = false;
+    let rejected = false;
+    try {
+      await renderW4PrintDocumentResponse(input, {
+        fetchImpl: async () => { providerCalled = true; throw new Error('Unexpected provider call'); },
+      });
+    } catch (error) {
+      rejected = error instanceof Error && error.message === 'PDFMONKEY_API_KEY is not configured';
+    }
+    assert(rejected && !providerCalled, 'Missing runtime authority must fail before the provider even when CONFIG has a token');
+  } finally {
+    if (originalKey === undefined) delete process.env.PDFMONKEY_API_KEY;
+    else process.env.PDFMONKEY_API_KEY = originalKey;
+  }
+}
+
 async function main(): Promise<void> {
+  await testPdfMonkeyCredentialsStayServerOwned();
   await testInteriorRenderRouteWithTransientPollError();
   await testCoverRenderDirectRecovery();
   await testInteriorRenderCanReturnIncompleteForFollowupPoll();

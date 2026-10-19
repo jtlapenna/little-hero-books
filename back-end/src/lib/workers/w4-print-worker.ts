@@ -841,7 +841,7 @@ export async function renderW4PrintDocument(
   const recordWorkflowEvent = options.recordWorkflowEvent ?? (async () => ({}));
   const signObjectUrl = options.signObjectUrl ?? getSignedUrlForObject;
   const pdfMonkeyApiKey =
-    firstString(options.pdfMonkeyApiKey, toJsonRecord(toJsonRecord(input.CONFIG).pdfMonkey).token, process.env.PDFMONKEY_API_KEY) ?? '';
+    firstString(options.pdfMonkeyApiKey, process.env.PDFMONKEY_API_KEY) ?? '';
   if (!pdfMonkeyApiKey) {
     throw new Error('PDFMONKEY_API_KEY is not configured');
   }
@@ -1426,7 +1426,6 @@ export async function materializeW4PrintPdf(
   const pdfMonkeyApiKey =
     firstString(
       options.pdfMonkeyApiKey,
-      toJsonRecord(toJsonRecord(input.CONFIG).pdfMonkey).token,
       process.env.PDFMONKEY_API_KEY,
     ) ?? '';
   const pdfMonkeyDocumentId = firstString(
