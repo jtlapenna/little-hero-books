@@ -1,0 +1,7 @@
+{
+  "scannedTextFiles": 2276,
+  "skippedBinaryLargeSymlinkPaths": 574,
+  "findings": 0,
+  "scope": "Repository current tracked and nonignored untracked text, including new source and redacted evidence before this scan summary was added",
+  "exitCode": 0
+}

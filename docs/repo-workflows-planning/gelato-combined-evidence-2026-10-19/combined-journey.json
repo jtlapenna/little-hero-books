@@ -1,0 +1,222 @@
+{
+  "passed": true,
+  "kind": "local actual assembly/handlers + disposable PostgreSQL + synthetic provider",
+  "liveBusinessRequests": 0,
+  "cases": [
+    {
+      "case": "website",
+      "children": 1,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": true,
+      "combinedJourney": {
+        "passed": true,
+        "checks": [
+          "OFF before work RPC/provider access; gate SELECT allowed",
+          "unknown complete payable rejected without send",
+          "expired quote rejected before approval",
+          "quote-error quote rejected before approval",
+          "two approvals race on real SQL root: exactly one synthetic conversion",
+          "new store instance/retry cannot send consumed root",
+          "OFF and empty enrollment select no candidate",
+          "parallel scheduler claim has one owner; abandoned lease expires; stale callback rejected",
+          "actual scheduler persists regular pending status then honors next due time",
+          "rate failure visible in actual admin handler; read-only SQL recovery",
+          "provider failure visible in actual admin handler; read-only SQL recovery",
+          "corrupt failure visible in actual admin handler; read-only SQL recovery",
+          "redirect failure visible in actual admin handler; read-only SQL recovery",
+          "database failure visible in actual admin handler; read-only SQL recovery",
+          "synthetic lifecycle persists child tracking and stable terminal monitoring horizon",
+          "expired terminal horizon stops real SQL candidate selection",
+          "local sentinels unchanged; zero notification intents; local gates restored OFF"
+        ],
+        "postgres": "17.10 (Debian 17.10-1.pgdg13+1)",
+        "assembledPdfHashes": [
+          "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d"
+        ],
+        "syntheticProviderConversions": 1,
+        "providerReads": 26,
+        "fileReads": 24,
+        "pollAttempts": 21,
+        "sqlRpcCalls": 92,
+        "persistentRelease": true,
+        "persistentScheduler": true,
+        "actualAdminHandler": true,
+        "syntheticPayable": true,
+        "liveRequests": 0,
+        "customerMessages": 0,
+        "normalControlsAccessed": false,
+        "limitations": [
+          "SQL transport is a narrow local REST adapter, not a running PostgREST server",
+          "Initial queue/draft persistence uses the earlier in-memory journey before one-way handoff to SQL",
+          "Provider prepress/finance/production/delivery and complete payable are synthetic",
+          "Local SQL time is advanced by updating due/horizon fields, not a real recurring timer"
+        ]
+      }
+    },
+    {
+      "case": "amazon-single",
+      "children": 1,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": true,
+      "combinedJourney": {
+        "passed": true,
+        "checks": [
+          "OFF before work RPC/provider access; gate SELECT allowed",
+          "unknown complete payable rejected without send",
+          "expired quote rejected before approval",
+          "quote-error quote rejected before approval",
+          "two approvals race on real SQL root: exactly one synthetic conversion",
+          "lost mutation response and read outage recovered with release OFF, no resend",
+          "new store instance/retry cannot send consumed root",
+          "OFF and empty enrollment select no candidate",
+          "parallel scheduler claim has one owner; abandoned lease expires; stale callback rejected",
+          "actual scheduler persists regular pending status then honors next due time",
+          "rate failure visible in actual admin handler; read-only SQL recovery",
+          "provider failure visible in actual admin handler; read-only SQL recovery",
+          "corrupt failure visible in actual admin handler; read-only SQL recovery",
+          "redirect failure visible in actual admin handler; read-only SQL recovery",
+          "database failure visible in actual admin handler; read-only SQL recovery",
+          "synthetic lifecycle persists child tracking and stable terminal monitoring horizon",
+          "expired terminal horizon stops real SQL candidate selection",
+          "local sentinels unchanged; zero notification intents; local gates restored OFF"
+        ],
+        "postgres": "17.10 (Debian 17.10-1.pgdg13+1)",
+        "assembledPdfHashes": [
+          "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69"
+        ],
+        "syntheticProviderConversions": 1,
+        "providerReads": 27,
+        "fileReads": 24,
+        "pollAttempts": 21,
+        "sqlRpcCalls": 94,
+        "persistentRelease": true,
+        "persistentScheduler": true,
+        "actualAdminHandler": true,
+        "syntheticPayable": true,
+        "liveRequests": 0,
+        "customerMessages": 0,
+        "normalControlsAccessed": false,
+        "limitations": [
+          "SQL transport is a narrow local REST adapter, not a running PostgREST server",
+          "Initial queue/draft persistence uses the earlier in-memory journey before one-way handoff to SQL",
+          "Provider prepress/finance/production/delivery and complete payable are synthetic",
+          "Local SQL time is advanced by updating due/horizon fields, not a real recurring timer"
+        ]
+      }
+    },
+    {
+      "case": "amazon-siblings",
+      "children": 2,
+      "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+      "innerPageCount": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPageCount": 35,
+      "quantityPerItem": 1,
+      "pdfHashes": [
+        "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+        "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975"
+      ],
+      "pdfPageCounts": [
+        35,
+        35
+      ],
+      "providerCreates": 1,
+      "nativeHttpPaths": [
+        "/api/internal/w4/build-gelato-sibling-print-pdf",
+        "/api/internal/w4/quote-gelato-submission",
+        "/api/internal/w4/submit-gelato-draft"
+      ],
+      "state": "submitted",
+      "localNativeQueueBridge": true,
+      "combinedJourney": {
+        "passed": true,
+        "checks": [
+          "OFF before work RPC/provider access; gate SELECT allowed",
+          "unknown complete payable rejected without send",
+          "expired quote rejected before approval",
+          "quote-error quote rejected before approval",
+          "assembled sibling PDFs cannot be exchanged",
+          "two approvals race on real SQL root: exactly one synthetic conversion",
+          "lost finish acknowledgement preserves committed SQL closure",
+          "new store instance/retry cannot send consumed root",
+          "OFF and empty enrollment select no candidate",
+          "parallel scheduler claim has one owner; abandoned lease expires; stale callback rejected",
+          "actual scheduler persists regular pending status then honors next due time",
+          "rate failure visible in actual admin handler; read-only SQL recovery",
+          "provider failure visible in actual admin handler; read-only SQL recovery",
+          "corrupt failure visible in actual admin handler; read-only SQL recovery",
+          "redirect failure visible in actual admin handler; read-only SQL recovery",
+          "swap failure visible in actual admin handler; read-only SQL recovery",
+          "database failure visible in actual admin handler; read-only SQL recovery",
+          "synthetic lifecycle persists child tracking and stable terminal monitoring horizon",
+          "expired terminal horizon stops real SQL candidate selection",
+          "local sentinels unchanged; zero notification intents; local gates restored OFF"
+        ],
+        "postgres": "17.10 (Debian 17.10-1.pgdg13+1)",
+        "assembledPdfHashes": [
+          "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+          "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975"
+        ],
+        "syntheticProviderConversions": 1,
+        "providerReads": 29,
+        "fileReads": 50,
+        "pollAttempts": 23,
+        "sqlRpcCalls": 100,
+        "persistentRelease": true,
+        "persistentScheduler": true,
+        "actualAdminHandler": true,
+        "syntheticPayable": true,
+        "liveRequests": 0,
+        "customerMessages": 0,
+        "normalControlsAccessed": false,
+        "limitations": [
+          "SQL transport is a narrow local REST adapter, not a running PostgREST server",
+          "Initial queue/draft persistence uses the earlier in-memory journey before one-way handoff to SQL",
+          "Provider prepress/finance/production/delivery and complete payable are synthetic",
+          "Local SQL time is advanced by updating due/horizon fields, not a real recurring timer"
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Positive submission uses a temporary process-local true binding with fake services; live controls never accessed",
+    "No hosted n8n engine",
+    "Upstream image generation and admin decision simulated",
+    "Assembled draft graph handed to disposable PostgreSQL; REST transport simulated, not PostgREST",
+    "Regular conversion and lifecycle simulated over disposable SQL; no real provider or physical production"
+  ]
+}

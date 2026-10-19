@@ -1,0 +1,7 @@
+{
+  "diagnostics": 388,
+  "baselineDiagnostics": 388,
+  "sameFileCodeMessageMultiset": true,
+  "changedFileDiagnostics": [],
+  "fullTypecheckGreen": false
+}
