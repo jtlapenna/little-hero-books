@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "literal marker-like result preserved",
+    "multichunk UTF-8 preserved",
+    "same session serialization",
+    "independent concurrent SQL writers",
+    "role isolated per connection",
+    "SQL error fails closed",
+    "healthy session survives peer failure"
+  ],
+  "sessions": 3
+}

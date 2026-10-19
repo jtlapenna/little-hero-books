@@ -1,5 +1,6 @@
 /** Disposable Unix-socket PostgreSQL for local tests. Never accepts a connection URL. */
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
@@ -65,6 +66,43 @@ export class LocalPreviewDatabase {
     const { execFile } = await import('node:child_process');
     if(this.container) return new Promise((resolve,reject)=>execFile('docker',['exec',this.container!,'psql','-X','-q','-At','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',source],{timeout:15000},(error,out)=>error?reject(error):resolve(out.trim())));
     return new Promise((resolve,reject) => execFile(path.join(this.pg,'psql'),['-X','-q','-At','-h',this.directory,'-p','55468','-U',userInfo().username,'-d','postgres','-v','ON_ERROR_STOP=1','-c',source],{timeout:15000},(error,out)=>error?reject(error):resolve(out.trim())));
+  }
+  /** Persistent local psql connection for timed integration probes; no hosted URL accepted.
+   * Each connection serializes its own queries; callers may open several for real SQL races.
+   */
+  async openSession() {
+    const {spawn}=await import('node:child_process');
+    const args=['-X','-q','-At','-v','ON_ERROR_STOP=1'];
+    const child=this.container
+      ? spawn('docker',['exec','-i',this.container,'psql',...args,'-U','postgres','-d','postgres'],{stdio:['pipe','pipe','pipe']})
+      : spawn(path.join(this.pg,'psql'),[...args,'-h',this.directory,'-p','55468','-U',userInfo().username,'-d','postgres'],{stdio:['pipe','pipe','pipe']});
+    child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
+    let closed=false, queue=Promise.resolve(), activeReject:((error:Error)=>void)|undefined;
+    let stderr='';child.stderr.on('data',(chunk:string)=>{stderr=(stderr+chunk.toString()).slice(-4096);});
+    const failed=(error:Error)=>{closed=true;activeReject?.(error);};
+    child.on('error',failed);child.on('exit',code=>failed(Error('Local psql session ended: '+code+' '+stderr)));
+    const query=(source:string):Promise<string>=>{
+      const run=()=>new Promise<string>((resolve,reject)=>{
+        if(closed){reject(Error('Local psql session is closed'));return;}
+        const marker='LHL_SQL_END_'+randomUUID().replaceAll('-',''), chunks:string[]=[];
+        let timer:ReturnType<typeof setTimeout>;
+        const cleanup=()=>{clearTimeout(timer);child.stdout.off('data',data);activeReject=undefined;};
+        const fail=(error:Error)=>{cleanup();reject(error);};activeReject=fail;
+        const data=(chunk:string)=>{
+          chunks.push(chunk.toString());const output=chunks.join('');
+          const lines=output.split(/\r?\n/),end=lines.indexOf(marker);if(end<0)return;
+          cleanup();resolve(lines.slice(0,end).join('\n').trim());
+        };
+        child.stdout.on('data',data);
+        timer=setTimeout(()=>{closed=true;child.kill();fail(Error('Local psql query timed out'));},15000);
+        child.stdin.write(source+';\n\\echo '+marker+'\n',error=>{if(error)fail(error);});
+      });
+      const result=queue.then(run);queue=result.then(()=>undefined,()=>undefined);return result;
+    };
+    const close=async()=>{await queue;child.stdin.end();if(!closed)await new Promise<void>(resolve=>{const timer=setTimeout(()=>{child.kill();resolve();},1000);child.once('exit',()=>{clearTimeout(timer);resolve();});});};
+    // Warm up process startup before a runtime deadline begins.
+    assert.equal(await query('SELECT 1'),'1');
+    return {query,close};
   }
   row() { return JSON.parse(this.sql('SELECT to_jsonb(o) FROM public.orders o WHERE id=1')) as Record<string,unknown>; }
   reset() {

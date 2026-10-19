@@ -1,0 +1,40 @@
+{
+  "phase": "source publication preparation; no deployment authority",
+  "baseSha": "fb0d31cf92ca2d933b875abd7b9f12998c1c01e0",
+  "independentReviews": [
+    {
+      "reviewer": "combined_publication_runtime",
+      "slice": "runtime, persistent sessions and direct consumers",
+      "findings": [],
+      "verifiedCorrection": "Native peer-role assertion now compares its captured original SQL role"
+    },
+    {
+      "reviewer": "combined_publication_ci",
+      "slice": "CI, fixture generation, redaction and remaining plans",
+      "findings": [],
+      "probes": [
+        "YAML parse",
+        "source verifier",
+        "JSON parsing",
+        "hosted-check guard tests"
+      ]
+    }
+  ],
+  "hostedChecks": "Pending publication; PR is the authoritative source for exact-head check outcomes",
+  "limitations": [
+    "Historical evidence remains distinct from fresh CI runtime",
+    "Native server startup and real PostgREST untested",
+    "Complete payable/provider prepress/production/delivery not proven"
+  ],
+  "automaticDeployment": "Both repository deploy workflows manual-only; private current Cloudflare hold/OFF receipts retained",
+  "sixOrdersSelected": false,
+  "deploymentAuthorized": false,
+  "publicationTypecheck": {
+    "diagnostics": 389,
+    "changedFileDiagnostics": 0,
+    "inheritedAddedOnNewMain": "TS2345 in unmodified scripts/test-w4-print-worker.ts from PR33",
+    "prior388MultisetRetained": true,
+    "fullTypecheckGreen": false
+  },
+  "localCiReplay": "Fresh combined attempt blocked before first SQL case by Docker startup deadline; required hosted combined job must pass before merge"
+}

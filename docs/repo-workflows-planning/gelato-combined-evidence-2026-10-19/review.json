@@ -1,0 +1,30 @@
+{
+  "verdict": "Ready for bounded local-only test scope",
+  "reviewer": "combined_local_critic",
+  "scope": "new helper, optional hook, remaining plan, direct core/store/SQL/lifecycle/admin contracts",
+  "findings": [],
+  "correctionsVerified": [
+    "Replay constructs a new client/store rather than merely reusing one",
+    "Local psql framing uses random exact-line markers",
+    "UTF-8 stream decoding preserves multibyte values across chunks"
+  ],
+  "reviewerProbes": [
+    "diff whitespace",
+    "TypeScript transpilation",
+    "source tracing of producer/consumer boundaries",
+    "partial fresh log inspection"
+  ],
+  "primaryConfirmed": [
+    "seven persistent-session driver probes pass",
+    "all three combined cases pass",
+    "existing 125-scenario status regression passes",
+    "full type diagnostics unchanged"
+  ],
+  "notClaimed": [
+    "reviewer independently reran full integration suite",
+    "production API or UI verification",
+    "process-kill crash test or running PostgREST"
+  ],
+  "combinedChecks": 55,
+  "sqlScheduledAttempts": 65
+}

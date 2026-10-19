@@ -1,0 +1,94 @@
+{
+  "files": [
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/README.md",
+      "kind": "evidence",
+      "sha256": "0c2ae143100c891aad4ac6145c417700134ac21f3543032c09f227c9b56ba6e1"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/boundary.json",
+      "kind": "evidence",
+      "sha256": "61e0b6f36aa76ee1f2d7b9a3486b51bc02cf53ce7e6631c17ace4bd532e9c26b"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/combined-journey.json",
+      "kind": "evidence",
+      "sha256": "6a8028ef94b3c91b95bc764ff21d5bb3318f146f8ea9a01bf08e73972bac2522"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/existing-status-regression.json",
+      "kind": "evidence",
+      "sha256": "94565244dcea843eb1b18680f60a7ce4a037f6e6603e686008cbcbd1d78f5fcf"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/review.json",
+      "kind": "evidence",
+      "sha256": "5e986ef1f8bc6e2c280811a47b7ac10beb14d99c0f5954137dc8195bde920152"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/session-driver.json",
+      "kind": "evidence",
+      "sha256": "3d8b21dc0cac6b991343ae0b8055f6ce53957234e7fb2e5962407a408edc7372"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/types.json",
+      "kind": "evidence",
+      "sha256": "70ac8ec3aea7b4f456cc51a551d3d558d73144074eeb22cf211e9962d98a799f"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/verify.py",
+      "kind": "evidence",
+      "sha256": "0e58f60dc0c9ca2d16e5aeee60bb2009aa5bb1529726c62f3b3af4e24d9cd6c5"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-combined-local-journey.ts",
+      "kind": "source",
+      "sha256": "15f6683c267baba66a4a264e321b04ff1aecda9e1c46a1c0e2a30329e582bfbc"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "kind": "source",
+      "sha256": "edea321846c3d65cd0c434705487a4b6053567245d8dd573096fcc30ecc94650"
+    },
+    {
+      "path": "scripts/testing/local-preview-database.ts",
+      "kind": "source",
+      "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
+    },
+    {
+      "path": "back-end/scripts/test-local-preview-sessions.ts",
+      "kind": "source",
+      "sha256": "7f8689087557703a45fc6ddf2c9571ed4e34df995a2cf05eea06f72035db6d9a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-results-2026-10-19.md",
+      "kind": "documentation",
+      "sha256": "1065967b4ae8847df7d8b8ce1aad0f4a7c2e28ad65a998dc520910560a126823"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-remaining-test-plan-2026-10-19.md",
+      "kind": "documentation",
+      "sha256": "471a6ef13061ef97644e0799a77320e343c21c3c43bc1384efe182bec3e2f2ea"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/repository-scan.json",
+      "kind": "evidence",
+      "sha256": "b923a9515f36027aefd14a1b5f9ee26a5e91f05fdebc0a8ff8b953aaba7adf8b"
+    },
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "kind": "source",
+      "sha256": "3afdb01498aa86144d1640bdbb972a9f50da3b1ab651cc160ea081f2d622398f"
+    },
+    {
+      "path": "back-end/scripts/create-gelato-local-rasters.ts",
+      "kind": "source",
+      "sha256": "f94cfbdf4069da89ac9ef01741f55ee034739a43822f52fa1b680d659e552626"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/publication-review.json",
+      "kind": "evidence",
+      "sha256": "2a2e82547abb9b045a433f4f7b1bd301ef6a1dc7d94e3c08c24b084919a62b86"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ permissions:
 jobs:
   local-release-core:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -31,3 +31,20 @@ jobs:
       - name: Verify durable ownership and recovery in disposable PostgreSQL
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-ordinary-release-store.ts
+      - name: Verify persistent local SQL session framing and isolation
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-local-preview-sessions.ts
+      - name: Generate visible dummy book rasters using locked Sharp
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/create-gelato-local-rasters.ts "$RUNNER_TEMP/gelato-combined-rasters" "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Verify assembled books through persistent release, scheduler and admin
+        working-directory: back-end
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" \
+            LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 \
+            GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" \
+            GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 \
+            GELATO_LOCAL_JOURNEY_OUTPUT="$RUNNER_TEMP/gelato-combined-private.json" \
+            node --import tsx scripts/test-gelato-local-journey.ts
+      - name: Verify redacted combined evidence and source checksums offline
+        run: python3 docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/verify.py --source

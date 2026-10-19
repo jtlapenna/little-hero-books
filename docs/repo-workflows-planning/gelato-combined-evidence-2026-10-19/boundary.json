@@ -1,0 +1,15 @@
+{
+  "hostedControlsAccessed": false,
+  "sixExistingOrdersSelected": false,
+  "existingOrderWrites": 0,
+  "deployments": 0,
+  "funding": 0,
+  "paidPrinting": 0,
+  "customerMessages": 0,
+  "providerCalls": "intercepted only; synthetic PATCH and responses",
+  "hostedStateAttestation": "None in this local phase; PR32 OFF receipt remains historical",
+  "localDatabase": "cached PostgreSQL17, --pull=never --network=none; own container destroyed after each case",
+  "processFlags": "synthetic bindings only; six controls false at boundaries; earlier draft harness temporarily injects true only with fake transports",
+  "completePayable": "synthetic required contract; no production payable adapter or provider spending guarantee",
+  "sqlPermissions": "Local fixture mirrors service UPDATE(id,gelato_status,gelato_order_type,gelato_action_reason,gelato_tracking,gelato_updated_at) only; no hosted grant changes"
+}
