@@ -1,0 +1,7 @@
+{
+  "sameFileCodeMessageMultiset": true,
+  "baselineSourceDiagnostics": 353,
+  "sourceDiagnostics": 353,
+  "generatedDiagnostics": 35,
+  "greenTypecheck": false
+}

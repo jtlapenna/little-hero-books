@@ -130,10 +130,28 @@ async function main() {
    const response=await approve(request(bindings.BACKEND_URL+'/api/preview/'+row.orderId+'/approve',{token:tokens[i].token}),{params:Promise.resolve({orderId:String(row.orderId)})});assert.equal(response.status,200,await response.text());
   }
   assert(rows.every(row=>row.customer_approval_status==='approved'));assert(rows.every(row=>ordinaryPrintRoutingBlocker(row,false)==='gelato_draft_submission_disabled'));
-  const classified=await new Function('$input','$env',`return async function(){${classifier}}`)({all:()=>rows.map(json=>({json}))},{SUPABASE_SERVICE_ROLE_KEY:'synthetic'}).call({helpers:{request:async({qs}:{qs:Row})=>{const u=new URL('https://local/');Object.entries(qs).forEach(([k,v])=>u.searchParams.set(k,String(v)));return match(rows,u)}}});
+  const classified=process.env.GELATO_LOCAL_NATIVE_QUEUE==='1'
+   ? JSON.parse(JSON.stringify(vm.runInNewContext('(function(){'+workflow.nodes.find((n:Row)=>n.name==='Prep Workflow 4 Orders').parameters.jsCode+'})()',{$input:{first:()=>({json:{workflow4:rows}})}})))
+   : await new Function('$input','$env',`return async function(){${classifier}}`)({all:()=>rows.map(json=>({json}))},{SUPABASE_SERVICE_ROLE_KEY:'synthetic'}).call({helpers:{request:async({qs}:{qs:Row})=>{const u=new URL('https://local/');Object.entries(qs).forEach(([k,v])=>u.searchParams.set(k,String(v)));return match(rows,u)}}});
   assert.equal(classified.length,count);
   const claimCode=workflow.nodes.find((n:Row)=>n.name==='Claim and Route Gelato Groups').parameters.jsCode;
-  const envelopes=await new Function('$input','$env',`return async function(){${claimCode}}`)({all:()=>classified},{BACKEND_BASE_URL:bindings.BACKEND_URL,BACKEND_API_TOKEN:bindings.BACKEND_API_TOKEN}).call({helpers:{request:async({uri,body}:{uri:string;body:unknown})=>{assert.equal(new URL(uri).pathname,'/api/internal/orders/print-routing/claim');const response=await claim(request(uri,body));assert.equal(response.status,200,await response.clone().text());return response.json();}}});
+  let envelopes;
+  if(process.env.GELATO_LOCAL_NATIVE_QUEUE==='1'){
+   const {POST:nativeQueue}=await import('../src/app/api/internal/orders/print-routing/queue/route');
+   const patch=JSON.parse(await readFile('../docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json','utf8'));
+   const prep=patch.nodes.find((n:Row)=>n.name==='Prepare Native Print Queue');
+   const source=JSON.parse(JSON.stringify(vm.runInNewContext('(function(){'+prep.parameters.jsCode+'})()',{$input:{all:()=>classified}})))[0].json;
+   const queueHttp=patch.nodes.find((n:Row)=>n.name==='Claim Native Print Queue');
+   assert.equal(queueHttp.parameters.url,bindings.BACKEND_URL+'/api/internal/orders/print-routing/queue');
+   const queueBody=JSON.parse(vm.runInNewContext(queueHttp.parameters.jsonBody.slice(3,-2).trim(),{$json:source}));
+   const off=await nativeQueue(request(bindings.BACKEND_URL+'/api/internal/orders/print-routing/queue',queueBody));assert.equal(off.status,200);assert((await off.json()).groups.every((g:Row)=>g.dispatchRoute==='hold'));
+   process.env.GELATO_DRAFT_SUBMISSION_ENABLED='true'; // Fake process-local bindings and intercepted transport only.
+   let result;try{const queued=await nativeQueue(request(bindings.BACKEND_URL+'/api/internal/orders/print-routing/queue',queueBody));assert.equal(queued.status,200,await queued.clone().text());result=await queued.json();}finally{process.env.GELATO_DRAFT_SUBMISSION_ENABLED='false';}
+   const expander=patch.nodes.find((n:Row)=>n.name==='Expand Native Print Queue');
+   envelopes=JSON.parse(JSON.stringify(vm.runInNewContext('(function(){'+expander.parameters.jsCode+'})()',{$input:{first:()=>({json:result})},$:()=>({first:()=>({json:source})})})));
+  }else{
+  envelopes=await new Function('$input','$env',`return async function(){${claimCode}}`)({all:()=>classified},{BACKEND_BASE_URL:bindings.BACKEND_URL,BACKEND_API_TOKEN:bindings.BACKEND_API_TOKEN}).call({helpers:{request:async({uri,body}:{uri:string;body:unknown})=>{assert.equal(new URL(uri).pathname,'/api/internal/orders/print-routing/claim');const response=await claim(request(uri,body));assert.equal(response.status,200,await response.clone().text());return response.json();}}});
+  }
   assert.equal(envelopes.length,1);assert.equal(envelopes[0].json.dispatchRoute,'dispatch');
   const native=JSON.parse(await readFile('../docs/n8n-workflow-files/repo-centric/workflows/'+(count===1?'w4-GELATO-Print_Fulfillment.repo-centric.json':'w4.1-GELATO-Sibling-Aggregation.repo-centric.json'),'utf8'));
   const payload=envelopes[0].json;
@@ -181,7 +199,8 @@ async function main() {
    const unknown=structuredClone(ctx!);const monetary=(unknown.submission.request_snapshot as Row).monetaryQuote as {products:Array<{price:unknown}>};monetary.products[0].price=null;
    const unknownPrice=await buildGelatoReleaseReview(unknown,inputs);assert(unknownPrice.blockers.includes('product_cost_unknown'));assert.equal(unknownPrice.knownSubtotalCents,null);
   }
-  results.push({case:label,children:count,productUid:GelatoSavedSnapshotSchema.parse(ctx!.submission.request_snapshot).config.productUid,innerPageCount:32,apiPageCount:32,uploadedPdfPageCount:35,quantityPerItem:1,pdfHashes:fingerprints,pdfPageCounts:ctx!.members.map(m=>m.pdf_page_count),providerCreates:creates-beforeCreates,releaseReview:packet,nativeHttpPaths:paths,state:ctx!.submission.request_state,liveControlsAccessed:false,testProcessControlRestoredOff:true,upstream:'canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters',config:'in-memory active clone; bundled v2 stays draft'});
+  const statusJourney=process.env.GELATO_LOCAL_STATUS_JOURNEY==='1' ? await (await import('./helpers/gelato-local-status-journey')).proveLocalStatusJourney({context:ctx!,raw,rows,blobs}) : undefined;
+  results.push({...(statusJourney?{statusJourney}:{}),case:label,children:count,productUid:GelatoSavedSnapshotSchema.parse(ctx!.submission.request_snapshot).config.productUid,innerPageCount:32,apiPageCount:32,uploadedPdfPageCount:35,quantityPerItem:1,pdfHashes:fingerprints,pdfPageCounts:ctx!.members.map(m=>m.pdf_page_count),providerCreates:creates-beforeCreates,releaseReview:packet,nativeHttpPaths:paths,state:ctx!.submission.request_state,localNativeQueueBridge:process.env.GELATO_LOCAL_NATIVE_QUEUE==='1',liveControlsAccessed:false,testProcessControlRestoredOff:true,upstream:'canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters',config:'in-memory active clone; bundled v2 stays draft'});
  }
  assert.equal(new Set(results.flatMap(result=>result.pdfHashes as string[])).size,4);assert.equal(creates,3);assert.equal(claims,3);assert(calls.every(x=>!x.startsWith('PATCH order.gelatoapis.com')));assert.equal(process.env.GELATO_DRAFT_SUBMISSION_ENABLED,'false');
  if(process.env.GELATO_LOCAL_JOURNEY_OUTPUT)await writeFile(process.env.GELATO_LOCAL_JOURNEY_OUTPUT,JSON.stringify({passed:true,cases:results,liveRequests:0,providerSimulation:{creates,quotes},limitations:['Positive submission uses a temporary process-local true binding with fake services; live controls never accessed','No hosted n8n engine','Upstream image generation and admin decision simulated','Atomic SQL independently tested, not PostgREST','No regular release/conversion or physical production']},null,2)+'\n');

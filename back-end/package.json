@@ -136,7 +136,11 @@
     "test:gelato-ordinary-router": "tsx scripts/test-gelato-ordinary-router.ts",
     "test:preview-action-transaction": "tsx scripts/test-preview-action-transaction.ts",
     "test:preview-print-schema": "tsx scripts/test-preview-print-schema.ts",
-    "test:gelato-local-journey": "tsx scripts/test-gelato-local-journey.ts"
+    "test:gelato-local-journey": "tsx scripts/test-gelato-local-journey.ts",
+    "test:gelato-ordinary-release": "node --import tsx scripts/test-gelato-ordinary-release.ts",
+    "test:gelato-ordinary-release-store": "node --import tsx scripts/test-gelato-ordinary-release-store.ts",
+    "test:gelato-native-queue": "tsx scripts/test-gelato-native-queue.ts",
+    "prepare:gelato-native-queue": "tsx scripts/prepare-w1-gelato-queue.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

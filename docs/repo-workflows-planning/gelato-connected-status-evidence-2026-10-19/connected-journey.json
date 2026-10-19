@@ -1,0 +1,844 @@
+{
+  "recordedAt": "2026-10-19T07:18:37.891811+00:00",
+  "passed": true,
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "caseCount": 3,
+  "scenarios": 125,
+  "liveRequests": 0,
+  "cases": [
+    {
+      "case": "website",
+      "children": 1,
+      "pdfHashes": [
+        "1eebe45025f53f679bd92b6141451f00054d02323ba3508caff59ec3ee8e3c5d"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "statusJourney": {
+        "passed": true,
+        "scenarios": [
+          {
+            "scenario": "draft retained without release",
+            "result": "success",
+            "status": "draft",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic unpaid regular order observed",
+            "result": "success",
+            "status": "created",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic uploading",
+            "result": "success",
+            "status": "uploading",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic passed",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "corrupt failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "corrupt recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "redirect failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "redirect recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "rate failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "rate_limited"
+          },
+          {
+            "scenario": "rate recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "provider failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "provider_unavailable"
+          },
+          {
+            "scenario": "provider recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "timeout failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "timeout"
+          },
+          {
+            "scenario": "timeout recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "database failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "database_failure"
+          },
+          {
+            "scenario": "database recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "older snapshot retained for review",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "current snapshot clears stale hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "same-time synthetic paid observation held",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "later pending clears financial hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "foreign-connected-root",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "foreign-connected-root restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "wrong-quantity",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "wrong-quantity restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "changed destination held before files",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "destination restored read-only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic provider failure visible",
+            "result": "success",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "terminal failure cannot silently resume",
+            "result": "requires_review",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic hold visible",
+            "result": "requires_review",
+            "status": "on_hold",
+            "errorClass": null
+          },
+          {
+            "scenario": "hold resumes prior progress",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_production",
+            "result": "success",
+            "status": "in_production",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic printed",
+            "result": "success",
+            "status": "printed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic shipped",
+            "result": "success",
+            "status": "shipped",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_transit",
+            "result": "success",
+            "status": "in_transit",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic delivered",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered cannot regress or erase tracking",
+            "result": "requires_review",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered replay clears conflict",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          }
+        ],
+        "providerReads": 41,
+        "artifactReads": 35,
+        "fileReads": 35,
+        "customerMessages": 0,
+        "providerMutations": 0,
+        "liveRequests": 0,
+        "realPdfByteVerification": true,
+        "actualRuntimeAndAdminHandlers": true,
+        "databaseTransactions": "simulated RPC and persistence, not SQL",
+        "providerProcessingPrintingDelivery": "simulated; not proof of provider processing, production, billing or delivery"
+      }
+    },
+    {
+      "case": "amazon-single",
+      "children": 1,
+      "pdfHashes": [
+        "09995d422cc06e06fd7efabc22776745c8e0b4ff6844f1642b72ca3b9e8e4d69"
+      ],
+      "pdfPageCounts": [
+        35
+      ],
+      "providerCreates": 1,
+      "statusJourney": {
+        "passed": true,
+        "scenarios": [
+          {
+            "scenario": "draft retained without release",
+            "result": "success",
+            "status": "draft",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic unpaid regular order observed",
+            "result": "success",
+            "status": "created",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic uploading",
+            "result": "success",
+            "status": "uploading",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic passed",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "corrupt failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "corrupt recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "redirect failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "redirect recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "rate failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "rate_limited"
+          },
+          {
+            "scenario": "rate recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "provider failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "provider_unavailable"
+          },
+          {
+            "scenario": "provider recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "timeout failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "timeout"
+          },
+          {
+            "scenario": "timeout recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "database failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "database_failure"
+          },
+          {
+            "scenario": "database recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "older snapshot retained for review",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "current snapshot clears stale hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "same-time synthetic paid observation held",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "later pending clears financial hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "foreign-connected-root",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "foreign-connected-root restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "wrong-quantity",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "wrong-quantity restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "changed destination held before files",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "destination restored read-only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic provider failure visible",
+            "result": "success",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "terminal failure cannot silently resume",
+            "result": "requires_review",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic hold visible",
+            "result": "requires_review",
+            "status": "on_hold",
+            "errorClass": null
+          },
+          {
+            "scenario": "hold resumes prior progress",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_production",
+            "result": "success",
+            "status": "in_production",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic printed",
+            "result": "success",
+            "status": "printed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic shipped",
+            "result": "success",
+            "status": "shipped",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_transit",
+            "result": "success",
+            "status": "in_transit",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic delivered",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered cannot regress or erase tracking",
+            "result": "requires_review",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered replay clears conflict",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          }
+        ],
+        "providerReads": 41,
+        "artifactReads": 35,
+        "fileReads": 35,
+        "customerMessages": 0,
+        "providerMutations": 0,
+        "liveRequests": 0,
+        "realPdfByteVerification": true,
+        "actualRuntimeAndAdminHandlers": true,
+        "databaseTransactions": "simulated RPC and persistence, not SQL",
+        "providerProcessingPrintingDelivery": "simulated; not proof of provider processing, production, billing or delivery"
+      }
+    },
+    {
+      "case": "amazon-siblings",
+      "children": 2,
+      "pdfHashes": [
+        "28ae959bf9cdaaab8b5e9631a2fa7abc3f8b769feb0ea05908882f86e0b87bc7",
+        "40c260d2f627c14f0f0aa7043681b72ed6aaf79e3ee281e466a7edf9a2570975"
+      ],
+      "pdfPageCounts": [
+        35,
+        35
+      ],
+      "providerCreates": 1,
+      "statusJourney": {
+        "passed": true,
+        "scenarios": [
+          {
+            "scenario": "draft retained without release",
+            "result": "success",
+            "status": "draft",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic unpaid regular order observed",
+            "result": "success",
+            "status": "created",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic uploading",
+            "result": "success",
+            "status": "uploading",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic passed",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "corrupt failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "corrupt recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "redirect failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "redirect recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "swapped failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "swapped recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "rate failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "rate_limited"
+          },
+          {
+            "scenario": "rate recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "provider failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "provider_unavailable"
+          },
+          {
+            "scenario": "provider recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "timeout failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "timeout"
+          },
+          {
+            "scenario": "timeout recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "database failure held",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "database_failure"
+          },
+          {
+            "scenario": "database recovery by read only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "older snapshot retained for review",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "current snapshot clears stale hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "same-time synthetic paid observation held",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "later pending clears financial hold",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "foreign-connected-root",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "foreign-connected-root restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "wrong-quantity",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "wrong-quantity restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unknown-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status",
+            "result": "requires_review",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "unsupported-photobook-status restored",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "changed destination held before files",
+            "result": "failed",
+            "status": "passed",
+            "errorClass": "invalid_snapshot"
+          },
+          {
+            "scenario": "destination restored read-only",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic provider failure visible",
+            "result": "success",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "terminal failure cannot silently resume",
+            "result": "requires_review",
+            "status": "failed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic hold visible",
+            "result": "requires_review",
+            "status": "on_hold",
+            "errorClass": null
+          },
+          {
+            "scenario": "hold resumes prior progress",
+            "result": "success",
+            "status": "passed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_production",
+            "result": "success",
+            "status": "in_production",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic printed",
+            "result": "success",
+            "status": "printed",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic shipped",
+            "result": "success",
+            "status": "shipped",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic in_transit",
+            "result": "success",
+            "status": "in_transit",
+            "errorClass": null
+          },
+          {
+            "scenario": "synthetic delivered",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered cannot regress or erase tracking",
+            "result": "requires_review",
+            "status": "delivered",
+            "errorClass": null
+          },
+          {
+            "scenario": "delivered replay clears conflict",
+            "result": "success",
+            "status": "delivered",
+            "errorClass": null
+          }
+        ],
+        "providerReads": 43,
+        "artifactReads": 71,
+        "fileReads": 71,
+        "customerMessages": 0,
+        "providerMutations": 0,
+        "liveRequests": 0,
+        "realPdfByteVerification": true,
+        "actualRuntimeAndAdminHandlers": true,
+        "databaseTransactions": "simulated RPC and persistence, not SQL",
+        "providerProcessingPrintingDelivery": "simulated; not proof of provider processing, production, billing or delivery"
+      }
+    }
+  ],
+  "providerCreatesAreSimulated": true,
+  "sixExistingOrdersAccessed": false,
+  "hostedControlsAccessed": false,
+  "deploymentPerformed": false
+}

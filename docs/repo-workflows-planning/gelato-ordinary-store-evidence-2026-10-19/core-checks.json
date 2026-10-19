@@ -1,0 +1,257 @@
+{
+  "passed": true,
+  "checks": 61,
+  "cases": [
+    {
+      "name": "website one owned send and replay",
+      "passed": true
+    },
+    {
+      "name": "amazon-single one owned send and replay",
+      "passed": true
+    },
+    {
+      "name": "amazon-siblings one owned send and replay",
+      "passed": true
+    },
+    {
+      "name": "canonical nested quantity two is released with aggregate costs",
+      "passed": true
+    },
+    {
+      "name": "OFF before all store/provider access",
+      "passed": true
+    },
+    {
+      "name": "missing enablement defaults OFF",
+      "passed": true
+    },
+    {
+      "name": "missing-total blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "wrong-account-evidence blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "wrong-quote blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "bad-arithmetic blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "over-cap blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "tax-change blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "currency blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "stale-evidence blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "quote-evidence-digest blocks before mutation",
+      "passed": true
+    },
+    {
+      "name": "approval changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "recipient changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "quantity changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "artifact changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "member changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "expired changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "packet changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "account changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "claim changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "tier changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "edition changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "book changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "version changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "frozen-product changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "root changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "busy changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "stage changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "nested-quantity changes block before mutation",
+      "passed": true
+    },
+    {
+      "name": "missing exact provider service blocks release and reconciliation",
+      "passed": true
+    },
+    {
+      "name": "changed approved snapshot cannot redefine recovery destination",
+      "passed": true
+    },
+    {
+      "name": "approval time window cannot change under an old packet",
+      "passed": true
+    },
+    {
+      "name": "approval packet is specific to permit identity",
+      "passed": true
+    },
+    {
+      "name": "provider root identity change blocks conversion and observation",
+      "passed": true
+    },
+    {
+      "name": "approval-revoked consumed and held",
+      "passed": true
+    },
+    {
+      "name": "file-after-authorization consumed and held",
+      "passed": true
+    },
+    {
+      "name": "off-after-authorization consumed and held",
+      "passed": true
+    },
+    {
+      "name": "authorize-false consumed and held",
+      "passed": true
+    },
+    {
+      "name": "authorize-unknown consumed and held",
+      "passed": true
+    },
+    {
+      "name": "root-after-authorization consumed and held",
+      "passed": true
+    },
+    {
+      "name": "reference-after-authorization consumed and held",
+      "passed": true
+    },
+    {
+      "name": "lost never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "redirect never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "rejected never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "readback never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "timeout never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "provider-file-after-send never repeats mutation",
+      "passed": true
+    },
+    {
+      "name": "hung initial control read is bounded before store access",
+      "passed": true
+    },
+    {
+      "name": "standalone preparation and observation ports are deadline bounded",
+      "passed": true
+    },
+    {
+      "name": "lost persistence does not allow resend",
+      "passed": true
+    },
+    {
+      "name": "parallel execution has one owner",
+      "passed": true
+    },
+    {
+      "name": "sibling stored-byte swap stops release",
+      "passed": true
+    },
+    {
+      "name": "sibling original URL echo still requires exact member scope",
+      "passed": true
+    },
+    {
+      "name": "recovery requires a bijective sibling membership even on original URL echo",
+      "passed": true
+    },
+    {
+      "name": "separate permit IDs share a consumed provider-root fence",
+      "passed": true
+    },
+    {
+      "name": "read-only reconciliation after expiry never resends",
+      "passed": true
+    },
+    {
+      "name": "externally converted draft cannot be sent again",
+      "passed": true
+    }
+  ],
+  "liveRequests": 0,
+  "hostedControlsAccessed": false,
+  "providerMutations": "simulated only",
+  "store": "in-memory CAS in this suite; persistence evidence is supplied by the separate disposable SQL suite",
+  "payableEvidence": "synthetic complete totals only; current real partial quotes remain blocked",
+  "pdfs": "35-page labelled geometry fixtures; prior connected assembly proof remains separate",
+  "productionEntryPoint": false
+}

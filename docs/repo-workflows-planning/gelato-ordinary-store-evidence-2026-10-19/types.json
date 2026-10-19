@@ -1,0 +1,8 @@
+{
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "totalDiagnostics": 388,
+  "sourceDiagnostics": 353,
+  "generatedDiagnostics": 35,
+  "sameFileCodeMessageMultiset": true,
+  "fullTypecheckGreen": false
+}

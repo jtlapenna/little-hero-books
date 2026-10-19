@@ -1,0 +1,8 @@
+{
+  "command": "npm run pages:build",
+  "exitCode": 0,
+  "seconds": 38.25,
+  "mode": "Local production bundle with synthetic CI credentials, six OFF process bindings, no font fixture; business fetch transport blocked",
+  "deploymentAttempted": false,
+  "artifactForUpload": false
+}

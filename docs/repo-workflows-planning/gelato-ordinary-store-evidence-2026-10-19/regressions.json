@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "test-gelato-api-contract",
+      "exitCode": 0,
+      "seconds": 1.33
+    },
+    {
+      "name": "test-gelato-submission",
+      "exitCode": 0,
+      "seconds": 1.74
+    },
+    {
+      "name": "test-gelato-engineering-conversion",
+      "exitCode": 0,
+      "seconds": 1.56
+    },
+    {
+      "name": "test-gelato-engineering-automation",
+      "exitCode": 0,
+      "seconds": 1.87
+    },
+    {
+      "name": "test-gelato-lifecycle",
+      "exitCode": 0,
+      "seconds": 0.86
+    },
+    {
+      "name": "test-gelato-financial-observation",
+      "exitCode": 0,
+      "seconds": 1.41
+    },
+    {
+      "name": "test-gelato-native-queue",
+      "exitCode": 0,
+      "seconds": 0.66
+    }
+  ]
+}

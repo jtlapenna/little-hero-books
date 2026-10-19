@@ -1,0 +1,7 @@
+{
+  "textFilesScanned": 2246,
+  "binaryLargeSymlinkPathsSkipped": 574,
+  "findings": 0,
+  "scanner": "repository check-repository-secrets.ts / gitleaks8.30.1",
+  "scope": "worktree before manifest generation; final publication scan required too"
+}

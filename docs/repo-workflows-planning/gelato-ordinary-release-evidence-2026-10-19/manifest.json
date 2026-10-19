@@ -1,0 +1,55 @@
+{
+  "phase": "Isolated ordinary release core",
+  "recordedAt": "2026-10-19T08:02:16.174505+00:00",
+  "baseline": "9972170b152d5fc9e2e8900327bd0ccfe5e94597",
+  "files": {
+    "README.md": "24239723a8b1b8e444716782f495c5d8b87bdf1ea8a0876535b495b3fcf5ad23",
+    "checks.json": "b3d4e096e42864138348d168369961d66f4129b969b5cba175a3ec428634f2cd",
+    "regressions.json": "c6ff971580d4936ea6050062746a7bbc68d2fc67f2f77d7d06252bea8420223b",
+    "review.json": "241421ff0ea964e40df82efae0eca4d478f58bb476e120a70a932836833a7d20",
+    "types.json": "63e4ad662fe71ca3feb8f626e10b9c808befffcde5c893bd233b1a6dd35e9a5c",
+    "verify.py": "ca8f291e5c8184de42ab0d153522ce70204a3464d10e8ab0ff6b86d4db17444c"
+  },
+  "sources": [
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
+      "sha256": "1041bb7388de12dc396ab975c8d8e70fa3aab8b8d56cbfca43ed04be596c9a7f"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-ordinary-release.ts",
+      "sha256": "a15be7ca271a0c67a40af3f8ac1874f4b3d3a634272458c0efc2d3d7bfa78619"
+    },
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "sha256": "d99582490f095a36857db032e6dc40da9d4aee010319f501a69f9e2c2c414219"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-release-review.ts",
+      "sha256": "420131abf85a1b69a83ea6a2142cecbd17a05f3eaab65c4d82600cbe459b0714"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-submission.ts",
+      "sha256": "089d7ba3d39373ab5e13eb37afba5bb03cd5bb0931de9cd26cbfe0c42343dbfa"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-api-contract.ts",
+      "sha256": "f4c64d49f148fd779e2773efe9d21d21c0f7ce5ee6be26f8434cc94a99f5c40f"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-api-client.ts",
+      "sha256": "03256be48586899ae3ce294cf7990243eafdacadc0ee8603bb61bdffd30335ac"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-provider-snapshot.ts",
+      "sha256": "830f5c19a246114337f47d59a5cd3a0d69edeb78b999b32f302e32f6c591de81"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-stored-file.ts",
+      "sha256": "2d6c10ee9ff7fd8c7c8cca35a10b4ab8d641a5735a306f1912edf73999689803"
+    },
+    {
+      "path": "back-end/src/lib/printer-file-grants.ts",
+      "sha256": "7f6672d85d23e72ff1e535b21d786a07957cfff36e111b818974a87137b4b13c"
+    }
+  ]
+}

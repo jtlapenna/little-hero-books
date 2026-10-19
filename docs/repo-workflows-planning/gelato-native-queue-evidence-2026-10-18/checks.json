@@ -1,0 +1,65 @@
+{
+  "checks": [
+    {
+      "check": "test-gelato-native-queue",
+      "exitCode": 0,
+      "seconds": 7.5
+    },
+    {
+      "check": "test-gelato-print-routing",
+      "exitCode": 0,
+      "seconds": 1.42
+    },
+    {
+      "check": "test-w1-gelato-claim-routing",
+      "exitCode": 0,
+      "seconds": 0.32
+    },
+    {
+      "check": "test-gelato-ordinary-router",
+      "exitCode": 0,
+      "seconds": 0.78
+    },
+    {
+      "check": "test-gelato-workflow-copies",
+      "exitCode": 0,
+      "seconds": 0.57
+    },
+    {
+      "check": "test-gelato-submission-runtime",
+      "exitCode": 0,
+      "seconds": 2.46
+    },
+    {
+      "check": "test-gelato-scheduled-status",
+      "exitCode": 0,
+      "seconds": 1.8
+    },
+    {
+      "check": "test-gelato-financial-observation",
+      "exitCode": 0,
+      "seconds": 3.2
+    },
+    {
+      "check": "test-gelato-webhook-status",
+      "exitCode": 0,
+      "seconds": 3.86
+    },
+    {
+      "check": "test-access-boundary",
+      "exitCode": 0,
+      "seconds": 1.79
+    },
+    {
+      "check": "test-workflow-export-secrets",
+      "exitCode": 0,
+      "seconds": 0.43
+    },
+    {
+      "check": "changed-native-patch-secret-scan",
+      "exitCode": 0
+    }
+  ],
+  "passed": true,
+  "businessApiRequests": 0
+}
