@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-20T17:51:34.590235+00:00",
+  "scope": "Read-only exact two LHL Pages project settings and canonical deployment metadata; no application/provider/order reads or mutations",
+  "records": [
+    {
+      "project": "little-hero-labs-admin",
+      "automaticGitDeploymentsOff": true,
+      "canonicalDeploymentId": "c8550f8e-0e80-4647-91f0-e3403a1127df",
+      "canonicalSourceSha": "c479bd5f447ae5296c3ca8da677bdb883f64b32b",
+      "sixSettingsAndCanonicalBindingsOff": true
+    },
+    {
+      "project": "little-hero-labs",
+      "automaticGitDeploymentsOff": true,
+      "canonicalDeploymentId": "02bfc6af-9b0c-423b-9132-f24bba8fb704",
+      "canonicalSourceSha": "5bccf890da26b0c1c9b752d18229d15608e55d4b"
+    }
+  ],
+  "liveMutations": 0
+}

@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "case": "website",
+      "exampleOnly": true,
+      "fabricatedRowIds": true,
+      "scopeIssued": false,
+      "accountDigestPlaceholder": true,
+      "packetSha256": "c3b9f1629b240d851c8e654cff4cdc9d15fb3f16d3112b4c25afeaeaec4c373e",
+      "workflowSha256": {
+        "queue": "1b3dae8eaecae694f4f317a2d7ad3b89de3c1ac15dabffdcaaf5002d5e83e527",
+        "assembly": "07a467a1383decb965d9da30fe4a5152e0abb9fd5323464267c2b361e5f8ed89",
+        "draft": "1c5d415efc0ec5a742315bcdef51d2c0ce8f9d0099b009a6be0573d0fb79d6b9",
+        "timer": "a75bdd132c9799e79055296a585fc4c16682072f7cfd4c86e59e82b78ac6f186"
+      },
+      "candidateCount": 4
+    },
+    {
+      "case": "amazon",
+      "exampleOnly": true,
+      "fabricatedRowIds": true,
+      "scopeIssued": false,
+      "accountDigestPlaceholder": true,
+      "packetSha256": "bd1244556b4f79d0979e34384b1d8a075f722b691803f4ee91d4d8e947431220",
+      "workflowSha256": {
+        "queue": "133c390e79086124da8c365fa859327ffb46cb7ca5fa2f45ea918cd0fec82461",
+        "assembly": "b7124f46c02ce6e0705d8f23cc031847791fb3dcefa086eaabc9dcad01b40734",
+        "draft": "f52f3bdbe9ff38d43bd9dcf5966a0e930788c997eff3766363761e61413b9fb0",
+        "timer": "24286b36cc9e41c8b9fdbbbb4147fa629b7120e5b82cc9907438bb9cf299c22d"
+      },
+      "candidateCount": 4
+    },
+    {
+      "case": "siblings",
+      "exampleOnly": true,
+      "fabricatedRowIds": true,
+      "scopeIssued": false,
+      "accountDigestPlaceholder": true,
+      "packetSha256": "872c32921714974a8cb4c1ffd965355e0dfc5779f08bedaa970d6979b08df6fd",
+      "workflowSha256": {
+        "queue": "f6b5604921de79bab3d4862302a30dfa39740b58b51b55f5a30794d8ae63e8bb",
+        "assembly": "86f36345e49d1c06f9b4952f231fdc198e39734c0738dd94fdf6db4ed9f5d416",
+        "draft": "4ebbbd4e55556c3b90084fb7b201d313e8eafb81a6fac128168dafef4d00cd7c",
+        "timer": "524fa33ef687dee1b96efb4e349078e5eebb180508fc1ecefb6a6c139432ac7b"
+      },
+      "candidateCount": 4
+    }
+  ],
+  "frozenPdfHashesReverified": 4,
+  "pdfBytesChanged": false,
+  "configSha256": "dec968a10ee94a0292341044171efb00607efbf5c2b8060cdd91e5e49728f6db",
+  "sourceSha": "c479bd5f447ae5296c3ca8da677bdb883f64b32b",
+  "canInstall": false,
+  "canExecute": false,
+  "approvalPacketComplete": false,
+  "credentialFilesRead": 0,
+  "networkRequests": 0,
+  "note": "2030 dates, invented row IDs, unissued UUIDs and fake account digest are intentional inactive examples, never executable approval bindings. Recompile after fresh approved issuance and hosted credential verification."
+}

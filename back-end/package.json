@@ -142,7 +142,9 @@
     "test:gelato-ordinary-release-store": "node --import tsx scripts/test-gelato-ordinary-release-store.ts",
     "test:gelato-native-queue": "tsx scripts/test-gelato-native-queue.ts",
     "prepare:gelato-native-queue": "tsx scripts/prepare-w1-gelato-queue.ts",
-    "test:gelato-isolation": "node --import tsx scripts/test-gelato-isolation.ts"
+    "test:gelato-isolation": "node --import tsx scripts/test-gelato-isolation.ts",
+    "test:gelato-isolated-preparation": "node --import tsx scripts/test-gelato-isolated-preparation.ts",
+    "prepare:gelato-isolated-workflows": "node --import tsx scripts/prepare-gelato-isolated-workflows.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

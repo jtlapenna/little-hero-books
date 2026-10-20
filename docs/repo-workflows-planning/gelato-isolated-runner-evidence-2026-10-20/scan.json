@@ -1,0 +1,8 @@
+{
+  "knownRetiredFingerprintScan": {
+    "textFiles": 2325,
+    "findings": []
+  },
+  "fullGitleaksScan": "Not completed: gitleaks executable unavailable in PATH or searched local tool directories; do not record a full repository secret-scan pass",
+  "ignoredPrivateFilesRead": false
+}

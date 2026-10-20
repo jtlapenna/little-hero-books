@@ -1,0 +1,18 @@
+{
+  "runnerSyntheticChecks": 24,
+  "disposableSqlChecks": 29,
+  "ordinaryNativeQueueChecks": 44,
+  "nativeWorkflowProducerToRequest": "passed for single and sibling modes",
+  "focusedNewTypeScriptLint": {
+    "exitCode": 0,
+    "warnings": 0
+  },
+  "workflowExportScan": {
+    "exitCode": 0,
+    "files": 70
+  },
+  "fullTypecheckGreen": false,
+  "fullGitleaksPass": false,
+  "liveProviderChecks": 0,
+  "publicationOrDeploymentPerformed": false
+}

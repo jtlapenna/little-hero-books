@@ -1,0 +1,16 @@
+{
+  "reviewers": 2,
+  "confirmedMediumFindingsFixed": [
+    "Nested payload could redirect assembly despite frozen outer group; canonical body now rebuilt from frozen members",
+    "Persistent journal failure could prevent independent revocation; cleanup journal writes now best-effort",
+    "Expiry during awaited journal write could precede dispatch; active window rechecked after I/O"
+  ],
+  "regressionTestsAdded": true,
+  "focusedReReviews": "Both reviewers reproduced the fix and found no remaining blocker in their slices",
+  "remainingConfirmedHighOrMedium": 0,
+  "laterPrimaryTightening": "Provider receipt binds submission/root/account; timer evidence requires actual successful refresh; corresponding regressions pass",
+  "limits": [
+    "Hosted n8n import/auth/recurrence and concrete protected adapter not executed",
+    "Two journal instances are tested; killed-process/power-loss durability is not proven"
+  ]
+}
