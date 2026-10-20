@@ -1,0 +1,7 @@
+{
+  "exitCode": 0,
+  "textFilesScanned": 2308,
+  "binaryLargeOrSymlinkPathsSkipped": 574,
+  "findings": 0,
+  "scope": "Final local source and redacted evidence; ignored private data excluded"
+}

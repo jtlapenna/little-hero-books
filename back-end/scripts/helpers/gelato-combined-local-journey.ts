@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import {createHash,randomUUID} from 'node:crypto';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import path from 'node:path';
 import {createClient} from '@supabase/supabase-js';
 import {NextRequest} from 'next/server';
@@ -118,6 +118,7 @@ export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionConte
   for(const row of context.members)insert('print_provider_submission_items',row);
   for(const row of f.rows)db.sql('UPDATE public.orders SET print_submission_id='+quote(context.submission.id)+'::uuid,print_claim_token='+quote(context.submission.claim_token)+'::uuid WHERE id='+Number(row.id));
   db.sql(readFileSync(path.join(root,'database/20261019081857_gelato_ordinary_release_store.sql'),'utf8'));
+  if(process.env.GELATO_LOCAL_ISOLATION_SCHEMA==='1'){const files=readdirSync(path.join(root,'database')).filter(f=>f.endsWith('_gelato_engineering_isolation.sql'));assert.equal(files.length,1);db.sql(readFileSync(path.join(root,'database',files[0]),'utf8'));assert.equal(value('SELECT count(*) FROM public.gelato_isolation_scopes'),0);}
   functionTypes=value('SELECT jsonb_object_agg(name,args) FROM (SELECT p.proname AS name,jsonb_object_agg(p.proargnames[i],format_type(p.proargtypes[i-1],NULL)) AS args FROM pg_proc p,generate_series(1,p.pronargs) i WHERE p.pronamespace=\'public\'::regnamespace AND p.proname IN('+[...rpcAllow].map(quote).join(',')+') GROUP BY p.proname) f');
   for(let i=0;i<4;i++)sessions.push(await db.openSession());
   const loader=createGelatoSubmissionStore(database),store=createOrdinaryReleaseStore(database);

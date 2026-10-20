@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "suites": [
+    {
+      "name": "test-gelato-native-queue.ts",
+      "checks": 44
+    },
+    {
+      "name": "test-gelato-scheduled-status.ts",
+      "proof": "Seven-job progress, timeout cleanup, malformed oldest, rate limit, database failure, fenced writes"
+    },
+    {
+      "name": "test-gelato-stored-file.ts",
+      "proof": "Byte identity, receipt binding, approved host, byte budgets and cancellation"
+    },
+    {
+      "name": "test-gelato-engineering-automation-runtime.ts",
+      "proof": "Actual HTTP/runtime and production-config Worker; synthetic services only"
+    },
+    {
+      "name": "test-access-boundary.ts",
+      "proof": "Default-deny middleware and routes; auth/public/cron and no-side-effect rejection"
+    }
+  ],
+  "liveRequests": 0
+}

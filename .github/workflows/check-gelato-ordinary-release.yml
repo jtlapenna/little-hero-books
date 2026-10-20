@@ -31,6 +31,9 @@ jobs:
       - name: Verify durable ownership and recovery in disposable PostgreSQL
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-ordinary-release-store.ts
+      - name: Verify exact-cohort queue and polling with normal controls OFF
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-isolation.ts
       - name: Verify persistent local SQL session framing and isolation
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-local-preview-sessions.ts
@@ -43,8 +46,10 @@ jobs:
           env -i HOME="$HOME" PATH="$PATH" \
             LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 \
             GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" \
-            GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 \
+            GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 GELATO_LOCAL_ISOLATION_SCHEMA=1 \
             GELATO_LOCAL_JOURNEY_OUTPUT="$RUNNER_TEMP/gelato-combined-private.json" \
             node --import tsx scripts/test-gelato-local-journey.ts
-      - name: Verify redacted combined evidence and source checksums offline
-        run: python3 docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/verify.py --source
+      - name: Verify retained historical combined evidence without asserting current source parity
+        run: python3 docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/verify.py
+      - name: Verify current isolation evidence and source bindings
+        run: python3 docs/repo-workflows-planning/gelato-isolation-evidence-2026-10-19/verify.py --source

@@ -1,0 +1,296 @@
+{
+  "runId": "PREP-20261019-FROZEN",
+  "sourceSha": "38fe286231e3ff586e1ea330554d2e9984bcdfa2",
+  "configSha256": "dec968a10ee94a0292341044171efb00607efbf5c2b8060cdd91e5e49728f6db",
+  "bookId": "book-finding-our-inner-voice",
+  "networkRequests": 0,
+  "uploaded": false,
+  "liveRowsCreated": false,
+  "plannedIdsOnly": true,
+  "records": [
+    {
+      "role": "WEB-A",
+      "edition": "standard",
+      "plannedChildOrderId": "TEST-GELATO-PREP-20261019-FROZEN-WEB-A",
+      "filename": "WEB-A-standard-dummy.pdf",
+      "sha256": "f6ec01664f7a1f46efea6904ff168b9be8c2e5328c806cd43d8810b8fb32b5cf",
+      "bytes": 3681259,
+      "product": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "innerPageCount": 32,
+        "apiPageCount": 32,
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "defaultQuantity": 1,
+        "shipmentMethodPolicy": {
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ],
+          "tiers": {
+            "standard": {
+              "kind": "uid",
+              "uid": "usps_ground_advantage"
+            },
+            "priority": {
+              "kind": "uid",
+              "uid": "usps_priority_mail_standard"
+            },
+            "expedited": {
+              "kind": "uid",
+              "uid": "ups_2_day"
+            }
+          }
+        },
+        "printGeometryMm": {
+          "trim": {
+            "w": 200,
+            "h": 200
+          },
+          "interiorCanvas": {
+            "w": 206,
+            "h": 206
+          },
+          "bleed": 3,
+          "coverCanvas": {
+            "w": 409.03,
+            "h": 206
+          },
+          "backPanel": {
+            "x": 3,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          },
+          "spine": {
+            "x": 203,
+            "y": 3,
+            "w": 3.03,
+            "h": 200
+          },
+          "frontPanel": {
+            "x": 206.03,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          }
+        }
+      },
+      "quantity": 1
+    },
+    {
+      "role": "AMZ-A",
+      "edition": "amazon",
+      "plannedChildOrderId": "TEST-GELATO-PREP-20261019-FROZEN-AMZ-A",
+      "filename": "AMZ-A-amazon-dummy.pdf",
+      "sha256": "2269a3566228d45d4867e9605fd38895438ff9c30cea056c86591a995bdef5ab",
+      "bytes": 3622350,
+      "product": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "innerPageCount": 32,
+        "apiPageCount": 32,
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "defaultQuantity": 1,
+        "shipmentMethodPolicy": {
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ],
+          "tiers": {
+            "standard": {
+              "kind": "uid",
+              "uid": "usps_ground_advantage"
+            },
+            "priority": {
+              "kind": "uid",
+              "uid": "usps_priority_mail_standard"
+            },
+            "expedited": {
+              "kind": "uid",
+              "uid": "ups_2_day"
+            }
+          }
+        },
+        "printGeometryMm": {
+          "trim": {
+            "w": 200,
+            "h": 200
+          },
+          "interiorCanvas": {
+            "w": 206,
+            "h": 206
+          },
+          "bleed": 3,
+          "coverCanvas": {
+            "w": 409.03,
+            "h": 206
+          },
+          "backPanel": {
+            "x": 3,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          },
+          "spine": {
+            "x": 203,
+            "y": 3,
+            "w": 3.03,
+            "h": 200
+          },
+          "frontPanel": {
+            "x": 206.03,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          }
+        }
+      },
+      "quantity": 1
+    },
+    {
+      "role": "SIB-A",
+      "edition": "amazon",
+      "plannedChildOrderId": "TEST-GELATO-PREP-20261019-FROZEN-SIB-A",
+      "filename": "SIB-A-amazon-dummy.pdf",
+      "sha256": "3b140bd0718583b00b90f0b1b37b942cdea0c78380304e7616606e1720c6cf7f",
+      "bytes": 3582353,
+      "product": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "innerPageCount": 32,
+        "apiPageCount": 32,
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "defaultQuantity": 1,
+        "shipmentMethodPolicy": {
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ],
+          "tiers": {
+            "standard": {
+              "kind": "uid",
+              "uid": "usps_ground_advantage"
+            },
+            "priority": {
+              "kind": "uid",
+              "uid": "usps_priority_mail_standard"
+            },
+            "expedited": {
+              "kind": "uid",
+              "uid": "ups_2_day"
+            }
+          }
+        },
+        "printGeometryMm": {
+          "trim": {
+            "w": 200,
+            "h": 200
+          },
+          "interiorCanvas": {
+            "w": 206,
+            "h": 206
+          },
+          "bleed": 3,
+          "coverCanvas": {
+            "w": 409.03,
+            "h": 206
+          },
+          "backPanel": {
+            "x": 3,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          },
+          "spine": {
+            "x": 203,
+            "y": 3,
+            "w": 3.03,
+            "h": 200
+          },
+          "frontPanel": {
+            "x": 206.03,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          }
+        }
+      },
+      "quantity": 1
+    },
+    {
+      "role": "SIB-B",
+      "edition": "amazon",
+      "plannedChildOrderId": "TEST-GELATO-PREP-20261019-FROZEN-SIB-B",
+      "filename": "SIB-B-amazon-dummy.pdf",
+      "sha256": "f0e5d766be11c999ce2da4d37d95f52a58c28085ab42dda8146c2c4e7a282398",
+      "bytes": 3528196,
+      "product": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "innerPageCount": 32,
+        "apiPageCount": 32,
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "defaultQuantity": 1,
+        "shipmentMethodPolicy": {
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ],
+          "tiers": {
+            "standard": {
+              "kind": "uid",
+              "uid": "usps_ground_advantage"
+            },
+            "priority": {
+              "kind": "uid",
+              "uid": "usps_priority_mail_standard"
+            },
+            "expedited": {
+              "kind": "uid",
+              "uid": "ups_2_day"
+            }
+          }
+        },
+        "printGeometryMm": {
+          "trim": {
+            "w": 200,
+            "h": 200
+          },
+          "interiorCanvas": {
+            "w": 206,
+            "h": 206
+          },
+          "bleed": 3,
+          "coverCanvas": {
+            "w": 409.03,
+            "h": 206
+          },
+          "backPanel": {
+            "x": 3,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          },
+          "spine": {
+            "x": 203,
+            "y": 3,
+            "w": 3.03,
+            "h": 200
+          },
+          "frontPanel": {
+            "x": 206.03,
+            "y": 3,
+            "w": 200,
+            "h": 200
+          }
+        }
+      },
+      "quantity": 1
+    }
+  ]
+}

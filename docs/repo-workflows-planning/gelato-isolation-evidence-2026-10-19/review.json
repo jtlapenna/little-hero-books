@@ -1,0 +1,29 @@
+{
+  "mode": "Independent adversarial SQL and TypeScript reviews; primary-agent verification and fixes",
+  "reviewers": 2,
+  "remainingConfirmedHighOrMedium": 0,
+  "addressed": [
+    {
+      "issue": "Expiry checked before a blocking SQL write could elapse before commit",
+      "fix": "Post-write scope revalidation and expiry trigger rollback; real two-session blocking regression passed"
+    },
+    {
+      "issue": "Ordinary registration could leave a scoped submission with NULL engineering_scope_id",
+      "fix": "Ordinary selector excludes every scope-bound submission, irrespective of registration column; wrong-path regression passed"
+    },
+    {
+      "issue": "Original preservation assertion used an empty submission table",
+      "fix": "Seed three historical synthetic submissions, six children and an ordinary registration before applying migration twice"
+    },
+    {
+      "issue": "Fresh row could change root between queue preflight and canonical claim rehydration",
+      "fix": "Server-only exact-row/root assertions before manifest/group reads; actual route reparenting regression passed"
+    }
+  ],
+  "limits": [
+    "No hosted engine/deployment/account checked",
+    "Provider persistence after canonical queue claim is seeded, not a complete fresh W4 live execution",
+    "An already-started provider read can complete until its existing abort deadline after scope revocation; subsequent reads and database writes require current scope permission"
+  ],
+  "commitPushDeploy": false
+}

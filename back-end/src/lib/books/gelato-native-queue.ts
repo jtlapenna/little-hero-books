@@ -16,6 +16,8 @@ export type NativeQueueGroup = {
 };
 export interface NativeQueueDependencies {
   draftsEnabled: boolean;
+  /** Server-injected exact-cohort permission. Never populated from ordinary HTTP input. */
+  engineeringAdmission?: (members: PrintRoutingOrder[]) => boolean;
   loadOrders(ids: number[]): Promise<PrintRoutingOrder[]>;
   loadMembers(root: string): Promise<Array<{ id: number; orderId: string }>>;
   claim(ids: number[], idempotencyKey: string): Promise<{ provider: 'lulu' | 'gelato'; routes: FrozenPrintRouting[]; claim: GelatoPrintClaim | null }>;
@@ -42,7 +44,8 @@ export async function runNativePrintQueue(raw: unknown, d: NativeQueueDependenci
     let acquired: z.infer<typeof Claim> | undefined;
     try {
       if (members.some(r => !['lulu','gelato'].includes(String(r.print_provider))) || new Set(members.map(r => r.print_provider)).size !== 1) { results.push(hold('provider_unassigned_or_mixed')); continue; }
-      const blocker = members[0].print_provider==='gelato' ? members.map(r=>ordinaryPrintRoutingBlocker(r,d.draftsEnabled)).find(Boolean) : null;
+      const isolated = !d.draftsEnabled && d.engineeringAdmission?.(members) === true;
+      const blocker = members[0].print_provider==='gelato' ? members.map(r=>ordinaryPrintRoutingBlocker(r,d.draftsEnabled || isolated)).find(Boolean) : null;
       if(blocker){results.push(hold(blocker));continue;}
       // Do not hydrate extra candidates after cron has budgeted complete groups.
       const stored = await d.loadMembers(root);

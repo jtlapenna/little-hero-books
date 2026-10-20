@@ -6,7 +6,9 @@ import { loadPrintRoutingGroupMembers, resolvePrintRoutingRequest } from './prin
 import type { FrozenPrintRouting, PrintRoutingOrder } from './print-routing';
 
 /** Same canonical claim service for the existing claim route and native queue bridge. */
-export async function claimPrintRoutingRequest(ids: number[], idempotencyKey: string) {
+export async function claimPrintRoutingRequest(ids: number[], idempotencyKey: string,
+  scopedClaim?: (routes: FrozenPrintRouting[], key: string) => Promise<GelatoPrintClaim>,
+  scope?: { assertOrders(rows: PrintRoutingOrder[]): void; assertRoot(root: string): void }) {
     const loadedRows = new Map<number, PrintRoutingOrder>();
     const routes = await resolvePrintRoutingRequest(
       ids,
@@ -14,10 +16,13 @@ export async function claimPrintRoutingRequest(ids: number[], idempotencyKey: st
         const { data, error } = await supabase.from('orders').select('*').in('id', ids);
         if (error) throw new Error('Print order lookup failed');
         const rows = (data ?? []) as PrintRoutingOrder[];
+        scope?.assertOrders(rows);
         for (const row of rows) loadedRows.set(row.id, row);
         return rows;
       },
-      async (root) => loadPrintRoutingGroupMembers(root, {
+      async (root) => {
+        scope?.assertRoot(root);
+        return loadPrintRoutingGroupMembers(root, {
         byRootOrderId: async (id) => {
           const { data, error } = await supabase.from('orders').select('id,orderId').eq('root_order_id', id);
           if (error) throw new Error('Print group lookup failed');
@@ -34,13 +39,15 @@ export async function claimPrintRoutingRequest(ids: number[], idempotencyKey: st
           if (error) throw new Error('Root print order lookup failed');
           return (data ?? []) as Array<{ id: number; orderId: string }>;
         },
-      }),
+        });
+      },
       downloadManifest,
     );
     for (const route of routes) {
       if (route.provider === 'gelato') assertGelatoCustomerApproval(loadedRows.get(route.orderDbId)!);
     }
     const result = await claimGelatoPrintRouting(routes, idempotencyKey, async (claimRoutes, idempotencyKey) => {
+      if (scopedClaim) return scopedClaim(claimRoutes, idempotencyKey);
       const rpc = supabase.rpc as unknown as (
         name: string,
         args: { p_routes: FrozenPrintRouting[]; p_idempotency_key: string },
