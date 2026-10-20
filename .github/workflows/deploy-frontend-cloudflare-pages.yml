@@ -63,6 +63,9 @@ jobs:
       - name: Smoke-check customer site
         run: |
           set -euo pipefail
-          curl -fsS https://www.littleherolabs.com/ | grep -q 'Little Hero Labs'
-          curl -fsS https://www.littleherolabs.com/sitemap.xml | grep -q 'personalized-birthday-book'
-          curl -fsSI https://www.littleherolabs.com/ | grep -qi '^strict-transport-security:'
+          curl -fsS -o "$RUNNER_TEMP/lhl-frontend-home.html" https://www.littleherolabs.com/
+          grep -q 'Little Hero Labs' "$RUNNER_TEMP/lhl-frontend-home.html"
+          curl -fsS -o "$RUNNER_TEMP/lhl-frontend-sitemap.xml" https://www.littleherolabs.com/sitemap.xml
+          grep -q 'personalized-birthday-book' "$RUNNER_TEMP/lhl-frontend-sitemap.xml"
+          curl -fsSI -o "$RUNNER_TEMP/lhl-frontend-home.headers" https://www.littleherolabs.com/
+          grep -qi '^strict-transport-security:' "$RUNNER_TEMP/lhl-frontend-home.headers"
