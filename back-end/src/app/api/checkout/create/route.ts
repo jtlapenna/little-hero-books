@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       parsed = BodySchema.parse(body);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        const fields = err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
+        const fields = err.issues.map((e) => ({ path: e.path.join('.'), message: e.message }));
         return NextResponse.json({ error: 'Validation failed', fields }, { status: 400, headers: corsHeaders });
       }
       throw err;
