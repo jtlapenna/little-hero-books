@@ -1,0 +1,20 @@
+{
+  "scope": "Publication review of current isolation source and redacted evidence against fetched main a1a6a734640191327980666cc353592013b7db01",
+  "independentReviewers": 2,
+  "confirmedBlockers": 0,
+  "sqlReview": "No confirmed migration, compatibility or permission blocker",
+  "runtimeReview": "No confirmed HTTP/runtime or ordinary-flow blocker; independent 26-check isolation, native 44-check and seven-job scheduler runs passed",
+  "additionalRuns": {
+    "sqlReviewerIsolationRuns": 2,
+    "results": "Both failed the expected-zero-errors assertion after a successful refresh; one at Amazon single and one at siblings",
+    "conditions": "Concurrent disposable Docker harnesses on the local Mac",
+    "diagnosis": "Source limits the additional error to bounded attempt cleanup or a later claim. Resource/deadline sensitivity is plausible; exact cause was not instrumented and is not claimed proven."
+  },
+  "mergeGate": "All exact-commit hosted checks must pass before merge; no deployment authorized",
+  "unchangedLimits": [
+    "No hosted workflow/provider proof",
+    "No current funding attestation",
+    "Full typecheck retains 389 inherited diagnostics",
+    "One saved provider root only; in-flight read can finish inside prior deadline"
+  ]
+}

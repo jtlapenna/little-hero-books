@@ -1,0 +1,8 @@
+{
+  "command": "Clean-environment npm run pages:build",
+  "exitCode": 0,
+  "isolatedRouteIncluded": true,
+  "deployments": 0,
+  "warnings": "Existing duplicate keys and compatibility/deprecation warnings retained; no new dependency installed",
+  "build": "Local artifact only; hosted Worker positive execution not performed"
+}

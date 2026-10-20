@@ -1,0 +1,14 @@
+{
+  "fourPdfHashesAnd140PageStructure": "passed",
+  "full132DecodedSourceAssociations": "passed",
+  "fourContactSheetVisualReview": "passed",
+  "metadataChecksumVerifier": "passed",
+  "alteredEvidenceRejected": "passed",
+  "redactedPackagePatternScan": "passed",
+  "controlsAndDeploymentReadbacks": "unchanged and OFF",
+  "hostedExecutions": 0,
+  "orderSelectors": 0,
+  "gelatoRequests": 0,
+  "mutations": 0,
+  "publication": "Local uncommitted documents only; no push, PR, merge or deployment"
+}

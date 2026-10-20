@@ -1,0 +1,8 @@
+{
+  "diagnostics": 389,
+  "priorRecordedTotal": 389,
+  "changedFileDiagnostics": [],
+  "fullTypecheckGreen": false,
+  "priorRecord": "combined-publication-20261019/types.json",
+  "comparison": "Same recorded total; no diagnostics in modified/new TypeScript files. Full prior diagnostic multiset was not reconstructed."
+}

@@ -1,0 +1,330 @@
+{
+  "at": "2026-10-19T22:35:20.126677+00:00",
+  "method": "29 exact workflow-definition GETs: 13 production graph, 8 known Gelato definitions, 5 deeper route comparisons, 3 literal destination comparisons. No execution listing, pin/static selection, webhook calls or credential-store access. API envelopes may contain unused dynamic fields; they were discarded, not selected/persisted. No workflow mutations.",
+  "workflowDefinitionGets": 29,
+  "versions": [
+    {
+      "id": "4fxha79xAEaYEBYb",
+      "name": "REPO - w2B-sw1-single-pose",
+      "active": true,
+      "versionId": "2c9a2dfe-d336-4e01-9698-e107626b5133",
+      "activeVersionId": "2c9a2dfe-d336-4e01-9698-e107626b5133",
+      "updatedAt": "2026-10-19T20:00:10.187Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "9E0oVs46bMoiyRIP",
+      "name": "REPO - w0 - Order Intake & Validation",
+      "active": true,
+      "versionId": "6cb2afbe-5d68-4514-8279-9e61e2c22ddb",
+      "activeVersionId": "6cb2afbe-5d68-4514-8279-9e61e2c22ddb",
+      "updatedAt": "2026-10-17T22:38:38.861Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "D4rQ0zJG8JlKhZqq",
+      "name": "REPO - w3-Book-Assembly",
+      "active": true,
+      "versionId": "2647e2af-c0f9-4299-a405-7633174a512e",
+      "activeVersionId": "2647e2af-c0f9-4299-a405-7633174a512e",
+      "updatedAt": "2026-10-16T09:03:40.925Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "HduzTWm0ekmrvwrn",
+      "name": "REPO - w2A-Orchestrator",
+      "active": true,
+      "versionId": "c07cc1e9-1349-43bd-b1f0-929c4d7930da",
+      "activeVersionId": "c07cc1e9-1349-43bd-b1f0-929c4d7930da",
+      "updatedAt": "2026-10-17T22:38:41.519Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "Hsl7GR5EebBNXkbp",
+      "name": "w1.5-Health_Monitor",
+      "active": true,
+      "versionId": "640af137-d274-412e-a5d4-63f0ffdeeb0e",
+      "activeVersionId": "640af137-d274-412e-a5d4-63f0ffdeeb0e",
+      "updatedAt": "2026-10-18T03:55:38.908Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "KhMxEgo57Deo1QWu",
+      "name": "REPO - w2B-main-orchestrator",
+      "active": true,
+      "versionId": "c48c6053-5033-4b79-9f0b-91cb5983ccd8",
+      "activeVersionId": "c48c6053-5033-4b79-9f0b-91cb5983ccd8",
+      "updatedAt": "2026-10-18T03:55:40.285Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "S5apnAgeuitSIO5Z",
+      "name": "REPO - w2A-SW0-Base_Character_Generation",
+      "active": false,
+      "versionId": "fc12d0c8-ca89-4cc7-b0a7-4c6e18457171",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-18T03:55:41.509Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "TDwc85g03FqPf9D6",
+      "name": "REPO - w1.1 - Queue Manager and Router",
+      "active": true,
+      "versionId": "3b9ba6c9-7b6c-42fb-82f7-c90b81369c0c",
+      "activeVersionId": "3b9ba6c9-7b6c-42fb-82f7-c90b81369c0c",
+      "updatedAt": "2026-10-18T03:55:43.153Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "boWA0mB20qYK2g4x",
+      "name": "REPO - w4.1-Sibling-Aggregation",
+      "active": true,
+      "versionId": "3e4b6970-0a28-48d3-a1d6-4a2b365be54b",
+      "activeVersionId": "3e4b6970-0a28-48d3-a1d6-4a2b365be54b",
+      "updatedAt": "2026-10-19T22:08:40.431Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "kGob5aDJ6e5WRPh7",
+      "name": "REPO - w2A-SW1-Pose_Generation",
+      "active": false,
+      "versionId": "6a63af47-5158-49ab-9a61-ca88410be44e",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-18T03:55:46.087Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "m4qIN9PCgifUcYih",
+      "name": "REPO - w4-PRODUCTION-Print_Fulfillment",
+      "active": true,
+      "versionId": "1f2e0701-be4b-4350-89b8-73f2bb59f6f6",
+      "activeVersionId": "1f2e0701-be4b-4350-89b8-73f2bb59f6f6",
+      "updatedAt": "2026-10-19T22:08:49.921Z",
+      "activeDefinitionAvailable": true,
+      "publishedDefinitionMatchesCurrent": true
+    },
+    {
+      "id": "oKsq2x0gARt43k5U",
+      "name": "SIBLING - w2A-SW3-Upload",
+      "active": false,
+      "versionId": "fe8a7432-79d0-45e5-8e71-8d291df93310",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-18T03:55:48.172Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "wblExdQhkoKOSM23",
+      "name": "SIBLING - w2A-SW2-Pose_and_Style_QA",
+      "active": false,
+      "versionId": "2d69f8e8-979b-4eb6-ba4e-87057b1777f7",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-18T03:55:50.587Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "8ZqgZ7ksY0Fj8Acx",
+      "name": "W4 Gelato Print Fulfillment",
+      "active": false,
+      "versionId": "cfc4ecfc-c059-4d9e-87aa-49ac539b3683",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-13T20:02:10.083Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "d7wi1rS0CxGVdRVb",
+      "name": "W4.1 Gelato Sibling Aggregation",
+      "active": false,
+      "versionId": "5592f6a2-2a2b-4852-96cf-f0109c4f8820",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-13T20:02:10.654Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "Wg5H1oJNtkcTxoAg",
+      "name": "TEST-GELATO-UNPAID-1eafef41-50df-4bcd-9ffb-107c438b1204-single",
+      "active": false,
+      "versionId": "9aa8983a-0bcd-434e-b99c-82efa722422e",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T04:04:05.268Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "alsvHh4JWeOWMZSp",
+      "name": "TEST-GELATO-UNPAID-1eafef41-50df-4bcd-9ffb-107c438b1204-siblings",
+      "active": false,
+      "versionId": "c9a68cc8-609c-4d6d-8078-507af742a9f8",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T04:04:29.158Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "EUfctD0NboVVENMv",
+      "name": "TEST-GELATO-UNPAID-af10e218-7d71-48b8-843a-bfd93ed1dd96-single",
+      "active": false,
+      "versionId": "c378d8fa-8598-4221-868a-04d1e6b21f72",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T01:05:10.775Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "pVSTZ29nlPz0JETK",
+      "name": "TEST-GELATO-UNPAID-af10e218-7d71-48b8-843a-bfd93ed1dd96-siblings",
+      "active": false,
+      "versionId": "af584245-a62c-481d-a171-472633ef21de",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T01:05:18.384Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "At1t6ATc9JN5MpD7",
+      "name": "TEST-GELATO-UNPAID-e6d87f06-fd9f-4677-84ee-4dffe94a8a4e-single",
+      "active": false,
+      "versionId": "14d129e6-f157-44f2-8b6e-f5b257c428c7",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T03:13:07.612Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    },
+    {
+      "id": "fIpbsITjOsE88rUF",
+      "name": "TEST-GELATO-UNPAID-e6d87f06-fd9f-4677-84ee-4dffe94a8a4e-siblings",
+      "active": false,
+      "versionId": "77b0b785-3738-4845-aa55-b36507e5a24d",
+      "activeVersionId": null,
+      "updatedAt": "2026-10-16T03:13:15.472Z",
+      "activeDefinitionAvailable": false,
+      "publishedDefinitionMatchesCurrent": null
+    }
+  ],
+  "queueTargets": [
+    {
+      "callerNode": "Trigger Workflow ",
+      "targetId": "m4qIN9PCgifUcYih",
+      "targetName": "REPO - w4-PRODUCTION-Print_Fulfillment",
+      "literalWebhookPathMatches": [
+        "Webhook (W4 Intake)"
+      ],
+      "targetActiveVersionId": "1f2e0701-be4b-4350-89b8-73f2bb59f6f6",
+      "targetContainsLuluSubmissionNodes": true,
+      "targetContainsGelatoDraftNode": false
+    },
+    {
+      "callerNode": "Trigger Workflow 4.1",
+      "targetId": "boWA0mB20qYK2g4x",
+      "targetName": "REPO - w4.1-Sibling-Aggregation",
+      "literalWebhookPathMatches": [
+        "Webhook (W4.1 Intake)"
+      ],
+      "targetActiveVersionId": "3e4b6970-0a28-48d3-a1d6-4a2b365be54b",
+      "targetContainsLuluSubmissionNodes": true,
+      "targetContainsGelatoDraftNode": false
+    }
+  ],
+  "normalQueueHasNativePatch": false,
+  "gelatoDefinitionsAllInactive": true,
+  "credentialVerification": "Reference digests only. W0 managed header reference differs from old Gelato native reference; this does not prove either credential invalid. No secret value or authenticated backend execution was read/tested.",
+  "controlReceipts": [
+    {
+      "timestamp": "2026-10-19T22:35:32.802654+00:00",
+      "scope": "Read-only exact two LHL Pages project settings and canonical deployment metadata; no application/provider/order reads or mutations",
+      "records": [
+        {
+          "project": "little-hero-labs-admin",
+          "automaticGitDeploymentsOff": true,
+          "canonicalDeploymentId": "bb101484-ac2b-48eb-af6e-1073ac1788d3",
+          "canonicalSourceSha": "fb0d31cf92ca2d933b875abd7b9f12998c1c01e0",
+          "sixSettingsAndCanonicalBindingsOff": true
+        },
+        {
+          "project": "little-hero-labs",
+          "automaticGitDeploymentsOff": true,
+          "canonicalDeploymentId": "02bfc6af-9b0c-423b-9132-f24bba8fb704",
+          "canonicalSourceSha": "5bccf890da26b0c1c9b752d18229d15608e55d4b"
+        }
+      ],
+      "liveMutations": 0
+    },
+    {
+      "normalDispatchOff": true,
+      "at": "2026-10-19T22:38:26.838598+00:00",
+      "project": "mdnthwpcnphjnnblbvxk",
+      "gate": [
+        {
+          "id": true,
+          "enabled": false
+        }
+      ],
+      "legacyOrderOrSubmissionReads": false,
+      "providerRequests": false,
+      "mutations": false,
+      "scope": "Two GETs only: normal dispatch gate and ordinary release gate; no order/root/permit selectors or RPC"
+    }
+  ],
+  "executionReads": 0,
+  "orderReads": 0,
+  "providerOrderReads": 0,
+  "liveMutations": 0,
+  "baseline": {
+    "main": "a1a6a734640191327980666cc353592013b7db01",
+    "worktreeHead": "38fe286231e3ff586e1ea330554d2e9984bcdfa2",
+    "sameTree": true,
+    "servingBackend": "fb0d31cf92ca2d933b875abd7b9f12998c1c01e0",
+    "testsOnlyPR34NotDeployed": true
+  },
+  "finalControlReceipts": [
+    {
+      "timestamp": "2026-10-19T22:44:00.821929+00:00",
+      "scope": "Read-only exact two LHL Pages project settings and canonical deployment metadata; no application/provider/order reads or mutations",
+      "records": [
+        {
+          "project": "little-hero-labs-admin",
+          "automaticGitDeploymentsOff": true,
+          "canonicalDeploymentId": "bb101484-ac2b-48eb-af6e-1073ac1788d3",
+          "canonicalSourceSha": "fb0d31cf92ca2d933b875abd7b9f12998c1c01e0",
+          "sixSettingsAndCanonicalBindingsOff": true
+        },
+        {
+          "project": "little-hero-labs",
+          "automaticGitDeploymentsOff": true,
+          "canonicalDeploymentId": "02bfc6af-9b0c-423b-9132-f24bba8fb704",
+          "canonicalSourceSha": "5bccf890da26b0c1c9b752d18229d15608e55d4b"
+        }
+      ],
+      "liveMutations": 0
+    },
+    {
+      "normalDispatchOff": true,
+      "at": "2026-10-19T22:44:02.621167+00:00",
+      "project": "mdnthwpcnphjnnblbvxk",
+      "gate": [
+        {
+          "id": true,
+          "enabled": false
+        }
+      ],
+      "legacyOrderOrSubmissionReads": false,
+      "providerRequests": false,
+      "mutations": false,
+      "scope": "Two GETs only: normal dispatch gate and ordinary release gate; no order/root/permit selectors or RPC"
+    }
+  ],
+  "controlsAndServingDeploymentsUnchangedThroughoutObservedEndpoints": true
+}

@@ -1,0 +1,13 @@
+{
+  "back-end/scripts/create-gelato-local-rasters.ts": "f94cfbdf4069da89ac9ef01741f55ee034739a43822f52fa1b680d659e552626",
+  "back-end/src/lib/books/build-gelato-print-pdf.ts": "ddf46ef608014de0feee87b2c5d2d27be6453f0c7e3c50190a29425bbae31f3b",
+  "back-end/src/lib/books/w4-gelato-print-input.ts": "abb43dcacebe6daeb6f8ada6726b880da0e47d477144f75fd4f2f00ddfdb2fd6",
+  "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json": "dec968a10ee94a0292341044171efb00607efbf5c2b8060cdd91e5e49728f6db",
+  "back-end/src/lib/books/gelato-native-queue.ts": "292d9cb3891eebf07506f7a1da49968aea27aa5a7735452532116b7399b9d603",
+  "back-end/src/lib/books/gelato-print-admission.ts": "1305da9fd334aca852b47b5c7bbc1a0983044c0d44c7856f78021eaeadd085c4",
+  "back-end/src/app/api/internal/orders/print-routing/queue/route.ts": "6be2fae22ecb04941347760266de0c92bc7c5c9703449463fa710ed91b56a3c7",
+  "back-end/src/app/api/cron/gelato-status/route.ts": "4f0e02a0006e9dcf35bb78e28662a6c5ac7a1c12e2fa425b3a1d69f2700ad4c0",
+  "back-end/src/lib/books/gelato-scheduled-status.ts": "9ac1c3f8ae0c5ae05a71083615f2f955ac856a3e32e25b8837f223d104012ce7",
+  "back-end/src/lib/books/gelato-submission-runtime.ts": "f21c7b199b176445ea7aba9d60a7179b447af8ac27519c2a9b0267d21358a743",
+  "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json": "f118077ec865f0c707800fb0fb3f904c67a1cdedc50d6ea75f0f46d54be22dea"
+}
