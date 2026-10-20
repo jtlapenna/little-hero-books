@@ -32,6 +32,9 @@ jobs:
           cache-dependency-path: back-end/package-lock.json
       - run: npm ci
         working-directory: back-end
+      - name: Verify checkout validation before provider or storage access
+        run: node --import tsx scripts/test-checkout-validation.ts
+        working-directory: back-end
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end
