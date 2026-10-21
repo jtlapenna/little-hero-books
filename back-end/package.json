@@ -144,6 +144,7 @@
     "prepare:gelato-native-queue": "tsx scripts/prepare-w1-gelato-queue.ts",
     "test:gelato-isolation": "node --import tsx scripts/test-gelato-isolation.ts",
     "test:gelato-isolated-preparation": "node --import tsx scripts/test-gelato-isolated-preparation.ts",
+    "test:gelato-protected-runner": "node --import tsx scripts/test-gelato-protected-runner.ts && node --import tsx scripts/test-gelato-protected-runner-crashes.ts",
     "prepare:gelato-isolated-workflows": "node --import tsx scripts/prepare-gelato-isolated-workflows.ts"
   },
   "dependencies": {

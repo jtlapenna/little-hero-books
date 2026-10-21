@@ -53,5 +53,10 @@ jobs:
         run: python3 docs/repo-workflows-planning/gelato-combined-evidence-2026-10-19/verify.py
       - name: Verify retained historical isolation evidence
         run: python3 docs/repo-workflows-planning/gelato-isolation-evidence-2026-10-19/verify.py
-      - name: Verify current isolated-runner evidence and source bindings
-        run: python3 docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/verify.py --source
+      - name: Verify retained isolated-runner evidence without renewing historical live receipts
+        run: python3 docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/verify.py
+      - name: Verify protected transport and actual OS crash recovery locally
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" npm run test:gelato-protected-runner
+      - name: Verify protected-runner evidence and current source bindings
+        run: python3 docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/verify.py --source
