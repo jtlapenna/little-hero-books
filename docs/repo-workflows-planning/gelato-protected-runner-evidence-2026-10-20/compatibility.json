@@ -1,0 +1,17 @@
+{
+  "node24": {
+    "version": "24.5.0",
+    "architecture": "arm64",
+    "adapterChecks": 45,
+    "osChecks": 7
+  },
+  "node22": {
+    "version": "22.17.1",
+    "architecture": "x64 under Rosetta",
+    "adapterChecks": 45,
+    "osChecks": null,
+    "compiler": "Explicit already-installed matching-version darwin-arm64 esbuild binary; no dependency changes",
+    "limitation": "Default full Node22 run blocked by x64 Node versus ARM esbuild installation; OS suite proved on Node24, hosted Ubuntu remains pending."
+  },
+  "externalRequests": 0
+}

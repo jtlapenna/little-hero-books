@@ -1,0 +1,32 @@
+{
+  "reviewers": 2,
+  "status": "complete",
+  "remainingConfirmedHighOrMedium": 0,
+  "resolved": [
+    "Transport ignoring AbortSignal blocked cleanup",
+    "Timer timestamps and persisted claims could contradict reality",
+    "In-flight timer activation could outlive point-in-time deactivation",
+    "Truncated journal tail could erase activation uncertainty",
+    "Direct ports could skip private preflight",
+    "Concurrent direct ports could submit twice before slot reservation",
+    "Mixed successful and crashed/unknown timer executions could yield a false clean diagnostic result"
+  ],
+  "limits": [
+    "Source and local synthetic/OS verification only",
+    "No hosted protocol, account, provider or physical proof"
+  ],
+  "latestVerifiedChecks": {
+    "adapter": 45,
+    "os": 7
+  },
+  "versionBinding": "Pinned edited version plus active published version; unavailable metadata rejects; actual hosted semantics not claimed",
+  "evidenceReview": "Completed package independently verified with --source; no privacy/accuracy findings",
+  "publicationReview": {
+    "reviewers": 2,
+    "runtimeVerdict": "READY WITH RESIDUAL RISK",
+    "remainingConfirmedHighOrMedium": 0,
+    "baseMain": "d82b05e120d2d60c88db363052d9245486513b08",
+    "hostedChecks": "pending before publication",
+    "sourceBindingCorrection": "Added canonical hash/definition helper, native W4/W4.1/W1 inputs, W1 patch and native queue direct admission dependency"
+  }
+}

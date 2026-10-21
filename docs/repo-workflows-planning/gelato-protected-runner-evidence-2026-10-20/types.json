@@ -1,0 +1,10 @@
+{
+  "runtime": "Node24.5.0; existing installed dependency tree",
+  "exitCode": 2,
+  "diagnostics": 385,
+  "changedFileDiagnostics": [],
+  "fullRepositoryTypecheckPassed": false,
+  "limitation": "Existing repository/generated Next diagnostics remain; no green full typecheck claimed.",
+  "initialLocalDiagnostics": 386,
+  "publicationBaseMain": "d82b05e120d2d60c88db363052d9245486513b08"
+}

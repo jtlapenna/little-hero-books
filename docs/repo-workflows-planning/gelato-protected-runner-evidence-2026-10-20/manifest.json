@@ -1,0 +1,272 @@
+{
+  "scope": "local protected-runner evidence; source binding does not renew historical live observations",
+  "baselineMain": "16b26a70c91eeb31a502310667f9804506741b98",
+  "files": [
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/README.md",
+      "kind": "evidence",
+      "sha256": "aacd2678008b3d8dced51c2b7760f6ed101685c3215c750dbb4226f7d00745b1"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/adapter.json",
+      "kind": "evidence",
+      "sha256": "cd93f2592922a65299f5a5b884b40e8a19d04e35b7e740ccb27f5bf43ecefae2"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/compatibility.json",
+      "kind": "evidence",
+      "sha256": "9d5c6d2018caf961d6ef1dbcde6cc59068b24e2caccfc42f5ef5cc6da9f1ac5a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/crashes.json",
+      "kind": "evidence",
+      "sha256": "e9c84d5e1d13fbe25faed9c0436bf2ad0a6c99e6f369c2ce2028bb9eaa0f4aeb"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/native-queue.json",
+      "kind": "evidence",
+      "sha256": "6de4737eedf11f849822142a2da42d1be769489e2c2d91d1d6702101caa2101b"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/preparation.json",
+      "kind": "evidence",
+      "sha256": "17e855e1189655f416c21ca8bd1d78bfeda3b0a816accd25822b7750433d4773"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/review.json",
+      "kind": "evidence",
+      "sha256": "cb5bcbe79bc46a557d5202c00563aa7f93de04565608bb0a7013f13e1c93a5ec"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/scope.json",
+      "kind": "evidence",
+      "sha256": "3f6b8620afd41a90fbcc242245328c64609a47ce48e98b7dd4503ae7963e0c54"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/types.json",
+      "kind": "evidence",
+      "sha256": "f4f11dbe1a460731a1293e1eabd26e2ffb79635065e5f7177b8fe16f729edcfa"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/verify.py",
+      "kind": "evidence",
+      "sha256": "e317f45476ad71966b4f816ff51a324a6956865f9f252435da6f8ab892143217"
+    },
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "kind": "source",
+      "sha256": "a33c4c6ec3341e71fe798d48cfbb3b45f860df55ae39c91f66a70da441bf115f"
+    },
+    {
+      "path": ".github/workflows/check-workflow-export-secrets.yml",
+      "kind": "source",
+      "sha256": "f8d0e34f8ab0f94afc418c24448e514ffe7c33a081d2047e3bfd395ea47b3d58"
+    },
+    {
+      "path": "back-end/package-lock.json",
+      "kind": "source",
+      "sha256": "7e90264484dd4d2a898983d875f0a9697b1cd2b97326fe36f9b7a15920fd468d"
+    },
+    {
+      "path": "back-end/package.json",
+      "kind": "source",
+      "sha256": "cc61e4d80a025e77f202680d1d575754e60abb93b03300d6b542f728767c35cb"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-combined-local-journey.ts",
+      "kind": "source",
+      "sha256": "f69e851d6340fec9ddeff111eb318beba8615b534e1085e2a01e901595fa291c"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-isolated-case-runner.ts",
+      "kind": "source",
+      "sha256": "396759b520ea5c037b74ebcc7e99ec2514585b4c3649311ecb53ca1dfaa66148"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-protected-runner-adapter.ts",
+      "kind": "source",
+      "sha256": "1fb83ecb1de26cc27dedab5b9a2edb969e5862d129faef4affaad70e1c68e6df"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-protected-runner-fixture.ts",
+      "kind": "source",
+      "sha256": "9875673ea6eedf5f21f6f7f896dc3617ad605969546e0ad38951b72051b63214"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-protected-runner-process-fixture.ts",
+      "kind": "source",
+      "sha256": "7b93e05884d2972473d781772fef3e7e2d2926c059cd9db998d3f3d6c5adbf39"
+    },
+    {
+      "path": "back-end/scripts/helpers/prepare-gelato-isolated-workflows.ts",
+      "kind": "source",
+      "sha256": "04a6eae9011673120a0e897c6803dfd0a41c6505ece3a8db32fa658b8ccfa242"
+    },
+    {
+      "path": "back-end/scripts/prepare-gelato-isolated-workflows.ts",
+      "kind": "source",
+      "sha256": "7ee2a0195700e71ca1d55e88d354458d796436ad8a1a2b20c8fe3580d77d4412"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-isolated-preparation.ts",
+      "kind": "source",
+      "sha256": "88c4a19652b5a82f66fcb228bee1507019ee05ddb57a8c29aab839b31aa141a5"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-isolation.ts",
+      "kind": "source",
+      "sha256": "d767612697a5dd354afba1d19698394cff1eb3e4e53882dea69552d23ee1b044"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "kind": "source",
+      "sha256": "edea321846c3d65cd0c434705487a4b6053567245d8dd573096fcc30ecc94650"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-protected-runner-crashes.ts",
+      "kind": "source",
+      "sha256": "59334e75dadef505e0d83f10f418c323f4df37f763b2bdcf02758d0855a3212a"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-protected-runner.ts",
+      "kind": "source",
+      "sha256": "6c1105da69a3862c74dd937d19a25b7bec74e665ffd7ea77c30fc8a1b8b039ab"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w4/engineering-isolation/route.ts",
+      "kind": "source",
+      "sha256": "bcc8550d27c6f6b469a628a81fb5b131794d5bceb6697dfe982d88aa8864204b"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-api-contract.ts",
+      "kind": "source",
+      "sha256": "f5c3b354c49c407d2b689cbf4cb2e2367303450067c5e87c3649fc3f80b5bbaa"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-isolation-runtime.ts",
+      "kind": "source",
+      "sha256": "0d59e2740a589db5ea66678329bc1efae310ce64dab4690f021191d9e955c9ce"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-isolation.ts",
+      "kind": "source",
+      "sha256": "5048f089025c9e03b56a1a127dfa7c2d2a28ebfeb614eadd4654e0b014b153a7"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-native-queue.ts",
+      "kind": "source",
+      "sha256": "6e0cd6ee92e97ab74d0add6b9739fd2c96dd5094ae51e22411c1af52c65b3822"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-provider-snapshot.ts",
+      "kind": "source",
+      "sha256": "830f5c19a246114337f47d59a5cd3a0d69edeb78b999b32f302e32f6c591de81"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-scheduled-status.ts",
+      "kind": "source",
+      "sha256": "cd7b1a990681de3039ccfbea6c59beadb0e42fed1fdc6222b84a60183115d530"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-stored-file.ts",
+      "kind": "source",
+      "sha256": "2d6c10ee9ff7fd8c7c8cca35a10b4ab8d641a5735a306f1912edf73999689803"
+    },
+    {
+      "path": "back-end/src/lib/books/print-routing-claim-runtime.ts",
+      "kind": "source",
+      "sha256": "efdae0b408f3b7af38135a81edb147cea681a8b9f2ae3692628dee731e9dbcb1"
+    },
+    {
+      "path": "back-end/src/lib/printer-file-grants.ts",
+      "kind": "source",
+      "sha256": "7f6672d85d23e72ff1e535b21d786a07957cfff36e111b818974a87137b4b13c"
+    },
+    {
+      "path": "database/20261020011248_gelato_engineering_isolation.sql",
+      "kind": "source",
+      "sha256": "f84c1747244748d2d2a26bb7f8183249688fd6fce5437afd6723a7e0f2ea017d"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-isolated-live-run-sheet-2026-10-20.md",
+      "kind": "source",
+      "sha256": "464dfa3c5838dc52ccac4d12b0a74f62120123063facf4f62c6876dd62fa397c"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-isolated-runner-preparation-2026-10-20.md",
+      "kind": "source",
+      "sha256": "9d19410c620ed0250ddb4507cb7fe1c04b8d5b9afcc3f3dc8a505b2c95db9df8"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-isolation-results-2026-10-19.md",
+      "kind": "source",
+      "sha256": "3c0d8f3386a37897e455a4a1c374dcc10f44735cb01fce56248bc686e132e309"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-local-plan-2026-10-20.md",
+      "kind": "source",
+      "sha256": "3cbdb9034fe7aac81a45bc29557790ca4019d736c48d6130fddd26ee05608d61"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-protected-runner-local-results-2026-10-20.md",
+      "kind": "source",
+      "sha256": "6a7ce86a6dc7883eede19ecf98a2fc4c62fc5225d8cfbe031377f86b7906c994"
+    },
+    {
+      "path": "scripts/security/compromised-credential-fingerprints.json",
+      "kind": "source",
+      "sha256": "63be4e8b132b5031e22836bdd2d59c8df4ecf7625e045011de4ad9608782c649"
+    },
+    {
+      "path": "scripts/testing/local-preview-database.ts",
+      "kind": "source",
+      "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
+    },
+    {
+      "path": "back-end/scripts/helpers/prepare-w1-native-queue.ts",
+      "kind": "source",
+      "sha256": "8e6266f08d193bde9f2e6cadeef6f93d2900122930e0f775f1ea64cf619aa1b7"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-native-queue.ts",
+      "kind": "source",
+      "sha256": "31ebe15f9e6b354135c2ee08362254da27a3a2ca4671a6e66303d2c7a29a86b2"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-financial-observation.ts",
+      "kind": "source",
+      "sha256": "eead0b6564ba602d2bdb42e449d7f79b35c814d8545ad43d4ae897e6458c0cea"
+    },
+    {
+      "path": "back-end/src/lib/books/print-routing.ts",
+      "kind": "source",
+      "sha256": "de7cec54c5d445720f5f9c5ff1903a91cb29e15dae47220bdd7ba942caeaad7b"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
+      "kind": "source",
+      "sha256": "7344775bfdbde93b5e5d5beac0d98ac152bd183ff08db0d4f4ce5e356e433826"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w4.1-GELATO-Sibling-Aggregation.repo-centric.json",
+      "kind": "source",
+      "sha256": "8fc1daa91a3ca06f9237ce58743c8a7189f9a6a36b668f1104976da43268f943"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+      "kind": "source",
+      "sha256": "d823172f973372348ab3165682e65eaba5d0520968e94af10e707308b871dae1"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
+      "kind": "source",
+      "sha256": "f118077ec865f0c707800fb0fb3f904c67a1cdedc50d6ea75f0f46d54be22dea"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-print-admission.ts",
+      "kind": "source",
+      "sha256": "1305da9fd334aca852b47b5c7bbc1a0983044c0d44c7856f78021eaeadd085c4"
+    }
+  ],
+  "publicationBaseMain": "d82b05e120d2d60c88db363052d9245486513b08"
+}

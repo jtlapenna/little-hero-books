@@ -1,6 +1,6 @@
 /** Protected runner core. No default transport, environment loading, scope issuer or live CLI. */
 import {z} from 'zod';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,open} from 'node:fs/promises';
 import path from 'node:path';
 import {definitionSha256} from './prepare-w1-native-queue';
 import {IsolatedCasePacket,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
@@ -21,8 +21,15 @@ export interface CaseJournal {claim(packetSha256:string):Promise<void>;record(ev
 /** Exclusive directory is never reused/removed, including after crash. Contains no payloads or credentials. */
 export class FileCaseJournal implements CaseJournal{
  private sequence=0;constructor(private directory:string){}
- async claim(packetSha256:string){await mkdir(this.directory,{mode:0o700});await writeFile(path.join(this.directory,'binding.json'),JSON.stringify({packetSha256})+'\n',{mode:0o600,flag:'wx'});}
- async record(event:{step:string;state:'starting'|'confirmed'|'unconfirmed'}){await writeFile(path.join(this.directory,String(++this.sequence).padStart(3,'0')+'.json'),JSON.stringify(event)+'\n',{mode:0o600,flag:'wx'});}
+ private async syncDirectory(directory:string){const handle=await open(directory,'r');try{await handle.sync();}finally{await handle.close();}}
+ private async write(name:string,value:unknown){const handle=await open(path.join(this.directory,name),'wx',0o600);try{await handle.writeFile(JSON.stringify(value)+'\n');await handle.sync();}finally{await handle.close();}await this.syncDirectory(this.directory);}
+ async claim(packetSha256:string){
+  if(!/^[a-f0-9]{64}$/.test(packetSha256))throw Error('Invalid journal binding');
+  await mkdir(this.directory,{mode:0o700});
+  // Persist exclusion before acknowledging authority. A partial directory is a permanent stop.
+  await this.syncDirectory(path.dirname(this.directory));await this.write('binding.json',{packetSha256});
+ }
+ async record(event:{step:string;state:'starting'|'confirmed'|'unconfirmed'}){await this.write(String(++this.sequence).padStart(3,'0')+'.json',event);}
 }
 export interface IsolatedRunnerDependencies{
  now():number;
