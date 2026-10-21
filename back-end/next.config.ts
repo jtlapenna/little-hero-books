@@ -42,11 +42,6 @@ if (existsSync(rootEnvPath)) {
 
 const nextConfig: NextConfig = {
   /* config options here */
-  eslint: {
-    // Disable ESLint during builds to unblock deployment - Cloudflare Pages
-    // This allows the site to deploy even with linting errors
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     // Disable TypeScript checking during builds - Cloudflare Pages
     // This allows the site to deploy even with type errors
@@ -60,12 +55,13 @@ const nextConfig: NextConfig = {
     // This prevents webpack from trying to bundle binary files like .node modules
     // Only apply to server-side builds and only for specific routes that use these modules
     if (isServer) {
-      // Ignore .node files (native binaries) using IgnorePlugin
-      // This prevents webpack from trying to process binary files
+      // Ignore binaries only in native dependency trees. Next also uses
+      // JavaScript entrypoints named server.node, which must still resolve.
       config.plugins = config.plugins || [];
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /\.node$/,
+          contextRegExp: /[\\/]node_modules[\\/](?:sharp|@img[\\/]sharp[^\\/]*|@napi-rs[\\/]canvas[^\\/]*)(?:[\\/]|$)/,
         })
       );
       

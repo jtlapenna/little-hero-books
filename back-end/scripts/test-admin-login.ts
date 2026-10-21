@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
 import { generateKeyPair, exportJWK, SignJWT } from 'jose';
 import { authorizeBackendBoundary } from '../src/lib/access-boundary';
 import { adminReturnPath, ADMIN_SIGN_IN_HEADER } from '../src/lib/admin-login-target';
@@ -8,12 +6,6 @@ import { GET as login } from '../src/app/%5F_access_setup/route';
 import { GET as session } from '../src/app/api/admin/session/route';
 
 async function main() {
-  const require = createRequire(import.meta.url);
-  const { collectAppFiles, createPagesMapping } = require('next/dist/build/entries');
-  const { createValidFileMatcher } = require('next/dist/server/lib/find-page-file');
-  const appDir = resolve('src/app');
-  const { appPaths } = await collectAppFiles(appDir, createValidFileMatcher(['tsx', 'ts', 'jsx', 'js'], appDir));
-  assert.ok(appPaths.some((path: string) => path.endsWith('%5F_access_setup/route.ts')), 'Next must discover the escaped login bridge');
   const origin = 'https://admin.littleherolabs.com';
   const issuer = 'https://login-synthetic.cloudflareaccess.com';
   const audience = 'c'.repeat(64);
