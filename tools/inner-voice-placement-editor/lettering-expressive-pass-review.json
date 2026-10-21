@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-18",
+  "scope": "Expressive lettering and orphan wrapping",
+  "savedRevision": 9,
+  "pages": 32,
+  "blocks": 176,
+  "changedPages": [
+    5,
+    6,
+    7,
+    10,
+    12,
+    13,
+    14,
+    15,
+    17,
+    19,
+    22,
+    25,
+    26,
+    27,
+    28
+  ],
+  "backup": "archive/lettering-history/lettering-before-expressive-pass-2026-10-17.json",
+  "changes": [
+    "Set page 6 whoosh to 32 pt between 16 pt narration on the same baseline.",
+    "Emphasized selected sounds and motion words with larger type, warm ink and small rotations.",
+    "Set the climb as rising phrases and enlarged the cave opening. Quiet narration remains restrained.",
+    "Balanced automatic final-word wrapping in browser and PDF output; added a warning when the current width cannot avoid stranded words.",
+    "Added an HTTP-editor recovery link when index.html opens as a file."
+  ],
+  "checks": {
+    "all32PagesRenderedAndInspected": true,
+    "renderedLineIntersections": 0,
+    "renderedLinesWithinMargins": true,
+    "storyWordsAndPunctuationPreserved": true,
+    "characterFileUnchanged": true,
+    "reviewFlagsAndNotesPreserved": true,
+    "pdfPageTextMatchesAll32SavedPages": true,
+    "browserWrapping": {
+      "balanced": [
+        "A climbing",
+        "wall like",
+        "a mountain."
+      ],
+      "balancedWarning": false,
+      "narrowWarning": true,
+      "explicit": [
+        "Pause.",
+        "Breathe.",
+        "Listen close."
+      ],
+      "explicitWarning": false
+    },
+    "pdfWrapping": "Automatic last-word case, explicit cue lines and blank text passed.",
+    "tablet": {
+      "bottom": 701.5,
+      "height": 768,
+      "overflow": false
+    },
+    "mobile": {
+      "overflow": false
+    },
+    "fileOpeningRecovery": {
+      "text": "This editor needs its local server. Open book layout studio",
+      "url": "http://127.0.0.1:8847/"
+    },
+    "runtimeErrors": [],
+    "javascriptSyntax": "app.js and lettering.js passed node --check"
+  },
+  "orphanReview": "One-word inline runs are parts of connected sentences, not stranded line endings. Complete sound effects and short dialogue or activity cues remain deliberate. No accidental one-word wrap remains in the inspected draft.",
+  "evidence": {
+    "renderedLines": "output/playwright/lettering-expressive-pass/rendered-lines.json",
+    "browserChecks": "output/playwright/lettering-expressive-pass/final-check.log",
+    "whooshCheck": "output/playwright/lettering-expressive-pass/smoke.log",
+    "pdfManifest": "output/pdf/inner-voice-lettering-expressive-pass-2026-10-18/proof-manifest.json",
+    "pdfInspection": "output/pdf/inner-voice-lettering-expressive-pass-2026-10-18/inspection/"
+  },
+  "sha256": {
+    "lettering.json": "48980a371114542888e150a44acc1cf862676259e8cd280692a5a76cc5db42d0",
+    "placements.json": "3b2d8e651cabd82377fe0cd5a4d8686c25c0e7f5a84d73f31315879ee28160a2",
+    "lettering.js": "910820148f3b1bb2b3aaedf7b4337e8f1a014e96f0aeed7c9b09d0a0970dce06",
+    "app.js": "56e069fb0ac588323f6e97baac0cbc7862bd92282e2952c62f02902f10d80f20",
+    "index.html": "9c9130993e3516962778ba1e1649db9d326e8a60539ec8f5ec8d4bd2da8fac3b"
+  },
+  "maintenanceAssessment": "Reused independently movable text blocks for inline emphasis. Browser and PDF retain their existing wrapping paths and now share the same final-word rule, checked in both runtimes. No new document schema or production rendering path was introduced.",
+  "limits": [
+    "Creative approval remains pending. Pages 30 and 31 and front-matter placeholders remain provisional.",
+    "Other names, guides and physical print readability need separate fit checks.",
+    "A block too narrow to fit two words cannot prevent every orphan without changing width or size; the editor now warns."
+  ],
+  "liveEditorVerification": {
+    "url": "http://127.0.0.1:8847/",
+    "revision": 9,
+    "whooshSizePt": 32,
+    "screenshot": "output/playwright/lettering-expressive-pass/live-page-06.png"
+  }
+}

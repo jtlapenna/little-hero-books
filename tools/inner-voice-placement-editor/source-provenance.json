@@ -264,6 +264,12 @@
       "file": "assets/asset-8-page_08.png",
       "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/backgrounds/page_08.png",
       "sha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28"
+    },
+    {
+      "asset": "lettering-hand",
+      "file": "assets/lettering-LoveYaLikeASister.ttf",
+      "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/fonts/CustomBook.ttf",
+      "sha256": "d74f5c371e23f3ef556961b300a1141b9b1dd012ed15655380265ce4b1fdec7f"
     }
   ],
   "sourcePaths": "Seed sourcePath/sourceManifest fields retain generation provenance. Runtime resolves asset-map.json relative to this folder. Image bytes and placement identity are unchanged."

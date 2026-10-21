@@ -1,5 +1,33 @@
 # Text layout candidate, October 13, 2026
 
+## Working checkpoint, October 20
+
+Jeff considers the text placement good enough for now and requests background finishing next. The portable editor saves the selected B font, expressive accents, orphan-aware wrapping, reduced copy, page 14 breathing/listening lesson, warm reading areas on 24/25, and feathered dark reading areas on 09/16. Name and pronoun preview uses the existing renderer token names. Character and lettering state remain separate.
+
+The current saved draft is revision 1236, with 166 blocks. This is a working creative checkpoint, not final edition or print approval. Final publication details remain placeholders. Use [the background finishing plan](background-finishing-plan-2026-10-20.md) for the next pass.
+
+## Expressive pass, October 18
+
+Jeff requested stronger word emphasis after the spacing pass. The current draft uses a 32 pt “whoosh” within its sentence, larger selected sounds and motion words, and rising placement for the climb. Quiet narration remains mostly 16 pt. The existing editor's separate blocks provide word-level size, ink, and rotation without changing the manuscript or character placement. All 32 pages were rendered and checked again. The saved draft has 176 blocks.
+
+Browser and PDF wrapping now move a neighboring word onto a stranded final line when the pair fits. The editor warns when the chosen width still forces a single-word line. Manual breaks and complete single-word cues are preserved. Current PDFs are under `output/pdf/inner-voice-lettering-expressive-pass-2026-10-18/`. See the editor's `lettering-expressive-pass-review.json` for checks and hashes. Creative and physical print approval remain open.
+
+## Earlier lettering pass, October 16
+
+Jeff considers character sizing and positioning complete for this pass. Use the saved placements as the lettering base. This supersedes the earlier instruction to finish character placement before starting lettering.
+
+The [new lettering study](../../../tools/inner-voice-placement-editor/lettering-study/README.md) compares two treatments on spreads 12-13, 18-19 and 22-23, including actual character and guide layers. A pairs Nunito narration with hand-lettered accents. B uses Love Ya Like A Sister throughout, with staggered phrases and small accent rotations. Both preserve story words, current artwork and saved positions.
+
+Three comparison sheets, six print-size spreads, rendered inspections and a block-level layout manifest are saved in `output/pdf/inner-voice-lettering-study-2026-10-16/`. Jeff chose B as the starting direction. The existing editor now supports moving, resizing and rewrapping text, manual line breaks, splitting/joining blocks, line spacing, rotation, alignment and ink color. The six study pages start at their B layouts; other pages use the B font at previous positions. Text adjustments save separately from character placements and export together. Next, review all page layouts and use the export for a new proof. Production renderer and published configuration remain unchanged.
+
+## Second full-book review
+
+The second full-book lettering pass, completed October 17, corrects page 6's isolated emphasis and page 7's thought spacing. The saved editor draft is revision 8, with 157 blocks across 32 pages. It preserves story words and saved character geometry. Narration remains mostly 16 pt, with larger phrases for emphasis. The pass revisits sentence spacing, reading order, ink color, margins, and text near faces, stars, crystals, and slide artwork. Complete sound effects and short dialogue or breathing cues remain intentional single-word lines.
+
+Current review PDFs are under `output/pdf/inner-voice-lettering-second-pass-2026-10-16/` in the lettering worktree. Page and facing-spread PDFs use the saved layout. Headless checks cover all 32 pages, actual rendered line bounds, save/reload, download, desktop spread view, tablet fit, and mobile controls. Evidence and exact hashes are recorded in the editor's `lettering-second-pass-review.json`. Creative approval, pages 30-31, other personalization cases, production rendering, and physical print readability remain open.
+
+## Earlier review status
+
 Status: character placement review now precedes final lettering. Jeff requested more creative scene-based typography. Font and placement remain unapproved. Pages 18 and 23 are accepted for now; pages 30 and 31 remain provisional.
 
 ## Placement and contrast study
