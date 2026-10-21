@@ -1,0 +1,35 @@
+{
+  "schema": "lhb.lettering-checkpoint-review@v1",
+  "revision": 1236,
+  "blocks": 166,
+  "workingTextPlacementAcceptedForNow": "2026-10-20",
+  "sourceSha256": {
+    "lettering.json": "72b94d1e75e81d8cb67575508a8781a5e0412fec0bd643b809aa3da7f5329180",
+    "placements.json": "356cfc0fd76f70d9b3de7c8312e6327c9356ab0ab6cb61ebfd2abd4a612ebfa0",
+    "lettering-data.json": "83f8433cb897274ef31cfd6a1a275bd899efcd5b497294eb252eae00f186b4c1",
+    "lettering.js": "406f203562a758adca639e3b6e6c6160795694f4c1e1b93043c0c90bb993b028",
+    "lettering_state.py": "3fc256402e4dcc8af286f2a5a8ca033209e48f263feebde2c0d790ba57bb2bc9",
+    "lettering_text.py": "a7fd2e5a6d9f1b311ca4fb386fb3aee0181e836bc457843fbacef302740ece56",
+    "lettering-study/build_full_proof.py": "58c4b917623a89888b2bea2cbc27b1422b9079ffd140f5e3e8842e7ef3aa9376"
+  },
+  "checks": {
+    "httpIntegration": "7 tests pass",
+    "syntax": "all JSON/Python and both active JavaScript files pass",
+    "renderedPages": 32,
+    "assets": 45,
+    "pdfPages": 32,
+    "pdfSpreads": 17,
+    "stalePDFInput": "rejected before compose",
+    "splitPersonalizationField": "rejected by UI and HTTP; complete-token split accepted",
+    "saveUndoImportReload": "exact saved page arrays preserved in disposable QA state",
+    "independentReview": "both findings fixed and verified",
+    "visual": "all 32 pages inspected; selected PDF pages checked; rotated page17 bounding-box intersection visually checked, letters remain separate"
+  },
+  "limitations": [
+    "Background finishing, including page11 palette and animal-specific art, remains open.",
+    "Current art/copy sample is Owl-specific; other guides still need variants.",
+    "Physical print, long-name/edition coverage, covers, activity illustration and publication details remain open.",
+    "Older PDF proofs and archived review manifests describe earlier revisions."
+  ],
+  "proofManifestLocal": "/Users/jeff/Projects/little-hero-books/output/lettering-release-2026-10-20/proofs/proof-manifest.json"
+}

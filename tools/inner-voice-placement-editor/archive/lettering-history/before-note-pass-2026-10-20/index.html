@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inner Voice · Book layout studio</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header class="topbar"><div class="identity"><span class="eyebrow">Finding Our Inner Voice</span><h1>Book layout studio</h1></div><div class="save-status" id="saveStatus" role="status">Loading book…</div><div class="file-actions"><button id="importBtn">Load adjustments</button><button class="primary" id="downloadBtn">Download adjustments</button><input type="file" id="importFile" accept=".json,application/json" hidden></div></header>
+<div id="errorBanner" class="error-banner" role="alert" hidden></div>
+<main id="app" class="app" hidden>
+<aside class="page-rail" aria-label="Book pages"><div class="rail-heading"><strong>Pages</strong><span id="progress">0 / 32 reviewed</span></div><nav id="pageList"></nav></aside>
+<section class="workspace" aria-label="Page placement workspace">
+<div class="canvas-toolbar"><div class="page-navigation"><button id="prevBtn" aria-label="Previous page">‹</button><div><strong id="pageHeading"></strong><span id="pageTitle"></span></div><button id="nextBtn" aria-label="Next page">›</button></div><div class="view-actions"><div class="segmented" aria-label="Page view"><button id="singleBtn" aria-pressed="true">Page</button><button id="spreadBtn" aria-pressed="false">Spread</button></div><label class="toggle"><input type="checkbox" id="showText" checked>Text</label><label class="toggle"><input type="checkbox" id="showGuides">Guides</label><label class="zoom-label"><span class="sr-only">Zoom</span><select id="zoom"><option value="1">Fit</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select></label></div></div>
+<div id="viewport" class="viewport"><div id="spread" class="spread"></div></div>
+<div class="workspace-footer"><span id="canvasHint">Select a character. Drag to move; pull a corner to resize.</span><div class="history"><button id="undoBtn" aria-label="Undo last adjustment">↶ Undo</button><button id="redoBtn" aria-label="Redo adjustment">↷ Redo</button></div></div>
+</section>
+<aside class="inspector" aria-label="Layout controls">
+<div class="inspector-section edit-mode"><h2>Edit</h2><div class="segmented"><button id="textModeBtn" aria-pressed="true">Text</button><button id="figureModeBtn" aria-pressed="false">Characters</button></div><p class="helper" id="modeHint">Character positions are locked while editing text.</p></div>
+<div class="inspector-section text-inspector" id="textInspector">
+<label class="field-label" for="textBlockSelect" id="textBlockLabel">Text block</label><select id="textBlockSelect"></select>
+<p id="emptyText" class="empty-layers" hidden>No story text on this blank page.</p>
+<div id="textControls">
+<p class="font-note">Love Ya Like A Sister · Style B</p>
+<label class="field-label" for="textContent">Line breaks</label><textarea id="textContent" rows="5" spellcheck="false" aria-describedby="textHelp"></textarea>
+<p class="helper" id="textHelp">Enter adds a line break. Width controls automatic wrapping. Story words stay fixed.</p>
+<div class="block-actions"><button id="splitTextBtn">Split at cursor</button><button id="joinTextBtn">Join next block</button></div>
+<div class="number-grid text-primary-controls"><label>Size (pt)<input id="textSize" type="number" min="8" max="72" step="0.5"></label><label>Width (%)<input id="textWidth" type="number" min="5" max="100" step="0.5"></label></div>
+<p id="textBoundsWarning" class="warning" hidden>Text is close to the edge or outside this page. Move it inward or reduce its size or width.</p>
+<p id="textOrphanWarning" class="warning" hidden>A word is stranded by wrapping. Widen this block or adjust its line breaks.</p>
+<details class="text-details"><summary>Spacing, ink &amp; position</summary><div class="number-grid">
+<label>Left (%)<input id="textLeft" type="number" min="-100" max="200" step="0.1"></label><label>Top (%)<input id="textTop" type="number" min="-100" max="200" step="0.1"></label>
+<label>Line spacing (pt)<input id="textLeading" type="number" min="8" max="120" step="0.5"></label><label>Rotation (°)<input id="textRotation" type="number" min="-45" max="45" step="1"></label>
+</div><label class="field-label" for="textAlign">Alignment</label><select id="textAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+<div class="ink-control"><label for="textColor">Ink color</label><input id="textColor" type="color"><button class="ink-preset" data-ink="#fff5de">Cream</button><button class="ink-preset" data-ink="#392e29">Brown</button><button class="ink-preset" data-ink="#ffe09a">Gold</button></div>
+<label class="toggle"><input id="textEdge" type="checkbox">Fine contrast edge</label></details>
+</div></div>
+<div id="figureListSection" class="inspector-section" hidden><h2>On this page</h2><div id="layerList" class="layer-list"></div></div>
+<div id="subjectControls" hidden><div class="inspector-section"><div class="control-heading"><h2 id="selectedLabel">Character</h2><button id="flipBtn" aria-pressed="false" title="Flip horizontally">⇄ Flip</button></div><label class="size-label" for="sizeRange">Size <output id="sizeOutput"></output></label><input id="sizeRange" type="range" min="4" max="150" step="0.5"><div class="number-grid"><label>Left (%)<input id="leftInput" type="number" min="-100" max="200" step="0.1"></label><label>Top (%)<input id="topInput" type="number" min="-100" max="200" step="0.1"></label><label>Height (%)<input id="heightInput" type="number" min="4" max="150" step="0.1"></label></div><p class="helper">Size follows the visible figure. Proportions stay locked.</p><p id="boundsWarning" class="warning" hidden>Part of this figure is outside the page.</p><button id="resetLayerBtn" class="subtle-button">Reset this figure</button></div></div>
+<div class="inspector-section review-section"><label class="review-check"><input id="reviewedInput" type="checkbox"><span id="reviewLabel">Text layout reviewed</span></label><label class="notes-label" for="notesInput">Page notes</label><textarea id="notesInput" rows="3" placeholder="Anything to revisit on this page…"></textarea><p id="assetNote" class="asset-note" hidden></p><button id="resetPageBtn" class="subtle-button">Reset page lettering</button></div>
+<div class="inspector-bottom"><p>Saved on this Mac. Download a copy when you finish.</p><p>Interior draft only. No publishing.</p></div>
+</aside></main>
+<div id="loading" class="loading">Preparing your book…</div><div id="toast" class="toast" role="status" hidden></div>
+<script src="lettering.js"></script><script src="app.js"></script>
+</body></html>

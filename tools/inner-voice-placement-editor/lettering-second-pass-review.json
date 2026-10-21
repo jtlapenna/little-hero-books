@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-17",
+  "scope": "Second full-book local lettering review, direction B",
+  "savedRevision": 8,
+  "pages": 32,
+  "blocks": 157,
+  "changedPages": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    30
+  ],
+  "backup": "archive/lettering-history/lettering-before-second-pass-2026-10-16.json",
+  "changes": [
+    "Connected page 6 emphasis to its sentence.",
+    "Separated page 7 actions and moved its ending above the child.",
+    "Opened gaps between sentences and thoughts throughout the book.",
+    "Moved passages clear of faces, stars, sneeze artwork, crystals and the slide.",
+    "Adjusted ink and restrained emphasis to suit local backgrounds."
+  ],
+  "checks": {
+    "storyWordsAndPunctuationUnchanged": true,
+    "characterFileUnchanged": true,
+    "pageReviewFlagsAndNotesPreserved": true,
+    "renderedPagesInspected": 32,
+    "accidentalSingleWordLines": 0,
+    "renderedLineIntersections": 0,
+    "renderedLinesInsideTwoPointFivePercentMargins": true,
+    "pdfPages": 32,
+    "pdfFacingSpreads": 17,
+    "pdfTextMatchesAllSavedPages": true,
+    "saveReloadAndDownload": "Passed on an isolated draft. Temporary size change persisted, then returned to 18 pt. Export retained both text and characters.",
+    "runtimeErrors": [],
+    "screenSizes": [
+      [
+        1600,
+        1200
+      ],
+      [
+        1600,
+        1100
+      ],
+      [
+        1024,
+        768
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "tabletPageBottom": 701.5,
+    "tabletWindowHeight": 768,
+    "mobileHorizontalOverflow": false,
+    "mobileControlsReachable": true
+  },
+  "completeSingleWordCues": [
+    [
+      13,
+      "Achoo!"
+    ],
+    [
+      14,
+      "HURRY!"
+    ],
+    [
+      27,
+      "Pause."
+    ],
+    [
+      27,
+      "Breathe."
+    ],
+    [
+      28,
+      "Almost."
+    ]
+  ],
+  "evidence": {
+    "renderedLines": "output/playwright/lettering-second-pass/rendered-lines.json",
+    "editorChecks": "output/playwright/lettering-second-pass/editor-check.log",
+    "viewportChecks": "output/playwright/lettering-second-pass/finish-review.log",
+    "pageScreenshots": "output/playwright/lettering-second-pass/",
+    "pdfInspection": "output/pdf/inner-voice-lettering-second-pass-2026-10-16/inspection/",
+    "pdfManifest": "output/pdf/inner-voice-lettering-second-pass-2026-10-16/proof-manifest.json"
+  },
+  "sha256": {
+    "lettering.json": "ab9d16afa5ff933a7e2628ef48e7a8dac20d7f041e5fbc57eda9159791d582a1",
+    "placements.json": "3b2d8e651cabd82377fe0cd5a4d8686c25c0e7f5a84d73f31315879ee28160a2",
+    "lettering-data.json": "080480fcff9985f445b46b0e3a6e06a653612670d9e8b7c6e353daeee79770ae",
+    "refine_lettering.py": "cb28c3f935045df3ee2ac2708de219de0129dcadecfdcc17aa8152f8b6d69c4c",
+    "pagesPdf": "bd96f24695acc1b07103b7314a7c0444712ffea14de6c805d4aa8696b308bab7",
+    "spreadsPdf": "6ae16a5ad2ac866bd94839bde44bb9f14fe763b415da872f5887191b65094050"
+  },
+  "maintenanceAssessment": "Reused existing text-block editor, revision-checked sidecar and proof renderer. This pass changed layout data and the existing local layout builder. No new persistence or production path was needed.",
+  "limits": [
+    "Creative approval remains pending. Pages 30 and 31 and unfinished front matter remain provisional.",
+    "Local review uses the retained Alexandra/Owl fixture. Other names and guides need separate fit checks.",
+    "PDFs use 200 mm review pages and 2048 px artwork. Physical print readability and production rendering remain unapproved.",
+    "Mobile controls sit below the artwork; desktop is better for precise placement."
+  ],
+  "editorRestart": {
+    "url": "http://127.0.0.1:8847",
+    "servedRevision": 8,
+    "servedFileMatchesSavedDraft": true,
+    "fontLoads": true,
+    "browserOpened": false
+  },
+  "supersededBy": "lettering-expressive-pass-review.json"
+}

@@ -4,7 +4,7 @@
   "configVersion": 2,
   "formatId": "standard",
   "baselineFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
-  "savedAt": "2026-10-16T18:58:43.550Z",
+  "savedAt": "2026-10-21T00:45:20.325Z",
   "pages": [
     {
       "page": 1,
@@ -215,16 +215,16 @@
           "id": "hero",
           "assetSha256": "a1a70e2b3f61a8af0501a8e9d346594a56bc43b470b1e4d72e5ad0b4c50179b7",
           "visible": {
-            "left": 637.8616130924041,
-            "top": 1104.0532327092992,
+            "left": 495.2648465967452,
+            "top": 1131.0034099221223,
             "width": 455.49035628635175,
             "height": 958.4276246858652,
             "flipX": true,
             "zIndex": 10
           },
           "placement": {
-            "left": -24.935251503761606,
-            "top": 741.9967956611733,
+            "left": -167.53201799942053,
+            "top": 768.9469728739964,
             "width": 1494.9427078116162,
             "height": 1494.9427078116162,
             "flipX": true,
@@ -267,16 +267,16 @@
           "id": "breath-vignette",
           "assetSha256": "410ec4c98bef61581c49d48a4a00b9a184db97cf9003dbf3816b603dbed0b8bf",
           "visible": {
-            "left": 1578.013905472124,
-            "top": 1718.9873949572268,
+            "left": 1228.5677057950832,
+            "top": 1732.1738003075147,
             "width": 648.0248101212223,
             "height": 898.2116039022006,
             "flipX": false,
             "zIndex": 11
           },
           "placement": {
-            "left": 795.6674970504583,
-            "top": 1471.8766683129,
+            "left": 446.22129737341754,
+            "top": 1485.0630736631879,
             "width": 2099.92849862067,
             "height": 2099.92849862067,
             "flipX": false,

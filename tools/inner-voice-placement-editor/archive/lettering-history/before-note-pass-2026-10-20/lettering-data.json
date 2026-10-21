@@ -1,0 +1,1761 @@
+{
+  "schema": "lhb.lettering-editor-seed@v1",
+  "bookId": "book-finding-our-inner-voice",
+  "baselineFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
+  "units": 2625,
+  "pageSizeMm": 200,
+  "font": "lettering-hand",
+  "fontName": "Love Ya Like A Sister",
+  "direction": "B",
+  "pages": [
+    {
+      "page": 1,
+      "pageId": "page-01",
+      "blocks": [
+        {
+          "text": "Finding Our Inner Voice",
+          "left": 517.734,
+          "top": 955.346875,
+          "width": 1624.1663411458333,
+          "size": 32.0,
+          "leading": 40.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-01-01"
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "pageId": "page-02",
+      "blocks": []
+    },
+    {
+      "page": 3,
+      "pageId": "page-03",
+      "blocks": [
+        {
+          "text": "[Customer dedication message]",
+          "left": 646.5371354166666,
+          "top": 1138.703125,
+          "width": 1376.7214965820312,
+          "size": 20.0,
+          "leading": 25.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-03-01"
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "pageId": "page-04",
+      "blocks": []
+    },
+    {
+      "page": 5,
+      "pageId": "page-05",
+      "blocks": [
+        {
+          "text": "This was Alexandra's favorite park in all of\nGrass Valley.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 1505.3002115885415,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-05-01"
+        },
+        {
+          "text": "Swings squeaked. Sneakers thumped. Kids\nlaughed and called, \"Again, again!\"",
+          "left": 166.6875,
+          "top": 357.1239583333334,
+          "width": 1449.5206705729165,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-05-02"
+        },
+        {
+          "text": "Alexandra ran in, ready to play.",
+          "left": 166.6875,
+          "top": 565.4833333333333,
+          "width": 1114.8434244791665,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-05-03"
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "pageId": "page-06",
+      "blocks": [
+        {
+          "text": "Swings. Tunnels. Sand. A climbing wall like a\nmountain.",
+          "left": 648.2291666666666,
+          "top": 148.7645833333334,
+          "width": 1522.8805338541665,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-06-01"
+        },
+        {
+          "text": "Alexandra looked left, then right. \"What should\nI try first?\"",
+          "left": 648.2291666666666,
+          "top": 357.1239583333334,
+          "width": 1607.5265299479165,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-06-02"
+        },
+        {
+          "text": "Then came a whoosh from way up high.",
+          "left": 648.2291666666666,
+          "top": 565.4833333333333,
+          "width": 1342.0853678385415,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-06-03"
+        }
+      ]
+    },
+    {
+      "page": 7,
+      "pageId": "page-07",
+      "blocks": [
+        {
+          "text": "It was the tall slide.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 726.412353515625,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-07-01"
+        },
+        {
+          "text": "Kids climbed up. Kids sat down. Kids\nwhooshed all the way to the bottom.",
+          "left": 166.6875,
+          "top": 264.5197916666667,
+          "width": 1262.3589680989583,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-07-02"
+        },
+        {
+          "text": "\"Again, again!\" they shouted.",
+          "left": 166.6875,
+          "top": 472.8791666666667,
+          "width": 997.7859700520833,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-07-03"
+        },
+        {
+          "text": "Alexandra looked up.",
+          "left": 166.6875,
+          "top": 588.6343750000001,
+          "width": 744.7161458333333,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-07-04"
+        },
+        {
+          "text": "The slide looked fun. It also looked\nvery, very tall.",
+          "left": 166.6875,
+          "top": 704.3895833333335,
+          "width": 1204.1919759114583,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-07-05"
+        }
+      ]
+    },
+    {
+      "page": 8,
+      "pageId": "page-08",
+      "blocks": [
+        {
+          "text": "Alexandra climbed to the top.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 1040.470703125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-08-01"
+        },
+        {
+          "text": "The slide looked even longer from here.",
+          "left": 166.6875,
+          "top": 264.5197916666667,
+          "width": 1367.551513671875,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-08-02"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "left": 166.6875,
+          "top": 380.2750000000001,
+          "width": 937.376220703125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-08-03"
+        },
+        {
+          "text": "Alexandra's tummy flipped. The top felt\nsmall. The slide felt big.",
+          "left": 166.6875,
+          "top": 496.03020833333335,
+          "width": 1367.9132486979165,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-08-04"
+        },
+        {
+          "text": "Alexandra did not know what to do.",
+          "left": 166.6875,
+          "top": 704.3895833333335,
+          "width": 1220.3253580729165,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-08-05"
+        }
+      ]
+    },
+    {
+      "page": 9,
+      "pageId": "page-09",
+      "blocks": [
+        {
+          "text": "That night, Alexandra sat quietly on the bed. The slide was far\naway. The big feeling was still there.",
+          "left": 166.6875,
+          "top": 1894.353125,
+          "width": 2137.902425130208,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-09-01"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "left": 166.6875,
+          "top": 2102.7124999999996,
+          "width": 937.376220703125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-09-02"
+        },
+        {
+          "text": "Alexandra took a deep breath. The room grew quiet.",
+          "left": 166.6875,
+          "top": 2218.467708333333,
+          "width": 1772.1883138020833,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-09-03"
+        },
+        {
+          "text": "\"That was scary,\" said a tiny voice. Alexandra nodded. \"Yes.\"",
+          "left": 166.6875,
+          "top": 2334.2229166666666,
+          "width": 2053.9798990885415,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-09-04"
+        },
+        {
+          "text": "\"Oh! You can hear me now.\"",
+          "left": 166.6875,
+          "top": 2449.9781249999996,
+          "width": 938.0996907552083,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-09-05"
+        }
+      ]
+    },
+    {
+      "page": 10,
+      "pageId": "page-10",
+      "blocks": [
+        {
+          "text": "\"Who said that?\" asked\nAlexandra.",
+          "left": 1551.1197916666667,
+          "top": 204.3270833333334,
+          "width": 789.7159830729166,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-10-01"
+        },
+        {
+          "text": "A light blinked beside the\nbed. Then another. Then\nanother.",
+          "left": 1551.1197916666667,
+          "top": 412.6864583333334,
+          "width": 900.9856770833333,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-10-02"
+        },
+        {
+          "text": "The lights made a path\nacross the floor. \"Let's\nlook together,\" said the\ntiny voice.",
+          "left": 1551.1197916666667,
+          "top": 713.6500000000001,
+          "width": 835.9457194010416,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-10-03"
+        }
+      ]
+    },
+    {
+      "page": 11,
+      "pageId": "page-11",
+      "blocks": [
+        {
+          "text": "Alexandra followed the lights.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 1053.3484700520833,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-11-01"
+        },
+        {
+          "text": "The walls became trees. The rug became\nmoss. The ceiling filled with stars.",
+          "left": 166.6875,
+          "top": 264.5197916666667,
+          "width": 1401.843994140625,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-11-02"
+        },
+        {
+          "text": "\"This way,\" said the voice. \"Whenever\nyou're ready.\"",
+          "left": 166.6875,
+          "top": 472.8791666666667,
+          "width": 1262.1419270833333,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-11-03"
+        }
+      ]
+    },
+    {
+      "page": 12,
+      "pageId": "page-12",
+      "blocks": [
+        {
+          "text": "On the quiet path\nlay a clue:",
+          "left": 761.25,
+          "top": 236.25,
+          "width": 1076.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-12-01"
+        },
+        {
+          "text": "a feather.",
+          "left": 892.5,
+          "top": 603.75,
+          "width": 997.5,
+          "size": 19,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -3,
+          "edge": false,
+          "id": "text-12-02"
+        },
+        {
+          "text": "Alexandra looked left.",
+          "left": 708.75,
+          "top": 1050.0,
+          "width": 1260.0,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-12-03"
+        },
+        {
+          "text": "Then right.",
+          "left": 1155.0,
+          "top": 1260.0,
+          "width": 1050.0,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-12-04"
+        },
+        {
+          "text": "\"Where are you?\"",
+          "left": 761.25,
+          "top": 1601.25,
+          "width": 1496.25,
+          "size": 19,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 3,
+          "edge": true,
+          "id": "text-12-05"
+        },
+        {
+          "text": "called Alexandra.",
+          "left": 892.5,
+          "top": 1785.0,
+          "width": 1391.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-12-06"
+        }
+      ]
+    },
+    {
+      "page": 13,
+      "pageId": "page-13",
+      "blocks": [
+        {
+          "text": "Something rustled\nin a bush.",
+          "left": 1417.5,
+          "top": 183.75,
+          "width": 1023.75,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-13-01"
+        },
+        {
+          "text": "\"Are you hiding?\"",
+          "left": 1338.75,
+          "top": 525.0,
+          "width": 1128.75,
+          "size": 18,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": -3,
+          "edge": false,
+          "id": "text-13-02"
+        },
+        {
+          "text": "asked Alexandra.",
+          "left": 1443.75,
+          "top": 682.5,
+          "width": 1050.0,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-13-03"
+        },
+        {
+          "text": "The bush rustled again.\nThen it sneezed.",
+          "left": 1785.0,
+          "top": 813.75,
+          "width": 708.75,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-13-04"
+        },
+        {
+          "text": "\"Achoo!\"",
+          "left": 1890.0,
+          "top": 1443.75,
+          "width": 630.0,
+          "size": 24,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 12,
+          "edge": true,
+          "id": "text-13-05"
+        },
+        {
+          "text": "Bushes do not usually sneeze.",
+          "left": 315.0,
+          "top": 2283.75,
+          "width": 2047.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-13-06"
+        }
+      ]
+    },
+    {
+      "page": 14,
+      "pageId": "page-14",
+      "blocks": [
+        {
+          "text": "Before Alexandra could peek, voices\ncalled from every direction.",
+          "left": 166.6875,
+          "top": 1616.540625,
+          "width": 1269.7383626302083,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-14-01"
+        },
+        {
+          "text": "\"This way!\" blinked a star. \"No, this way!\"\npuffed the wind. \"Hop!\" said a mushroom.\n\"Skip!\" said a stone.",
+          "left": 166.6875,
+          "top": 1824.8999999999999,
+          "width": 1396.41796875,
+          "size": 16.0,
+          "leading": 20.000000000000068,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-14-02"
+        },
+        {
+          "text": "A sign spun around. \"HURRY!\"",
+          "left": 166.6875,
+          "top": 2125.8635416666666,
+          "width": 1009.5785319010416,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-14-03"
+        }
+      ]
+    },
+    {
+      "page": 15,
+      "pageId": "page-15",
+      "blocks": [
+        {
+          "text": "\"Too many voices make it hard to hear\nyour own,\" said the tiny voice.",
+          "left": 1157.5520833333333,
+          "top": 713.6500000000001,
+          "width": 1336.1979166666667,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-15-01"
+        },
+        {
+          "text": "Alexandra stopped. One slow breath.",
+          "left": 1157.5520833333333,
+          "top": 922.0093750000001,
+          "width": 1259.248046875,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-15-02"
+        },
+        {
+          "text": "Alexandra listened for the small, true\nvoice inside.",
+          "left": 1157.5520833333333,
+          "top": 1037.7645833333333,
+          "width": 1335.429443359375,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-15-03"
+        },
+        {
+          "text": "\"Listen close. I'm still here.\"",
+          "left": 1157.5520833333333,
+          "top": 1246.1239583333333,
+          "width": 997.8583170572916,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-15-04"
+        },
+        {
+          "text": "And there it was: a quiet path.",
+          "left": 1157.5520833333333,
+          "top": 1361.8791666666668,
+          "width": 1062.9706217447915,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-15-05"
+        }
+      ]
+    },
+    {
+      "page": 16,
+      "pageId": "page-16",
+      "blocks": [
+        {
+          "text": "The path split in two.",
+          "left": 166.6875,
+          "top": 158.02500000000003,
+          "width": 750.3592122395833,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-16-01"
+        },
+        {
+          "text": "One way was smooth and shiny. It looked\neasy. The other was plain and steep.",
+          "left": 166.6875,
+          "top": 273.7802083333334,
+          "width": 1411.61083984375,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-16-02"
+        },
+        {
+          "text": "Alexandra looked at the shiny path. It was\npretty. But something inside felt tight.",
+          "left": 166.6875,
+          "top": 482.13958333333335,
+          "width": 1470.428955078125,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-16-03"
+        },
+        {
+          "text": "A deep breath. \"Not that way,\" whispered\nthe tiny voice.",
+          "left": 166.6875,
+          "top": 690.4989583333333,
+          "width": 1390.7025553385415,
+          "size": 16.0,
+          "leading": 20.000000000000018,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-16-04"
+        }
+      ]
+    },
+    {
+      "page": 17,
+      "pageId": "page-17",
+      "blocks": [
+        {
+          "text": "Alexandra chose the steep path.",
+          "left": 166.6875,
+          "top": 158.02500000000003,
+          "width": 1135.317626953125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-17-01"
+        },
+        {
+          "text": "Up, and up, and up.",
+          "left": 166.6875,
+          "top": 273.7802083333334,
+          "width": 656.091064453125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-17-02"
+        },
+        {
+          "text": "At the top, a cave glittered. Alexandra\nstepped closer.",
+          "left": 166.6875,
+          "top": 389.5354166666668,
+          "width": 1345.9921061197915,
+          "size": 16.0,
+          "leading": 19.999999999999982,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-17-03"
+        }
+      ]
+    },
+    {
+      "page": 18,
+      "pageId": "page-18",
+      "blocks": [
+        {
+          "text": "Alexandra felt scared.\nAlexandra's tummy felt tight.",
+          "left": 183.75,
+          "top": 157.5,
+          "width": 2257.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-01"
+        },
+        {
+          "text": "\"YOU CAN'T!\"  \"YOU'RE TOO LITTLE!\"",
+          "left": 183.75,
+          "top": 420.0,
+          "width": 2257.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-02"
+        },
+        {
+          "text": "The tiny voice echoed through the cave.",
+          "left": 183.75,
+          "top": 603.75,
+          "width": 2257.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-03"
+        },
+        {
+          "text": "A wall blocked the path. The same words\nglowed on it in big, prickly letters.",
+          "left": 656.25,
+          "top": 1706.25,
+          "width": 1811.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-04"
+        },
+        {
+          "text": "The tiny voice didn't sound friendly now.",
+          "left": 656.25,
+          "top": 1968.75,
+          "width": 1811.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-05"
+        },
+        {
+          "text": "\"Why do you sound mean?\" asked Alexandra.",
+          "left": 787.5,
+          "top": 2467.5,
+          "width": 1706.25,
+          "size": 17,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-18-06"
+        }
+      ]
+    },
+    {
+      "page": 19,
+      "pageId": "page-19",
+      "blocks": [
+        {
+          "text": "The voice was quiet.\nAlexandra remembered.",
+          "left": 210.0,
+          "top": 210.0,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-19-01"
+        },
+        {
+          "text": "One deep breath.",
+          "left": 210.0,
+          "top": 472.5,
+          "width": 1023.75,
+          "size": 18,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -2,
+          "edge": false,
+          "id": "text-19-02"
+        },
+        {
+          "text": "Then another.",
+          "left": 393.75,
+          "top": 630.0,
+          "width": 840.0,
+          "size": 17,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-19-03"
+        },
+        {
+          "text": "The cave grew quieter.",
+          "left": 210.0,
+          "top": 787.5,
+          "width": 997.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-19-04"
+        },
+        {
+          "text": "The prickly words\nwiggled.",
+          "left": 210.0,
+          "top": 945.0,
+          "width": 971.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-19-05"
+        },
+        {
+          "text": "Then softened.",
+          "left": 315.0,
+          "top": 1155.0,
+          "width": 945.0,
+          "size": 19,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -2,
+          "edge": false,
+          "id": "text-19-06"
+        }
+      ]
+    },
+    {
+      "page": 20,
+      "pageId": "page-20",
+      "blocks": [
+        {
+          "text": "The words opened. Inside were smaller words:",
+          "left": 166.6875,
+          "top": 158.02500000000003,
+          "width": 1570.1231282552083,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-20-01"
+        },
+        {
+          "text": "I'M A LITTLE SCARED.\nTHIS FEELS TOO BIG.",
+          "left": 166.6875,
+          "top": 273.7802083333334,
+          "width": 709.5555013020833,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-20-02"
+        },
+        {
+          "text": "\"Oh. You weren't trying to be mean.\"",
+          "left": 648.2291666666666,
+          "top": 1806.3791666666668,
+          "width": 1241.0166015625,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-20-03"
+        },
+        {
+          "text": "The tiny voice felt warm again.",
+          "left": 648.2291666666666,
+          "top": 1922.134375,
+          "width": 1092.1988118489583,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-20-04"
+        }
+      ]
+    },
+    {
+      "page": 21,
+      "pageId": "page-21",
+      "blocks": [
+        {
+          "text": "\"Sometimes big feelings come out sharp,\"\nsaid the voice.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 1438.4515787760415,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-21-01"
+        },
+        {
+          "text": "\"But if you listen close, you can hear what\nthey are really trying to say.\"",
+          "left": 166.6875,
+          "top": 357.1239583333334,
+          "width": 1488.00927734375,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-21-02"
+        }
+      ]
+    },
+    {
+      "page": 22,
+      "pageId": "page-22",
+      "blocks": [
+        {
+          "text": "The prickles fell away.\nThe wall shimmered.",
+          "left": 210.0,
+          "top": 236.25,
+          "width": 1575.0,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-22-01"
+        },
+        {
+          "text": "The cave",
+          "left": 210.0,
+          "top": 708.75,
+          "width": 1233.75,
+          "size": 16,
+          "leading": 20,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-22-02"
+        },
+        {
+          "text": "opened wide.",
+          "left": 341.25,
+          "top": 892.5,
+          "width": 1443.75,
+          "size": 21,
+          "leading": 20,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -5,
+          "edge": false,
+          "id": "text-22-03"
+        },
+        {
+          "text": "Beyond it,\nthe world was bright.",
+          "left": 1653.75,
+          "top": 1968.75,
+          "width": 866.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-22-04"
+        },
+        {
+          "text": "Alexandra stepped\nthrough.",
+          "left": 1260.0,
+          "top": 2336.25,
+          "width": 1181.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-22-05"
+        }
+      ]
+    },
+    {
+      "page": 23,
+      "pageId": "page-23",
+      "blocks": [
+        {
+          "text": "Alexandra ran into the sunlight.",
+          "left": 236.25,
+          "top": 183.75,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": -2,
+          "edge": false,
+          "id": "text-23-01"
+        },
+        {
+          "text": "Alexandra felt a little better now.",
+          "left": 236.25,
+          "top": 393.75,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-23-02"
+        },
+        {
+          "text": "Now Alexandra understood.\nThe tiny voice helped them notice",
+          "left": 735.0,
+          "top": 603.75,
+          "width": 1758.75,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-23-03"
+        },
+        {
+          "text": "what felt scary,",
+          "left": 761.25,
+          "top": 840.0,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-23-04"
+        },
+        {
+          "text": "what felt wrong,",
+          "left": 918.75,
+          "top": 945.0,
+          "width": 1575.0,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-23-05"
+        },
+        {
+          "text": "and what felt right.",
+          "left": 1076.25,
+          "top": 1050.0,
+          "width": 1443.75,
+          "size": 18,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": -2,
+          "edge": false,
+          "id": "text-23-06"
+        }
+      ]
+    },
+    {
+      "page": 24,
+      "pageId": "page-24",
+      "blocks": [
+        {
+          "text": "\"I want to see you,\" said Alexandra.",
+          "left": 648.2291666666666,
+          "top": 1385.0302083333333,
+          "width": 1232.3349609375,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-24-01"
+        },
+        {
+          "text": "A trail of feathers glowed ahead. The forest\ngrew warmer and quieter.",
+          "left": 648.2291666666666,
+          "top": 1500.7854166666666,
+          "width": 1513.18603515625,
+          "size": 16.0,
+          "leading": 20.000000000000068,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-24-02"
+        },
+        {
+          "text": "\"Where are you?\"",
+          "left": 648.2291666666666,
+          "top": 1709.1447916666668,
+          "width": 597.489990234375,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-24-03"
+        },
+        {
+          "text": "\"Listen close,\" said the tiny voice.\n\"That quiet is your heart.\"",
+          "left": 648.2291666666666,
+          "top": 1824.8999999999999,
+          "width": 1197.7530924479165,
+          "size": 16.0,
+          "leading": 20.000000000000068,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-24-04"
+        }
+      ]
+    },
+    {
+      "page": 25,
+      "pageId": "page-25",
+      "blocks": [
+        {
+          "text": "In a warm, magical clearing, Owl appeared.",
+          "left": 671.3802083333334,
+          "top": 158.02500000000003,
+          "width": 1484.53662109375,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-25-01"
+        },
+        {
+          "text": "Alexandra gasped. \"It was you?\"",
+          "left": 671.3802083333334,
+          "top": 273.7802083333334,
+          "width": 1110.35791015625,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-25-02"
+        },
+        {
+          "text": "Owl smiled.",
+          "left": 671.3802083333334,
+          "top": 389.5354166666668,
+          "width": 420.96329752604163,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-25-03"
+        },
+        {
+          "text": "\"I am your quiet voice,\" said Owl, \"in a shape\nyou can see.\"",
+          "left": 671.3802083333334,
+          "top": 505.2906250000001,
+          "width": 1533.2261555989583,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-25-04"
+        },
+        {
+          "text": "The warm quiet was inside Alexandra, too.",
+          "left": 671.3802083333334,
+          "top": 713.6500000000001,
+          "width": 1456.104248046875,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-25-05"
+        }
+      ]
+    },
+    {
+      "page": 26,
+      "pageId": "page-26",
+      "blocks": [
+        {
+          "text": "Alexandra and Owl flew through the stars.",
+          "left": 694.53125,
+          "top": 621.0458333333335,
+          "width": 1475.203857421875,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-26-01"
+        },
+        {
+          "text": "The magical forest grew small below. Ahead\nwas the park, the ladder, and the very, very tall\nslide.",
+          "left": 694.53125,
+          "top": 736.8010416666667,
+          "width": 1657.3736165364583,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-26-02"
+        },
+        {
+          "text": "Owl stayed close. So did the quiet voice.",
+          "left": 694.53125,
+          "top": 1037.7645833333333,
+          "width": 1389.9790852864583,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-26-03"
+        }
+      ]
+    },
+    {
+      "page": 27,
+      "pageId": "page-27",
+      "blocks": [
+        {
+          "text": "Alexandra was back at the top.",
+          "left": 166.6875,
+          "top": 148.7645833333334,
+          "width": 1093.211669921875,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-27-01"
+        },
+        {
+          "text": "The slide still looked long. The slide still\nlooked fun. The slide still looked very,\nvery tall.",
+          "left": 166.6875,
+          "top": 264.5197916666667,
+          "width": 1400.975830078125,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-27-02"
+        },
+        {
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "left": 166.6875,
+          "top": 565.4833333333333,
+          "width": 937.376220703125,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-27-03"
+        },
+        {
+          "text": "Alexandra's tummy flipped.",
+          "left": 166.6875,
+          "top": 681.2385416666667,
+          "width": 962.1912434895833,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-27-04"
+        },
+        {
+          "text": "This time, Alexandra knew what to do.",
+          "left": 166.6875,
+          "top": 796.9937500000001,
+          "width": 1311.8443196614583,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": true,
+          "id": "text-27-05"
+        },
+        {
+          "text": "Pause.\nBreathe.\nListen close.",
+          "left": 926.0416666666666,
+          "top": 1910.0958333333335,
+          "width": 535.63330078125,
+          "size": 18.0,
+          "leading": 21.999999999999936,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-27-06"
+        }
+      ]
+    },
+    {
+      "page": 28,
+      "pageId": "page-28",
+      "blocks": [
+        {
+          "text": "The quiet voice was there.",
+          "left": 166.6875,
+          "top": 158.02500000000003,
+          "width": 928.1158040364583,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-01"
+        },
+        {
+          "text": "Small and warm.",
+          "left": 166.6875,
+          "top": 273.7802083333334,
+          "width": 589.8212076822916,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-02"
+        },
+        {
+          "text": "\"Not yet,\" it said. \"Almost.\"",
+          "left": 166.6875,
+          "top": 389.5354166666668,
+          "width": 928.1881510416666,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-03"
+        },
+        {
+          "text": "Alexandra looked at the child waiting behind\nthem.",
+          "left": 166.6875,
+          "top": 505.2906250000001,
+          "width": 1546.7550455729165,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-04"
+        },
+        {
+          "text": "\"You go first,\" said Alexandra. \"I'm almost\nready.\"",
+          "left": 166.6875,
+          "top": 713.6500000000001,
+          "width": 1446.6267903645833,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-05"
+        },
+        {
+          "text": "And this time, Alexandra smiled.",
+          "left": 166.6875,
+          "top": 922.0093750000001,
+          "width": 1136.9816080729165,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-28-06"
+        }
+      ]
+    },
+    {
+      "page": 29,
+      "pageId": "page-29",
+      "blocks": []
+    },
+    {
+      "page": 30,
+      "pageId": "page-30",
+      "blocks": [
+        {
+          "text": "Pause.\nBreathe.\nListen close.",
+          "left": 648.2291666666666,
+          "top": 343.2333333333334,
+          "width": 481.95182291666663,
+          "size": 16.0,
+          "leading": 20.000000000000007,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-01"
+        },
+        {
+          "text": "Trace the spiral with your finger.",
+          "left": 648.2291666666666,
+          "top": 644.1968750000001,
+          "width": 1181.4026692708333,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-02"
+        },
+        {
+          "text": "Breathe in as you go around. Breathe out\nas you come back.",
+          "left": 648.2291666666666,
+          "top": 759.9520833333335,
+          "width": 1432.229736328125,
+          "size": 16.0,
+          "leading": 19.999999999999993,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-03"
+        },
+        {
+          "text": "Think of something you'd like to try.",
+          "left": 648.2291666666666,
+          "top": 968.3114583333333,
+          "width": 1266.1210123697915,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-04"
+        },
+        {
+          "text": "How does it make you feel?",
+          "left": 648.2291666666666,
+          "top": 1084.0666666666668,
+          "width": 951.4115397135416,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-05"
+        },
+        {
+          "text": "Listen close. Does your quiet voice say\n\"no,\" \"not yet,\" or \"yes\"?",
+          "left": 648.2291666666666,
+          "top": 1199.821875,
+          "width": 1382.310302734375,
+          "size": 16.0,
+          "leading": 19.999999999999968,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-06"
+        },
+        {
+          "text": "You can take your time.",
+          "left": 648.2291666666666,
+          "top": 1408.18125,
+          "width": 852.730224609375,
+          "size": 16.0,
+          "leading": 20.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-30-07"
+        }
+      ]
+    },
+    {
+      "page": 31,
+      "pageId": "page-31",
+      "blocks": [
+        {
+          "text": "About Little Hero Labs / copyright page.",
+          "left": 212.98958333333331,
+          "top": 276.5583333333334,
+          "width": 1231.7833150227862,
+          "size": 13.999999999999998,
+          "leading": 17.499999999999996,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-31-01"
+        },
+        {
+          "text": "For grown-ups",
+          "left": 212.98958333333331,
+          "top": 383.0531250000001,
+          "width": 471.190205891927,
+          "size": 13.999999999999998,
+          "leading": 17.499999999999996,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-31-02"
+        },
+        {
+          "text": "Ask your child: \"Was there a time today when you felt ready, or when you\nwanted to wait?\"",
+          "left": 212.98958333333331,
+          "top": 489.54791666666665,
+          "width": 2193.2388407389317,
+          "size": 13.999999999999998,
+          "leading": 18.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-31-03"
+        },
+        {
+          "text": "Give them time to answer.",
+          "left": 212.98958333333331,
+          "top": 679.3864583333334,
+          "width": 815.3720397949216,
+          "size": 13.999999999999998,
+          "leading": 17.499999999999996,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "id": "text-31-04"
+        }
+      ]
+    },
+    {
+      "page": 32,
+      "pageId": "page-32",
+      "blocks": []
+    }
+  ],
+  "layoutFingerprint": "69052bba987d7e2a81e6ed5ced8f39c8330c22ba3a20cae78cbd8b853975d127"
+}

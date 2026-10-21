@@ -99,8 +99,8 @@ Owner: Jeff and his agent. Scope is confirmed; final content approvals remain pe
 - [ ] Page plan: approve exact Amazon and website sequences, including title/front/back matter, blanks and cover slots.
 - [ ] Poses: approve every required pose, expression and gaze; resolve missing or unsuitable poses and review multiple-character scenes.
 - [ ] Backgrounds: approve the selected images, paint style, color/saturation and crops. Preserve intended cave-wall lettering.
-- [ ] Character sizing and positioning: review every appearance, including secondary/static characters, against its final background and text.
-- [ ] Text styling and placement: approve font, size, color, line breaks, spacing, contrast and placement; remove unwanted text backgrounds.
+- [x] Character sizing and positioning: Jeff accepted the saved placements for the lettering pass on October 16. Recheck fit when artwork changes; secondary-character artwork still needs finishing.
+- [ ] Text styling and placement: working layout accepted for now on October 20. Keep it during background finishing; complete edition, long-name and print checks before final approval.
 - [ ] Covers: approve front, back and spine for both editions, the slide decision and any required barcode/ISBN treatment.
 - [ ] Animal guides and clues: approve appearances and guide-specific clue layers for every supported guide; resolve backgrounds 12/13's baked clue placeholders.
 - [ ] Breathing exercise: approve its replacement illustration, instructions and final layout.
@@ -119,6 +119,10 @@ Placement/art review recorded October 15: [working placement export and page not
 Selected art and saved placements are committed in the [portable placement editor](../../tools/inner-voice-placement-editor/README.md). Current editor images meet a 2048-pixel minimum; smaller sources were enlarged with Lanczos and retain their provenance. Page 13 now has a sneeze effect on the original matching 12/13 spread. Page 12 is unchanged. Poses 7, 17 and 28, bedrooms 9/10 and the page 19 focus treatment are saved directions with finishing decisions still open. Animal clue scenes are deferred for separate work.
 
 Next creative sequence: character placement and contact, lettering, unresolved copy and ending exercise, guide-specific art, covers and exact edition sequences, complete personalized proofs, then separately approved physical print validation. Do not mark the checklist complete from this snapshot. Gelato engineering changes merged after this phase plan are documented separately in this folder; no production controls change with the creative snapshot.
+
+### Lettering checkpoint, October 20
+
+Jeff considers text placement good enough for now. Next is background continuity, beginning with page 11 saturation and guide-specific bedroom and clue artwork. See [the background finishing plan](../new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). The portable editor retains the current text and character state. Existing PDFs are historical, and production config, customer orders and provider controls remain unchanged.
 
 ### Completion requirements
 

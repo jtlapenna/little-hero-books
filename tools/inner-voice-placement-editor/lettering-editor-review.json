@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-16",
+  "scope": "Local editor text controls, direction B",
+  "sourceSha256": {
+    "app.js": "f2317bd678795b92ae9c13b4e23442f4a27157ec00e0a5738619456002e1d60c",
+    "lettering.js": "802cb603dc9af3c14048eebb08d3a7bec9ce1733310b0d28e35dd5574032e4e5",
+    "index.html": "59617f63b4b8b2d1b2eba8207097d06a0cd4d1678cc39298a5ed2e40bddb82f2",
+    "styles.css": "e9bda028e1901f265c8d69edf7895deebf0823397afe1f70ba58b9869489fada",
+    "server.py": "776474cff450b3c9b2185d0f19ed390e7b86ef5d1fbc5aa180df68ef0d90636d",
+    "lettering_state.py": "6b8372d39f816e3b882edeefc95699ad3c91e0e6713453580861b1a862f40d4d",
+    "lettering-data.json": "080480fcff9985f445b46b0e3a6e06a653612670d9e8b7c6e353daeee79770ae",
+    "asset-map.json": "809628ea744dba3e5923b4d1d625d4e8be5e9f12573ee2b5525ef65b21ae276c"
+  },
+  "checks": {
+    "startingBlocks": 120,
+    "pages": 32,
+    "syntax": "JavaScript and Python syntax passed",
+    "interactiveWalkthrough": [
+      "Font size and width",
+      "Manual line breaks and removing a break",
+      "Drag position and width handle",
+      "Split and join blocks",
+      "Undo and redo",
+      "Story-word preservation",
+      "Save and reload",
+      "Pagehide/reload recovery",
+      "Download and import with all 32 character and text pages",
+      "Two-tab revision conflict and loading saved lettering",
+      "Failed save with edits retained and successful retry",
+      "Failed startup with no writes",
+      "Keyboard movement",
+      "Rotated text and ink controls",
+      "Selecting text on the facing page then switching character controls",
+      "Blank-page state"
+    ],
+    "visualReview": [
+      "All 32 pages loaded with current images",
+      "Desktop page and spread views",
+      "Dark theme",
+      "1024 x 768 fit",
+      "390 x 844 controls and page with no horizontal overflow",
+      "Conflict banner after removing repeated guidance",
+      "Repeated visual pass after fixing vertical clipping at 1024 x 768 and 1280 x 720"
+    ],
+    "runtimeErrors": [],
+    "characterFileSha256": "3b2d8e651cabd82377fe0cd5a4d8686c25c0e7f5a84d73f31315879ee28160a2",
+    "viewportFit": {
+      "tabletPageBottom": 701.5,
+      "tabletFooterBottom": 768,
+      "tabletWindowHeight": 768,
+      "shortDesktopFits": true
+    }
+  },
+  "limits": [
+    "Small screens place text controls below the artwork. Desktop is best for simultaneous viewing and editing.",
+    "This review does not approve physical print readability, final book content or production rendering.",
+    "No unit suite or production/order tests were run."
+  ],
+  "persistence": "Lettering uses a separate revision-checked sidecar. Character file preserved byte for byte.",
+  "maintenanceAssessment": "Extended the existing editor, save endpoint pattern, asset allowlist, undo history and export. Fixed facing-page selection keeping stale character controls. No production renderer path added.",
+  "letteringPass": "lettering-full-pass-review.json"
+}

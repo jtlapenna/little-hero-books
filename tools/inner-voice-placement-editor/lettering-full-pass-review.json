@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-16",
+  "scope": "Full-book local lettering pass, direction B",
+  "savedRevision": 7,
+  "backup": "archive/lettering-history/lettering-before-full-pass-20261016-140431.json",
+  "changes": [
+    "Rebalanced line breaks without changing story words or punctuation.",
+    "Separated narration, dialogue and pauses with larger gaps.",
+    "Added selective size, rotation and color emphasis to sound words and story beats.",
+    "Moved text clear of faces and adjusted placement near the window, cave lettering, crystals, stars and foreground slide.",
+    "Used brown ink on light scenes and cream or gold on dark scenes. Kept fine contrast edges where needed."
+  ],
+  "preservation": {
+    "characterFileSha256": "3b2d8e651cabd82377fe0cd5a4d8686c25c0e7f5a84d73f31315879ee28160a2",
+    "letteringSeedSha256": "080480fcff9985f445b46b0e3a6e06a653612670d9e8b7c6e353daeee79770ae",
+    "storyWordsUnchanged": true,
+    "characterGeometryUnchanged": true,
+    "backgroundAssetsUnchanged": true,
+    "humanReviewFlagsAndNotesPreserved": true
+  },
+  "evidence": {
+    "pageScreenshots": "output/playwright/lettering-full-pass/page-01.png through page-32.png",
+    "lineAudit": "output/playwright/lettering-full-pass/line-audit.json",
+    "editorJourney": "output/playwright/lettering-full-pass/editor-journey.json",
+    "pdfIntegrity": "output/pdf/inner-voice-lettering-full-pass-2026-10-16/pdf-integrity.json"
+  },
+  "checks": {
+    "renderedPages": 32,
+    "textBlocks": 137,
+    "accidentalSingleWordLines": 0,
+    "textBlockIntersections": 0,
+    "textWithinPageMargins": true,
+    "paragraphSpacing": "Reviewed at page and spread scale. Repeated after visual corrections.",
+    "copyInPdf": "All 32 pages match the saved lettering after whitespace normalization.",
+    "editor": "Saved revision 7 loaded. Selected whoosh block showed 24 pt. Page and spread views worked. Tablet artwork fit. Mobile controls remained reachable without horizontal overflow.",
+    "reviewSizes": [
+      [
+        1600,
+        1200
+      ],
+      [
+        1600,
+        1100
+      ],
+      [
+        1024,
+        768
+      ],
+      [
+        390,
+        844
+      ]
+    ]
+  },
+  "intentionalSingleWordCues": [
+    [
+      6,
+      "whoosh"
+    ],
+    [
+      13,
+      "\"Achoo!\""
+    ],
+    [
+      14,
+      "\"HURRY!\""
+    ],
+    [
+      27,
+      "Breathe."
+    ],
+    [
+      27,
+      "Pause."
+    ],
+    [
+      28,
+      "\"Almost.\""
+    ]
+  ],
+  "limits": [
+    "User approval remains pending. Page 30 and 31 wording remains provisional.",
+    "Review PDFs show 200 mm pages and 2048 px artwork. They are not production print files.",
+    "Physical print readability and production rendering have not been approved.",
+    "Mobile controls sit below the page. Desktop remains better for precise placement."
+  ],
+  "letteringSha256": "a18a367c9395640ba1f5b09200bb8add0eb954cdc2f8bbc2dc4576c7453f560d",
+  "sourceSha256": {
+    "lettering-study/refine_lettering.py": "37500ad81ef98b4a4d313e269de7247534243bc7fd10aa99d6be4cbf9bf8e7eb",
+    "lettering-study/build_full_proof.py": "d0e231cacf3cd1a2ca988807183cbbaacb109794cdf0890f2b0e6ed5d60b4c04"
+  },
+  "supersededBy": "lettering-second-pass-review.json"
+}
