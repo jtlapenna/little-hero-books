@@ -35,6 +35,11 @@ jobs:
       - name: Verify bounded public request bodies and signed Stripe payloads
         run: node --import tsx scripts/test-request-body.ts
         working-directory: back-end
+      - name: Verify CSV envelope and public preview diagnostic boundaries
+        run: |
+          node --import tsx scripts/test-csv-request-boundary.ts
+          node --import tsx scripts/test-preview-error-boundary.ts
+        working-directory: back-end
       - name: Verify checkout validation before provider or storage access
         run: node --import tsx scripts/test-checkout-validation.ts
         working-directory: back-end

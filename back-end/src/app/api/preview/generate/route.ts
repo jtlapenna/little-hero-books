@@ -99,15 +99,15 @@ export async function POST(request: NextRequest) {
             { headers: corsHeaders }
           );
         }
-      } catch (e) {
+      } catch {
         // Cache check failed, proceed with generation
-        console.log('[Preview Generate] Cache check error (proceeding):', e);
+        console.warn('[Preview Generate] Cache lookup unavailable; continuing with generation');
       }
     }
 
     const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY;
     if (!geminiApiKey) {
-      return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500, headers: corsHeaders });
+      return NextResponse.json({ error: 'Preview generation unavailable' }, { status: 500, headers: corsHeaders });
     }
 
     // Resolve canonicals and asset keys
@@ -116,22 +116,14 @@ export async function POST(request: NextRequest) {
     });
     const resolved = resolvePreviewCanonicalsForConfig(specs, bookConfig);
     
-    console.log('[Preview Generate] Resolved canonicals:', {
-      bookId: resolved.bookId,
-      skinTone: specs.skinTone,
-      skinToneCanonical: resolved.skinToneCanonical,
-      baseRefKey: resolved.baseRefKey,
-      hairStyle: specs.hairStyle,
-      hairColor: specs.hairColor,
-      favoriteColor: specs.favoriteColor,
-    });
+    console.log('[Preview Generate] Canonical assets resolved');
 
     // Load base image from R2
     let baseRes: Response;
     try {
       baseRes = await getObject(R2_PUBLIC_BUCKET, resolved.baseRefKey);
-    } catch (e: unknown) {
-      console.error('[Preview Generate] Failed to load base image:', resolved.baseRefKey, e);
+    } catch {
+      console.error('[Preview Generate] Base image lookup failed');
       return NextResponse.json(
         { error: 'Base character image not available' },
         { status: 502, headers: corsHeaders }
@@ -148,7 +140,7 @@ export async function POST(request: NextRequest) {
       const hairRes = await getObject(R2_PUBLIC_BUCKET, resolved.hairRefKey);
       hairBuf = await hairRes.arrayBuffer();
       hairMime = hairRes.headers.get('content-type') || 'image/png';
-    } catch (e: unknown) {
+    } catch {
       const fallbackDir = process.env.PREVIEW_HAIR_FALLBACK_DIR;
       if (fallbackDir) {
         const hairFilename = path.basename(resolved.hairRefKey);
@@ -156,18 +148,17 @@ export async function POST(request: NextRequest) {
         try {
           const buf = await readFile(localPath);
           hairBuf = Uint8Array.from(buf).buffer;
-        } catch (fallbackErr) {
-          console.error('[Preview Generate] Hair ref R2 and fallback failed:', resolved.hairRefKey, localPath, e, fallbackErr);
+        } catch {
+          console.error('[Preview Generate] Hair image and local fallback lookup failed');
           return NextResponse.json(
-            { error: `Hairstyle reference not available. Expected R2 key: ${resolved.hairRefKey} or file: ${localPath}` },
+            { error: 'Hairstyle reference not available' },
             { status: 502, headers: corsHeaders }
           );
         }
       } else {
-        const r2Message = e instanceof Error ? e.message : String(e);
-        console.error('[Preview Generate] Failed to load hair ref:', resolved.hairRefKey, 'bucket:', R2_PUBLIC_BUCKET, e);
+        console.error('[Preview Generate] Hair image lookup failed');
         return NextResponse.json(
-          { error: `Hairstyle reference not available. Key: ${resolved.hairRefKey}, bucket: ${R2_PUBLIC_BUCKET}. R2: ${r2Message}` },
+          { error: 'Hairstyle reference not available' },
           { status: 502, headers: corsHeaders }
         );
       }
@@ -192,10 +183,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!geminiResponse.ok) {
-      const errText = await geminiResponse.text();
-      console.error('[Preview Generate] Gemini error:', geminiResponse.status, errText);
+      // Upstream bodies may contain request data or private diagnostic details.
+      void geminiResponse.body?.cancel().catch(() => undefined);
+      console.error('[Preview Generate] Image provider rejected request:', geminiResponse.status);
       return NextResponse.json(
-        { error: 'Character preview generation failed', details: errText.slice(0, 200) },
+        { error: 'Character preview generation failed' },
         { status: geminiResponse.status >= 500 ? 502 : 400, headers: corsHeaders }
       );
     }
@@ -223,9 +215,9 @@ export async function POST(request: NextRequest) {
     if (err instanceof RequestBodyError) {
       return NextResponse.json({ error: err.message }, { status: err.status, headers: corsHeaders });
     }
-    console.error('[Preview Generate] Error:', err);
+    console.error('[Preview Generate] Preview generation failed');
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Preview generation failed' },
+      { error: 'Preview generation failed' },
       { status: 500, headers: corsHeaders }
     );
   }
