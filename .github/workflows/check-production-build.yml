@@ -65,5 +65,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
         working-directory: frontend
+      - name: Verify frontend deployment smoke checks on loopback fixtures
+        run: npm run test:deployment-smoke
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
