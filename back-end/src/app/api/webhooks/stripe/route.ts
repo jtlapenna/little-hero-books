@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { PUBLIC_BODY_LIMITS, readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 import Stripe from 'stripe';
 import { supabase, getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
@@ -101,7 +102,6 @@ async function copyPreviewToCharacterHash(
 export async function POST(request: NextRequest) {
   // Purpose: make webhook receipt obvious in Cloudflare logs.
   console.log('[Webhook Stripe] Received request');
-  const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature') ?? request.headers.get('Stripe-Signature');
 
   if (!signature) {
@@ -119,6 +119,16 @@ export async function POST(request: NextRequest) {
   if (!stripeSecretKey) {
     console.error('[Webhook Stripe] STRIPE_SANDBOX_SECRET_KEY or STRIPE_SECRET_KEY not configured');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+  }
+
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedRequestText(request, PUBLIC_BODY_LIMITS.stripeWebhook, { preserveBOM: true, fatal: true });
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
   }
 
   let event: Stripe.Event;

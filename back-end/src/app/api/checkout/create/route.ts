@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { PUBLIC_BODY_LIMITS, readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase-client';
@@ -177,8 +178,11 @@ export async function POST(request: NextRequest) {
 
     let body: unknown;
     try {
-      body = await request.json();
-    } catch {
+      body = JSON.parse(await readBoundedRequestText(request, PUBLIC_BODY_LIMITS.checkout));
+    } catch (error) {
+      if (error instanceof RequestBodyError) {
+        return NextResponse.json({ error: error.message }, { status: error.status, headers: corsHeaders });
+      }
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
     }
 

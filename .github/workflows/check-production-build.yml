@@ -32,6 +32,9 @@ jobs:
           cache-dependency-path: back-end/package-lock.json
       - run: npm ci
         working-directory: back-end
+      - name: Verify bounded public request bodies and signed Stripe payloads
+        run: node --import tsx scripts/test-request-body.ts
+        working-directory: back-end
       - name: Verify checkout validation before provider or storage access
         run: node --import tsx scripts/test-checkout-validation.ts
         working-directory: back-end
