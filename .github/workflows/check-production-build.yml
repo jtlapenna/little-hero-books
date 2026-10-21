@@ -35,12 +35,18 @@ jobs:
       - name: Verify checkout validation before provider or storage access
         run: node --import tsx scripts/test-checkout-validation.ts
         working-directory: back-end
+      - name: Check asynchronous route parameters
+        working-directory: back-end
+        run: node --import tsx scripts/test-trigger-w0-route.ts
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end
       - name: Build actual Next, OpenNext and Pages package (no font fixture)
         run: npm run pages:build
         working-directory: back-end
+      - name: Exercise actual compiled Pages Worker without provider access
+        working-directory: back-end
+        run: node --import tsx scripts/test-compiled-pages-worker.ts
       - run: node scripts/security/test-hosted-release-checks.mjs
   frontend:
     runs-on: ubuntu-latest

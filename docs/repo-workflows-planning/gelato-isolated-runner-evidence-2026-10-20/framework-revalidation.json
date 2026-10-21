@@ -1,0 +1,48 @@
+{
+  "kind": "framework-dependency-revalidation",
+  "testedCommit": "b31b5ffff04d81247a2cc0d8236e7c4b50bf49e4",
+  "recordedAt": "2026-10-21T02:33:38.814395+00:00",
+  "sourceBindings": [
+    {
+      "path": "back-end/package.json",
+      "sha256": "ddc92cde1778bb848d949f9355e1004ce53c87396e008ad94016262cd867e3fd"
+    },
+    {
+      "path": "back-end/package-lock.json",
+      "sha256": "7e90264484dd4d2a898983d875f0a9697b1cd2b97326fe36f9b7a15920fd468d"
+    }
+  ],
+  "runner": {
+    "checks": 24,
+    "result": "pass",
+    "nodeVersion": "v22.23.2",
+    "command": "env -i HOME=\"$HOME\" PATH=\"$PATH\" GELATO_PREPARATION_OUTPUT=PRIVATE_OUTPUT node --import tsx scripts/test-gelato-isolated-preparation.ts",
+    "receiptMatchesRetained": true
+  },
+  "integration": {
+    "checks": 29,
+    "result": "pass",
+    "runtime": "GitHub Actions Linux, configured Node22, disposable pinned PostgreSQL17",
+    "workflowRun": 39532887296,
+    "runUrl": "https://github.com/jtlapenna/little-hero-books/actions/runs/39532887296",
+    "command": "env -i HOME=\"$HOME\" PATH=\"$PATH\" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-isolation.ts",
+    "receiptMatchesRetained": true,
+    "provenance": "Generated JSON stdout from successful canonical test step; later source-hash check failed at old package binding.",
+    "checkout": "GitHub synthetic PR merge of head b31b5fff into base60f479be, short SHA cb4e1f8",
+    "testedMergeCommit": "cb4e1f8353a74acd0c2b48a668940d874d4ae18c",
+    "baseCommit": "60f479be71b9f24845c3f099b37d102fcc681200"
+  },
+  "localDatabaseAttempt": "Native local PostgreSQL startup failed; no local29-case pass claimed.",
+  "liveAuditRepeated": false,
+  "retainedHistoricalEvidence": [
+    "credential-checks.json",
+    "controls-final.json",
+    "database-final.json",
+    "examples.json",
+    "types.json",
+    "scan.json",
+    "review.json",
+    "checks.json"
+  ],
+  "limits": "Does not renew live credentials, controls, deployment identity, historical387 type diagnostics or historical scan/reviewer observations. No provider or customer action."
+}

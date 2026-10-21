@@ -38,9 +38,9 @@ function parseJsonRecord(value: unknown): Record<string, unknown> | null {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const orderId = params.orderId;
+  const { orderId } = await params;
 
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
