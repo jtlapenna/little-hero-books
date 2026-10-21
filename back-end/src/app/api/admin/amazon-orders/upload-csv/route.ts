@@ -24,6 +24,7 @@ import {
   triggerW0,
 } from '@/lib/sibling-order-helpers';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { ADMIN_BODY_LIMITS, readBoundedRequestFormData, RequestBodyError } from '@/lib/request-body';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ const AMAZON_CSV_BOOK_ID = 'book-mvp-simple-adventure';
 const AMAZON_CSV_FORMAT_ID = 'amazon';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_CSV_REQUEST_BYTES = ADMIN_BODY_LIMITS.csvUpload;
 
 /**
  * POST /api/admin/amazon-orders/upload-csv
@@ -70,11 +72,11 @@ export async function POST(request: NextRequest) {
 
     // Parse form data
     console.log(`[CSV Upload] [${requestId}] Parsing form data...`);
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    console.log(`[CSV Upload] [${requestId}] File received: ${file ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
+    const formData = await readBoundedRequestFormData(request, MAX_CSV_REQUEST_BYTES);
+    const file = formData.get('file');
+    console.log(`[CSV Upload] [${requestId}] File received: ${file && typeof file !== 'string' ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
 
-    if (!file) {
+    if (!file || typeof file === 'string') {
       console.error(`[CSV Upload] [${requestId}] ❌ No file provided`);
       return NextResponse.json(
         { error: 'No file provided. Please upload a CSV file.' },
@@ -526,6 +528,9 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(response);
   } catch (error: unknown) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error(`[CSV Upload] [${requestId}] ====== ERROR ======`);
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[CSV Upload] [${requestId}] Error message:`, message);

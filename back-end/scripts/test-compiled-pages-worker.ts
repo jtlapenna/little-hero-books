@@ -56,12 +56,13 @@ async function main() {
       // fetch transport replaces sec-fetch-mode with cors before Worker entry.
       const compiledFetch = (url: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}) => new Promise<Response>((resolveResponse, reject) => {
         const target = new URL(url);
+        const failed = (error: Error) => reject(new Error(`Synthetic Worker transport failed for ${target.pathname}`, { cause: error }));
         const request = httpRequest(new URL(target.pathname + target.search, local), {
-          method: init.method ?? 'GET', headers: { ...init.headers, 'MF-Original-URL': url, 'MF-Disable-Pretty-Error': 'true' },
+          agent: false, method: init.method ?? 'GET', headers: { ...init.headers, 'MF-Original-URL': url, 'MF-Disable-Pretty-Error': 'true' },
         }, response => {
           const chunks: Buffer[] = [];
           response.on('data', chunk => chunks.push(Buffer.from(chunk)));
-          response.on('error', reject);
+          response.on('error', failed);
           response.on('end', () => {
             const headers = new Headers();
             for (const [name, value] of Object.entries(response.headers)) if (value !== undefined) for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
@@ -69,7 +70,7 @@ async function main() {
             resolveResponse(new Response(bytes.length ? bytes : null, { status: response.statusCode!, headers }));
           });
         });
-        request.on('error', reject);
+        request.on('error', failed);
         request.setTimeout(15000, () => request.destroy(new Error('Local Worker request timed out')));
         request.end(init.body);
       });
@@ -90,6 +91,22 @@ async function main() {
       });
       assert.equal(invalidCheckout.status, 400, await invalidCheckout.clone().text());
       assert.match(JSON.stringify(await invalidCheckout.json()), /invalid|required|validation/i);
+      // Exercise the new bounded multipart parser in the actual Worker runtime.
+      const boundary = 'lhl-compiled-csv';
+      const csvPath = origin + '/api/admin/amazon-orders/upload-csv';
+      const multipart = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic.csv"\r\nContent-Type: text/csv\r\n\r\namazon-order-id,ship-address-1,ship-city,ship-state,ship-postal-code\n\r\n--${boundary}--\r\n`;
+      console.log('Compiled CSV case: anonymous denial');
+      const deniedCsv = await compiledFetch(csvPath, { method: 'POST', headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: multipart });
+      assert.equal(deniedCsv.status, 401);
+      console.log('Compiled CSV case: header-only file');
+      const emptyCsv = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: multipart });
+      assert.equal(emptyCsv.status, 200, await emptyCsv.clone().text());
+      assert.equal((await emptyCsv.json()).summary.total_rows, 0);
+      const fieldOnly = `--${boundary}\r\nContent-Disposition: form-data; name="file"\r\n\r\nnot a file\r\n--${boundary}--\r\n`;
+      console.log('Compiled CSV case: text field');
+      const invalidCsv = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: fieldOnly });
+      assert.equal(invalidCsv.status, 400);
+      assert.deepEqual(await invalidCsv.json(), { error: 'No file provided. Please upload a CSV file.' });
       // Machine authentication reaches the compiled escaped login route, then rejects its mode.
       const machineLogin = await compiledFetch(origin + '/__access_setup', {
         headers: { authorization: 'Bearer synthetic-compiled-worker-machine' },
@@ -133,6 +150,6 @@ async function main() {
       assert.equal(outbound, 0, 'compiled validation and rejected auth must not contact providers');
     } finally { await worker.dispose(); }
   } finally { await rm(temporary, { recursive: true, force: true }); }
-  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
+  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, bounded CSV multipart parsing, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -38,7 +38,7 @@ async function findOrdersByPreviewHash(
     .limit(10);
 
   if (error) {
-    console.warn('[Preview Cache] Failed to query orders by preview_hash:', previewHash, error.message);
+    console.warn('[Preview Cache] Order lookup unavailable');
     return [];
   }
   return ((data ?? []) as PreviewOrderRow[]).filter((row) => {

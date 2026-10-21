@@ -149,7 +149,7 @@ async function main() {
     assert.equal(cached.status, 200); assert.equal((await cached.json()).cached, true); assert.equal(calls.length, 1); checks++;
     transport = 'deny'; calls.length = 0;
     const forced = await preview.POST(streamed(JSON.stringify({ ...validPreview, forceRegenerate: true })).request);
-    assert.equal(forced.status, 500); assert.equal((await forced.json()).error, 'Gemini API key not configured'); assert.deepEqual(calls, []); checks++;
+    assert.equal(forced.status, 500); assert.equal((await forced.json()).error, 'Preview generation unavailable'); assert.deepEqual(calls, []); checks++;
     const validShape = {
       shipping_address: { name: 'Synthetic Adult', address_line1: '1 Test Lane', city: 'Test City', state: 'CA', postal_code: '00000', country: 'US' },
       customer_email: 'buyer@example.test', shipping_tier: 'mail',
