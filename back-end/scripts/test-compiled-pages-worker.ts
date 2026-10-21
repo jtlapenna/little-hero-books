@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import Stripe from 'stripe';
+import { PUBLIC_BODY_LIMITS } from '../src/lib/request-body';
 import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -11,7 +13,8 @@ async function main() {
   const date = settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1];
   const flags = [...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(match => match[1]);
   assert.ok(date && flags.length);
-  let outbound = 0;
+  let outbound = 0, syntheticIdempotency = 0;
+  let allowSyntheticIdempotency = false;
   const packageRoot = resolve('.open-next/cloudflare');
   const temporary = await mkdtemp(join(tmpdir(), 'lhl-compiled-worker-'));
   try {
@@ -22,7 +25,7 @@ async function main() {
       '--outdir', join(temporary, 'modules'), '--compatibility-date', date,
       ...flags.flatMap(flag => ['--compatibility-flags', flag])], {
       cwd: temporary, stdio: 'pipe',
-      env: { PATH: process.env.PATH, HOME: temporary, TMPDIR: process.env.TMPDIR,
+      env: { NODE_ENV: 'production', PATH: process.env.PATH, HOME: temporary, TMPDIR: process.env.TMPDIR,
         WRANGLER_SEND_METRICS: 'false', WRANGLER_LOG_PATH: join(temporary, 'wrangler.log') },
     });
     const worker = new Miniflare(convertV4MiniflareOptions({
@@ -32,11 +35,19 @@ async function main() {
         SUPABASE_URL: 'https://compiled-worker-db.example.test', NEXT_PUBLIC_SUPABASE_URL: 'https://compiled-worker-db.example.test',
         SUPABASE_SERVICE_ROLE_KEY: 'synthetic-compiled-worker-key', BACKEND_API_TOKEN: 'synthetic-compiled-worker-machine',
         ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com',
+        STRIPE_SECRET_KEY: 'sk_test_synthetic_compiled_body', STRIPE_WEBHOOK_SECRET: 'whsec_synthetic_compiled_body',
         GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
         GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false',
       },
       serviceBindings: { ASSETS: async () => new WorkerResponse('Missing synthetic asset', { status: 404 }) },
-      outboundService: async request => { outbound++; throw new Error('Outbound blocked: ' + new URL(request.url).origin); },
+      outboundService: async request => {
+        const url = new URL(request.url);
+        if (allowSyntheticIdempotency && url.origin === 'https://compiled-worker-db.example.test' && url.pathname === '/rest/v1/idempotency_keys' && ['GET', 'POST'].includes(request.method)) {
+          syntheticIdempotency++;
+          return new WorkerResponse(request.method === 'GET' ? 'null' : null, { status: request.method === 'GET' ? 200 : 201, headers: { 'content-type': 'application/json' } });
+        }
+        outbound++; throw new Error('Outbound blocked: ' + url.origin);
+      },
     }));
     try {
       const local = await worker.ready;
@@ -91,9 +102,37 @@ async function main() {
       assert.equal(page.status, 200, await page.clone().text());
       assert.match(page.headers.get('content-type')!, /text\/html/);
       assert.match(await page.text(), /Orders|Loading orders/);
+      // All requests travel through the actual compiled middleware and route handlers.
+      for (const [path, limit, headers] of [
+        ['/api/preview/generate', PUBLIC_BODY_LIMITS.preview, {}],
+        ['/api/checkout/create', PUBLIC_BODY_LIMITS.checkout, { 'idempotency-key': 'synthetic-compiled-body' }],
+        ['/api/webhooks/stripe', PUBLIC_BODY_LIMITS.stripeWebhook, { 'stripe-signature': 'synthetic-invalid-signature' }],
+      ] as const) {
+        const rejected = await compiledFetch(origin + path, { method: 'POST', headers: { ...headers, 'content-type': 'application/json', 'transfer-encoding': 'chunked' }, body: ' '.repeat(limit + 1) });
+        assert.equal(rejected.status, 413, path + ': ' + await rejected.clone().text());
+        assert.deepEqual(await rejected.json(), { error: 'Request body too large' });
+      }
+      const stripe = new Stripe('sk_test_synthetic_compiled_body');
+      const event = JSON.stringify({ id: 'evt_compiled_body', object: 'event', type: 'synthetic.unsupported', data: { object: { name: 'é🐕' } } }, null, 2) + '\n';
+      const secret = 'whsec_synthetic_compiled_body';
+      // Signed whitespace, multibyte data and a body exactly at the Stripe cap.
+      for (const payload of [event, event + ' '.repeat(PUBLIC_BODY_LIMITS.stripeWebhook - Buffer.byteLength(event))]) {
+        const signature = stripe.webhooks.generateTestHeaderString({ payload, secret });
+        allowSyntheticIdempotency = true;
+        const verified = await compiledFetch(origin + '/api/webhooks/stripe', { method: 'POST', headers: { 'stripe-signature': signature }, body: payload });
+        allowSyntheticIdempotency = false;
+        assert.equal(verified.status, 200, await verified.clone().text());
+        assert.deepEqual(await verified.json(), { received: true });
+        const before = syntheticIdempotency;
+        const tampered = await compiledFetch(origin + '/api/webhooks/stripe', { method: 'POST', headers: { 'stripe-signature': signature }, body: payload.length < 2000 ? payload + ' ' : event });
+        assert.equal(tampered.status, 401); assert.equal(syntheticIdempotency, before);
+        const bom = await compiledFetch(origin + '/api/webhooks/stripe', { method: 'POST', headers: { 'stripe-signature': stripe.webhooks.generateTestHeaderString({ payload: event, secret }) }, body: '\uFEFF' + event });
+        assert.equal(bom.status, 401); assert.equal(syntheticIdempotency, before);
+      }
+      assert.equal(syntheticIdempotency, 4, 'only the two verified synthetic events may reach intercepted idempotency transport');
       assert.equal(outbound, 0, 'compiled validation and rejected auth must not contact providers');
     } finally { await worker.dispose(); }
   } finally { await rm(temporary, { recursive: true, force: true }); }
-  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, checkout validation, escaped login routing, React page rendering; zero outbound traffic');
+  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -9,6 +9,7 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
+import { PUBLIC_BODY_LIMITS, readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 import { getObject, putObject, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { loadRuntimeBookConfig } from '@/lib/books';
 import {
@@ -55,7 +56,8 @@ function extractImageFromGeminiResponse(geminiData: Record<string, unknown>): { 
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
+    const rawBody = await readBoundedRequestText(request, PUBLIC_BODY_LIMITS.preview);
+    const body = (() => { try { return JSON.parse(rawBody); } catch { return {}; } })();
     const character_specs = body.character_specs ?? body.characterSpecs ?? {};
     const requestedBookId =
       typeof body.bookId === 'string'
@@ -218,6 +220,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ imageUrl, hash: previewHash, cached: false }, { headers: corsHeaders });
   } catch (err: unknown) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status, headers: corsHeaders });
+    }
     console.error('[Preview Generate] Error:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Preview generation failed' },
