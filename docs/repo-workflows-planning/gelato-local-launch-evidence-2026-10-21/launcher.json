@@ -1,0 +1,25 @@
+{
+  "kind": "local-loopback-process-proof",
+  "checks": 14,
+  "passed": [
+    "healthy website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "Shutdown after monitor arm prevents primary spawn",
+    "Wrong reviewed raw-file digest rejects",
+    "Public context permissions reject",
+    "Public context directory rejects",
+    "Symlink private context rejects",
+    "Live command cannot consume a rehearsal context",
+    "Nonzero spend, source and binding changes reject even with a new file checksum",
+    "healthy Amazon single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "healthy siblings: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "primary-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "coordinator-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "coordinator-group-int website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+    "coordinator-group-term website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged"
+  ],
+  "externalRequests": 0,
+  "liveOrderReads": 0,
+  "liveOrderWrites": 0,
+  "deployments": 0,
+  "customerMessages": 0
+}

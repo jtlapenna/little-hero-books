@@ -1,0 +1,130 @@
+{
+  "schema": "lhl.local-window-readiness@1",
+  "executable": false,
+  "canInstall": false,
+  "canIssueScope": false,
+  "canApprove": false,
+  "artifactEvidence": "Retained October19 independent PDF inspection; hashes are historical, recheck private actual bytes before live use",
+  "artifacts": [
+    {
+      "role": "WEB-A",
+      "sha256": "f6ec01664f7a1f46efea6904ff168b9be8c2e5328c806cd43d8810b8fb32b5cf",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35
+    },
+    {
+      "role": "AMZ-A",
+      "sha256": "2269a3566228d45d4867e9605fd38895438ff9c30cea056c86591a995bdef5ab",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35
+    },
+    {
+      "role": "SIB-A",
+      "sha256": "3b140bd0718583b00b90f0b1b37b942cdea0c78380304e7616606e1720c6cf7f",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35
+    },
+    {
+      "role": "SIB-B",
+      "sha256": "f0e5d766be11c999ce2da4d37d95f52a58c28085ab42dda8146c2c4e7a282398",
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35
+    }
+  ],
+  "product": {
+    "uid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+    "standardConfigSha256": "7660547fae765ea6b0a1fe95770ab2ddad332d6f9749085ca7b7e216a3b581bf",
+    "amazonConfigSha256": "7660547fae765ea6b0a1fe95770ab2ddad332d6f9749085ca7b7e216a3b581bf",
+    "shipmentPolicyVersion": 2
+  },
+  "artifactManifestSha256": "898d41154e6895c47c5fabdcef287e17b60037ee3feae155fa1236c285d3bbaa",
+  "cases": [
+    {
+      "case": "website-single",
+      "workflow": "W4",
+      "roles": [
+        "WEB-A"
+      ],
+      "quantities": [
+        1
+      ],
+      "tiers": [
+        "standard",
+        "priority",
+        "expedited"
+      ]
+    },
+    {
+      "case": "amazon-single",
+      "workflow": "W4",
+      "roles": [
+        "AMZ-A"
+      ],
+      "quantities": [
+        1
+      ],
+      "tiers": [
+        "standard",
+        "priority",
+        "expedited"
+      ]
+    },
+    {
+      "case": "amazon-siblings",
+      "workflow": "W4.1",
+      "roles": [
+        "SIB-A",
+        "SIB-B"
+      ],
+      "quantities": [
+        1,
+        1
+      ],
+      "tiers": [
+        "standard",
+        "priority",
+        "expedited"
+      ]
+    }
+  ],
+  "proposal": {
+    "maximumSpendCents": 0,
+    "draftCreates": 3,
+    "books": 4,
+    "primaryWorkflowQuotes": 3,
+    "additionalTierQuotes": 6,
+    "totalQuotes": 9,
+    "regularConversions": 0,
+    "providerOrderSearches": 0
+  },
+  "budgets": "Core adapter budgets remain separate. Account for provider originals and every polling reread; do not assume a 4-file cap covers status refreshes. Final concrete packet must enumerate all calls and bytes.",
+  "excluded": "Six pending orders: no IDs selected, read, refreshed, mutated or released. No funding or customer messages.",
+  "missing": [
+    "Current main/serving/migration source identity and reviewed native graph versions",
+    "Fresh owner/dashboard confirmation of correct account, no payment/credit/funding route and message suppression",
+    "Separately approved GELATO_STATUS_API_KEY configuration with exact saved/serving account digest",
+    "Separately approved diagnostic workflow installation, managed credential binding and authenticated no-op proof",
+    "Fresh controlled intake/approval rows, immutable artifact keys/bytes, recipient confirmation and exact published versions",
+    "Concrete scope/member identities, expiry, independent cleanup/reconciliation commands and approved context raw-file hash",
+    "Explicit approval of this exact $0 draft-only live packet; never reuse historical approvals or journals",
+    "Separate review/approval of any additional quote-only tier-comparison transport and its exact request budget"
+  ],
+  "remainingProof": [
+    "Fresh W4/W4.1 files/drafts/mappings/admin/polling/recovery",
+    "Genuine W0/W3 generation/preview/approval/ordinary scheduling coverage",
+    "All shipping choices, quote/order estimates, provider processing and exact no-payment boundary",
+    "Trusted final payable and maximum-spend mechanism",
+    "Separately approved physical production, actual charges, shipment/delivery/inspection; cancellation separately approved"
+  ],
+  "stopRules": [
+    "Any digest/account/file/mapping disagreement",
+    "Unknown acknowledgement or incomplete independent closure",
+    "Unexpected provider graph, notification intent or funding change",
+    "Expiry or call/byte limit",
+    "Missing provider evidence is Not tested, not Passed"
+  ]
+}

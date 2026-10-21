@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/typescript/bin/tsc --noEmit --pretty false --incremental false",
+  "node": "24.5.0",
+  "exitCode": 2,
+  "diagnostics": 385,
+  "changedFileDiagnostics": [],
+  "scope": "Existing repository typecheck failures remain; no repository-wide pass claimed"
+}

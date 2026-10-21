@@ -1,0 +1,9 @@
+# Local launch, quote matrix and approval preparation
+
+Baseline: main 0632033c9d77843af754ad529808119d40da44a2 (PR47). Authority: local implementation/rehearsal only. No deployment, hosted installation/configuration, scope issuance, account/provider operations or customer messages. Six retained orders are excluded from all reads/actions. Normal controls remain OFF; no live state is refreshed by local fixtures.
+
+Acceptance:
+1. A dormant explicit operator launcher binds the exact reviewed private context bytes, spawns an independent armed cleanup process before the primary, preserves cleanup after primary/coordinator death, sanitizes child environment/output, and never retries dispatch. Rehearsal accepts synthetic loopback contexts only; live mode requires a separate explicit command and complete approved context. No live command is run here.
+2. Use canonical selected configuration, quote request/selection, monetary observation and draft builders to exercise all three cases and all shipping tiers. Include split parcels, quantity semantics, unsupported routes, unknown costs, expiry/repricing and reconciliation. Label retained provider responses versus synthetic mutations precisely. No claim of a binding final payable total or provider-enforced cap.
+3. Produce a deterministic local test-package checklist/manifest for four retained dummy PDF hashes and three cases, budgets, genuine workflow coverage, expected evidence and independent close steps. Missing live IDs, credentials, current account/funding/source/workflow facts and approvals must remain explicit blockers, never fabricated executable authority.
+4. Run process/negative tests and independent source-grounded review. Save redacted results and source checksums without private contexts/keys/recipient details. No commit/push/deploy authorization in this phase.

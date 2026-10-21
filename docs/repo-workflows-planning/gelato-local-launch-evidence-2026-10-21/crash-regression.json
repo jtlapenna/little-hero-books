@@ -1,0 +1,24 @@
+{
+  "checks": 7,
+  "cases": [
+    "Healthy OS runner: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+    "SIGKILL at claim: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+    "SIGKILL at queue: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+    "SIGKILL at assembly: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+    "SIGKILL at draft: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+    "SIGKILL at activate: independent process revokes scope/stops timer; unresolved activation remains unconfirmed; restart has zero requests; six synthetic sentinels unchanged",
+    "Two real OS workers use actual fsync journal: one owner; changed packet/scope cannot select a fresh attempt directory"
+  ],
+  "separateProcesses": true,
+  "sigkill": true,
+  "loopbackOnly": true,
+  "externalRequests": 0,
+  "productionOrderReads": 0,
+  "providerCalls": 0,
+  "deployments": 0,
+  "customerMessages": 0,
+  "limitations": [
+    "OS SIGKILL and fsync calls do not prove power-loss survival or every filesystem",
+    "Simulated accepted service effects; hosted n8n/provider semantics still require a separately approved window"
+  ]
+}

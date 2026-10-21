@@ -1,0 +1,14 @@
+{
+  "status": "complete",
+  "reviewers": 2,
+  "remainingMaterialFindings": 0,
+  "runtime": "Independent reviewer passed final14 process tests, including process-group SIGINT/SIGTERM and shutdown-before-primary; reviewed helpers/CLI unchanged. No material runtime findings remain.",
+  "pricingReadiness": "Independent reviewer independently passed final33, reproduced readiness artifact, verified all74 source/evidence hashes and privacy-screened all13 evidence files. Role/hash, receipt trust and selected-config source binding findings resolved.",
+  "notClaimed": "No live authority/account/provider/hosted/physical proof; no fresh OFF state. Source remains uncommitted; hosted CI not run.",
+  "resolvedFindings": [
+    "Foreground process-group signal killed monitor with primary: detached monitor, signal cleanup and actual group-signal regressions",
+    "Role/hash swaps could pass readiness: pin exact retained associations and reject true swaps/replacements",
+    "Syntactically valid receipt could appear bound: permanent ownership blocker and explicit receiptIdentityVerified false",
+    "Evidence source coverage omitted selected config/schema: bind v2 config,types and actual retained replay source"
+  ]
+}

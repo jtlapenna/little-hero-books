@@ -1,0 +1,16 @@
+{
+  "baseline": "0632033c9d77843af754ad529808119d40da44a2",
+  "authority": "local source, loopback rehearsal, retained redacted response replay and non-executable preparation only",
+  "hostedRequests": 0,
+  "liveOrderReads": 0,
+  "liveOrderWrites": 0,
+  "liveSettingsChanged": 0,
+  "scopeOrCredentialIssuance": 0,
+  "deployments": 0,
+  "funding": 0,
+  "printing": 0,
+  "customerMessages": 0,
+  "sixPendingOrders": "Never selected/read/refreshed/mutated; six synthetic sentinel records test local isolation only",
+  "commitPushPRMerge": "Not performed or authorized in this local phase",
+  "controls": "Unchanged by local work. No fresh live OFF/account/funding assertion is made."
+}

@@ -1,0 +1,38 @@
+{
+  "checks": 24,
+  "cases": [
+    "website: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+    "amazon: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+    "siblings: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+    "No ordinary graph overwrite, dynamic state, raw secret, direct provider, message sender or HTTP retry in candidates",
+    "Source hash and native definition drift rejected",
+    "Duplicate members, overlong window, non-test root and extra packet fields rejected",
+    "Queue trigger cannot inject selectors",
+    "Replay, duplicate group, hold and foreign queue output stop before native dispatch",
+    "Claim token, cohort and edition drift rejected at native intake",
+    "Expired native intake rejects; expired recurring trigger stops before HTTP",
+    "Draft stage cannot run without independent frozen-file proof",
+    "Lost/failed queue, assembly and draft acknowledgements close authority without retry",
+    "Wrong sibling byte hash stops before quote/create",
+    "Wrong account readback stops before queue",
+    "Wrong approval/spend binding cannot call even preflight",
+    "Expiry across blocking verification stops submission but permits revocation",
+    "Timer stop failure cannot suppress independent scope close/verification",
+    "Scope close failure still stops timer and fails entire case",
+    "Persistent journal failure cannot prevent close, timer stop or independent verification",
+    "Expiry during awaited journal write denies dispatch before adapter invocation",
+    "Nested payload and path aliases cannot override canonical single/sibling assembly selectors",
+    "Timer ticks without an actual successful scoped refresh cannot pass",
+    "Provider receipt must bind exact submission, root and account before polling registration",
+    "Two journal instances race on atomic mkdir; a new instance cannot reuse the claimed directory"
+  ],
+  "liveRequests": 0,
+  "credentialFilesRead": 0,
+  "hostedWorkflowMutations": 0,
+  "providerCreates": 0,
+  "customerMessages": 0,
+  "limitations": [
+    "Generated Code/HTTP contracts executed by a local VM harness; not a hosted n8n engine test",
+    "Timer start/recurrence, provider response and artifact fetch adapter are synthetic; no protected live adapter is shipped"
+  ]
+}
