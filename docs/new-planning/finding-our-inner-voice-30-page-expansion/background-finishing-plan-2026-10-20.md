@@ -1,6 +1,6 @@
 # Background finishing plan, October 20, 2026
 
-Jeff accepts the current text placement as a working checkpoint. Preserve saved text and character positions while reviewing replacement backgrounds. Page 11 saturation is the first reported issue; artwork changes have not started in this checkpoint.
+Jeff accepts the current text placement as a working checkpoint. Preserve saved text and character positions while reviewing replacement backgrounds. The page 9-11 palette and page 10-11 continuity pass is complete, accepted by Jeff on October 20. Guide-specific portraits and clue artwork are next. Production integration and physical print approval remain open.
 
 ## Which pages need guide versions
 
@@ -19,7 +19,7 @@ The portrait and clue decision is recorded in [the October 15 art review](art-re
 
 ## Suggested sequence
 
-1. Compare page 11 with 10, 12 and 13 at equal size and with text hidden. Identify whether saturation, contrast, hue or exposure causes the mismatch. Make one restrained candidate and review the transition before replacing anything.
+1. Complete: softened pages 9-11 against neighboring forest artwork and repaired the 10/11 join. Selected editor backgrounds are assets 63-65; their shared edge matches exactly. Text and character state were preserved. Source references, rebuild recipe and review evidence are bundled in the editor archive.
 2. Build an eight-guide page matrix listing active art, clean base, embedded animal details, clue copy and missing assets. Audit baked tracks on 12/13 and preserve an unchanged shared master of each continuous spread.
 3. Finish one guide across bedroom 09/10, clue 12/24, and reveal/flying 25/26. Owl is the existing reference. Approve palette, clue scale, portrait continuity and reveal before producing the remaining guide sets.
 4. Produce the other guide variants from approved scene references. Keep room geometry, camera, palette, text clearances and spread boundaries fixed. Leave names, pronouns and story lettering editable.

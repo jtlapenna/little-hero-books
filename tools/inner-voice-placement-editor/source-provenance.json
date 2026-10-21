@@ -270,7 +270,89 @@
       "file": "assets/lettering-LoveYaLikeASister.ttf",
       "source": "/Users/jeff/Projects/little-hero-books/output/book-revamp/configured-book-2026-10-07/book-finding-our-inner-voice/v1/fonts/CustomBook.ttf",
       "sha256": "d74f5c371e23f3ef556961b300a1141b9b1dd012ed15655380265ce4b1fdec7f"
+    },
+    {
+      "asset": "asset-62",
+      "file": "assets/asset-62-page-11-seam-matched-2k-v1.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-20/page-11-color/page-11-background-seam-matched-2k-v1.png",
+      "sha256": "8d90e40c8233ef0a774d5a5249b230df232ab781b6ecd577b857b4a3d73c2aa1",
+      "derivedFrom": "asset-13",
+      "originalSha256": "e5b176ddb432222d09fd93556a5cd3f4d9c07461f08294ae81540c20cb613240",
+      "operation": "Global RGB color transfer applied to original 2K forest; measured rug and trail alignment within left 640 px; narrow shelf-side and vine patch from generated continuation; harmonic boundary color correction within left 500 px. Page 10 unchanged. User approved precise pixel edits.",
+      "nativeDimensions": [
+        2048,
+        2048
+      ],
+      "seamReference": {
+        "asset": "asset-54",
+        "sha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927"
+      },
+      "boundaryPixelDifferenceMax": 0,
+      "generatedContinuationPatch": {
+        "source": "/Users/jeff/.codex/generated_images/01a146a9-911f-7bf1-ac37-35dc17709891/exec-ef68771b-1113-4852-aeb5-abf5c1ae75a1.png",
+        "region": "Only adjoining shelf side and vine, within first 155 px of page 11",
+        "bundledReference": "archive/art/art-revisions-2026-10-20/references/page-11-shelf-vine-reference.png"
+      },
+      "savedLayoutHashes": {
+        "lettering.json": "72b94d1e75e81d8cb67575508a8781a5e0412fec0bd643b809aa3da7f5329180",
+        "placements.json": "356cfc0fd76f70d9b3de7c8312e6327c9356ab0ab6cb61ebfd2abd4a612ebfa0"
+      },
+      "recipe": {
+        "source": "archive/art/art-revisions-2026-10-20/rebuild.py",
+        "sha256": "955485f0bcf3e8d1b2fd941a79bb6d76696324bb751235d546c7d1cf6e4aae8a"
+      }
+    },
+    {
+      "asset": "asset-63",
+      "file": "assets/asset-63-page-09-book-palette-2k-v1.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-20/book-palette/page-09-palette-0.64.png",
+      "sha256": "83df514c2f5eaf54c1e6beb7b81b59e6e8a51b1bdd1da28f8fe7083c792f8fc8",
+      "derivedFrom": "asset-53",
+      "originalSha256": "0259fa1d2a4c9d77235455183284aaa918c5f90c202525c900612711dbe20aa6",
+      "operation": "Identical RGB transform for pages 9-11: mix source RGB with Rec. 709 luminance at chroma factor 0.64, then apply RGB * 0.98 + 0.02. Round once to 8-bit RGB. No crop, resize, hue shift, or geometry change.",
+      "nativeDimensions": [
+        2048,
+        2048
+      ],
+      "recipe": {
+        "source": "archive/art/art-revisions-2026-10-20/rebuild.py",
+        "sha256": "955485f0bcf3e8d1b2fd941a79bb6d76696324bb751235d546c7d1cf6e4aae8a"
+      }
+    },
+    {
+      "asset": "asset-64",
+      "file": "assets/asset-64-page-10-book-palette-2k-v1.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-20/book-palette/page-10-palette-0.64.png",
+      "sha256": "58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9",
+      "derivedFrom": "asset-54",
+      "originalSha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927",
+      "operation": "Identical RGB transform for pages 9-11: mix source RGB with Rec. 709 luminance at chroma factor 0.64, then apply RGB * 0.98 + 0.02. Round once to 8-bit RGB. No crop, resize, hue shift, or geometry change.",
+      "nativeDimensions": [
+        2048,
+        2048
+      ],
+      "recipe": {
+        "source": "archive/art/art-revisions-2026-10-20/rebuild.py",
+        "sha256": "955485f0bcf3e8d1b2fd941a79bb6d76696324bb751235d546c7d1cf6e4aae8a"
+      }
+    },
+    {
+      "asset": "asset-65",
+      "file": "assets/asset-65-page-11-book-palette-2k-v1.png",
+      "source": "/Users/jeff/Projects/little-hero-books/output/art-revisions-2026-10-20/book-palette/page-11-palette-0.64.png",
+      "sha256": "74d9fbf8d496350732110cc7059f7894626c8f80cd698c822ae91ff0c99c2ae2",
+      "derivedFrom": "asset-62",
+      "originalSha256": "8d90e40c8233ef0a774d5a5249b230df232ab781b6ecd577b857b4a3d73c2aa1",
+      "operation": "Identical RGB transform for pages 9-11: mix source RGB with Rec. 709 luminance at chroma factor 0.64, then apply RGB * 0.98 + 0.02. Round once to 8-bit RGB. No crop, resize, hue shift, or geometry change.",
+      "nativeDimensions": [
+        2048,
+        2048
+      ],
+      "recipe": {
+        "source": "archive/art/art-revisions-2026-10-20/rebuild.py",
+        "sha256": "955485f0bcf3e8d1b2fd941a79bb6d76696324bb751235d546c7d1cf6e4aae8a"
+      }
     }
   ],
-  "sourcePaths": "Seed sourcePath/sourceManifest fields retain generation provenance. Runtime resolves asset-map.json relative to this folder. Image bytes and placement identity are unchanged."
+  "sourcePaths": "Seed sourcePath/sourceManifest fields retain generation provenance. Runtime resolves asset-map.json relative to this folder. Background revisions are recorded per asset; saved placement identity is unchanged."
 }

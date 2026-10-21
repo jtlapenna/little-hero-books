@@ -363,8 +363,8 @@
       "page": 9,
       "id": "page-09",
       "title": "Sad bedroom and first tiny voice",
-      "background": "asset-53",
-      "backgroundSha256": "0259fa1d2a4c9d77235455183284aaa918c5f90c202525c900612711dbe20aa6",
+      "background": "asset-63",
+      "backgroundSha256": "83df514c2f5eaf54c1e6beb7b81b59e6e8a51b1bdd1da28f8fe7083c792f8fc8",
       "lines": [
         {
           "text": "That night, Alexandra sat quietly on the bed. The slide was far",
@@ -444,7 +444,7 @@
           }
         }
       ],
-      "note": "Matching bedroom selected. Owl is painted into frame. 2K background is upscaled. Adjust child and bed contact; lettering remains open.",
+      "note": "Palette softened to match surrounding book pages. Shared page 10-11 edge retained. Lettering and character placement unchanged.",
       "paper": null,
       "backgroundApproval": "Selected for now by Jeff. Final preparation pending.",
       "resolutionMethod": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
@@ -453,8 +453,8 @@
       "page": 10,
       "id": "page-10",
       "title": "Bedroom light trail and gradual forest transition",
-      "background": "asset-54",
-      "backgroundSha256": "4f77acd07a6902318bf5d41cd9ed71be2b55b2133084a5cff036195afdb3b927",
+      "background": "asset-64",
+      "backgroundSha256": "58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9",
       "lines": [
         {
           "text": "\"Who said that?\" asked",
@@ -530,7 +530,7 @@
         }
       ],
       "layers": [],
-      "note": "Matching wider bedroom selected. 2K background is upscaled. Lettering must clear plant and preserve trail.",
+      "note": "Palette softened to match surrounding book pages. Shared page 10-11 edge retained. Lettering and character placement unchanged.",
       "paper": null,
       "backgroundApproval": "Selected for now by Jeff. Final preparation pending.",
       "resolutionMethod": "Lanczos enlargement. No generated detail. Aspect ratio and alpha retained."
@@ -539,8 +539,8 @@
       "page": 11,
       "id": "page-11",
       "title": "Bedroom light trail and gradual forest transition",
-      "background": "asset-13",
-      "backgroundSha256": "e5b176ddb432222d09fd93556a5cd3f4d9c07461f08294ae81540c20cb613240",
+      "background": "asset-65",
+      "backgroundSha256": "74d9fbf8d496350732110cc7059f7894626c8f80cd698c822ae91ff0c99c2ae2",
       "lines": [
         {
           "text": "Alexandra followed the lights.",
@@ -612,7 +612,7 @@
           }
         }
       ],
-      "note": "",
+      "note": "Palette softened to match surrounding book pages. Shared page 10-11 edge retained. Lettering and character placement unchanged.",
       "paper": null
     },
     {

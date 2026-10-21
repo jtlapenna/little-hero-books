@@ -1,0 +1,83 @@
+{
+  "pagesAdjusted": [
+    9,
+    10,
+    11
+  ],
+  "metrics": [
+    {
+      "factor": 0.64,
+      "page": 9,
+      "meanSaturation": 0.533,
+      "meanValue": 0.557
+    },
+    {
+      "factor": 0.64,
+      "page": 10,
+      "meanSaturation": 0.541,
+      "meanValue": 0.555
+    },
+    {
+      "factor": 0.64,
+      "page": 11,
+      "meanSaturation": 0.542,
+      "meanValue": 0.378
+    },
+    {
+      "factor": 0.64,
+      "page": 12,
+      "meanSaturation": 0.527,
+      "meanValue": 0.356
+    },
+    {
+      "factor": 0.64,
+      "page": 13,
+      "meanSaturation": 0.544,
+      "meanValue": 0.365
+    },
+    {
+      "factor": 0.64,
+      "page": 14,
+      "meanSaturation": 0.593,
+      "meanValue": 0.408
+    },
+    {
+      "factor": 0.64,
+      "page": 15,
+      "meanSaturation": 0.567,
+      "meanValue": 0.393
+    },
+    {
+      "factor": 0.64,
+      "page": 16,
+      "meanSaturation": 0.555,
+      "meanValue": 0.395
+    },
+    {
+      "factor": 0.64,
+      "page": 17,
+      "meanSaturation": 0.664,
+      "meanValue": 0.511
+    },
+    {
+      "factor": 0.64,
+      "page": 19,
+      "meanSaturation": 0.669,
+      "meanValue": 0.623
+    }
+  ],
+  "inspected": [
+    "Pages 9-11 beside forest pages 12-17 and 19 in contact sheet",
+    "Continuous 10-11 background spread",
+    "Live editor single page 9 and page 11 with saved lettering and characters",
+    "Live editor spread 10-11",
+    "Unchanged editor spread 12-13 as neighboring palette reference"
+  ],
+  "sharedEdgeMaxRgbDifference": 0,
+  "servedImagesMatchFiles": true,
+  "savedLayoutByteIdentical": true,
+  "recipeReproducesSelectedFiles": true,
+  "maintenanceAssessment": "No meaningful issue found in affected asset metadata and local image serving. Existing versioned asset path reused; no editor code changes.",
+  "editorUrl": "http://127.0.0.1:8847/",
+  "limits": "Digital review only; physical print color not proofed."
+}
