@@ -14,6 +14,8 @@ Harness details matter: Pages `--outdir` emits JavaScript; `--outfile` emits mul
 
 Local evidence: actual production Next/OpenNext/postbuild succeeds with real fonts and synthetic build settings, without environment files or support overrides. Existing identity, access, customer preview, printer/file grants, workflow callers, runtime-binding, checkout and print-worker regressions pass. Full repository secret scanning passes. Built sign-in failure view and recovery link were inspected in a hidden browser.
 
+The dated isolation evidence retains its historical audits and now separately records framework dependency revalidation. The 24-case preparation receipt and 29-case hosted disposable-SQL receipt match retained results; the source manifest binds both current package and lockfile. Its verifier remains unchanged.
+
 CI must pass on the final PR head before merge, including Linux installation/build, disposable database journeys and workflow regressions. Successful human sign-in, successful payments, provider submission, physical print and production deployment are outside this synthetic proof. Upload workflows remain manual and keep their reviewed-main checks.
 
 Merge this prerequisite first. Refresh book PR41 against main, recheck its exact content and CI, then merge the book checkpoint. Preserve its saved lettering and live editor throughout.

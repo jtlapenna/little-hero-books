@@ -13,7 +13,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "ef7d6b5a55fa0fb9814f5fcc45dac16e50bc2855fa785daef93b51e69eeab274"
+      "sha256": "ddc92cde1778bb848d949f9355e1004ce53c87396e008ad94016262cd867e3fd"
     },
     {
       "path": "back-end/scripts/helpers/gelato-combined-local-journey.ts",
@@ -108,7 +108,7 @@
     {
       "path": "docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/README.md",
       "kind": "evidence",
-      "sha256": "e10bc1e5736bf105c77fe05e212bdcc2756f0975a31825cd8ab0250f7397f123"
+      "sha256": "2ab2b992c4d768d9106e065d227ca82d3fb52c14521acc3b28d2fdf16a9b35cd"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/checks.json",
@@ -164,6 +164,16 @@
       "path": "docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/verify.py",
       "kind": "evidence",
       "sha256": "f947c33434fbea20c332efb407f2aa2f89da828887d746bec577b42c6ede89f8"
+    },
+    {
+      "path": "back-end/package-lock.json",
+      "kind": "source",
+      "sha256": "7e90264484dd4d2a898983d875f0a9697b1cd2b97326fe36f9b7a15920fd468d"
+    },
+    {
+      "path": "docs/repo-workflows-planning/gelato-isolated-runner-evidence-2026-10-20/framework-revalidation.json",
+      "kind": "evidence",
+      "sha256": "e146aad9246fa6c7e713e479e17d8874916d42d076bad1a80d75e23f78e3165d"
     }
   ],
   "sourceBaseline": "c479bd5f447ae5296c3ca8da677bdb883f64b32b",
