@@ -122,7 +122,7 @@ Next creative sequence: character placement and contact, lettering, unresolved c
 
 ### Lettering checkpoint, October 20
 
-Jeff considers text placement good enough for now. Next is background continuity, beginning with page 11 saturation and guide-specific bedroom and clue artwork. See [the background finishing plan](../new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). The portable editor retains the current text and character state. Existing PDFs are historical, and production config, customer orders and provider controls remain unchanged.
+Jeff considers text placement good enough for now. The page 9-11 palette and page 10/11 continuity pass is now complete. Guide-specific bedroom and clue artwork is next. See [the background finishing plan](../new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). The portable editor retains the current text and character state. Existing PDFs are historical, and production config, customer orders and provider controls remain unchanged.
 
 ### Completion requirements
 

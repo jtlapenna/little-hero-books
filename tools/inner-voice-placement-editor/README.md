@@ -34,7 +34,7 @@ Run `python3 tools/inner-voice-placement-editor/test_server.py` from the reposit
 
 ## What is saved
 
-- `assets/`: all 45 active image/font files, including 43 unique images and two fonts. Every active image has at least 2048 pixels on its shorter edge.
+- `assets/`: 49 bundled image/font files, including current backgrounds and retained source images. Every active image has at least 2048 pixels on its shorter edge.
 - `editor-data.json`, `asset-map.json`, `placements.json`: paired source identity, relative runtime asset paths and saved placement data.
 - `lettering-data.json`, `lettering.json`: B's starting text blocks and saved text adjustments. The saved file is created after the first lettering change.
 - `source-provenance.json`: original source paths and exact file hashes. Original `sourcePath` and `sourceManifest` fields in the seed/export remain provenance labels. Resolve bundled files through `asset-map.json`.
@@ -43,7 +43,7 @@ Run `python3 tools/inner-voice-placement-editor/test_server.py` from the reposit
 - `archive/source-editor/`: original builder and override inputs. These historical scripts refer to the original local generation workspace; they are not needed to run this snapshot.
 - `proofs/`: saved copy, type and character-placement PDFs. Earlier proofs show earlier art and coordinates. The editor is the current placement draft.
 
-The same baseline identity and image bytes allow adjustment exports from the original local editor to load here. Packaging changed runtime paths, not geometry or source hashes. The asset allowlist contains only current runtime assets.
+The baseline identity stays fixed so earlier saved adjustments remain compatible. Background-only revisions update their own hashes without changing text or figure geometry. The asset allowlist contains bundled runtime images and retained art inputs.
 
 ## Artwork status
 
@@ -59,7 +59,9 @@ This tool does not update published book configuration, generate customer orders
 
 Jeff accepted the working text placement for now on October 20. Page 14 removes the sign and HURRY lines and ends with “Then listened.” followed by “I'm still here.” Current source files include his later saved layout adjustments. The final publication details on page 31 remain placeholders.
 
-Next, review [background continuity and animal variants](../../docs/new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). Keep current text and character positions as the fit reference. Older PDFs and review manifests describe earlier revisions; `lettering.json` and `placements.json` are the current saved draft.
+The page 9-11 palette and 10/11 continuity pass is complete. Jeff accepted it on October 20. Assets 63-65 are selected; saved lettering and placements remain unchanged. See [the reproducible palette archive](archive/art/art-revisions-2026-10-20/README.md).
+
+Next, continue [background continuity and animal variants](../../docs/new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). Keep current text and character positions as the fit reference. Older PDFs and review manifests describe earlier revisions; `lettering.json` and `placements.json` are the current saved draft.
 
 ### Remaining publication work
 
