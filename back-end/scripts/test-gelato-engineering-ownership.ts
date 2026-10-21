@@ -5,7 +5,7 @@ async function main(){
  let closed=false,state='ready';let reached!:()=>void,release!:()=>void;
  const ready=new Promise<void>(r=>{reached=r;}),gate=new Promise<void>(r=>{release=r;});
  const id='33333333-3333-4333-8333-333333333333',owner='44444444-4444-4444-8444-444444444444';
- const d:EngineeringConversionDependencies={apiKey:'synthetic-race-key',normalControlsOff:true,
+ const d:EngineeringConversionDependencies={simulationOnly:true,apiKey:'synthetic-race-key',normalControlsOff:true,
   authorization:async()=>{throw Error('unused');},artifact:async()=>{throw Error('No artifact read expected');},verifyFile:async()=>false,
   context:async()=>{reached();await gate;throw Error('Synthetic preflight stop after race');},
   closeOwned:async(a:string,token:string)=>{assert.equal(a,id);assert.equal(token,owner);closed=true;return true;},

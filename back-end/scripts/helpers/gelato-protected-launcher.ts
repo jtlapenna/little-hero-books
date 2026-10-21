@@ -3,7 +3,9 @@ import {fork,type ChildProcess} from 'node:child_process';
 import {setTimeout as sleep} from 'node:timers/promises';
 import path from 'node:path';
 import {readLaunchContext} from './gelato-protected-launch-context';
+import {GELATO_LIVE_TESTS_PAUSED} from '../../src/lib/books/gelato-test-safety';
 export async function launchProtectedCase(file:string,digest:string,mode:'rehearse'|'execute-approved-unpaid',events?:(event:'armed'|'primary-started',child:ChildProcess)=>void){
+ if(mode==='execute-approved-unpaid')throw Error(GELATO_LIVE_TESTS_PAUSED);
  const c=await readLaunchContext(file,digest);
  if((mode==='rehearse')!==(c.transport.kind==='synthetic-loopback'))throw Error('Transport requires matching explicit command');
  if(Date.now()<Date.parse(c.binding.packet.startsAt)||Date.now()>=Date.parse(c.binding.packet.expiresAt))throw Error('Launch window inactive');

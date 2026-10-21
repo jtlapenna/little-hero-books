@@ -1,0 +1,303 @@
+{
+  "baseline": "5c900710179ad3604b27cc6bfc853aa720dcf17b",
+  "scope": {
+    "localOnly": true,
+    "liveActions": [],
+    "deployed": false,
+    "liveControlsAccessed": false,
+    "sixHistoricalOrdersSelected": false,
+    "credentialsLoaded": "synthetic bindings only"
+  },
+  "suites": [
+    {
+      "name": "test-gelato-admin-inspection",
+      "exitCode": 0,
+      "durationSeconds": 0.29,
+      "outputSha256": "8b8149a9e976fbf5a2f77d2e5e8281a80ff9355b04dfabd8e77fb5336c604876"
+    },
+    {
+      "name": "test-gelato-api-contract",
+      "exitCode": 0,
+      "durationSeconds": 0.16,
+      "outputSha256": "81e019066f1361761435cfdb95815ac4e1ca18ab38f93aeb673b8683f58f8086"
+    },
+    {
+      "name": "test-gelato-attention-recovery-api",
+      "exitCode": 0,
+      "durationSeconds": 0.16,
+      "outputSha256": "9f32f310a7afb37e6412bf350d453152d0aadebe6ee7b5173975d4244e0042f5"
+    },
+    {
+      "name": "test-gelato-consumer-api",
+      "exitCode": 0,
+      "durationSeconds": 0.24,
+      "outputSha256": "fe6200823c65e0c2b0d35d9290b21f55761e038faa49ea1e0d993e1f13b6637f"
+    },
+    {
+      "name": "test-gelato-consumer-contract",
+      "exitCode": 0,
+      "durationSeconds": 0.13,
+      "outputSha256": "637ffb5e0fad58543bd4bccbf7a228c8211fb07103d0380ff22150e2d4964ea0"
+    },
+    {
+      "name": "test-gelato-engineering-automation-runtime",
+      "exitCode": 0,
+      "durationSeconds": 0.81,
+      "outputSha256": "88c10a4971010d52afc12d4abad804a0fb1ab298722693c4adcf9592c398dfcc"
+    },
+    {
+      "name": "test-gelato-engineering-automation",
+      "exitCode": 0,
+      "durationSeconds": 0.39,
+      "outputSha256": "4f133cd1f2c26961952e909e576942c325dee54c5797e848ae79291993d2a3ac"
+    },
+    {
+      "name": "test-gelato-engineering-conversion-worker",
+      "exitCode": 0,
+      "durationSeconds": 0.83,
+      "outputSha256": "23110e3857fd6c778f1cde77c59aff49163f0a3410a511b91f5d4e162ad627ce"
+    },
+    {
+      "name": "test-gelato-engineering-conversion",
+      "exitCode": 0,
+      "durationSeconds": 0.35,
+      "outputSha256": "ca12fad361de05d5f9672d8eda8a35f7c2fd92c874fd1fb5cdc503beba11811f"
+    },
+    {
+      "name": "test-gelato-engineering-ownership",
+      "exitCode": 0,
+      "durationSeconds": 0.19,
+      "outputSha256": "dba6f139bce8aeab1d2ce7da8626417c0e4977dbc595f6d743bed5c98175d214"
+    },
+    {
+      "name": "test-gelato-financial-observation",
+      "exitCode": 0,
+      "durationSeconds": 0.27,
+      "outputSha256": "86ee10a954af8ce62201e8aa1b0393884e1bd5c5d89f1b46091fe1a184a4315d"
+    },
+    {
+      "name": "test-gelato-incident-safeguards",
+      "exitCode": 0,
+      "durationSeconds": 0.68,
+      "outputSha256": "38fceb4dcf1c56a523a3f0249ea74c03b2e4287015d25d33a30ecea617afa565"
+    },
+    {
+      "name": "test-gelato-isolated-preparation",
+      "exitCode": 0,
+      "durationSeconds": 0.22,
+      "outputSha256": "f65af58f28c447cce1027eb8f0611e0330b89b9c244a2b331583527461aaab07"
+    },
+    {
+      "name": "test-gelato-lifecycle",
+      "exitCode": 0,
+      "durationSeconds": 0.18,
+      "outputSha256": "b9a33b201e23bf9af620bb1e9a856eb11354179d61ff3f3e4530367d183942b1"
+    },
+    {
+      "name": "test-gelato-local-window",
+      "exitCode": 0,
+      "durationSeconds": 0.44,
+      "outputSha256": "6e4f44d503e0aabee5af7f9bbbe0a8934fd56cc43bb13e9b7240c4e49f546877"
+    },
+    {
+      "name": "test-gelato-notifications",
+      "exitCode": 0,
+      "durationSeconds": 0.26,
+      "outputSha256": "3f995e23ad3617f975b97673bb24949de92a01f2b143b4ca0dba759331188894"
+    },
+    {
+      "name": "test-gelato-ordinary-release",
+      "exitCode": 0,
+      "durationSeconds": 1.57,
+      "outputSha256": "a3ce587756f1368e970e6b65a8f9ec4784f430ee3170ac0f1d69034f13887e7f"
+    },
+    {
+      "name": "test-gelato-pricing-replay",
+      "exitCode": 0,
+      "durationSeconds": 0.15,
+      "outputSha256": "8ceba1bb4e01ae7a37f295687100c56c862fb9e02259f45c0cb47b95aa2bce1e"
+    },
+    {
+      "name": "test-gelato-protected-launch",
+      "exitCode": 0,
+      "durationSeconds": 22.37,
+      "outputSha256": "3f3e2bd4fe07832feec68fb6310276a8ed10f41bb783c2143629082132d45ef4"
+    },
+    {
+      "name": "test-gelato-protected-runner-crashes",
+      "exitCode": 0,
+      "durationSeconds": 4.71,
+      "outputSha256": "73eb68d5bb7acbd417d2735c384ae7200b43e1037f0fa5a3108f632511decec0"
+    },
+    {
+      "name": "test-gelato-protected-runner",
+      "exitCode": 0,
+      "durationSeconds": 4.1,
+      "outputSha256": "c78303356ec7282425f5a3fd7973be94044a663748b270aee3ee5600344104cb"
+    },
+    {
+      "name": "test-gelato-scheduled-status",
+      "exitCode": 0,
+      "durationSeconds": 0.31,
+      "outputSha256": "ca1721cd3a445efe9ea6e708e20cfae7394ad153537fc3dacbba2b1ecef097c1"
+    },
+    {
+      "name": "test-gelato-submission-runtime",
+      "exitCode": 0,
+      "durationSeconds": 0.38,
+      "outputSha256": "c00a4dfc6969db48b8a0a67351952f36505444a0e427be98cde766829ad66b86"
+    },
+    {
+      "name": "test-gelato-submission",
+      "exitCode": 0,
+      "durationSeconds": 0.19,
+      "outputSha256": "85b50098feb69dfa914656243b647ae14e0299481c6cb4fa5ad3c3237d07460a"
+    },
+    {
+      "name": "test-gelato-webhook-status",
+      "exitCode": 0,
+      "durationSeconds": 1.11,
+      "outputSha256": "3bb72852cc7666153bfa88d80d0805cdee97138f1fbe5606c649cf0ed3501ce4"
+    }
+  ],
+  "incident": {
+    "checks": 104,
+    "externalRequests": 0,
+    "realOrderReads": 0,
+    "providerWrites": 0,
+    "customerMessages": 0,
+    "deployments": 0,
+    "scope": "Synthetic local incident and retired conversion regressions only"
+  },
+  "protectedRunner": {
+    "checks": 50,
+    "cases": [
+      "website: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "Amazon: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "siblings: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "queue: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "assembly: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "draft: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "activate: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "edited workflow version drift rejects instead of reporting a pass",
+      "published workflow differs rejects instead of reporting a pass",
+      "wrong scope rejects instead of reporting a pass",
+      "runtime OFF differs rejects instead of reporting a pass",
+      "wrong saved gate rejects instead of reporting a pass",
+      "wrong provider finances rejects instead of reporting a pass",
+      "zero-cost paid provider rejects instead of reporting a pass",
+      "draft marked in production rejects instead of reporting a pass",
+      "draft child marked shipped rejects instead of reporting a pass",
+      "draft with print job rejects instead of reporting a pass",
+      "draft with tracking rejects instead of reporting a pass",
+      "wrong provider item rejects instead of reporting a pass",
+      "wrong mapping rejects instead of reporting a pass",
+      "notification intent rejects instead of reporting a pass",
+      "empty timer rejects instead of reporting a pass",
+      "successful plus crashed timer rejects instead of reporting a pass",
+      "successful plus unknown timer state rejects instead of reporting a pass",
+      "wrong timer mode rejects instead of reporting a pass",
+      "incomplete timer provenance rejects instead of reporting a pass",
+      "future timer execution rejects instead of reporting a pass",
+      "zero scoped claims rejects instead of reporting a pass",
+      "future persisted refresh rejects instead of reporting a pass",
+      "artifact: wrong actual PDF bytes reject with no later unauthorized work",
+      "provider-file: wrong actual PDF bytes reject with no later unauthorized work",
+      "redirect: transport fails closed without retry or redirect",
+      "oversized: transport fails closed without retry or redirect",
+      "truncated: transport fails closed without retry or redirect",
+      "invalid-json: transport fails closed without retry or redirect",
+      "credential-error: transport fails closed without retry or redirect",
+      "Direct queue after journal claim cannot bypass successful private preflight",
+      "Concurrent direct queue calls reserve one slot before awaits and send exactly one POST",
+      "Concurrent register-status calls reserve one slot and perform one effect",
+      "Concurrent start calls reserve one slot and perform one effect",
+      "Adapter dispatch and activation cannot bypass durable ownership or verified stage ordering",
+      "Unapproved binding and wrong private account fail before transport",
+      "Binding schema rejects extra authority fields",
+      "Expired runner refuses work before claim/transport",
+      "Independent cleanup revokes after expiry without primary journal; missing evidence is reported unconfirmed",
+      "Unconfirmed close still stops timer and reads closure; caller gets failure",
+      "Transport ignoring AbortSignal is actively deadline-raced instead of hanging cleanup",
+      "Lost contiguous journal tail cannot erase durable registration evidence or turn unknown activation into verified cleanup",
+      "Late timer activation cannot yield verified closure; scope revoked, timer stopped again and later cases remain blocked",
+      "Independent monitor closes immediately on owner exit without dispatching"
+    ],
+    "externalRequests": 0,
+    "productionOrderReads": 0,
+    "providerCalls": 0,
+    "deployments": 0,
+    "customerMessages": 0,
+    "limits": [
+      "Synthetic service protocols and short byte fixtures; not real provider/account/n8n proof",
+      "SIGKILL/separate-worker tests are in the companion crash suite"
+    ]
+  },
+  "crashes": {
+    "checks": 7,
+    "cases": [
+      "Healthy OS runner: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at claim: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at queue: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at assembly: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at draft: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at activate: independent process revokes scope/stops timer; unresolved activation remains unconfirmed; restart has zero requests; six synthetic sentinels unchanged",
+      "Two real OS workers use actual fsync journal: one owner; changed packet/scope cannot select a fresh attempt directory"
+    ],
+    "separateProcesses": true,
+    "sigkill": true,
+    "loopbackOnly": true,
+    "externalRequests": 0,
+    "productionOrderReads": 0,
+    "providerCalls": 0,
+    "deployments": 0,
+    "customerMessages": 0,
+    "limitations": [
+      "OS SIGKILL and fsync calls do not prove power-loss survival or every filesystem",
+      "Simulated accepted service effects; hosted n8n/provider semantics still require a separately approved window"
+    ]
+  },
+  "postgres": {
+    "passed": true,
+    "transport": "disposable local Unix socket; TCP disabled",
+    "temporaryDatabaseRemoved": true,
+    "outputSha256": "f66066d69507d3cb816c306a7661b1ee11749024139d3010d7a287416941b85d",
+    "checks": [
+      "zero-cost paid/shipped facts and attention persisted on roots/items/orders",
+      "per-child tracking identity preserved",
+      "no added notification intents",
+      "dispatch gate unchanged",
+      "observation revision CAS and graph rollback",
+      "two-connection ownership and blocking-lock expiry"
+    ]
+  },
+  "typecheck": {
+    "exitCode": 2,
+    "diagnostics": 387,
+    "changedFileDiagnostics": [],
+    "outputSha256": "b44fd528ca9ab1fea2d940e7dde3260d237d577b620d962820a803a8d9abc08f",
+    "baselineComparison": {
+      "baseSha": "5c900710179ad3604b27cc6bfc853aa720dcf17b",
+      "method": "Read-only compiler host overlays changed source with fetched local base; excludes newly added source. Same config/dependencies/generated types; no emit.",
+      "baselineDiagnostics": 387,
+      "currentDiagnostics": 387,
+      "baselineMultisetSha256": "488b343aa712705515c48d9f6928e86c2a6a40356b7c337d951110465f4c5192",
+      "currentMultisetSha256": "488b343aa712705515c48d9f6928e86c2a6a40356b7c337d951110465f4c5192",
+      "sameDiagnosticMultiset": true
+    },
+    "limitation": "Non-green full typecheck. Diagnostic file/code/message multiset matches fetched publication base."
+  },
+  "limits": [
+    "Synthetic services do not prove hosted provider/account behavior",
+    "Local source is not deployed",
+    "No current live OFF receipt obtained by this phase",
+    "Unexpected historical fulfillment is not an approved physical proof",
+    "Final payable and provider maximum-charge guarantee unresolved"
+  ],
+  "securityScan": {
+    "passed": true,
+    "findings": 0,
+    "outputSha256": "21439cab35bc6afa0eee42b913a96f1f41bc9f7b0619267c1a8f43aa34af219c",
+    "scope": "Repository-local tracked and untracked source/evidence; no credentials printed"
+  }
+}

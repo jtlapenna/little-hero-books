@@ -59,4 +59,6 @@ jobs:
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" npm run test:gelato-protected-runner
       - name: Verify protected-runner evidence and current source bindings
-        run: python3 docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/verify.py --source
+        run: |
+          python3 docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/verify.py
+          python3 docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py --source

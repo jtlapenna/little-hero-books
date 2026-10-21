@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
 import { runEngineeringConversion } from '@/lib/books/gelato-engineering-conversion';
 import { gelatoEngineeringConversionRuntime } from '@/lib/books/gelato-engineering-conversion-runtime';
+import { GELATO_TEST_CONVERSION_DISABLED } from '@/lib/books/gelato-test-safety';
 
 export const dynamic = 'force-dynamic';
 const Body=z.object({authorizationId:z.string().uuid(),action:z.enum(['convert','observe'])}).strict();
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
   if(!verifyBearerAuth(request).ok)return NextResponse.json({error:'Unauthorized'},{status:401,headers});
   const parsed=Body.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return NextResponse.json({error:'Exact engineering authorization and action required'},{status:400,headers});
+  if(parsed.data.action==='convert')return NextResponse.json({error:GELATO_TEST_CONVERSION_DISABLED},{status:423,headers});
   try {
     // The authenticated operator stores privateEvidence locally; it is never logged or sent to customer consumers.
     const result=await runEngineeringConversion(parsed.data.authorizationId,parsed.data.action,gelatoEngineeringConversionRuntime());

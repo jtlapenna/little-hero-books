@@ -1,5 +1,7 @@
 # Gelato next phase: workflow proof, finished book, controlled launch
 
+**Current gate, October 21:** earlier engineering test orders unexpectedly advanced to Paid/Shipped/In Transit at displayed $0. Keep all shared controls OFF and the six orders untouched. Further provider writes are on hold pending Jeff/Gelato's investigation. The [incident safeguards and remaining sequence](gelato-incident-local-safeguards-2026-10-21.md) supersede historical pending/no-payment assumptions below; local safeguards are not deployed by that document.
+
 Planning baseline: main `4fb98c265bdad3482d6b9e31033437c8b18dce53`. This continues the existing W4/W4.1 implementation and rollout plans. Completed work stays in place. This document plans future work; it does not approve deployment-history deletion, credential changes, paid printing, customer messages or public launch.
 
 ## Why draft creation failed

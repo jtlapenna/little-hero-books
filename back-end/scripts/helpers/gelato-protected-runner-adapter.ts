@@ -11,6 +11,7 @@ import type {GelatoDraftOrderRequest} from '../../src/lib/books/gelato-api-contr
 import {GELATO_STORED_FILE_HOST} from '../../src/lib/books/gelato-stored-file';
 import retiredFingerprints from '../../../scripts/security/compromised-credential-fingerprints.json';
 import {parsePrinterFileUrl} from '../../src/lib/printer-file-grants';
+import {assertGelatoUnconvertedTestDraft} from '../../src/lib/books/gelato-test-safety';
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/),id=z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const instant=z.string().datetime({offset:true});
@@ -204,6 +205,7 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
    if(++providerReads>1)throw Error('Provider read budget ended');
    const rawProvider=await json('https://order.gelatoapis.com/v4/orders/'+providerId,'GET',{'X-API-KEY':credentials.gelato},undefined,signal) as {financialStatus?:unknown};
    const provider=GelatoProviderOrderSchema.parse(rawProvider);
+   assertGelatoUnconvertedTestDraft(rawProvider);
    if(provider.id!==providerId||provider.connectedOrderIds.some(i=>i!==providerId)||provider.orderType!=='draft'||rawProvider.financialStatus!=='draft')throw Error('Provider draft/account graph differs');
    await validateGelatoConnectedOrdersWithFiles([provider],request,async(ref,url)=>{
     const m=rows.find(m=>m.item_reference_id===ref),a=b.artifacts.find(a=>a.orderDbId===m?.child_order_id);if(!a)throw Error('Foreign provider file');

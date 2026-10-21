@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { GelatoDraftOrderRequest } from './gelato-api-contract';
 import { GelatoFinancialObservationSchema, bindGelatoFinancialGraph } from './gelato-financial-observation';
+import { gelatoTestSafetyReason } from './gelato-test-safety';
 
 const optionalText = z.string().nullish().transform((value) => value ?? undefined).optional();
 export const GelatoIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/);
@@ -13,6 +14,7 @@ export const GelatoProviderOrderSchema = z.object({
   fulfillmentStatus: z.string().min(1).max(80),
   updatedAt: z.string().datetime({ offset: true }),
   financialObservation: GelatoFinancialObservationSchema.optional(),
+  testSafetyEvidence: z.object({ printJobsPresent: z.boolean(), fundingPresent: z.boolean() }).strict().optional(),
   connectedOrderIds: z.array(GelatoIdSchema).max(100).default([]),
   shippingAddress: z.object({ country: z.string(), firstName: z.string(), lastName: z.string(),
     addressLine1: z.string(), addressLine2: optionalText, city: z.string(), postCode: z.string(),
@@ -53,6 +55,16 @@ export function validateGelatoConnectedOrders(orders: GelatoProviderOrder[], req
   const orderIds = new Set(orders.map((order) => order.id));
   if (orderIds.size !== orders.length) throw new Error('Duplicate Gelato connected order');
   for (const order of orders) {
+    if (draftOnly) {
+      // Legacy snapshots may lack finance; retain that absence. Fresh protected-runner
+      // acceptance separately requires explicit draft finance from the raw response.
+      const safetyReason = gelatoTestSafetyReason(order);
+      if ((safetyReason && safetyReason !== 'test_order_state_unverified') || order.fulfillmentStatus !== 'draft' ||
+          !order.items.length || order.items.some(item => !['draft', 'created'].includes(item.fulfillmentStatus)) ||
+          (order.financialObservation && order.financialObservation.status !== 'draft')) {
+        throw new Error('Gelato draft graph contains release, payment or production evidence');
+      }
+    }
     if (order.orderReferenceId !== request.orderReferenceId || order.customerReferenceId !== request.customerReferenceId ||
         order.currency !== request.currency || (order.shipment?.shipmentMethodUid !== undefined && order.shipment.shipmentMethodUid !== request.shipmentMethodUid) || (draftOnly && order.orderType !== 'draft') ||
         order.connectedOrderIds.some((id) => !orderIds.has(id))) throw new Error('Gelato connected graph request identity mismatch');
