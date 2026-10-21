@@ -63,6 +63,8 @@ The page 9-11 palette and 10/11 continuity pass is complete. Jeff accepted it on
 
 Next, continue [background continuity and animal variants](../../docs/new-planning/finding-our-inner-voice-30-page-expansion/background-finishing-plan-2026-10-20.md). Keep current text and character positions as the fit reference. Older PDFs and review manifests describe earlier revisions; `lettering.json` and `placements.json` are the current saved draft.
 
+The [image production catalog](../../docs/new-planning/finding-our-inner-voice-30-page-expansion/image-production-catalog-2026-10-20.md) lists every guide background and dynamic-layer review. Page 25 stays shared with a dynamic animal; pages 13 and 26 also retain shared backgrounds.
+
 ### Remaining publication work
 
 Jeff accepted current character sizing and positioning as complete for the lettering pass on October 16. Keep those saved positions fixed while comparing text treatments. Remaining pose or placeholder artwork decisions stay on the creative checklist.

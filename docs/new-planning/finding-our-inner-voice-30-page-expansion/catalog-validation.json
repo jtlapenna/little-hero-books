@@ -1,0 +1,35 @@
+{
+  "rows": 59,
+  "asset_types": {
+    "guide_background": 32,
+    "dynamic_guide_layer": 16,
+    "shared_background_master": 6,
+    "secondary_character": 1,
+    "activity_illustration": 1,
+    "cover_art_or_layout": 3
+  },
+  "statuses": {
+    "to_create": 28,
+    "selected_existing": 2,
+    "historical_candidate_unapproved": 2,
+    "existing_layer_to_review": 16,
+    "retain_existing": 6,
+    "to_finish": 1,
+    "brief_needed": 4
+  },
+  "supported_guides": [
+    "cat",
+    "dog",
+    "owl",
+    "lion",
+    "tiger",
+    "penguin",
+    "unicorn",
+    "t-rex"
+  ],
+  "clue_contract_source": "back-end/src/lib/books/configured-book-rendering.ts",
+  "background_source": "tools/inner-voice-placement-editor/editor-data.json",
+  "configuration_reference": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json",
+  "generation_status": "Catalog only. No new animal images generated or installed.",
+  "csv_sha256": "a4b89add668d1f1565a97da13eff46aaed32ac4d1ca5e437d0dbe78b9d056ca4"
+}
