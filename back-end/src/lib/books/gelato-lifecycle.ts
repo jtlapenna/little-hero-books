@@ -7,6 +7,8 @@ import type { GelatoStoredFileVerifier } from './gelato-stored-file';
 import type { GelatoSubmissionStore, GelatoSubmissionContext } from './gelato-submission-store';
 import { canCancelGelatoOrder, gelatoTransitionReason } from './gelato-status';
 import { bindGelatoFinancialGraph } from './gelato-financial-observation';
+import { isGelatoEngineeringOrderKey } from './gelato-notification-target';
+import { gelatoTestSafetyReason } from './gelato-test-safety';
 
 export interface GelatoLifecycleDependencies {
   store: GelatoSubmissionStore;
@@ -25,7 +27,8 @@ function canonical(value: unknown): string {
 }
 export function gelatoSnapshotDigest(value: unknown): string { return createHash('sha256').update(canonical(value)).digest('hex'); }
 function fulfillmentSnapshot(order: GelatoProviderOrder) {
-  const { financialObservation: _financial, ...snapshot } = order;
+  // Derived observations must not create a fulfillment conflict on legacy snapshots at the same timestamp.
+  const { financialObservation: _financial, testSafetyEvidence: _testSafety, ...snapshot } = order;
   return snapshot;
 }
 export function gelatoPackagesForItem(order: GelatoProviderOrder, itemId: string, quantity: number) {
@@ -45,6 +48,8 @@ function unchangedTimeDraftConversion(previous: GelatoSubmissionContext['provide
     canonical(fulfillmentSnapshot(prior.data)) === canonical(fulfillmentSnapshot({ ...order, orderType: 'draft', fulfillmentStatus: 'draft' }));
 }
 export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, graph: GelatoProviderOrder[]) {
+  const engineering = isGelatoEngineeringOrderKey(context.submission.root_order_id) ||
+    context.members.some(member => isGelatoEngineeringOrderKey(member.child_order_key));
   return bindGelatoFinancialGraph(graph).map((order) => {
     const previous = context.providerOrders.find((entry) => entry.provider_order_id === order.id);
     if (!previous) throw new Error('Gelato refresh cannot introduce an unmapped external order');
@@ -55,15 +60,18 @@ export function buildGelatoLifecycleResults(context: GelatoSubmissionContext, gr
       time === before && digest !== gelatoSnapshotDigest(fulfillmentSnapshot(GelatoProviderOrderSchema.parse(previous.snapshot))) && !unchangedTimeDraftConversion(previous, order) ? 'conflicting_provider_snapshot' :
       gelatoTransitionReason(previous.status, order.fulfillmentStatus, previous.order_type, order.orderType, previous.progress_status);
     const accepted = !reason;
+    const safetyReason = engineering ? gelatoTestSafetyReason(order) : null;
     const items = order.items.map((item) => {
       const member = context.members.find((entry) => entry.item_reference_id === item.itemReferenceId);
       if (!member || member.provider_order_id !== order.id || member.provider_item_id !== item.id) throw new Error('Gelato refresh item identity changed');
       const mapping = gelatoPackagesForItem(order, item.id, item.quantity);
       const itemReason = reason ?? gelatoTransitionReason(member.status, item.fulfillmentStatus, previous.order_type, order.orderType, member.progress_status) ?? mapping.reason;
       return { itemReferenceId: item.itemReferenceId, providerItemId: item.id, status: itemReason ? member.status : item.fulfillmentStatus,
-        orderType: itemReason ? previous.order_type : order.orderType, actionReason: itemReason ?? (order.orderType === 'draft' ? 'awaiting_draft_review' : item.fulfillmentStatus === 'on_hold' ? 'provider_on_hold' : null),
+        orderType: itemReason ? previous.order_type : order.orderType, actionReason: itemReason ?? safetyReason ?? (order.orderType === 'draft' ? 'awaiting_draft_review' : item.fulfillmentStatus === 'on_hold' ? 'provider_on_hold' : null),
         tracking: itemReason ? null : mapping.tracking };
     });
+    // Keep accepted provider facts, including actual payment/tracking. Attention is not a rollback or cancellation.
+    reason ??= safetyReason;
     if (items.some((item) => item.actionReason && item.actionReason !== 'awaiting_draft_review')) reason ??= 'item_requires_review';
     const financial = order.financialObservation;
     const priorFinancial = previous.financial_observation ?? GelatoProviderOrderSchema.parse(previous.snapshot).financialObservation;
@@ -98,6 +106,7 @@ export async function recoverGelatoSubmission(submissionId: string, dependencies
   if (!decision.recover) return { submissionId, recovered: false, released: decision.released === true };
   const context = await dependencies.store.load(submissionId);
   const owner = { p_submission_id: submissionId, p_token: decision.claimToken, p_execution_id: execution };
+  let holdReason = 'provider_outcome_requires_review';
   try {
     const saved = GelatoSavedSnapshotSchema.parse(context.submission.request_snapshot);
     const root = context.submission.accepted_root_order_id;
@@ -105,6 +114,10 @@ export async function recoverGelatoSubmission(submissionId: string, dependencies
     const ids = [...new Set([...searched, ...(root ? [root] : [])])];
     if (!ids.length) throw new Error('Gelato search did not establish an outcome');
     const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders(ids, dependencies.get ?? getGelatoOrder), saved.request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); });
+    if (isGelatoEngineeringOrderKey(context.submission.root_order_id) || context.members.some(member => isGelatoEngineeringOrderKey(member.child_order_key))) {
+      const unsafe = graph.map(gelatoTestSafetyReason).find(reason => reason !== null);
+      if (unsafe) { holdReason = unsafe; throw new Error('Engineering recovery requires an unconverted draft'); }
+    }
     const candidate = root ?? graph.find((entry) => {
       const seen = new Set([entry.id]);
       for (let changed = true; changed;) { changed = false; for (const next of graph) if (seen.has(next.id)) for (const id of next.connectedOrderIds) if (!seen.has(id)) { seen.add(id); changed = true; } }
@@ -115,7 +128,7 @@ export async function recoverGelatoSubmission(submissionId: string, dependencies
     await dependencies.store.transition('persist_gelato_print_result', { ...owner, p_orders: graph });
     return { submissionId, recovered: true, providerOrderIds: graph.map((entry) => entry.id) };
   } catch {
-    await dependencies.store.transition('finish_gelato_reconciliation_hold', { ...owner, p_reason: 'provider_outcome_requires_review' }).catch(() => undefined);
+    await dependencies.store.transition('finish_gelato_reconciliation_hold', { ...owner, p_reason: holdReason }).catch(() => undefined);
     throw new Error('Gelato recovery is held; do not create another provider order');
   }
 }

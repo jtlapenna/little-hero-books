@@ -5,6 +5,7 @@ import { GelatoSavedSnapshotSchema, assertPrinterSendAuthority } from './gelato-
 import { validateGelatoQuote } from './gelato-api-contract';
 import { GelatoProviderOrderSchema, validateGelatoConnectedOrdersWithFiles } from './gelato-provider-snapshot';
 import type { GelatoSubmissionContext } from './gelato-submission-store';
+import { GELATO_SIMULATION_ORIGIN, requireGelatoConversionSimulation, gelatoTestSafetyReason } from './gelato-test-safety';
 
 const digest = (v: string | Uint8Array) => createHash('sha256').update(v).digest('hex');
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -27,6 +28,8 @@ export interface EngineeringConversionDependencies {
   fetcher?: typeof fetch;
   now?: () => Date;
   providerBudgetMs?: number;
+  /** Historical offline protocol simulations only. Never read from env, request or database. */
+  simulationOnly?: true;
 }
 const receiptAmounts = ['productsPrice','productsPriceVat','productsPriceInclVat','shippingPrice','shippingPriceVat','shippingPriceInclVat','packagingPrice','packagingPriceVat','packagingPriceInclVat','discount','discountVat','discountInclVat','total','totalVat','totalInclVat'];
 const status = (value: unknown) => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value) ? value : null;
@@ -44,8 +47,8 @@ export function engineeringProviderObservation(raw: Record<string, unknown>) {
     items: parsed.items.map(i => ({ providerItemId: i.id, itemReferenceId: i.itemReferenceId, fulfillmentStatus: i.fulfillmentStatus,
       productUid: i.productUid, quantity: i.quantity, apiPageCount: i.pageCount ?? null, processedFileUrlPresent: Boolean(i.processedFileUrl) })),
     shipmentMethodUid: parsed.shipment?.shipmentMethodUid ?? null, receipts,
-    unsafeFundingOrProductionObserved: ['paid','partially_paid'].includes(String(raw.financialStatus)) ||
-      [parsed.fulfillmentStatus,...parsed.items.map(i=>i.fulfillmentStatus)].some(value=>['in_production','printed','shipped','in_transit','delivered'].includes(value)),
+    testSafetyReason: gelatoTestSafetyReason(raw),
+    unsafeFundingOrProductionObserved: ['unexpected_test_order_payment','unexpected_test_order_production','unexpected_test_order_funding'].includes(gelatoTestSafetyReason(raw) ?? ''),
   };
 }
 // Shared immutable membership/file proof. Status-only callers must also validate current order rows.
@@ -71,6 +74,8 @@ export async function validateEngineeringConversionContext(a: EngineeringConvers
 }
 async function performEngineeringConversion(id: string, action: 'convert' | 'observe', d: EngineeringConversionDependencies, acquired: (a: EngineeringConversion) => void) {
   z.string().uuid().parse(id);
+  // No live conversion through the retired no-payment test path, including old authorizations.
+  if (action === 'convert') requireGelatoConversionSimulation(d);
   if (!d.normalControlsOff || !d.apiKey?.trim()) throw new Error('Engineering conversion requires closed normal controls and an explicit key');
   const keyHash = digest(d.apiKey);
   const rawEvidence: Array<{ method: string; path: string; httpStatus: number | null; responseText: string | null }> = [];
@@ -84,7 +89,7 @@ async function performEngineeringConversion(id: string, action: 'convert' | 'obs
     const aborted=new Promise<never>((_,reject)=>{onAbort=()=>reject(new Error('Engineering provider deadline exceeded'));controller.signal.addEventListener('abort',onAbort,{once:true});});
     let response:Response|undefined;
     try {
-      response=await Promise.race([(d.fetcher??fetch)(`https://order.gelatoapis.com/v4${path}`,{method,
+      response=await Promise.race([(d.fetcher??fetch)(`${d.simulationOnly === true ? GELATO_SIMULATION_ORIGIN : 'https://order.gelatoapis.com'}/v4${path}`,{method,
         headers:{'X-API-KEY':d.apiKey,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual',signal:controller.signal}),aborted]);
       const text=await Promise.race([response.text(),aborted]);rawEvidence.push({method,path,httpStatus:response.status,responseText:text});
       return {ok:response.ok,status:response.status,text,json:()=>JSON.parse(text) as Record<string,unknown>};
@@ -145,7 +150,7 @@ async function performEngineeringConversion(id: string, action: 'convert' | 'obs
     observations={...observations,needsAttention:true,noAutomaticRetry:true};
     if(action==='convert')await d.transition('finish_gelato_engineering_conversion',{p_id:id,p_token:a.owner_token,p_state:outcome,p_observations:observations}).then(()=>{persistenceConfirmed=true;observationPersisted=true;}).catch(()=>undefined);
   }
-  return {authorizationId:id,state:outcome,observation:observations,persistenceConfirmed,observationPersisted,privateEvidence:rawEvidence};
+  return {authorizationId:id,state:outcome,observation:observations,needsAttention:observations.testSafetyReason!=null||observations.needsAttention===true,persistenceConfirmed,observationPersisted,privateEvidence:rawEvidence};
 }
 
 export async function runEngineeringConversion(id: string, action: 'convert' | 'observe', dependencies: EngineeringConversionDependencies) {

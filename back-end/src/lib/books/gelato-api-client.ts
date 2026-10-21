@@ -1,5 +1,6 @@
 import { GelatoIdSchema, GelatoProviderOrderSchema, type GelatoProviderOrder } from './gelato-provider-snapshot';
 import { z } from 'zod';
+import { observeGelatoTestSafetyEvidence } from './gelato-test-safety';
 import type { GelatoDraftOrderRequest, GelatoQuoteRequest } from './gelato-api-contract';
 import { observeGelatoFinance } from './gelato-financial-observation';
 
@@ -124,7 +125,7 @@ export async function getGelatoOrder(id: string, dependencies: GelatoClientDepen
   } catch { throw new GelatoProviderReadError(dependencies.signal?.aborted ? 'timeout' : 'provider_unavailable'); }
   if (!response.ok) throw new GelatoProviderReadError(response.status === 429 ? 'rate_limited' : response.status >= 500 ? 'provider_unavailable' : 'provider_rejected', response.status, gelatoRetryAfter(response.headers.get('retry-after')));
   try { const raw: unknown = await response.json(); const parsed = GelatoProviderOrderSchema.parse(raw);
-    return { ...parsed, financialObservation: observeGelatoFinance(raw, parsed.currency) }; }
+    return { ...parsed, financialObservation: observeGelatoFinance(raw, parsed.currency), testSafetyEvidence: observeGelatoTestSafetyEvidence(raw) }; }
   catch { throw new GelatoProviderReadError('invalid_snapshot'); }
 }
 

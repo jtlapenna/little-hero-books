@@ -1,5 +1,7 @@
 # Proposed isolated unpaid window — current preparation, not execution authority
 
+**Superseding incident hold, October 21:** pause provider writes pending Gelato's explanation of the six unexpectedly fulfilled historical orders. The pending-state references below describe older observations. See the [updated safeguards and remaining sequence](gelato-incident-local-safeguards-2026-10-21.md). No live or physical testing is approved by this sheet.
+
 This supplements the October 19 run sheet. PR37 migration/backend are installed at the last verified serving source `c479bd5f447ae5296c3ca8da677bdb883f64b32b`. That historical receipt does not authorize another deployment. Keep six shared controls and both gates OFF. Exclude the six pending orders from all reads and actions. No regular-order conversion or funding is included.
 
 ## Before an approval packet can be finalized

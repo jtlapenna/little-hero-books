@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# PostgreSQL on macOS can abort during startup without a valid explicit locale.
+export LC_ALL=C
 task_root=$(cd "$(dirname "$0")/../.." && pwd)
 node "$task_root/back-end/scripts/check-gelato-scoped-migration.mjs"
 node "$task_root/back-end/scripts/check-gelato-financial-migration.mjs"
@@ -15,7 +17,10 @@ cleanup() {
 }
 trap cleanup EXIT
 "$task_pg_bin/initdb" -D "$task_pg_dir/data" --auth=trust --no-locale >"$task_pg_dir/init.log" 2>&1
-"$task_pg_bin/pg_ctl" -D "$task_pg_dir/data" -l "$task_pg_dir/server.log" -o "-k $task_pg_dir -h '' -p 55439" -w start >/dev/null
+if ! "$task_pg_bin/pg_ctl" -D "$task_pg_dir/data" -l "$task_pg_dir/server.log" -o "-k $task_pg_dir -h '' -p 55439" -w start >/dev/null; then
+  tail -40 "$task_pg_dir/server.log"
+  exit 1
+fi
 task_pg_started=true
 task_psql=("$task_pg_bin/psql" -h "$task_pg_dir" -p 55439 -d postgres -v ON_ERROR_STOP=1)
 "${task_psql[@]}" >"$task_pg_dir/setup.log" 2>&1 <<'SQL'

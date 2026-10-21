@@ -5,6 +5,7 @@ import {gelatoSnapshotDigest} from './gelato-lifecycle';
 import {pollGelatoCandidates} from './gelato-polling';
 import {refreshGelatoStatusSignal} from './gelato-status-signal';
 import type {GelatoLifecycleDependencies} from './gelato-lifecycle';
+import {requireGelatoConversionSimulation} from './gelato-test-safety';
 
 const Ids=z.array(z.string().uuid()).min(1).max(3).refine(ids=>new Set(ids).size===ids.length,'Duplicate authorization');
 export const EngineeringAutomationInput=z.discriminatedUnion('action',[
@@ -84,6 +85,7 @@ function queueDisposition(a:EngineeringConversion,now:number) {
 }
 export async function runEngineeringAutomation(raw:unknown,d:EngineeringAutomationDependencies) {
  const input=EngineeringAutomationInput.parse(raw);
+ if(input.action==='queue')requireGelatoConversionSimulation(d.conversion);
  const bindingSignal=AbortSignal.timeout(Math.min(60_000,Math.max(1,d.bindingBudgetMs??60_000)));
  const cohort=await bounded(bindingSignal,()=>bindCohort(input.authorizationIds,d,bindingSignal));
  if(input.action==='queue'){

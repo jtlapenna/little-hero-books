@@ -1,5 +1,7 @@
 # Local tooling and proposed isolated window — October 21
 
+**Incident hold, October 21:** the six historical orders are now reported Paid/Shipped/In Transit. Treat references to their pending state below as historical. Do not execute this proposed window while Jeff/Gelato investigates. Follow the [incident safeguards and updated gate](gelato-incident-local-safeguards-2026-10-21.md). An unfunded account is not a sufficient production barrier; no regular-order conversion is permitted by this preparation.
+
 Preparation only. Controls remain OFF. Six existing pending orders are excluded from every read and action. No current account, funding or deployment state is claimed by offline preparation. No hosted configuration, workflow installation, scope issuance, new order, conversion, funding, production or customer message is authorized. This supplements, rather than replaces, the October20 isolated run sheet.
 
 ## What can run locally now

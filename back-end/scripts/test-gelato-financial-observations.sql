@@ -50,4 +50,35 @@ BEGIN
  IF (SELECT last_success_at IS NULL OR last_result<>'requires_review' FROM public.gelato_scheduled_status WHERE submission_id=s) THEN RAISE EXCEPTION 'Completed review check freshness missing'; END IF;
  IF dispatch_before IS DISTINCT FROM (SELECT enabled FROM public.print_provider_dispatch_gates WHERE provider='gelato') THEN RAISE EXCEPTION 'Status observation changed dispatch'; END IF;
 END $$;
-SELECT 'Financial bootstrap/held observations, revision CAS including identical snapshots/stale holds, graph rollback and scheduled/manual overlap: ok' AS result;
+-- Incident regression: accepted zero-cost paid/shipped facts and attention must
+-- coexist in the real projection. Roll back so later local fixtures are unchanged.
+BEGIN;
+DO $$ DECLARE s uuid; expected jsonb; results jsonb; notification_count bigint; dispatch_before boolean;
+BEGIN
+ SELECT id INTO STRICT s FROM public.print_provider_submissions WHERE workflow_job_idempotency_key='cp1-key';
+ SELECT count(*) INTO notification_count FROM public.print_provider_submission_notifications WHERE submission_id=s;
+ SELECT enabled INTO STRICT dispatch_before FROM public.print_provider_dispatch_gates WHERE provider='gelato';
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',provider_order_id,'digest',snapshot_digest,'eventAt',last_event_at,'observationRevision',observation_revision)) INTO expected
+   FROM public.print_provider_submission_orders WHERE submission_id=s;
+ SELECT jsonb_agg(jsonb_build_object('providerOrderId',po.provider_order_id,'digest',repeat('8',64),'status','shipped','orderType','order','accepted',true,
+   'actionReason','unexpected_test_order_production',
+   'snapshot',po.snapshot || jsonb_build_object('orderType','order','fulfillmentStatus','shipped','updatedAt',greatest(clock_timestamp(),po.last_event_at+interval '1 second'),
+     'items',(SELECT jsonb_agg(value || '{"fulfillmentStatus":"shipped"}'::jsonb) FROM jsonb_array_elements(po.snapshot->'items'))),
+   'financialObservation',jsonb_build_object('version',1,'status','paid','currency','USD','processedFiles','[]'::jsonb,'reviewReason',NULL,
+     'receipts',jsonb_build_array(jsonb_build_object('currency','USD','amounts',jsonb_build_object('total','0','totalInclVat','0')))),
+   'financialAccepted',true,'financialActionReason',NULL,
+   'items',(SELECT jsonb_agg(jsonb_build_object('itemReferenceId',i.item_reference_id,'providerItemId',i.provider_item_id,'status','shipped','orderType','order',
+     'actionReason','unexpected_test_order_production','tracking',jsonb_build_array(jsonb_build_object('trackingNumber','SYNTHETIC-INCIDENT-TRACK','providerOrderId',po.provider_order_id,'providerItemIds',jsonb_build_array(i.provider_item_id)))))
+     FROM public.print_provider_submission_items i WHERE i.submission_id=s AND i.provider_order_id=po.provider_order_id))) INTO results
+   FROM public.print_provider_submission_orders po WHERE po.submission_id=s;
+ PERFORM public.apply_gelato_provider_snapshots(s,expected,results,'[]','[]');
+ IF EXISTS(SELECT 1 FROM public.print_provider_submission_orders WHERE submission_id=s AND (status IS DISTINCT FROM 'shipped' OR order_type IS DISTINCT FROM 'order' OR action_reason IS DISTINCT FROM 'unexpected_test_order_production'
+     OR financial_observation->>'status' IS DISTINCT FROM 'paid' OR financial_observation#>>'{receipts,0,amounts,total}' IS DISTINCT FROM '0')) THEN RAISE EXCEPTION 'Incident projection lost provider or financial facts'; END IF;
+ IF EXISTS(SELECT 1 FROM public.print_provider_submission_items WHERE submission_id=s AND (status IS DISTINCT FROM 'shipped' OR action_reason IS DISTINCT FROM 'unexpected_test_order_production' OR tracking#>>'{0,trackingNumber}' IS DISTINCT FROM 'SYNTHETIC-INCIDENT-TRACK'
+     OR tracking#>>'{0,providerOrderId}' IS DISTINCT FROM provider_order_id OR tracking#>'{0,providerItemIds}' IS DISTINCT FROM jsonb_build_array(provider_item_id))) THEN RAISE EXCEPTION 'Incident child mapping lost attention or tracking'; END IF;
+ IF EXISTS(SELECT 1 FROM public.orders WHERE print_submission_id=s AND (gelato_status IS DISTINCT FROM 'shipped' OR gelato_action_reason IS DISTINCT FROM 'unexpected_test_order_production' OR gelato_tracking#>>'{0,trackingNumber}' IS DISTINCT FROM 'SYNTHETIC-INCIDENT-TRACK')) THEN RAISE EXCEPTION 'Incident admin projection lost facts'; END IF;
+ IF notification_count<>(SELECT count(*) FROM public.print_provider_submission_notifications WHERE submission_id=s) THEN RAISE EXCEPTION 'Incident queued a customer message'; END IF;
+ IF dispatch_before IS DISTINCT FROM (SELECT enabled FROM public.print_provider_dispatch_gates WHERE provider='gelato') THEN RAISE EXCEPTION 'Incident observation changed dispatch'; END IF;
+END $$;
+ROLLBACK;
+SELECT 'Financial bootstrap/held observations, revision CAS/graph rollback, scheduler overlap and zero-cost paid/shipped attention projection with no messages: ok' AS result;

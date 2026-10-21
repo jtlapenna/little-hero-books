@@ -26,5 +26,10 @@ jobs:
       - name: Verify offline shipping matrix and non-authorizing package
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-local-window.ts
-      - name: Verify local evidence and source bindings
-        run: python3 docs/repo-workflows-planning/gelato-local-launch-evidence-2026-10-21/verify.py --source
+      - name: Verify unexpected fulfillment safeguards using synthetic services
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-incident-safeguards.ts
+      - name: Verify retained evidence and current source bindings
+        run: |
+          python3 docs/repo-workflows-planning/gelato-local-launch-evidence-2026-10-21/verify.py
+          python3 docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py --source

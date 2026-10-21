@@ -57,7 +57,7 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     get: async (id) => {
       if (failGet) throw new Error('synthetic GET timeout');
       const index = Number(id.slice(-1)) - 1;
-      return GelatoProviderOrderSchema.parse({ ...draft, id, fulfillmentStatus: 'created', updatedAt: '2026-10-11T12:00:00Z', connectedOrderIds: ['provider-1', 'provider-2'],
+      return GelatoProviderOrderSchema.parse({ ...draft, id, fulfillmentStatus: 'draft', updatedAt: '2026-10-11T12:00:00Z', connectedOrderIds: ['provider-1', 'provider-2'],
         items: [{ ...draft.items[index], ...(storedCopy ? { files: [{ type: 'default', url: 'https://gelato-api-live.s3.eu-west-1.amazonaws.com/synthetic.pdf' }] } : {}), id: `provider-item-${index + 1}`, fulfillmentStatus: 'created' }] });
     },
   };
@@ -108,7 +108,7 @@ async function runScenario(failGet = false, storedCopy = false, changedBytes = f
     if (!storedCopy) assert.equal(validateGelatoConnectedOrders(graph, draft, true).length, 2);
     assert.throws(() => validateGelatoConnectedOrders(graph.slice(0, 1), draft, true), /identity|incomplete/);
     assert.throws(() => validateGelatoConnectedOrders([{ ...graph[0], shippingAddress: { ...graph[0].shippingAddress, postCode: '99999' } }, graph[1]], draft, true), /recipient/);
-    assert.throws(() => validateGelatoConnectedOrders([{ ...graph[0], orderType: 'order' }, graph[1]], draft, true), /identity/);
+    assert.throws(() => validateGelatoConnectedOrders([{ ...graph[0], orderType: 'order' }, graph[1]], draft, true), /identity|draft graph/);
     assert.throws(() => validateGelatoConnectedOrders([{ ...graph[0], shipment: { shipmentMethodUid: 'wrong', packages: [] } }, graph[1]], draft, true), /identity/);
     assert.ok(calls.indexOf('authorize_gelato_print_send') < calls.indexOf('record_gelato_accepted_root'));
   }
