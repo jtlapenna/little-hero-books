@@ -1,0 +1,12 @@
+{
+  "method": "Supplemental comparison only: normalize the exact three-literal pending/rejected/in-review rendering prefix only for TS2367 in two unchanged existing ReviewStageStatus consumer files; original strict comparator unchanged.",
+  "baselineDiagnostics": 394,
+  "currentDiagnostics": 394,
+  "strictMessagesIdentical": true,
+  "normalizedExistingUnionRenderingOnly": true,
+  "removedRenderedMessages": 0,
+  "addedRenderedMessages": 0,
+  "affectedDiagnosticFiles": [],
+  "changedFileDiagnostics": [],
+  "globalTypecheckPassed": false
+}

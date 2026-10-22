@@ -24,7 +24,7 @@ const cred=(type:string,id:string)=>({[type]:{id,name:'Bind reviewed managed cre
 const node=(name:string,type:string,parameters:Record<string,unknown>,extra:Record<string,unknown>={})=>({name,type:'n8n-nodes-base.'+type,typeVersion:type==='httpRequest'?4.2:type==='code'?2:1,id:'isolated-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),position:[0,0],parameters,...extra});
 const code=(name:string,jsCode:string)=>node(name,'code',{jsCode});
 const http=(name:string,url:string,jsonBody:string,multiple=false)=>node(name,'httpRequest',{method:'POST',url,sendBody:true,specifyBody:'json',jsonBody,
- authentication:'genericCredentialType',genericAuthType:multiple?'httpMultipleHeadersAuth':'httpHeaderAuth',options:{timeout:120000,redirect:{redirect:{followRedirects:false}},response:{response:{responseFormat:'json',neverError:false}}}},
+ ...(multiple?{authentication:'predefinedCredentialType',nodeCredentialType:'httpMultipleHeadersAuth'}:{authentication:'genericCredentialType',genericAuthType:'httpHeaderAuth'}),options:{timeout:120000,redirect:{redirect:{followRedirects:false}},response:{response:{responseFormat:'json',neverError:false}}}},
  {retryOnFail:false,continueOnFail:false,onError:'stopWorkflow',credentials:cred(multiple?'httpMultipleHeadersAuth':'httpHeaderAuth',multiple?CREDENTIALS.scope:CREDENTIALS.backend)});
 function graph(name:string,nodes:PreparedWorkflow['nodes']):PreparedWorkflow{
  const connections:PreparedWorkflow['connections']={};nodes.forEach((n,i)=>{n.position=[i*280,0];connections[n.name]={main:[i+1<nodes.length?[{node:nodes[i+1].name,type:'main',index:0}]:[]]};});

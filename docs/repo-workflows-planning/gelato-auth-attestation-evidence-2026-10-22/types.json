@@ -1,0 +1,9 @@
+{
+  "baseSha": "d928e76cb5f1ee7f212579371661dbfa717e4c0b",
+  "method": "Read-only compiler host overlays changed source with fetched local base; excludes newly added source. Same config/dependencies/generated types; no emit.",
+  "baselineDiagnostics": 394,
+  "currentDiagnostics": 394,
+  "baselineMultisetSha256": "0a8ce9f8c135060979ba1bbc8c30ca89dd0a0f1a890518402c7490a5d8153456",
+  "currentMultisetSha256": "0a8ce9f8c135060979ba1bbc8c30ca89dd0a0f1a890518402c7490a5d8153456",
+  "sameDiagnosticMultiset": true
+}

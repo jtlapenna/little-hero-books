@@ -35,6 +35,36 @@ async function main(){
   assert.equal(f.adapter.counters().calls,192);assert(f.service.state.closed&&!f.service.state.timer);
   mark('Twelve complete observation iterations fit the 200-call cap and stop without a thirteenth');
  }
+
+ for(const [label,mutate] of [
+  ['missing proof',(r:Record<string,unknown>)=>({...r,keyAttestation:undefined})],
+  ['malformed proof',(r:Record<string,unknown>)=>({...r,keyAttestation:{}})],
+  ['replayed challenge',(r:Record<string,unknown>)=>({...r,keyAttestation:{...(r.keyAttestation as object),challenge:'0'.repeat(64)}})],
+ ] as const){
+  const f=setup();f.service.setFault(async(k,r)=>k==='runtime-off'?Response.json(mutate(await r.json())):r);
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert(f.service.state.closed&&!f.service.state.timer);f.service.assertSentinels();mark(label+': no queue, independent close and shutdown still run');
+ }
+ for(const layer of ['cloudflare','globalProcess','nodeProcess'])for(const role of ['order','status']){
+  const f=setup();f.service.setFault(async(k,r)=>{if(k!=='runtime-off')return r;const v=await r.json();v.keyAttestation.proofs[layer][role]='0'.repeat(64);return Response.json(v);});
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert(f.service.state.closed&&!f.service.state.timer);mark('Wrong '+layer+'/'+role+' key proof rejects before queue and permits cleanup');
+ }
+ for(const field of ['id','url']){
+  const f=setup();f.service.setFault(async(k,r)=>{if(k!=='controls')return r;const v=await r.json();v.result.canonical_deployment[field]=field==='id'?'00000000-0000-4000-8000-000000000000':'https://other.little-hero-labs-admin.pages.dev';return Response.json(v);});
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert(f.service.state.closed&&!f.service.state.timer);mark('Wrong deployment '+field+' stops before runtime proof/queue; revocation still attempted');
+ }
+ {
+  const f=setup();f.service.setFault(async(k,r)=>{if(k!=='controls'||f.service.state.metadataReads<2)return r;const v=await r.json();v.result.canonical_deployment.id='00000000-0000-4000-8000-000000000000';return Response.json(v);});
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert(f.service.state.closed&&!f.service.state.timer);mark('Deployment moves across proof/readback: no queue and owned cleanup still attempted');
+ }
+ for(const bad of [undefined,'plain_text']){
+  const f=setup();f.service.setFault(async(k,r)=>{if(k!=='controls')return r;const v=await r.json();v.result.deployment_configs.production.env_vars.GELATO_STATUS_API_KEY.type=bad;return Response.json(v);});
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert(f.service.state.closed);mark('Missing/wrong secret metadata cannot be accepted as a valid mask');
+ }
+ {
+  const f=setup();const old={...f.f.binding} as Record<string,unknown>;delete old.deploymentId;delete old.deploymentOrigin;assert.throws(()=>ProtectedRunnerBinding.parse(old));
+  for(const url of ['https://admin.littleherolabs.com','https://other.pages.dev','http://synthetic-proof.little-hero-labs-admin.pages.dev','https://synthetic-proof.little-hero-labs-admin.pages.dev/path'])assert.throws(()=>ProtectedRunnerBinding.parse({...f.f.binding,deploymentOrigin:url}));
+  mark('Old/unpinned contexts and foreign/mutable deployment origins fail before transport');
+ }
  for(const stage of ['queue','assembly','draft','activate']){
   const f=setup();f.service.setFault((kind,result)=>{if(kind===stage)throw Error('Accepted but response lost');return result;});await assert.rejects(f.run());assert(f.service.state.closed&&!f.service.state.timer);assert.equal(f.service.state[stage==='activate'?'activateCalls':stage==='queue'?'queueCalls':stage==='assembly'?'assemblyCalls':'draftCalls'],1);await assert.rejects(f.run());f.service.assertSentinels();mark(stage+': accepted effect with lost acknowledgement is never retried and cleanup is independent');
  }

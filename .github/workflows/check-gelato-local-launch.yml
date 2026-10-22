@@ -29,10 +29,19 @@ jobs:
       - name: Verify unexpected fulfillment safeguards using synthetic services
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-incident-safeguards.ts
-      - name: Verify proposed credential probes locally without service access
+      - name: Verify retained historical probe checks without service access
         run: env -i HOME="$HOME" PATH="$PATH" node docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/test-probes.mjs
+      - name: Verify scope credential dispatch and runtime key proof locally
+        working-directory: back-end
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-credential-auth.ts
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-runtime-key-proof.ts
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-protected-runner.ts
+      - name: Verify corrected inert no-order probe candidates
+        run: env -i HOME="$HOME" PATH="$PATH" node docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/test-probes.mjs
       - name: Verify retained evidence and current source bindings
         run: |
           python3 docs/repo-workflows-planning/gelato-local-launch-evidence-2026-10-21/verify.py
           python3 docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py
-          python3 docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/verify.py --source
+          python3 docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/verify.py
+          python3 docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/verify.py --source

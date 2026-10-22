@@ -1,5 +1,6 @@
 /** Synthetic disposable service model. No env/key readers, provider clients or default network. */
 import assert from 'node:assert/strict';
+import {createGelatoRuntimeKeyProof} from '../../src/lib/books/gelato-runtime-key-proof';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -19,7 +20,7 @@ export function protectedRunnerFixture(count=1,amazon=false){
   return [k,{...bound,id:'OWNED'+i,versionId:'VERSION'+i,activeVersionId:k!=='timer'?'VERSION'+i:null,active:k!=='timer'}];
  }));
  const rows=p.members.map(m=>({id:m.orderDbId,orderId:m.orderId,root_order_id:p.rootOrderId,amazon_order_id:null,print_provider:'gelato',book_specs:{testMode:true},customer_approval_required:true,customer_approval_status:'approved',print_book_id:'book-finding-our-inner-voice',print_config_version:2,print_format_id:m.edition,print_product_uid:'confirmed-square-product',print_inner_page_count:32,print_api_page_count:32,print_expected_pdf_page_count:35}));
- const binding=ProtectedRunnerBinding.parse({packet:p,n8nOrigin:'https://diagnostic.example.test',workflowBindings:Object.fromEntries(Object.entries(flows).map(([k,w])=>[k,{id:w.id,versionId:w.versionId,definitionSha256:definitionSha256(workflowDefinition(w)),credentialReferencesSha256:credentialReferenceSha256(workflowDefinition(w))}])),cohortRowsSha256:definitionSha256(rows),artifacts:p.members.map((m,i)=>({orderDbId:m.orderDbId,key:'book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v2/'+String(i+1).repeat(24)+'.pdf',sourceUrl:'https://admin.littleherolabs.com/api/pdf/book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v2/'+String(i+1).repeat(24)+'.pdf',bytes:pdfs[i].length})),expectedRequest:{productUid:'confirmed-square-product',shipmentMethodUid:'approved-standard-method',currency:'USD',shippingAddress:{country:'US',firstName:'Synthetic',lastName:'Fixture',addressLine1:'1 Local Fixture Way',city:'Fixture',postCode:'00000',state:'CA',email:'fixture@example.test'}},funding:{accountKeySha256:p.accountKeySha256,at:new Date(now).toISOString(),expiresAt:p.expiresAt,evidenceSha256:'f'.repeat(64),noCard:true,zeroWallets:true,noCredits:true,noInvoiceOrOtherRoute:true,providerMessagesSuppressed:true}});
+ const binding=ProtectedRunnerBinding.parse({packet:p,deploymentId:randomUUID(),deploymentOrigin:'https://synthetic-proof.little-hero-labs-admin.pages.dev',n8nOrigin:'https://diagnostic.example.test',workflowBindings:Object.fromEntries(Object.entries(flows).map(([k,w])=>[k,{id:w.id,versionId:w.versionId,definitionSha256:definitionSha256(workflowDefinition(w)),credentialReferencesSha256:credentialReferenceSha256(workflowDefinition(w))}])),cohortRowsSha256:definitionSha256(rows),artifacts:p.members.map((m,i)=>({orderDbId:m.orderDbId,key:'book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v2/'+String(i+1).repeat(24)+'.pdf',sourceUrl:'https://admin.littleherolabs.com/api/pdf/book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v2/'+String(i+1).repeat(24)+'.pdf',bytes:pdfs[i].length})),expectedRequest:{productUid:'confirmed-square-product',shipmentMethodUid:'approved-standard-method',currency:'USD',shippingAddress:{country:'US',firstName:'Synthetic',lastName:'Fixture',addressLine1:'1 Local Fixture Way',city:'Fixture',postCode:'00000',state:'CA',email:'fixture@example.test'}},funding:{accountKeySha256:p.accountKeySha256,at:new Date(now).toISOString(),expiresAt:p.expiresAt,evidenceSha256:'f'.repeat(64),noCard:true,zeroWallets:true,noCredits:true,noInvoiceOrOtherRoute:true,providerMessagesSuppressed:true}});
  return {binding,credentials,rows,flows,pdfs:pdfs.map(p=>p.toString('base64'))};
 }
 export type ProtectedFixture=ReturnType<typeof protectedRunnerFixture>;
@@ -40,8 +41,8 @@ export function fixtureServices(f:ProtectedFixture){
   let kind='',result:Response;
   if(u.hostname==='api.cloudflare.com'){
    assert.equal(method,'GET');assert.equal(u.pathname,'/client/v4/accounts/3daae940fcb6fc5b8bbd9bb8fcc62854/pages/projects/little-hero-labs-admin');assert.equal(headers.get('Authorization'),'Bearer '+c.cloudflare);state.metadataReads++;
-   const env_vars={...Object.fromEntries(NORMAL_FLAGS.map(k=>[k,{value:'false',type:'plain_text'}])),GELATO_API_KEY:{value:c.gelato},GELATO_STATUS_API_KEY:{value:c.gelato}};
-   result=response({success:true,result:{deployment_configs:{production:{env_vars}},canonical_deployment:{env_vars,deployment_trigger:{metadata:{commit_hash:p.sourceSha}}}}});kind='controls';
+   const env_vars={...Object.fromEntries(NORMAL_FLAGS.map(k=>[k,{value:'false',type:'plain_text'}])),GELATO_API_KEY:{type:'secret_text',value:''},GELATO_STATUS_API_KEY:{type:'secret_text',value:null}};
+   result=response({success:true,result:{deployment_configs:{production:{env_vars}},canonical_deployment:{id:b.deploymentId,url:b.deploymentOrigin,env_vars,deployment_trigger:{metadata:{commit_hash:p.sourceSha}}}}});kind='controls';
   }else if(u.hostname==='mdnthwpcnphjnnblbvxk.supabase.co'){
    assert.equal(method,'GET');assert.equal(headers.get('apikey'),c.database);const table=u.pathname.replace('/rest/v1/','');kind=table;
    const scoped=(key:string,value:string)=>assert.equal(u.searchParams.get(key),'eq.'+value);
@@ -76,8 +77,9 @@ export function fixtureServices(f:ProtectedFixture){
      result=response({data:[{id:'LOCAL-EXECUTION',workflowId:b.workflowBindings.timer.id,status:'success',mode:'trigger',startedAt:new Date(state.startedAt).toISOString(),stoppedAt:new Date(Date.now()+1).toISOString()}],nextCursor:null});kind='executions';
     }else throw Error('Unapproved n8n path');
    }
-  }else if(u.origin==='https://admin.littleherolabs.com'&&u.pathname==='/api/internal/w4/submit-gelato-draft'){
-   assert.equal(method,'GET');assert.equal(headers.get('Authorization'),'Bearer '+c.backend);const value={present:true,isString:true,isFalse:true,isTrue:false};result=response({contextAvailable:true,draftsEnabled:false,cloudflare:value,globalProcess:value,nodeProcess:value});kind='runtime-off';
+  }else if(u.origin===b.deploymentOrigin&&u.pathname==='/api/internal/w4/submit-gelato-draft'){
+   assert.equal(method,'GET');assert.equal(headers.get('Authorization'),'Bearer '+c.backend);const value={present:true,isString:true,isFalse:true,isTrue:false};const challenge=u.searchParams.get('keyChallenge');assert.match(challenge??'',/^[a-f0-9]{64}$/);const env={...Object.fromEntries(NORMAL_FLAGS.map(k=>[k,'false'])),GELATO_API_KEY:c.gelato,GELATO_STATUS_API_KEY:c.gelato};
+   result=response({contextAvailable:true,draftsEnabled:false,cloudflare:value,globalProcess:value,nodeProcess:value,keyAttestation:createGelatoRuntimeKeyProof(challenge,{cloudflare:env,globalProcess:env,nodeProcess:env})});kind='runtime-off';
   }else if(u.origin==='https://admin.littleherolabs.com'&&u.pathname==='/api/internal/w4/engineering-isolation'){
    assert.equal(method,'POST');assert.equal(headers.get('Authorization'),'Bearer '+c.backend);assert.equal(headers.get('x-lhl-engineering-token'),c.scope);
    const body=JSON.parse(String(init?.body));assert.equal(body.scopeId,p.scopeId);kind=body.action;
