@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
+  "installCommand": "echo No dependencies required",
+  "crons": [
+    { "path": "/api/cron/router", "schedule": "0 */3 * * *" },
+    { "path": "/api/cron/health-monitor", "schedule": "0 */3 * * *" },
+    { "path": "/api/cron/book-config-integrity", "schedule": "0 12 * * *" }
+  ]
+}
