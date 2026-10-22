@@ -1,0 +1,38 @@
+{
+  "schema": "lhl.gelato-auth-attestation-local@1",
+  "canExecute": false,
+  "canInstall": false,
+  "approval": null,
+  "hostedStateChanged": false,
+  "liveOrderReads": 0,
+  "liveOrderWrites": 0,
+  "historicalOrdersTouched": 0,
+  "credentialFilesRead": 0,
+  "controlsChanged": 0,
+  "deployments": 0,
+  "providerCalls": 0,
+  "fundingChanges": 0,
+  "printing": 0,
+  "customerMessages": 0,
+  "countedChecks": 260,
+  "additionalSuites": [
+    {
+      "name": "test-gelato-submission-runtime.ts",
+      "exitCode": 0,
+      "observed": "Gelato runtime diagnostic, canonical lookup and quote checks passed"
+    },
+    {
+      "name": "test-access-boundary.ts",
+      "exitCode": 0,
+      "observed": "Actual middleware and route regression completed; zero live traffic."
+    }
+  ],
+  "limits": [
+    "Upstream source excerpts reproduce authentication dispatch; installed n8n version and hosted probe success remain unproven.",
+    "Runtime GET and adapter proofs use synthetic keys and injected/local-loopback transports; no current effective Gelato keys were tested.",
+    "Proof identifies matching effective key material on a pinned deployment; it does not prove account funding, provider identity metadata, or absence of production routes.",
+    "Full TypeScript check is not green: 394 unchanged existing diagnostics, zero diagnostics in changed files.",
+    "Historical receipts and old consumed probe candidates remain unchanged. Corrected fresh candidates require separately approved installation/invocation.",
+    "No publication, deployment, migration, hosted workflow update, scope/window issuance, fixture approval or live order action is authorized by this package."
+  ]
+}

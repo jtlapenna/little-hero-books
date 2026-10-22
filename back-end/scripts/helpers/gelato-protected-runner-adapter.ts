@@ -1,5 +1,6 @@
 /** Explicitly wired, draft-only diagnostic transport. No default fetch, environment loader or live CLI. */
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
+import {verifyGelatoRuntimeKeyProof} from '../../src/lib/books/gelato-runtime-key-proof';
 import path from 'node:path';
 import {readFile,readdir} from 'node:fs/promises';
 import {z} from 'zod';
@@ -22,13 +23,14 @@ const workflowBinding=z.object({id,versionId:id,definitionSha256:hash,credential
 const workflowBindings=z.object({queue:workflowBinding,assembly:workflowBinding,draft:workflowBinding,timer:workflowBinding}).strict();
 const recipient=GelatoProviderOrderSchema.shape.shippingAddress;
 export const ProtectedRunnerBinding=z.object({
- packet:IsolatedCasePacket,n8nOrigin:https,workflowBindings,cohortRowsSha256:hash,
+ packet:IsolatedCasePacket,deploymentId:z.string().uuid(),deploymentOrigin:https,n8nOrigin:https,workflowBindings,cohortRowsSha256:hash,
  // URLs/keys are private, immutable and individually approved. They are not read from workflow output.
  artifacts:z.array(z.object({orderDbId:z.number().int().positive().safe(),key:z.string().min(1),sourceUrl:https,bytes:z.number().int().positive().max(32_000_000)}).strict()).min(1).max(2),
  expectedRequest:z.object({productUid:z.string().min(1),shipmentMethodUid:z.string().min(1),currency:z.literal('USD'),shippingAddress:recipient}).strict(),
  funding:z.object({accountKeySha256:hash,at:instant,expiresAt:instant,evidenceSha256:hash,noCard:z.literal(true),zeroWallets:z.literal(true),noCredits:z.literal(true),noInvoiceOrOtherRoute:z.literal(true),providerMessagesSuppressed:z.literal(true)}).strict(),
 }).strict().superRefine((b,c)=>{
- const p=b.packet,u=new URL(b.n8nOrigin);
+ const p=b.packet,u=new URL(b.n8nOrigin),deployment=new URL(b.deploymentOrigin);
+ if(deployment.origin!==b.deploymentOrigin||!/^https:\/\/[a-z0-9-]+\.little-hero-labs-admin\.pages\.dev$/.test(b.deploymentOrigin))c.addIssue({code:'custom',message:'Exact immutable Pages deployment origin required'});
  if(u.origin!==b.n8nOrigin||u.port)c.addIssue({code:'custom',message:'n8n origin must be canonical'});
  if(new Set(stageNames.map(k=>b.workflowBindings[k].id)).size!==4)c.addIssue({code:'custom',message:'Distinct owned workflows required'});
  if(b.artifacts.length!==p.members.length||new Set(b.artifacts.map(a=>a.orderDbId)).size!==p.members.length||b.artifacts.some(a=>{
@@ -103,11 +105,13 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
   const raw=await json(cloudflare,'GET',{Authorization:'Bearer '+credentials.cloudflare},undefined,signal,cleanup) as {success?:boolean;result?:Record<string,unknown>};
   if(raw.success!==true||!raw.result)throw Error('Infrastructure readback missing');
   const settings=raw.result.deployment_configs as {production?:{env_vars?:Record<string,{value?:unknown}>}};
-  const serving=raw.result.canonical_deployment as {deployment_trigger?:{metadata?:{commit_hash?:string}};env_vars?:Record<string,{value?:unknown}>};
-  if(serving?.deployment_trigger?.metadata?.commit_hash!==p.sourceSha)throw Error('Serving source differs');
+  const serving=raw.result.canonical_deployment as {id?:string;url?:string;deployment_trigger?:{metadata?:{commit_hash?:string}};env_vars?:Record<string,{value?:unknown}>};
+  if(serving?.deployment_trigger?.metadata?.commit_hash!==p.sourceSha||serving.id!==b.deploymentId||serving.url!==b.deploymentOrigin)throw Error('Serving source/deployment differs');
   for(const vars of [settings?.production?.env_vars,serving?.env_vars]){
    if(!vars||NORMAL_FLAGS.some(k=>vars[k]?.value!=='false'))throw Error('Normal controls are not explicitly OFF');
-   if(!cleanup&&(['GELATO_API_KEY','GELATO_STATUS_API_KEY'].some(k=>typeof vars[k]?.value!=='string'||sha256(String(vars[k].value))!==p.accountKeySha256)))throw Error('Serving account/status binding unverified');
+   // Masked settings establish presence/type only. Immutable deployment pin plus the
+   // fresh runtime challenge in preflight establish effective values; masks never do.
+   if(!cleanup&&(['GELATO_API_KEY','GELATO_STATUS_API_KEY'].some(k=>{const entry=vars[k] as {type?:unknown;value?:unknown}|undefined;return entry?.type!=='secret_text'||!(entry.value===null||entry.value===''||typeof entry.value==='string'&&sha256(entry.value)===p.accountKeySha256);})))throw Error('Account/status secret metadata unverified');
   }
   const dispatch=one(await db('print_provider_dispatch_gates',{select:'enabled',provider:'eq.gelato'},signal,cleanup));
   const release=one(await db('gelato_ordinary_release_gate',{select:'id,enabled',id:'eq.true'},signal,cleanup));
@@ -169,8 +173,10 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
  const d:IsolatedRunnerDependencies={now:o.now,journal:{claim:async hash=>{if(hash!==definitionSha256(p))throw Error('Journal packet differs');await journal.claim(hash);await journal.record({step:'protected-binding:'+definitionSha256(b),state:'confirmed'});ownsAttempt=true;},record:e=>journal.record(e)},
   preflight:async signal=>{
    requireOwner();preflightVerified=false;await active(signal);
-   const diagnostic=await json(backend+'/api/internal/w4/submit-gelato-draft','GET',{Authorization:'Bearer '+credentials.backend},undefined,signal) as Record<string,unknown>;
+   const challenge=randomBytes(32).toString('hex');
+   const diagnostic=await json(b.deploymentOrigin+'/api/internal/w4/submit-gelato-draft?keyChallenge='+challenge,'GET',{Authorization:'Bearer '+credentials.backend},undefined,signal) as Record<string,unknown>;
    if(diagnostic.contextAvailable!==true||diagnostic.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>{const v=diagnostic[k] as Record<string,unknown>;return !v||v.present!==true||v.isString!==true||v.isFalse!==true||v.isTrue!==false;}))throw Error('Request-time OFF diagnostic differs');
+   verifyGelatoRuntimeKeyProof(diagnostic.keyAttestation,challenge,credentials.gelato);
    if(o.now()-Date.parse(b.funding.at)>60_000||o.now()<Date.parse(b.funding.at)-1000||o.now()>=Date.parse(b.funding.expiresAt))throw Error('Fresh funding/message attestation required');
    const {s}=await scope(signal);if(s.submission_id!==null||s.status_claims!==0)throw Error('Fresh unconsumed scope required');
    const rows=z.array(obj).length(p.members.length).parse(await db('orders',{select:rowSelect,id:'in.('+p.members.map(m=>m.orderDbId).sort((a,b)=>a-b).join(',')+')',order:'id'},signal));

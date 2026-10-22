@@ -1,3 +1,4 @@
+import {GELATO_NORMAL_CONTROL_FLAGS} from '../../src/lib/books/gelato-runtime-key-proof';
 /** Protected runner core. No default transport, environment loading, scope issuer or live CLI. */
 import {z} from 'zod';
 import {GELATO_WORKFLOW_OPERATION_MS} from './gelato-runner-deadlines';
@@ -7,7 +8,7 @@ import {definitionSha256} from './prepare-w1-native-queue';
 import {IsolatedCasePacket,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const files=z.array(z.object({orderDbId:z.number().int().positive().safe(),sha256:hash}).strict()).min(1).max(2);
-export const NORMAL_FLAGS=['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_SCHEDULED_STATUS_ENABLED','GELATO_NOTIFICATIONS_ENABLED'] as const;
+export const NORMAL_FLAGS=GELATO_NORMAL_CONTROL_FLAGS;
 const off=z.object(Object.fromEntries(NORMAL_FLAGS.map(k=>[k,z.literal(false)])) as Record<typeof NORMAL_FLAGS[number],z.ZodLiteral<false>>).strict();
 const gates=z.object({dispatch:z.literal(false),ordinaryRelease:z.literal(false)}).strict();
 const readback=z.object({at:z.string().datetime({offset:true}),sourceSha:z.string(),packetSha256:hash,accountKeySha256:hash,statusAccountKeySha256:hash,
