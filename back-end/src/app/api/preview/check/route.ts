@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculatePreviewHash } from '@/lib/character-hash';
 import { resolveReusablePreviewAsset } from '@/lib/preview-cache';
+import { PUBLIC_BODY_LIMITS, readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -19,6 +20,10 @@ const corsHeaders = {
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /** Check cache by hash. Falls back to a previously-paid order's base-character image. */
@@ -69,10 +74,10 @@ export async function GET(request: NextRequest) {
 
     const result = await checkCacheByHash(hash, requestedBookId);
     return NextResponse.json({ ...result, hash }, { headers: corsHeaders });
-  } catch (err: unknown) {
-    console.error('[Preview Check GET] Error:', err);
+  } catch {
+    console.error('[Preview Check GET] Cache lookup failed');
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Cache check failed', exists: false },
+      { error: 'Cache check failed', exists: false },
       { status: 500, headers: corsHeaders }
     );
   }
@@ -81,16 +86,21 @@ export async function GET(request: NextRequest) {
 /** POST: check by character_specs (computes hash server-side for consistency). */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const specs = body.character_specs ?? body.characterSpecs ?? {};
-    const requestedBookId = resolveRequestedBookId(body, specs as Record<string, unknown>);
+    const text = await readBoundedRequestText(request, PUBLIC_BODY_LIMITS.preview);
+    let body: unknown;
+    try { body = JSON.parse(text); } catch {
+      throw new RequestBodyError(400);
+    }
+    if (!isRecord(body)) throw new RequestBodyError(400);
+    const specs = body.character_specs ?? body.characterSpecs;
 
-    if (!specs || typeof specs !== 'object' || Object.keys(specs).length === 0) {
+    if (!isRecord(specs) || Object.keys(specs).length === 0) {
       return NextResponse.json(
         { error: 'Missing character_specs', exists: false },
         { status: 400, headers: corsHeaders }
       );
     }
+    const requestedBookId = resolveRequestedBookId(body, specs);
     if (!requestedBookId) {
       return NextResponse.json(
         { error: 'bookId is required for preview cache checks', exists: false },
@@ -99,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Compute hash server-side (ensures algorithm consistency)
-    const hash = calculatePreviewHash(specs as Record<string, unknown>);
+    const hash = calculatePreviewHash(specs);
     
     // First check the D2C preview cache (preview_hash location)
     const previewResult = await checkCacheByHash(hash, requestedBookId);
@@ -108,9 +118,12 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ exists: false, hash }, { headers: corsHeaders });
   } catch (err: unknown) {
-    console.error('[Preview Check POST] Error:', err);
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message, exists: false }, { status: err.status, headers: corsHeaders });
+    }
+    console.error('[Preview Check POST] Cache lookup failed');
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Cache check failed', exists: false },
+      { error: 'Cache check failed', exists: false },
       { status: 500, headers: corsHeaders }
     );
   }

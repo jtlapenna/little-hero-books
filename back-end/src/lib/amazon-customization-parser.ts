@@ -41,7 +41,7 @@ interface AmazonCustomizationData {
  * Parse Amazon customization JSON and extract character specs
  * Maps Amazon format to our character_specs format
  */
-export function parseAmazonCustomization(jsonData: AmazonCustomizationData): {
+export function parseAmazonCustomization(input: unknown): {
   childName: string;
   age: string;
   pronouns: string;
@@ -54,6 +54,8 @@ export function parseAmazonCustomization(jsonData: AmazonCustomizationData): {
   dedication?: string;
 } | null {
   try {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+    const jsonData = input as AmazonCustomizationData;
     // Use version3.0 format if available (simpler structure)
     if (jsonData['version3.0']?.customizationInfo?.surfaces?.[0]?.areas) {
       const areas = jsonData['version3.0'].customizationInfo.surfaces[0].areas;
@@ -165,8 +167,8 @@ export function parseAmazonCustomization(jsonData: AmazonCustomizationData): {
     }
     
     return null;
-  } catch (error) {
-    console.error('[Amazon Customization Parser] Error parsing customization:', error);
+  } catch {
+    console.error('[Amazon Customization Parser] Invalid customization shape');
     return null;
   }
 }
