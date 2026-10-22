@@ -1,0 +1,7 @@
+{
+  "name": "lhl-scheduler-relay",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": { "build": "node --experimental-strip-types build.ts", "test": "npm run build && node --experimental-strip-types test.ts" }
+}

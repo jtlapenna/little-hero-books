@@ -32,6 +32,11 @@ jobs:
           cache-dependency-path: back-end/package-lock.json
       - run: npm ci
         working-directory: back-end
+      - name: Package and verify isolated scheduler functions without live jobs
+        run: |
+          node --experimental-strip-types lhl-scheduler/build.ts
+          node --experimental-strip-types lhl-scheduler/test.ts
+          node back-end/node_modules/typescript/bin/tsc -p lhl-scheduler/tsconfig.json
       - name: Verify bounded public request bodies and signed Stripe payloads
         run: node --import tsx scripts/test-request-body.ts
         working-directory: back-end
