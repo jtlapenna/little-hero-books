@@ -69,8 +69,8 @@ export function fixtureServices(f:ProtectedFixture){
    }else{
     assert.equal(headers.get('X-N8N-API-KEY'),c.n8n);const match=u.pathname.match(/^\/api\/v1\/workflows\/(OWNED[0-3])(\/(activate|deactivate))?$/);
     if(match){const stage=Object.keys(f.flows).find(k=>f.flows[k].id===match[1])!;const flow=f.flows[stage];
-     if(match[3]){assert.equal(stage,'timer');assert.equal(method,'POST');if(match[3]==='activate'){assert(state.registered);state.activateCalls++;state.timer=true;state.startedAt=Date.now();kind='activate';}else{state.stopCalls++;state.timer=false;kind='deactivate';}}
-     result=response({...flow,active:stage==='timer'?state.timer:true,activeVersionId:stage==='timer'&&!state.timer?null:flow.versionId});if(!kind)kind='workflow-'+stage;
+     if(match[3]){assert.equal(method,'POST');if(match[3]==='activate'){assert.equal(stage,'timer');assert(state.registered);state.activateCalls++;state.timer=true;state.startedAt=Date.now();kind='activate';}else{if(stage==='timer'){state.stopCalls++;state.timer=false;}flow.active=false;flow.activeVersionId=null;kind='deactivate';}}
+     result=response({...flow,active:stage==='timer'?state.timer:flow.active,activeVersionId:(stage==='timer'?!state.timer:!flow.active)?null:flow.versionId});if(!kind)kind='workflow-'+stage;
     }else if(u.pathname==='/api/v1/executions'){
      assert.equal(method,'GET');assert.equal(u.searchParams.get('workflowId'),b.workflowBindings.timer.id);assert.equal(u.searchParams.get('includeData'),'false');assert.equal(u.searchParams.get('limit'),'10');assert(state.timer);state.ticks=1;
      result=response({data:[{id:'LOCAL-EXECUTION',workflowId:b.workflowBindings.timer.id,status:'success',mode:'trigger',startedAt:new Date(state.startedAt).toISOString(),stoppedAt:new Date(Date.now()+1).toISOString()}],nextCursor:null});kind='executions';

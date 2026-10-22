@@ -21,7 +21,19 @@ function setup(count=1,amazon=false){
 }
 async function main(){
  for(const [label,count,amazon]of [['website',1,false],['Amazon',1,true],['siblings',2,true]] as const){
-  const f=setup(count,amazon);await f.run();assert.equal(f.service.state.draftCalls,1);assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);f.service.assertSentinels();await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,1);mark(label+': concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied');
+  const f=setup(count,amazon);await f.run();assert.equal(f.service.state.draftCalls,1);assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);assert(Object.values(f.f.flows).every(w=>!w.active),'Every owned workflow copy returns OFF');f.service.assertSentinels();await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,1);mark(label+': concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied');
+ }
+ {
+  const f=setup();let delayed=false;
+  f.service.setFault(async(kind,result)=>{if(kind==='assembly'){delayed=true;await delay(5200);}return result;});
+  await f.run();assert(delayed);assert.equal(f.service.state.draftCalls,1);assert(f.service.state.closed);f.service.assertSentinels();
+  mark('Terminal assembly response beyond five seconds completes once before scoped cleanup');
+ }
+ {
+  const f=setup();f.service.setFault((kind,result)=>kind==='executions'?Response.json({data:[],nextCursor:null}):result);
+  await assert.rejects(f.run());assert.equal(f.service.calls.filter(c=>c.path==='/api/v1/executions').length,12);
+  assert.equal(f.adapter.counters().calls,192);assert(f.service.state.closed&&!f.service.state.timer);
+  mark('Twelve complete observation iterations fit the 200-call cap and stop without a thirteenth');
  }
  for(const stage of ['queue','assembly','draft','activate']){
   const f=setup();f.service.setFault((kind,result)=>{if(kind===stage)throw Error('Accepted but response lost');return result;});await assert.rejects(f.run());assert(f.service.state.closed&&!f.service.state.timer);assert.equal(f.service.state[stage==='activate'?'activateCalls':stage==='queue'?'queueCalls':stage==='assembly'?'assemblyCalls':'draftCalls'],1);await assert.rejects(f.run());f.service.assertSentinels();mark(stage+': accepted effect with lost acknowledgement is never retried and cleanup is independent');
@@ -80,6 +92,16 @@ async function main(){
  const expired=setup();const old=expired.adapter.dependencies.now;expired.adapter.dependencies.now=()=>Date.parse(expired.f.binding.packet.expiresAt)+1;await assert.rejects(expired.run());assert.equal(expired.service.calls.length,0);expired.adapter.dependencies.now=old;mark('Expired runner refuses work before claim/transport');
  const close=setup();close.service.state.claimed=true;close.service.state.assembled=true;close.service.state.created=true;close.service.state.registered=true;close.service.state.timer=true;
  const independent=createProtectedRunnerAdapter(close.f.binding,definitionSha256(close.f.binding),{...close.options,now:()=>Date.parse(close.f.binding.packet.expiresAt)+1});await assert.rejects(independent.closeOnly());assert(close.service.state.closed&&!close.service.state.timer);assert.equal(close.service.state.providerReads,0);mark('Independent cleanup revokes after expiry without primary journal; missing evidence is reported unconfirmed');
+ {
+  const f=setup();f.service.state.timer=true;
+  f.service.setFault(async(kind,result)=>{if(kind==='deactivate'&&(await result.clone().json() as {id:string}).id===f.f.binding.workflowBindings.queue.id)return new Promise<Response>(()=>{});return result;});
+  // AbortSignal.timeout is unref'ed; retain a referenced watchdog so Node cannot exit before this assertion.
+  let watchdog:ReturnType<typeof setTimeout>|undefined;
+  try{await Promise.race([assert.rejects(f.adapter.closeOnly()),new Promise<never>((_,reject)=>{watchdog=setTimeout(()=>reject(Error('Hung cleanup regression did not finish')),7000);})]);}
+  finally{if(watchdog)clearTimeout(watchdog);}
+  for(const binding of Object.values(f.f.binding.workflowBindings))assert(f.service.calls.some(c=>c.path==='/api/v1/workflows/'+binding.id+'/deactivate'),'Each stop dispatched despite hung peer');
+  assert.equal(f.service.state.timer,false);mark('Hung webhook shutdown cannot suppress independent timer/peer shutdown; closure remains unconfirmed');
+ }
  const cleanupFailures=setup();cleanupFailures.service.setFault((k,r)=>{if(k==='close')throw Error('Close acknowledgement lost');return r;});await assert.rejects(cleanupFailures.adapter.closeOnly());assert.equal(cleanupFailures.service.state.stopCalls,1);assert(cleanupFailures.service.state.closed);mark('Unconfirmed close still stops timer and reads closure; caller gets failure');
  const uncooperative=setup();let attemptedClose=0;
  const stubborn=createProtectedRunnerAdapter(uncooperative.f.binding,definitionSha256(uncooperative.f.binding),{...uncooperative.options,fetcher:async(input,init)=>{if(String(input).endsWith('/engineering-isolation')&&String(init?.body).includes('close')){attemptedClose++;return new Promise(()=>{});}return uncooperative.options.fetcher(input,init);}});
