@@ -89,7 +89,7 @@ async function main() {
     : `${parentOrderId}-item-${Date.now()}`;
 
   // 2. Download and parse customization for the second item
-  console.log('Downloading customization from:', customizationUrl.substring(0, 60) + '...');
+  console.log('Downloading customization for the selected item');
   const customizationData = await downloadAndExtractCustomizationZip(customizationUrl);
   if (!customizationData) {
     console.error('Failed to download or extract customization ZIP');

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
+import { deflateRawSync } from 'node:zlib';
+import { archive, amazonV3 } from './test-customization-zip';
 import { PUBLIC_BODY_LIMITS } from '../src/lib/request-body';
 import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -15,6 +17,8 @@ async function main() {
   assert.ok(date && flags.length);
   let outbound = 0, syntheticIdempotency = 0;
   let allowSyntheticIdempotency = false;
+  let csvMode: string | undefined, csvArchive: Buffer, csvDownloads = 0, csvInserts = 0, csvUpdates = 0, csvTriggers = 0;
+  const storedCsvRow = { id: 1, orderId: 'TEST-COMPILED-ZIP', character_specs: { childName: 'Stored Synthetic Child', age: '5' }, product_info: {} };
   const packageRoot = resolve('.open-next/cloudflare');
   const temporary = await mkdtemp(join(tmpdir(), 'lhl-compiled-worker-'));
   try {
@@ -35,6 +39,7 @@ async function main() {
         SUPABASE_URL: 'https://compiled-worker-db.example.test', NEXT_PUBLIC_SUPABASE_URL: 'https://compiled-worker-db.example.test',
         SUPABASE_SERVICE_ROLE_KEY: 'synthetic-compiled-worker-key', BACKEND_API_TOKEN: 'synthetic-compiled-worker-machine',
         ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com',
+        N8N_W0_WEBHOOK_URL: 'https://compiled-worker-w0.example.test/hook',
         STRIPE_SECRET_KEY: 'sk_test_synthetic_compiled_body', STRIPE_WEBHOOK_SECRET: 'whsec_synthetic_compiled_body',
         GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
         GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false',
@@ -45,6 +50,19 @@ async function main() {
         if (allowSyntheticIdempotency && url.origin === 'https://compiled-worker-db.example.test' && url.pathname === '/rest/v1/idempotency_keys' && ['GET', 'POST'].includes(request.method)) {
           syntheticIdempotency++;
           return new WorkerResponse(request.method === 'GET' ? 'null' : null, { status: request.method === 'GET' ? 200 : 201, headers: { 'content-type': 'application/json' } });
+        }
+        if (csvMode && url.origin === 'https://compiled-worker-download.example.test' && url.pathname === '/synthetic.zip' && request.method === 'GET') {
+          csvDownloads++;return new WorkerResponse(new Uint8Array(csvArchive));
+        }
+        if (csvMode && url.origin === 'https://compiled-worker-db.example.test' && url.pathname === '/rest/v1/orders') {
+          let rows: unknown[];
+          if (request.method === 'GET') rows = csvMode === 'rejected-existing' ? [storedCsvRow] : [];
+          else if (request.method === 'POST') { csvInserts++;const inserted = await request.json() as { character_specs: { childName: string } };assert.equal(inserted.character_specs.childName, 'Synthetic Child');rows = [{ id: 2, ...inserted }]; }
+          else { assert.equal(request.method, 'PATCH');csvUpdates++;rows = [{ id: 1 }]; }
+          return new WorkerResponse(JSON.stringify(request.headers.get('accept')?.includes('vnd.pgrst.object') ? rows[0] ?? null : rows), { status: request.method === 'POST' ? 201 : 200, headers: { 'content-type': 'application/json' } });
+        }
+        if (csvMode && url.origin === 'https://compiled-worker-w0.example.test' && url.pathname === '/hook' && request.method === 'POST') {
+          csvTriggers++;const payload = await request.json() as { characterSpecs: { childName: string } };assert.equal(payload.characterSpecs.childName, csvMode === 'rejected-existing' ? 'Stored Synthetic Child' : 'Synthetic Child');return new WorkerResponse('{}');
         }
         outbound++; throw new Error('Outbound blocked: ' + url.origin);
       },
@@ -107,6 +125,25 @@ async function main() {
       const invalidCsv = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: fieldOnly });
       assert.equal(invalidCsv.status, 400);
       assert.deepEqual(await invalidCsv.json(), { error: 'No file provided. Please upload a CSV file.' });
+      const cacheNull = await compiledFetch(origin + '/api/preview/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'null' });
+      assert.equal(cacheNull.status, 400);assert.deepEqual(await cacheNull.json(), { error: 'Invalid request body', exists: false });
+      const cacheMissing = await compiledFetch(origin + '/api/preview/check?hash=1234567890abcdef');assert.equal(cacheMissing.status, 400);
+      for (const scenario of ['valid-deflated', 'valid-stored', 'rejected-new', 'rejected-existing', 'zero-declared', 'over-expanded']) {
+        csvMode = scenario;csvDownloads = 0;csvInserts = 0;csvUpdates = 0;csvTriggers = 0;
+        const valid = scenario.startsWith('valid');
+        csvArchive = archive([['customization.json', Buffer.from(valid ? JSON.stringify(amazonV3) : scenario === 'zero-declared' || scenario === 'over-expanded' ? '"' + 'x'.repeat(3 * 1024 * 1024) + '"' : 'invalid synthetic JSON'), scenario === 'valid-stored' ? 0 : 8]]);
+        if (scenario === 'zero-declared' || scenario === 'over-expanded') {
+          const central = csvArchive.readUInt32LE(csvArchive.length - 22 + 16), declared = scenario === 'zero-declared' ? 0 : 1024 * 1024;
+          csvArchive.writeUInt32LE(declared, central + 24);csvArchive.writeUInt32LE(declared, 22);
+        }
+        const csv = ['amazon-order-id,ship-address-1,ship-city,ship-state,ship-postal-code,customized-url,recipient-name,buyer-email', 'TEST-COMPILED-ZIP,1 Test Lane,Test City,CA,00000,https://compiled-worker-download.example.test/synthetic.zip,Synthetic Parent,parent@example.test', ''].join('\n');
+        const csvBody = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}--\r\n`;
+        const response = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: csvBody });
+        assert.equal(response.status, 200, scenario + ': ' + await response.clone().text());const summary = (await response.json()).summary;
+        assert.equal(csvDownloads, 1, scenario);assert.equal(csvInserts, valid ? 1 : 0, scenario);assert.equal(csvUpdates, scenario === 'rejected-existing' ? 1 : 0, scenario);assert.equal(csvTriggers, valid || scenario === 'rejected-existing' ? 1 : 0, scenario);
+        assert.equal(summary.errors, valid || scenario === 'rejected-existing' ? 0 : 1, scenario);console.log('Compiled customization archive case: ' + scenario);
+      }
+      csvMode = undefined;
       // Machine authentication reaches the compiled escaped login route, then rejects its mode.
       const machineLogin = await compiledFetch(origin + '/__access_setup', {
         headers: { authorization: 'Bearer synthetic-compiled-worker-machine' },
@@ -122,12 +159,13 @@ async function main() {
       // All requests travel through the actual compiled middleware and route handlers.
       for (const [path, limit, headers] of [
         ['/api/preview/generate', PUBLIC_BODY_LIMITS.preview, {}],
+        ['/api/preview/check', PUBLIC_BODY_LIMITS.preview, {}],
         ['/api/checkout/create', PUBLIC_BODY_LIMITS.checkout, { 'idempotency-key': 'synthetic-compiled-body' }],
         ['/api/webhooks/stripe', PUBLIC_BODY_LIMITS.stripeWebhook, { 'stripe-signature': 'synthetic-invalid-signature' }],
       ] as const) {
         const rejected = await compiledFetch(origin + path, { method: 'POST', headers: { ...headers, 'content-type': 'application/json', 'transfer-encoding': 'chunked' }, body: ' '.repeat(limit + 1) });
         assert.equal(rejected.status, 413, path + ': ' + await rejected.clone().text());
-        assert.deepEqual(await rejected.json(), { error: 'Request body too large' });
+        assert.deepEqual(await rejected.json(), { error: 'Request body too large', ...(path === '/api/preview/check' ? { exists: false } : {}) });
       }
       const stripe = new Stripe('sk_test_synthetic_compiled_body');
       const event = JSON.stringify({ id: 'evt_compiled_body', object: 'event', type: 'synthetic.unsupported', data: { object: { name: 'é🐕' } } }, null, 2) + '\n';
@@ -149,7 +187,16 @@ async function main() {
       assert.equal(syntheticIdempotency, 4, 'only the two verified synthetic events may reach intercepted idempotency transport');
       assert.equal(outbound, 0, 'compiled validation and rejected auth must not contact providers');
     } finally { await worker.dispose(); }
+    // Verify the native Worker output ceiling independently of ZIP metadata.
+    const exactDeflate = [...deflateRawSync(Buffer.from('1234'))], oversizedDeflate = [...deflateRawSync(Buffer.alloc(4096, 0x61))];
+    const inflateProbe = new Miniflare(convertV4MiniflareOptions({ modules: true,
+      script: `import {crc32,inflateRawSync} from 'node:zlib';export default {fetch(){const exact=inflateRawSync(Uint8Array.from(${JSON.stringify(exactDeflate)}),{maxOutputLength:4});let rejected=false;try{inflateRawSync(Uint8Array.from(${JSON.stringify(oversizedDeflate)}),{maxOutputLength:4});}catch{rejected=true;}return Response.json({exact:exact.length,rejected,crc:crc32(new TextEncoder().encode('123456789'))});}}`,
+      compatibilityDate: date, compatibilityFlags: flags, outboundService: () => { throw new Error('Native inflater probe forbids outbound traffic'); },
+    }));
+    try { const response = await inflateProbe.dispatchFetch('http://example.test/');assert.deepEqual(await response.json(), { exact: 4, rejected: true, crc: 0xcbf43926 }); }
+    finally { await inflateProbe.dispose(); }
+
   } finally { await rm(temporary, { recursive: true, force: true }); }
-  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, bounded CSV multipart parsing, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
+  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, bounded CSV multipart and remote archive parsing, preview cache caps, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });
