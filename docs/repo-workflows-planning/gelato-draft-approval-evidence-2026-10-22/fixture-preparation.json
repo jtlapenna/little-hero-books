@@ -1,0 +1,72 @@
+{
+  "canPersist": false,
+  "canExecute": false,
+  "reason": "Real DB IDs, private recipient, human approval and hosted bindings are unbound",
+  "records": [
+    {
+      "role": "WEB-A",
+      "proposedOrderId": "TEST-GELATO-U-48H-WEB-7d366b19",
+      "sha256": "f6ec01664f7a1f46efea6904ff168b9be8c2e5328c806cd43d8810b8fb32b5cf",
+      "bytes": 3681259,
+      "pages": 35,
+      "provisionalArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-48H-WEB-7d366b19/gelato/print/v2/d831db5d2391d276abcd66c5.pdf",
+      "sourceFingerprint": "d831db5d2391d276abcd66c5",
+      "canonicalW0W3W4Producer": true,
+      "productionReadinessSubstituted": true,
+      "canonicalDraftReadySourceRejected": true,
+      "bundledConfigChanged": false,
+      "hostedExecution": false,
+      "approval": "pending"
+    },
+    {
+      "role": "AMZ-A",
+      "proposedOrderId": "TEST-GELATO-U-48H-AMZ-7d366b19",
+      "sha256": "2269a3566228d45d4867e9605fd38895438ff9c30cea056c86591a995bdef5ab",
+      "bytes": 3622350,
+      "pages": 35,
+      "provisionalArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-48H-AMZ-7d366b19/gelato/print/v2/65b00056ad69260ef4864013.pdf",
+      "sourceFingerprint": "65b00056ad69260ef4864013",
+      "canonicalW0W3W4Producer": true,
+      "productionReadinessSubstituted": true,
+      "canonicalDraftReadySourceRejected": true,
+      "bundledConfigChanged": false,
+      "hostedExecution": false,
+      "approval": "pending"
+    },
+    {
+      "role": "SIB-A",
+      "proposedOrderId": "TEST-GELATO-U-48H-SIB-7d366b19-A",
+      "sha256": "3b140bd0718583b00b90f0b1b37b942cdea0c78380304e7616606e1720c6cf7f",
+      "bytes": 3582353,
+      "pages": 35,
+      "provisionalArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-48H-SIB-7d366b19-A/gelato/print/v2/3c00941ff1981a720104a8fc.pdf",
+      "sourceFingerprint": "3c00941ff1981a720104a8fc",
+      "canonicalW0W3W4Producer": true,
+      "productionReadinessSubstituted": true,
+      "canonicalDraftReadySourceRejected": true,
+      "bundledConfigChanged": false,
+      "hostedExecution": false,
+      "approval": "pending"
+    },
+    {
+      "role": "SIB-B",
+      "proposedOrderId": "TEST-GELATO-U-48H-SIB-7d366b19-B",
+      "sha256": "f0e5d766be11c999ce2da4d37d95f52a58c28085ab42dda8146c2c4e7a282398",
+      "bytes": 3528196,
+      "pages": 35,
+      "provisionalArtifactKey": "book-finding-our-inner-voice/orders/TEST-GELATO-U-48H-SIB-7d366b19-B/gelato/print/v2/e6d4eb29654ad3fde76bd301.pdf",
+      "sourceFingerprint": "e6d4eb29654ad3fde76bd301",
+      "canonicalW0W3W4Producer": true,
+      "productionReadinessSubstituted": true,
+      "canonicalDraftReadySourceRejected": true,
+      "bundledConfigChanged": false,
+      "hostedExecution": false,
+      "approval": "pending"
+    }
+  ],
+  "externalRequests": 0,
+  "pngObjects": 132,
+  "manifestObjects": 8,
+  "readinessSubstituted": true,
+  "actualHostedExecution": false
+}

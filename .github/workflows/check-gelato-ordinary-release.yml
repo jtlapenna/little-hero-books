@@ -61,4 +61,5 @@ jobs:
       - name: Verify protected-runner evidence and current source bindings
         run: |
           python3 docs/repo-workflows-planning/gelato-protected-runner-evidence-2026-10-20/verify.py
-          python3 docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py --source
+          python3 docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py
+          python3 docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/verify.py --source

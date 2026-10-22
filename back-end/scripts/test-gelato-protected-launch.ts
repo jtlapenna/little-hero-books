@@ -53,6 +53,9 @@ async function scenario(action:'healthy'|'primary-death'|'coordinator-death'|'co
    await chmod(file,0o644);await assert.rejects(readLaunchContext(file,digest));await chmod(file,0o600);mark('Public context permissions reject');
    await chmod(dir,0o755);await assert.rejects(readLaunchContext(file,digest));await chmod(dir,0o700);mark('Public context directory rejects');
    const link=path.join(dir,'link.json');await symlink(file,link);await assert.rejects(readLaunchContext(link,digest));mark('Symlink private context rejects');
+   await assert.rejects(launchProtectedCase(file,digest,'execute-approved-draft-only'),/Transport requires matching explicit command/);
+   await assert.rejects(launchProtectedCase(file,digest,'unknown-mode' as never),/Explicit reviewed/);
+   mark('Explicit draft-only mode rejects loopback context and unknown modes before any process/transport');
    await assert.rejects(launchProtectedCase(file,digest,'execute-approved-unpaid'),/paused pending/);mark('Live command is paused pending incident review; rehearsal does not authorize execution');
    for(const mutate of [(v:typeof c)=>{v.approval.maximumSpendCents=1;},(v:typeof c)=>{v.approval.sourceSha='d'.repeat(40);},(v:typeof c)=>{v.binding.workflowBindings.queue.versionId='changed';}]){
     const changed=structuredClone(c);mutate(changed);await writeFile(file,JSON.stringify(changed),{mode:0o600});await assert.rejects(readLaunchContext(file,sha256(await readFile(file))));

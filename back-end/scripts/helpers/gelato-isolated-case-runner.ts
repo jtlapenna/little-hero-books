@@ -1,5 +1,6 @@
 /** Protected runner core. No default transport, environment loading, scope issuer or live CLI. */
 import {z} from 'zod';
+import {GELATO_WORKFLOW_OPERATION_MS} from './gelato-runner-deadlines';
 import {mkdir,open} from 'node:fs/promises';
 import path from 'node:path';
 import {definitionSha256} from './prepare-w1-native-queue';
@@ -57,7 +58,7 @@ export async function runPreparedIsolatedCase(raw:unknown,workflowHashes:unknown
  const remaining=()=>Date.parse(p.expiresAt)-d.now();
  const active=()=>{if(d.now()<Date.parse(p.startsAt)||remaining()<=0)throw Error('Window inactive');};active();
  await d.journal.claim(packetSha256);
- let failed=false,timerAttempted=false,cleanupOk=false,journalFailed=false;let closedReceipt:unknown;
+ let failed=false,cleanupOk=false,journalFailed=false;let closedReceipt:unknown;
  const operation=async<T>(name:string,fn:(signal:AbortSignal)=>Promise<T>,cleanup=false)=>{
   const record=async(state:'starting'|'confirmed'|'unconfirmed')=>{
    try{await d.journal.record({step:name,state});}catch{journalFailed=true;if(!cleanup)throw Error('Case journal unavailable');}
@@ -65,7 +66,7 @@ export async function runPreparedIsolatedCase(raw:unknown,workflowHashes:unknown
   if(!cleanup)active();await record('starting');
   // Journal I/O may block across expiry; no dispatch may follow a stale pre-I/O check.
   if(!cleanup)active();
-  const controller=new AbortController(),ms=cleanup?10_000:Math.min(name==='observe-owned-timer'?240_000:120_000,remaining());
+  const controller=new AbortController(),ms=cleanup?10_000:Math.min(['queue','assembly','draft'].includes(name)?GELATO_WORKFLOW_OPERATION_MS:name==='observe-owned-timer'?240_000:120_000,remaining());
   if(ms<=0)throw Error('No execution budget remains');
   const timeout=setTimeout(()=>controller.abort(Error('Operation deadline ended')),ms);
   try{
@@ -85,7 +86,6 @@ export async function runPreparedIsolatedCase(raw:unknown,workflowHashes:unknown
   assertFiles(provider.files,p);
   const registered=await operation('register-status',s=>d.isolation('register-status',{scopeId:p.scopeId,action:'register-status'},s));
   z.object({registered:z.literal(true),customerMessages:z.literal(false)}).strict().parse(registered);
-  timerAttempted=true;
   z.object({started:z.literal(true),workflowSha256:z.literal(expected.timer)}).strict().parse(await operation('start-owned-timer',s=>d.timer('start',s)));
   const observed=await operation('observe-owned-timer',s=>d.timer('observe',s));
   z.object({ticks:z.number().int().min(1).max(3),actualClaims:z.number().int().min(1).max(3),successfulRefreshes:z.number().int().min(1).max(3),errors:z.literal(0),providerRoots:z.array(z.literal(provider.providerRootIds[0])).length(1),customerMessages:z.literal(false),source:z.literal('hosted-timer')}).strict().parse(observed);
@@ -93,9 +93,9 @@ export async function runPreparedIsolatedCase(raw:unknown,workflowHashes:unknown
  finally{
   // Independent revocation is tried even after preflight failure, expiry or unknown dispatch acknowledgement.
   // Close first: a timer stop failure must not retain usable provider authority.
-  let closeOk=false,stopOk=!timerAttempted;
+  let closeOk=false,stopOk=false;
   try{const close=await operation('close-owned-scope',s=>d.isolation('close',{scopeId:p.scopeId,action:'close'},s),true);z.object({closed:z.literal(true),customerMessages:z.literal(false)}).strict().parse(close);closeOk=true;}catch{ /* Stop and verify still run. */ }
-  if(timerAttempted)try{z.object({stopped:z.literal(true)}).strict().parse(await operation('stop-owned-timer',s=>d.timer('stop',s),true));stopOk=true;}catch{ /* independent verification required */ }
+  try{z.object({stopped:z.literal(true)}).strict().parse(await operation('stop-owned-timer',s=>d.timer('stop',s),true));stopOk=true;}catch{ /* independent verification required */ }
   try{closedReceipt=z.object({scopeClosed:z.literal(true),parentWindowClosed:z.literal(true),registrationDisabled:z.literal(true),leaseCleared:z.literal(true),flags:off,gates}).strict().parse(await operation('verify-independent-closure',s=>d.verifyClosed(s),true));cleanupOk=closeOk&&stopOk;}catch{cleanupOk=false;}
  }
  if(!cleanupOk)throw Error('Independent closure unconfirmed; stop all later cases');

@@ -152,7 +152,12 @@ export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, depe
     assertSavedProviderQuoteFresh(snapshot, (dependencies.now ?? (() => new Date()))());
     const accepted = await (dependencies.create ?? createGelatoDraft)(request);
     await dependencies.store.transition('record_gelato_accepted_root', { ...parameters(identity), p_execution_id: identity.executionId, p_root_id: accepted.id });
-    const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders([accepted.id], dependencies.get ?? getGelatoOrder), request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); }, true);
+    const graph = await validateGelatoConnectedOrdersWithFiles(await loadGelatoConnectedOrders([accepted.id], async id => {
+      // The OFF-only engineering window approves one newly returned root, never
+      // traversal into another provider order. Ordinary split graphs are preserved.
+      if (!dependencies.draftsEnabled && id !== accepted.id) throw new Error('Engineering draft cannot read another provider root');
+      return (dependencies.get ?? getGelatoOrder)(id);
+    }), request, (reference, url, expected) => { const members = context.members.filter((member) => member.item_reference_id === reference); if (members.length !== 1 || !dependencies.verifyStoredFile) return Promise.resolve(false); return dependencies.verifyStoredFile(members[0], url, expected); }, true);
     const result = await dependencies.store.transition('persist_gelato_draft_result', { ...parameters(identity), p_execution_id: identity.executionId, p_orders: graph });
     return { submissionId: identity.submissionId, outcome: 'draft', providerOrderIds: graph.map((order) => order.id), result, reused: false };
   } catch (error) {

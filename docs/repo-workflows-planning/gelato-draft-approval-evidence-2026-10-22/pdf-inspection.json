@@ -1,0 +1,1915 @@
+{
+  "schema": "lhl.draft-approval-pdf-review@1",
+  "observedAt": "2026-10-22T06:45:03.991008+00:00",
+  "inspection": "Fresh local hash, independent pypdf source-pixel/page-box/blank assertions and Poppler rendering",
+  "pdfs": 4,
+  "pages": 140,
+  "sourceImageAssociations": 132,
+  "networkRequests": 0,
+  "results": [
+    {
+      "role": "WEB-A",
+      "filename": "WEB-A-standard-dummy.pdf",
+      "sha256": "f6ec01664f7a1f46efea6904ff168b9be8c2e5328c806cd43d8810b8fb32b5cf",
+      "bytes": 3681259,
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35,
+      "blankPdfPages": [
+        2,
+        35
+      ],
+      "readOnlyCopy": true,
+      "all33SourceImagesPixelIdentical": true,
+      "allPageBoxesCorrect": true,
+      "pages": [
+        {
+          "pdfPage": 1,
+          "label": "cover",
+          "mediaBox": [
+            0.0,
+            0.0,
+            1159.455118,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "85714162f9dd96cf216568f6b1151173dc7a9ca7d9a0b396161947dc08a4882b"
+        },
+        {
+          "pdfPage": 2,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        },
+        {
+          "pdfPage": 3,
+          "label": "p00",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "77ff8481dbbca4e3ec89acaa89bf4daf09c362f9c8d39743e45e51fa07925fca"
+        },
+        {
+          "pdfPage": 4,
+          "label": "p01",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ae48b51d7240431c062bdf70c662b0c11b42126ca74a52308133eaf267b45fb6"
+        },
+        {
+          "pdfPage": 5,
+          "label": "p02",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "d331a7f51d3165a5c46571e0813626aa061e0f1ec300ab5a3017e8fe6843cd3f"
+        },
+        {
+          "pdfPage": 6,
+          "label": "p03",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "166d8edd5913e6177d7fa3a734d8544ed77d3581b8cc1a801572eefa2f1290f4"
+        },
+        {
+          "pdfPage": 7,
+          "label": "p04",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "005c0d56116ec650c26a3d4146f4e9555d7c13b874837fa12e6bd4b2c3c152da"
+        },
+        {
+          "pdfPage": 8,
+          "label": "p05",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "b98a4ec49f47a5ce84ca9611b42ee69c7b6690138002ba90c4f7aa40389d71bb"
+        },
+        {
+          "pdfPage": 9,
+          "label": "p06",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "5a227837cd23cab3d6d835aaced1a5f2df58b07fd32c65185df0167c9f538928"
+        },
+        {
+          "pdfPage": 10,
+          "label": "p07",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "13d09dbc7fdc64ed688804dd992f584465236d9c32cf971f2e7f31f2558c6638"
+        },
+        {
+          "pdfPage": 11,
+          "label": "p08",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "bf64d82ab01a2e9c1455b5c7ce560f619031176e986557e4a396c0c3ac208d7a"
+        },
+        {
+          "pdfPage": 12,
+          "label": "p09",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "aaeb577eea47a89b21da3a2962e5183ed06c365232dd76fbae50161737eb53c1"
+        },
+        {
+          "pdfPage": 13,
+          "label": "p10",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "5f04ad5cb9212608cca6d366f45b194940d9f6662251175fd499b782cd808ddb"
+        },
+        {
+          "pdfPage": 14,
+          "label": "p11",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "4787b1b530d8345b666e201f4f8213bc4a052caa20ac8e25bf09eab4582ec3ca"
+        },
+        {
+          "pdfPage": 15,
+          "label": "p12",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1b50e02a188d1b12772b4b6eed893238dfd2ff36400ff0f2d53deafdf75f06c2"
+        },
+        {
+          "pdfPage": 16,
+          "label": "p13",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "fe8d2154d603677a3b388ba1d540c00cc88bedeea85504d32374f02c1f683538"
+        },
+        {
+          "pdfPage": 17,
+          "label": "p14",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6ba624393ad5ae61816ac2bc790b4e1f51405270427a81bcb224ef6aa6a7d645"
+        },
+        {
+          "pdfPage": 18,
+          "label": "p15",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "afcbbe12bdccd420aabc44a6f34fc9573561183d5d4a24bdcd832b7cb13f47cd"
+        },
+        {
+          "pdfPage": 19,
+          "label": "p16",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "4b0a6c87951828e37ff6f094c65fb63ac4549735e91e6f67f760fbfd0544769e"
+        },
+        {
+          "pdfPage": 20,
+          "label": "p17",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "54a7bd99af2e28a9477328e0c8711e9ede2d63546b9152493832d5ad856a2708"
+        },
+        {
+          "pdfPage": 21,
+          "label": "p18",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "17122e7025075af95a273de3062a31b45897fe6917bc1103ed9a5e2b2c1d9423"
+        },
+        {
+          "pdfPage": 22,
+          "label": "p19",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1a83f4fc1480b8a82cf7052e8db8811457187c5442d32e9002487a13b072a745"
+        },
+        {
+          "pdfPage": 23,
+          "label": "p20",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6cb7f12521778f6e92a0a1c192623cccf0c9d265e78e39c87d5a9e5d54728958"
+        },
+        {
+          "pdfPage": 24,
+          "label": "p21",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ee85eb91385a304508ed902d679f9fd23e2198c6f5bae36a103de5d0f6a5357d"
+        },
+        {
+          "pdfPage": 25,
+          "label": "p22",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "df0fcc25824adcc196be6a2e7370b527c13db986e5e4ee2bf5a5650af849af5a"
+        },
+        {
+          "pdfPage": 26,
+          "label": "p23",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "65d15400c2477e1e1eca7e8f608e34defb0921553fdbe8a2a4cee83d0fba6e5b"
+        },
+        {
+          "pdfPage": 27,
+          "label": "p24",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "8330437dfdc5936b03f37c63f04f6afd551fdde38b02dd20b45da1bdd863233a"
+        },
+        {
+          "pdfPage": 28,
+          "label": "p25",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "d0f8759fdac42f310f17df1b1b9a62f413d47de52954fe297122c69fc38e7ba1"
+        },
+        {
+          "pdfPage": 29,
+          "label": "p26",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6d83952d7d4f002aaedb191429d6763622baa0162e15349056a143af7a6b559b"
+        },
+        {
+          "pdfPage": 30,
+          "label": "p27",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "950439f1c56e1e004184d787d78d42916955934183990e1ed897639ccfce4949"
+        },
+        {
+          "pdfPage": 31,
+          "label": "p28",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "a02706f455f83c19d7d78a9cf4601c2a9b1b81150db836f4f8f6eb31f7682fc1"
+        },
+        {
+          "pdfPage": 32,
+          "label": "p29",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1c1e2a0a448cc863ac773c2c44f2711068f8f84557ef94040763b3290ddf3143"
+        },
+        {
+          "pdfPage": 33,
+          "label": "p30",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "acd7ee4d8f805e7879078b1ba4a35e444971144a7bf067f846908df6a4620411"
+        },
+        {
+          "pdfPage": 34,
+          "label": "p31",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "d61ba23ed96ec84e8db6389fe5cd0c80d743b1c8a53b0c2cb6ecf7944832c11d"
+        },
+        {
+          "pdfPage": 35,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        }
+      ],
+      "contactSheet": "WEB-A-all-35-pages.png"
+    },
+    {
+      "role": "AMZ-A",
+      "filename": "AMZ-A-amazon-dummy.pdf",
+      "sha256": "2269a3566228d45d4867e9605fd38895438ff9c30cea056c86591a995bdef5ab",
+      "bytes": 3622350,
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35,
+      "blankPdfPages": [
+        2,
+        35
+      ],
+      "readOnlyCopy": true,
+      "all33SourceImagesPixelIdentical": true,
+      "allPageBoxesCorrect": true,
+      "pages": [
+        {
+          "pdfPage": 1,
+          "label": "cover",
+          "mediaBox": [
+            0.0,
+            0.0,
+            1159.455118,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "54fab491bf97767288fbc3486e985aeb0b21524bb5af6aea2ea49298bf25fd34"
+        },
+        {
+          "pdfPage": 2,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        },
+        {
+          "pdfPage": 3,
+          "label": "p00",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "21f29b9d7f0f7e33620ac8de1e0b44cec1418ea14a0080efb8e2bbd8e0f03bd6"
+        },
+        {
+          "pdfPage": 4,
+          "label": "p01",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "9718009434bad501ea79c93b1ed7963d27fb39b478efbc0ab7ae170a38c09a24"
+        },
+        {
+          "pdfPage": 5,
+          "label": "p02",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "d9abedded7c73bc3032d20d6f0c1752e60658fcad29f86866d0275ff637707a7"
+        },
+        {
+          "pdfPage": 6,
+          "label": "p03",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "687bfeb13a33106529ede3127839fe54f7edd0d5a1f215e5d7861eb322e46861"
+        },
+        {
+          "pdfPage": 7,
+          "label": "p04",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1566de94e22ee8fc6b25e85a671165a811ab70011f82b8727da390d2f18eb61f"
+        },
+        {
+          "pdfPage": 8,
+          "label": "p05",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "776e4173569cb3bbe99e58a6996345c82ea2ab616d254a963132f16df5225feb"
+        },
+        {
+          "pdfPage": 9,
+          "label": "p06",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "f2ccddd04b1b9745fd0c91f94cdb06f4f5814fc537fedd1a93af2b1c72efb17a"
+        },
+        {
+          "pdfPage": 10,
+          "label": "p07",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1c08a0d662c741c54aab636040aeb8f4cbdcd53ef3475872f8df96c28350fe52"
+        },
+        {
+          "pdfPage": 11,
+          "label": "p08",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "858c8e025889d2ce20baf4074f565a18bbb79d2d9f500b3780a71156498df52c"
+        },
+        {
+          "pdfPage": 12,
+          "label": "p09",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "1924736aa8c9e56cb139bfce401ac802ee38827c9583396cd07f5c0b74fc3a0c"
+        },
+        {
+          "pdfPage": 13,
+          "label": "p10",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "056b8a05a16cedf49ca2ff49005abc87dacfa5bf88c76a5b681b4b8a3a2c55c8"
+        },
+        {
+          "pdfPage": 14,
+          "label": "p11",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "46dfd19aa73c52446dd181297fde59af1fe5e9f49b79297a380eb97cef4e2f19"
+        },
+        {
+          "pdfPage": 15,
+          "label": "p12",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "8548890e60d5dcec18002dcc228e9cefe03e2e85eb8f02dbd6ccb822a3db4b0e"
+        },
+        {
+          "pdfPage": 16,
+          "label": "p13",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "510919e516a2c6e5c4e3c19cf3bdc5057c27d1431d02284d65cc2d89cd039f57"
+        },
+        {
+          "pdfPage": 17,
+          "label": "p14",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e955e0ac56976f8acf5ae4ff1383cccfe9ae89c60c5418b182a1c07af16fe812"
+        },
+        {
+          "pdfPage": 18,
+          "label": "p15",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e50cb2b21869a1a31e895b7e562bad4ee6eb35bc05a331f25d547c2c375110da"
+        },
+        {
+          "pdfPage": 19,
+          "label": "p16",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "3edab34d769daecc4c302587aedbb00c671041e12721e670e217d2909e4b9a77"
+        },
+        {
+          "pdfPage": 20,
+          "label": "p17",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "69f5e1e5164ba86c5203a5202005d18e2a0d82f5036bc032f95c7f6840e36d08"
+        },
+        {
+          "pdfPage": 21,
+          "label": "p18",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "02601a3f81421a08cfd824f88229c3ae38e2e5802add6b3a1dbfb39ea5f715b7"
+        },
+        {
+          "pdfPage": 22,
+          "label": "p19",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "646870bce53d1872c28cf17ae0108171b4ca1bd95da4115438c2582fab6bf838"
+        },
+        {
+          "pdfPage": 23,
+          "label": "p20",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "0f891638801718818b277480d70bd8f31de76406c4f7cead2cb1aff5533f30da"
+        },
+        {
+          "pdfPage": 24,
+          "label": "p21",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "037bf468c0fc8c6aa1b3aba5d496d6d7fc83d0911bd0195b05e2c677547d0309"
+        },
+        {
+          "pdfPage": 25,
+          "label": "p22",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "da876982e50dfabac8f6316afe44a6f6f5dac88d7cc0a57e5fe213766faf7a55"
+        },
+        {
+          "pdfPage": 26,
+          "label": "p23",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "8305a3f44c34b9c0c270e8e3a1978861791a80e9b0409efbf28b211d04d0dd87"
+        },
+        {
+          "pdfPage": 27,
+          "label": "p24",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e9585e7ec8258664d817807e48184749e378afa676066cd1c6ab2186f335276e"
+        },
+        {
+          "pdfPage": 28,
+          "label": "p25",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "612235937f623c83c81536fecb43ad21bcc7caa1ad08daa0489b2a745d7cc3fd"
+        },
+        {
+          "pdfPage": 29,
+          "label": "p26",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "70d1fe0b5f986c1044b0ea732a6676178801ebcc5b56d6e796120630fadd7715"
+        },
+        {
+          "pdfPage": 30,
+          "label": "p27",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "26addd225cb7ac1f0956e163eead80b3db3c9439516f381f8ada629960df3e58"
+        },
+        {
+          "pdfPage": 31,
+          "label": "p28",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "a5688ae9adc126ee5e7e27678e95266eb5d2cec34fea8f66d9e019fedb4b9180"
+        },
+        {
+          "pdfPage": 32,
+          "label": "p29",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "555af847849885679f965ce386ccbfafa637e393156d354fc116e87df8b78d78"
+        },
+        {
+          "pdfPage": 33,
+          "label": "p30",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "a71126e7d5e1859021a561ceb3f07063107d49b6b4d4f7177a2e7db02ae9bc3b"
+        },
+        {
+          "pdfPage": 34,
+          "label": "p31",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "c04885738e4ed00fbaf9d1f467b4c0a818c3e980415fa5f75315e26796f7b0d7"
+        },
+        {
+          "pdfPage": 35,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        }
+      ],
+      "contactSheet": "AMZ-A-all-35-pages.png"
+    },
+    {
+      "role": "SIB-A",
+      "filename": "SIB-A-amazon-dummy.pdf",
+      "sha256": "3b140bd0718583b00b90f0b1b37b942cdea0c78380304e7616606e1720c6cf7f",
+      "bytes": 3582353,
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35,
+      "blankPdfPages": [
+        2,
+        35
+      ],
+      "readOnlyCopy": true,
+      "all33SourceImagesPixelIdentical": true,
+      "allPageBoxesCorrect": true,
+      "pages": [
+        {
+          "pdfPage": 1,
+          "label": "cover",
+          "mediaBox": [
+            0.0,
+            0.0,
+            1159.455118,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "d3dd0ce9ad8ce878ea96f7267749192f6d20fc62ee7d061b445bff5ae6075a4c"
+        },
+        {
+          "pdfPage": 2,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        },
+        {
+          "pdfPage": 3,
+          "label": "p00",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "b4b1cdf96afce920f49798737f62e732e2b7e4dc42ee8f313dd9c04db68eaec3"
+        },
+        {
+          "pdfPage": 4,
+          "label": "p01",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "331d2028d31bff9faac73a53e18fa0c85bd394b34eb120dd165f1608d6de38eb"
+        },
+        {
+          "pdfPage": 5,
+          "label": "p02",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "a364deae29575f818eb68b03625e730c2d524b28d6232d24351cc56091eee311"
+        },
+        {
+          "pdfPage": 6,
+          "label": "p03",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6ebc69397f760402e8d56aa91a44a528fc7499f57b476011215e98cfd633f0d3"
+        },
+        {
+          "pdfPage": 7,
+          "label": "p04",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "16aab55a4af71c114f59a218c64c783f6f81eeb42c8da92f8b092a5c7c916448"
+        },
+        {
+          "pdfPage": 8,
+          "label": "p05",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ca65131e356fabb3abc8c5c790cac6a17f1785a15e9bd5caf83743dc628a869b"
+        },
+        {
+          "pdfPage": 9,
+          "label": "p06",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "167f90aad5b284f8ca8c00a4a6a8e33195a7833c32745581cf44d5f4e322e8fb"
+        },
+        {
+          "pdfPage": 10,
+          "label": "p07",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "fff2454097888ed794f969c277e48665f94ef67095e77b6d4ff8292d500f8178"
+        },
+        {
+          "pdfPage": 11,
+          "label": "p08",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "5e8a4fc19f28ba5ef36d06c60b95b57fbb29801ebdace5bab29b46c0882c6716"
+        },
+        {
+          "pdfPage": 12,
+          "label": "p09",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "8a88a635283f5d64a193b357f079ececef50da46f3289986c76255655664077b"
+        },
+        {
+          "pdfPage": 13,
+          "label": "p10",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "57f7648b199090e2b3a2567f3797e4697022db2a7399cc02d2c249146247a51d"
+        },
+        {
+          "pdfPage": 14,
+          "label": "p11",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6e0dd18136e5eeb9b40655ebafc56c04e456642ef23d3da607e5fd123934fb8c"
+        },
+        {
+          "pdfPage": 15,
+          "label": "p12",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "868af3cb7a21f5d99058f0c8e18c6aadbe6f9abd13130bb089a058c8a20e79cf"
+        },
+        {
+          "pdfPage": 16,
+          "label": "p13",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ba878c7da452bb69aaadbd0571a26944e86183c3f9e6c8e8b2a86082bdc08f89"
+        },
+        {
+          "pdfPage": 17,
+          "label": "p14",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "c9d41a6e9dbd8daf195c5b7fc2e4ec844ab57ae10b2de00ec08a7c017c3597b5"
+        },
+        {
+          "pdfPage": 18,
+          "label": "p15",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "0408b62a0003775722922a9d34d59ce22d2c5de85aab2e0f4c8566cfed5b00e8"
+        },
+        {
+          "pdfPage": 19,
+          "label": "p16",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "b4cffd60c6370e3ec6025d51043b7e2d0910ee5648a53c4f00ae3cc3cea3018e"
+        },
+        {
+          "pdfPage": 20,
+          "label": "p17",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "fabffb2698d48e3364f86278f50b134eda3f08bd1709bdc5c3090f4421332d55"
+        },
+        {
+          "pdfPage": 21,
+          "label": "p18",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e6192bddec5767b8194b925c28f752bc0f2684ec478ff87baf4c9c8f8a609c46"
+        },
+        {
+          "pdfPage": 22,
+          "label": "p19",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "60a798596ca230d40f4d2b0691f23a729e5eac033de3db9a13ca85666fb151d2"
+        },
+        {
+          "pdfPage": 23,
+          "label": "p20",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e4dfb25a6a5464f150549ac06df738b918a41693bcd94b563c782caadf95af12"
+        },
+        {
+          "pdfPage": 24,
+          "label": "p21",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "57346b78a8ac435b71b49e01ed26df6333a799705018399997077ce1da538ade"
+        },
+        {
+          "pdfPage": 25,
+          "label": "p22",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "a89be023d44b94aa43f332882d10f3ce4a92d1aff66210a14a5342fab52f4864"
+        },
+        {
+          "pdfPage": 26,
+          "label": "p23",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "62a3241a72ccc59cd74bfb75d3413c67567948936331a37d19b67364773ba59c"
+        },
+        {
+          "pdfPage": 27,
+          "label": "p24",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "09cdeda47cbaa0f33abc8c9ac263ecdf5e7b9d0efca098a9fe352832173e5340"
+        },
+        {
+          "pdfPage": 28,
+          "label": "p25",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "8dd42082cf6d1276445b1b23344d8d1ee4d0b87f417fc1de44e6b0bca2a1acc5"
+        },
+        {
+          "pdfPage": 29,
+          "label": "p26",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "86073976ce08b747a43465b55ac2a32ec347a436f075effdd2d0676106b348be"
+        },
+        {
+          "pdfPage": 30,
+          "label": "p27",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "3680bd057d6286cedab2025ee667fde20b9b1f93ecec84357757bbeea96da4a4"
+        },
+        {
+          "pdfPage": 31,
+          "label": "p28",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "73bf6b8754254f66444a37e91de9d9025cecb23e415fbd200f262fdedc20921d"
+        },
+        {
+          "pdfPage": 32,
+          "label": "p29",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "77cf042273566725d9a9a6170b9e3e519381a821d4f614ace70213f24288117f"
+        },
+        {
+          "pdfPage": 33,
+          "label": "p30",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "10e2234e3ba88b2e991f08836e37ec4f3009a43edc2ca248c6a4a862a7899c23"
+        },
+        {
+          "pdfPage": 34,
+          "label": "p31",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e9e9c54d8b34c5670121e29b4684542ff6be8f1e5695015b41343b0c45af0ae9"
+        },
+        {
+          "pdfPage": 35,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        }
+      ],
+      "contactSheet": "SIB-A-all-35-pages.png"
+    },
+    {
+      "role": "SIB-B",
+      "filename": "SIB-B-amazon-dummy.pdf",
+      "sha256": "f0e5d766be11c999ce2da4d37d95f52a58c28085ab42dda8146c2c4e7a282398",
+      "bytes": 3528196,
+      "physicalInnerPages": 32,
+      "apiPageCount": 32,
+      "uploadedPdfPages": 35,
+      "blankPdfPages": [
+        2,
+        35
+      ],
+      "readOnlyCopy": true,
+      "all33SourceImagesPixelIdentical": true,
+      "allPageBoxesCorrect": true,
+      "pages": [
+        {
+          "pdfPage": 1,
+          "label": "cover",
+          "mediaBox": [
+            0.0,
+            0.0,
+            1159.455118,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "c62e1c48d6f12528a030d17dc55d1bc0b99015458eb9dcebd7c03083b519ccb2"
+        },
+        {
+          "pdfPage": 2,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        },
+        {
+          "pdfPage": 3,
+          "label": "p00",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "2ace09aaafa17d2f80cf6ba7f0cc911b1cd3f1bc87b8137a4fdaf8838e8c12f1"
+        },
+        {
+          "pdfPage": 4,
+          "label": "p01",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "564661b2fbc8f3f10ab693c3b230413036d5b23748439ac28179610d229bb15e"
+        },
+        {
+          "pdfPage": 5,
+          "label": "p02",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "91547bdf38333da0dd28ec69842400b37f67c96dec74f96dd80b5c0787c17b78"
+        },
+        {
+          "pdfPage": 6,
+          "label": "p03",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6eb4d3c35d58cd116324f3069cf19b7576ee0c21c0efde663e6a1c0c99d7ed53"
+        },
+        {
+          "pdfPage": 7,
+          "label": "p04",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "65423cecc4f2acd048506ff9608082e2fc92f3fe671b2370ce22bca7d2f7e6c1"
+        },
+        {
+          "pdfPage": 8,
+          "label": "p05",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "05dbb8e9b96dfaab3a9081f836c3fa967991577e9f5e5e6c5fa415f949c12624"
+        },
+        {
+          "pdfPage": 9,
+          "label": "p06",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "9ad37c948e3122990dbad1e932595011b1f8ce569cac7917d377250341e18a01"
+        },
+        {
+          "pdfPage": 10,
+          "label": "p07",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "4fd0192f581998034329c6c0cbf43b4488794ba48bbfe48df06f65b89459ef5b"
+        },
+        {
+          "pdfPage": 11,
+          "label": "p08",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "f58f51d4f06ade98eb6dfaf161daf66ad377dfdb795f61de119825a30f4cfa7e"
+        },
+        {
+          "pdfPage": 12,
+          "label": "p09",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e1e8c306bf93fffa6fcbc2c730825317849dc36ebb6fa9349fcce35a4ccebb89"
+        },
+        {
+          "pdfPage": 13,
+          "label": "p10",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "b6bbb8d74fb46225f617f0471d84f29dd38fdcd91553e79b38b0e33a518a80ff"
+        },
+        {
+          "pdfPage": 14,
+          "label": "p11",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "9915ef4dbd3287ab0813cb5f50b42a25fdd0c8461e6663d16fe1af71b3db3b72"
+        },
+        {
+          "pdfPage": 15,
+          "label": "p12",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "dedf17baee442e8ba28e4b5cecd1905c66e465fd75b948a39dc7860e5dad2bad"
+        },
+        {
+          "pdfPage": 16,
+          "label": "p13",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "61a20562f71f022a03d0074f95ed3af66e31f28b08e92d115bc11f43f77f1e1d"
+        },
+        {
+          "pdfPage": 17,
+          "label": "p14",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "6a5dbae8099d2fc48cd7009e89ccbd0e02fac370c7f37438072cbefbbf5d69d7"
+        },
+        {
+          "pdfPage": 18,
+          "label": "p15",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "bdf35f8822c8f62266aec7c9813df45e30a739671c28713a4afa432d6a3dba82"
+        },
+        {
+          "pdfPage": 19,
+          "label": "p16",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "922cd7fb9f335eef681e7edd46e44b25dc80aed8005521171991584edc08bde0"
+        },
+        {
+          "pdfPage": 20,
+          "label": "p17",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "79cb1d882a4ddce9836cda8a538b51a2ca6ce80290c4c9c3061a1e8e40469484"
+        },
+        {
+          "pdfPage": 21,
+          "label": "p18",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "4fa1cfbc6ad7d92f9284af155f4e72f4df4dc794df3ac0ed4fd4703e58e529f3"
+        },
+        {
+          "pdfPage": 22,
+          "label": "p19",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "293440467064e12e67e3379951302449fc06aa6585118e5bfa62b5ae2509060c"
+        },
+        {
+          "pdfPage": 23,
+          "label": "p20",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "c9a1dea2c3ae53d3713635b6468792d8f309dbbf9bfee7f6bae5d0806adc81de"
+        },
+        {
+          "pdfPage": 24,
+          "label": "p21",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ef1d1cd2e4a4aee7a35176a4832304b1640a64b87a6d5d7edae476939dc1dd0c"
+        },
+        {
+          "pdfPage": 25,
+          "label": "p22",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "62518d41a77172ba20af74a9de7a853bd9f1860f449a522d142ae478192aea0f"
+        },
+        {
+          "pdfPage": 26,
+          "label": "p23",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "e96e790f706feeb522e147c5f07711fa666e7439b5d55e22aeaa95ef4d78d6f0"
+        },
+        {
+          "pdfPage": 27,
+          "label": "p24",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "f696c57f4a77c846fa4560d8b04926dc14abd21ff4d5783f26d84141b6c89eb3"
+        },
+        {
+          "pdfPage": 28,
+          "label": "p25",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "b87f0fd706b90de58df4a667953696aa0d5b6dcd799f74969a463b227057551b"
+        },
+        {
+          "pdfPage": 29,
+          "label": "p26",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "c2f0c88ecddee116b9e7bdd483030aa6f5bd7acae8611ffa64431a8526c4b6e9"
+        },
+        {
+          "pdfPage": 30,
+          "label": "p27",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "fa0f18ce3f1e3747ad78f9f811d9754688ba01194156e2b135dcda96098e4a4f"
+        },
+        {
+          "pdfPage": 31,
+          "label": "p28",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "ad2207c9c33829f6181e966b8e7d5e71c68f740a3d9ce8abe08ea463697f0528"
+        },
+        {
+          "pdfPage": 32,
+          "label": "p29",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "3a5907b520742acc9eab5fe5a1f9e53e6a60d1ad607d58ee4ba4d6cf68805709"
+        },
+        {
+          "pdfPage": 33,
+          "label": "p30",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "f578b1e1804ee13492e8f7d2d13529e27d1725b6743612b9fa07d339d81687c4"
+        },
+        {
+          "pdfPage": 34,
+          "label": "p31",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": true,
+          "imageCount": 1,
+          "grayPixelsSha256": "19ab41d3a4be8641233e39cf825f03dd089301ef8dfc2627fb9364d1a28f3118"
+        },
+        {
+          "pdfPage": 35,
+          "label": "BLANK",
+          "mediaBox": [
+            0.0,
+            0.0,
+            583.937008,
+            583.937008
+          ],
+          "sourceRasterPixelsIdentical": false,
+          "imageCount": 0,
+          "grayPixelsSha256": null
+        }
+      ],
+      "contactSheet": "SIB-B-all-35-pages.png"
+    }
+  ],
+  "visualReview": {
+    "completed": true,
+    "reviewer": "Codex primary",
+    "method": "Viewed four freshly rendered all-page contact sheets plus full-size WEB-A/SIB-A covers, AMZ-A first inner and SIB-B final inner pages. Correct roles, editions, numbering, blank positions and legibility; no clipping observed.",
+    "scope": "Engineering fixture identity and assembly only; no human creative approval or provider prepress."
+  },
+  "humanApproval": false,
+  "providerPrepress": false
+}

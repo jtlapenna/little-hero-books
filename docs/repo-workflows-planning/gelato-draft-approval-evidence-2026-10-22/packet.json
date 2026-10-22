@@ -1,0 +1,275 @@
+{
+  "schema": "lhl.gelato-draft-review-packet@1",
+  "preparedAt": "2026-10-22T06:49:27.599602+00:00",
+  "baselineCommit": "4703b609ccaee65fd131105a7f3f87f3fc084f90",
+  "readyForStagedSetupReview": true,
+  "readyForLiveExecution": false,
+  "canInstall": false,
+  "canIssueScope": false,
+  "canApprove": false,
+  "canExecute": false,
+  "maximumAuthorizedSpendCents": 0,
+  "approval": null,
+  "authority": "local preparation only; this document grants no hosted or provider authority",
+  "product": {
+    "uid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+    "configVersion": 2,
+    "physicalInnerPages": 32,
+    "apiPageCount": 32,
+    "uploadedPdfPages": 35
+  },
+  "cases": [
+    {
+      "case": "website-single",
+      "workflow": "W4",
+      "tier": "standard",
+      "shipmentMethodUid": "usps_ground_advantage",
+      "roles": [
+        "WEB-A"
+      ],
+      "quantities": [
+        1
+      ],
+      "freshIdentityPrefix": "TEST-GELATO-48H-WEB",
+      "orderDbIds": null,
+      "scopeId": null,
+      "providerId": null,
+      "startsAt": null,
+      "expiresAt": null,
+      "workflowBindings": null,
+      "approvedPrivateContextSha256": null,
+      "canExecute": false,
+      "pdfs": [
+        {
+          "role": "WEB-A",
+          "sha256": "f6ec01664f7a1f46efea6904ff168b9be8c2e5328c806cd43d8810b8fb32b5cf",
+          "bytes": 3681259,
+          "physicalInnerPages": 32,
+          "apiPageCount": 32,
+          "uploadedPdfPages": 35
+        }
+      ],
+      "budgets": {
+        "adapterBusinessCap": 200,
+        "primaryCleanupCap": 24,
+        "monitorCleanupCap": 24,
+        "maximumObservationIterations": 12,
+        "successfulPrimaryFormula": "70 + 2*N + 10*T",
+        "minimumCompletePrimaryCalls": 82,
+        "maximumCompletePrimaryCalls": 192,
+        "normalCombinedCleanupCalls": 42,
+        "adapterPdfGets": 2,
+        "providerQuotePosts": 1,
+        "providerDraftCreatePosts": 1,
+        "providerRegularCreatesOrConversions": 0,
+        "successfulSingleRootOrderApiMaximum": 7,
+        "scopedStatusClaimLifetimeCap": 3,
+        "applicationFullPdfGetMaximum": 10,
+        "backendArtifactHeads": 2
+      },
+      "proposedRootOrderId": "TEST-GELATO-U-48H-WEB-7d366b19",
+      "proposedMemberOrderIds": [
+        "TEST-GELATO-U-48H-WEB-7d366b19"
+      ],
+      "proposedRunId": "48H-7d366b19-WEB",
+      "reservedScopeUuid": null,
+      "scopeIssued": false,
+      "proposedWorkflowNames": {
+        "queue": "TEST-GELATO 48H-7d366b19-WEB isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-WEB assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-WEB draft",
+        "timer": "TEST-GELATO 48H-7d366b19-WEB isolated status timer"
+      },
+      "scopeIdentityStoredPrivately": true
+    },
+    {
+      "case": "amazon-single",
+      "workflow": "W4",
+      "tier": "priority",
+      "shipmentMethodUid": "usps_priority_mail_standard",
+      "roles": [
+        "AMZ-A"
+      ],
+      "quantities": [
+        1
+      ],
+      "freshIdentityPrefix": "TEST-GELATO-48H-AMZ",
+      "orderDbIds": null,
+      "scopeId": null,
+      "providerId": null,
+      "startsAt": null,
+      "expiresAt": null,
+      "workflowBindings": null,
+      "approvedPrivateContextSha256": null,
+      "canExecute": false,
+      "pdfs": [
+        {
+          "role": "AMZ-A",
+          "sha256": "2269a3566228d45d4867e9605fd38895438ff9c30cea056c86591a995bdef5ab",
+          "bytes": 3622350,
+          "physicalInnerPages": 32,
+          "apiPageCount": 32,
+          "uploadedPdfPages": 35
+        }
+      ],
+      "budgets": {
+        "adapterBusinessCap": 200,
+        "primaryCleanupCap": 24,
+        "monitorCleanupCap": 24,
+        "maximumObservationIterations": 12,
+        "successfulPrimaryFormula": "70 + 2*N + 10*T",
+        "minimumCompletePrimaryCalls": 82,
+        "maximumCompletePrimaryCalls": 192,
+        "normalCombinedCleanupCalls": 42,
+        "adapterPdfGets": 2,
+        "providerQuotePosts": 1,
+        "providerDraftCreatePosts": 1,
+        "providerRegularCreatesOrConversions": 0,
+        "successfulSingleRootOrderApiMaximum": 7,
+        "scopedStatusClaimLifetimeCap": 3,
+        "applicationFullPdfGetMaximum": 10,
+        "backendArtifactHeads": 2
+      },
+      "proposedRootOrderId": "TEST-GELATO-U-48H-AMZ-7d366b19",
+      "proposedMemberOrderIds": [
+        "TEST-GELATO-U-48H-AMZ-7d366b19"
+      ],
+      "proposedRunId": "48H-7d366b19-AMZ",
+      "reservedScopeUuid": null,
+      "scopeIssued": false,
+      "proposedWorkflowNames": {
+        "queue": "TEST-GELATO 48H-7d366b19-AMZ isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-AMZ assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-AMZ draft",
+        "timer": "TEST-GELATO 48H-7d366b19-AMZ isolated status timer"
+      },
+      "scopeIdentityStoredPrivately": true
+    },
+    {
+      "case": "amazon-siblings",
+      "workflow": "W4.1",
+      "tier": "expedited",
+      "shipmentMethodUid": "ups_2_day",
+      "roles": [
+        "SIB-A",
+        "SIB-B"
+      ],
+      "quantities": [
+        1,
+        1
+      ],
+      "freshIdentityPrefix": "TEST-GELATO-48H-SIB",
+      "orderDbIds": null,
+      "scopeId": null,
+      "providerId": null,
+      "startsAt": null,
+      "expiresAt": null,
+      "workflowBindings": null,
+      "approvedPrivateContextSha256": null,
+      "canExecute": false,
+      "pdfs": [
+        {
+          "role": "SIB-A",
+          "sha256": "3b140bd0718583b00b90f0b1b37b942cdea0c78380304e7616606e1720c6cf7f",
+          "bytes": 3582353,
+          "physicalInnerPages": 32,
+          "apiPageCount": 32,
+          "uploadedPdfPages": 35
+        },
+        {
+          "role": "SIB-B",
+          "sha256": "f0e5d766be11c999ce2da4d37d95f52a58c28085ab42dda8146c2c4e7a282398",
+          "bytes": 3528196,
+          "physicalInnerPages": 32,
+          "apiPageCount": 32,
+          "uploadedPdfPages": 35
+        }
+      ],
+      "budgets": {
+        "adapterBusinessCap": 200,
+        "primaryCleanupCap": 24,
+        "monitorCleanupCap": 24,
+        "maximumObservationIterations": 12,
+        "successfulPrimaryFormula": "70 + 2*N + 10*T",
+        "minimumCompletePrimaryCalls": 84,
+        "maximumCompletePrimaryCalls": 194,
+        "normalCombinedCleanupCalls": 42,
+        "adapterPdfGets": 4,
+        "providerQuotePosts": 1,
+        "providerDraftCreatePosts": 1,
+        "providerRegularCreatesOrConversions": 0,
+        "successfulSingleRootOrderApiMaximum": 7,
+        "scopedStatusClaimLifetimeCap": 3,
+        "applicationFullPdfGetMaximum": 20,
+        "backendArtifactHeads": 4
+      },
+      "proposedRootOrderId": "TEST-GELATO-U-48H-SIB-7d366b19",
+      "proposedMemberOrderIds": [
+        "TEST-GELATO-U-48H-SIB-7d366b19-A",
+        "TEST-GELATO-U-48H-SIB-7d366b19-B"
+      ],
+      "proposedRunId": "48H-7d366b19-SIB",
+      "reservedScopeUuid": null,
+      "scopeIssued": false,
+      "proposedWorkflowNames": {
+        "queue": "TEST-GELATO 48H-7d366b19-SIB isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-SIB assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-SIB draft",
+        "timer": "TEST-GELATO 48H-7d366b19-SIB isolated status timer"
+      },
+      "scopeIdentityStoredPrivately": true
+    }
+  ],
+  "aggregate": {
+    "maximumDraftCreateAttempts": 3,
+    "books": 4,
+    "nativeQuotePosts": 3,
+    "alternativeQuotePosts": 0,
+    "shippingOptionComparisonCells": 9,
+    "fullPdfBytes": 14414158,
+    "normalFullPdfGetBytesUpperBound": 86484948,
+    "maximumOrderApiRequests": 21,
+    "maximumApplicationFullPdfGets": 40,
+    "backendArtifactHeads": 8,
+    "primaryBusinessCapAcrossCases": 600,
+    "cleanupCapAcrossPrimaryAndMonitors": 144,
+    "primaryBusinessResponseBytesCapPerCase": 160000000,
+    "cleanupResponseBytesCapPerAdapter": 16000000,
+    "pdfResponseBytesCap": 32000000,
+    "jsonResponseBytesCap": 2000000,
+    "successfulFullPdfGetBytesUpperBound": 144141580
+  },
+  "budgetsAreLayered": true,
+  "budgetLimitations": [
+    "Adapter counters do not enforce backend-internal traffic, R2 assembly source reads or Gelato own downloads. Backend per-item/one-send/single-root/lifetime-claim bounds are separate.",
+    "All 9 shipping options are observations/selection comparisons from 3 native quote responses. Only 3 named primary tier selections are persisted/created. Missing options are unavailable, never a fallback.",
+    "Stop at 12 observer iterations; T is observation count, A is actual provider-refresh claim count. One genuine successful refresh is the success criterion; empty timer ticks never pass.",
+    "No provider fee, charge cap or physical-production guarantee is inferred from price or absent payment methods.",
+    "Successful identical-PDF byte sum is not a failure/oversize hard cap; backend verifier separately caps files at256MB and an operation at512MB. Source/assembly/hosted traffic remains separate."
+  ],
+  "excludedOrders": "The six historical orders: no IDs enumerated, no reads, refreshes, edits, reconciliation, funding or release.",
+  "recipientReference": "Existing private recipient/.env.local in original checkout; human confirmation and exact request binding required before live use. No address is in this public packet.",
+  "hostedInputsPending": [
+    "Fresh main/serving/migration readback and final reviewed source identity after publication",
+    "Correct account/key digest and fresh funding/message facts; not a production barrier",
+    "Status key equal to scoped order key; diagnostic-only backend/scope/intake credentials, published workflow IDs/versions/digests and authenticated no-op",
+    "Fresh controlled ready/approved fixture rows, immutable artifact keys and current source asset bindings; no historical claim/webhook reuse",
+    "Concrete scope/root/member IDs, parent expiry, fresh funding attestation <=60sec, real human decision and private context digest",
+    "Independent owned monitor/cleanup and exact-root uncertainty handling; no order searches or retries"
+  ],
+  "preservedOpenRequirements": [
+    "Ordinary hosted website/Amazon intake, W0/W3 generation, preview/customer approval and W1 scheduling",
+    "Provider prepress/acceptance evidence unavailable to drafts; do not convert to force it",
+    "Live injected failure/backoff behavior beyond local evidence",
+    "Trusted full payable total and provider-enforced maximum-spend semantics",
+    "Separately approved regular paid proof, actual charges, production, shipment, delivery, recipient inspection and cancellation"
+  ],
+  "readinessSubstitution": {
+    "requiresExplicitApproval": true,
+    "perFixtureSnapshotOnly": true,
+    "bundledConfigChanged": false,
+    "realDraftTestModeSourceStillRejected": true,
+    "ordinaryW0W3Proof": false
+  },
+  "setupManifest": "setup-manifest.json"
+}
