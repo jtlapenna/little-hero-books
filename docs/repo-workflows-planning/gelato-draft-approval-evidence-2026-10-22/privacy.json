@@ -1,0 +1,16 @@
+{
+  "targetedAuthoredArtifactScan": true,
+  "filesChecked": 15,
+  "addedDiffLinesChecked": true,
+  "patternsChecked": [
+    "liveStripe",
+    "githubToken",
+    "awsAccess",
+    "jwt",
+    "signedFileUrl",
+    "testHomeAddress"
+  ],
+  "findings": [],
+  "notAFullRepositorySecretScan": true,
+  "privateOriginalsIncluded": false
+}

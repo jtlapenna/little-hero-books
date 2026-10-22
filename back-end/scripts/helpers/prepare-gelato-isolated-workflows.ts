@@ -1,5 +1,6 @@
 /** Local file preparation only. No environment reads, network, installation or authority issuer. */
 import {z} from 'zod';
+import {GELATO_DIAGNOSTIC_WORKFLOW_SECONDS} from './gelato-runner-deadlines';
 import {definitionSha256,workflowDefinition} from './prepare-w1-native-queue';
 const hash=z.string().regex(/^[a-f0-9]{64}$/),uuid=z.string().uuid();
 export const IsolatedCasePacket=z.object({
@@ -27,7 +28,7 @@ const http=(name:string,url:string,jsonBody:string,multiple=false)=>node(name,'h
  {retryOnFail:false,continueOnFail:false,onError:'stopWorkflow',credentials:cred(multiple?'httpMultipleHeadersAuth':'httpHeaderAuth',multiple?CREDENTIALS.scope:CREDENTIALS.backend)});
 function graph(name:string,nodes:PreparedWorkflow['nodes']):PreparedWorkflow{
  const connections:PreparedWorkflow['connections']={};nodes.forEach((n,i)=>{n.position=[i*280,0];connections[n.name]={main:[i+1<nodes.length?[{node:nodes[i+1].name,type:'main',index:0}]:[]]};});
- return {name,nodes,connections,settings:{executionOrder:'v1',callerPolicy:'workflowsFromSameOwner',availableInMCP:false,executionTimeout:240,saveDataErrorExecution:'none',saveDataSuccessExecution:'none',saveManualExecutions:false,saveExecutionProgress:false}};
+ return {name,nodes,connections,settings:{executionOrder:'v1',callerPolicy:'workflowsFromSameOwner',availableInMCP:false,executionTimeout:GELATO_DIAGNOSTIC_WORKFLOW_SECONDS,saveDataErrorExecution:'none',saveDataSuccessExecution:'none',saveManualExecutions:false,saveExecutionProgress:false}};
 }
 const webhook=(path:string)=>node('Scoped Authenticated Intake','webhook',{httpMethod:'POST',path,responseMode:'responseNode',authentication:'headerAuth'}, {credentials:cred('httpHeaderAuth',CREDENTIALS.intake)});
 const respond=()=>node('Return Terminal Result','respondToWebhook',{respondWith:'json',responseBody:'={{ JSON.stringify($json) }}',options:{responseCode:200}});

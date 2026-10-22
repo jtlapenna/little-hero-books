@@ -1,0 +1,710 @@
+{
+  "canExecute": false,
+  "canInstall": false,
+  "candidates": [
+    {
+      "case": "website-single",
+      "credentialPart": "backend",
+      "canInstall": false,
+      "canExecute": false,
+      "unresolvedCredentialReferences": true,
+      "workflow": {
+        "name": "TEST-GELATO 48H-7d366b19-WEB backend probe",
+        "nodes": [
+          {
+            "name": "Authenticated Probe",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "id": "probe-authenticated-probe",
+            "position": [
+              0,
+              0
+            ],
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "lhl-48h-7d366b19-web-backend-probe",
+              "responseMode": "responseNode",
+              "authentication": "headerAuth"
+            },
+            "credentials": {
+              "httpHeaderAuth": {
+                "id": "__LHL_48H-7d366b19-WEB_INTAKE__",
+                "name": "Bind reviewed new intake"
+              }
+            }
+          },
+          {
+            "name": "Require Empty Probe",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-require-empty-probe",
+            "position": [
+              280,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const b=$input.first()?.json?.body;if(!b||Array.isArray(b)||Object.keys(b).length)throw Error('Empty probe only');return [{json:{}}];"
+            }
+          },
+          {
+            "name": "Read Runtime OFF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "id": "probe-read-runtime-off",
+            "position": [
+              560,
+              0
+            ],
+            "parameters": {
+              "method": "GET",
+              "url": "https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft",
+              "authentication": "genericCredentialType",
+              "genericAuthType": "httpHeaderAuth",
+              "options": {
+                "timeout": 5000,
+                "redirect": {
+                  "redirect": {
+                    "followRedirects": false
+                  }
+                },
+                "response": {
+                  "response": {
+                    "responseFormat": "json",
+                    "neverError": false
+                  }
+                }
+              }
+            },
+            "retryOnFail": false,
+            "continueOnFail": false,
+            "onError": "stopWorkflow",
+            "credentials": {
+              "httpHeaderAuth": {
+                "id": "__LHL_BACKEND__",
+                "name": "Bind reviewed diagnostic credential"
+              }
+            }
+          },
+          {
+            "name": "Verify Runtime OFF",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-verify-runtime-off",
+            "position": [
+              840,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const r=$input.first()?.json;if(r?.contextAvailable!==true||r?.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>r[k]?.present!==true||r[k]?.isString!==true||r[k]?.isFalse!==true||r[k]?.isTrue!==false))throw Error('Runtime OFF differs');return [{json:{runtimeOff:true,backendCredentialAuthenticated:true,scopeCapabilityValidated:false}}];"
+            }
+          },
+          {
+            "name": "Return Terminal Probe",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "id": "probe-return-terminal-probe",
+            "position": [
+              1120,
+              0
+            ],
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ JSON.stringify($json) }}",
+              "options": {
+                "responseCode": 200
+              }
+            }
+          }
+        ],
+        "connections": {
+          "Authenticated Probe": {
+            "main": [
+              [
+                {
+                  "node": "Require Empty Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Require Empty Probe": {
+            "main": [
+              [
+                {
+                  "node": "Read Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Read Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Verify Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Verify Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Return Terminal Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Return Terminal Probe": {
+            "main": [
+              []
+            ]
+          }
+        },
+        "settings": {
+          "executionOrder": "v1",
+          "executionTimeout": 30,
+          "saveDataErrorExecution": "none",
+          "saveDataSuccessExecution": "none",
+          "saveManualExecutions": false,
+          "saveExecutionProgress": false,
+          "availableInMCP": false
+        }
+      }
+    },
+    {
+      "case": "website-single",
+      "credentialPart": "scope-header",
+      "canInstall": false,
+      "canExecute": false,
+      "unresolvedCredentialReferences": true,
+      "workflow": {
+        "name": "TEST-GELATO 48H-7d366b19-WEB scope-header probe",
+        "nodes": [
+          {
+            "name": "Authenticated Probe",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "id": "probe-authenticated-probe",
+            "position": [
+              0,
+              0
+            ],
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "lhl-48h-7d366b19-web-scope-header-probe",
+              "responseMode": "responseNode",
+              "authentication": "headerAuth"
+            },
+            "credentials": {
+              "httpHeaderAuth": {
+                "id": "__LHL_48H-7d366b19-WEB_INTAKE__",
+                "name": "Bind reviewed new intake"
+              }
+            }
+          },
+          {
+            "name": "Require Empty Probe",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-require-empty-probe",
+            "position": [
+              280,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const b=$input.first()?.json?.body;if(!b||Array.isArray(b)||Object.keys(b).length)throw Error('Empty probe only');return [{json:{}}];"
+            }
+          },
+          {
+            "name": "Read Runtime OFF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "id": "probe-read-runtime-off",
+            "position": [
+              560,
+              0
+            ],
+            "parameters": {
+              "method": "GET",
+              "url": "https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft",
+              "authentication": "genericCredentialType",
+              "genericAuthType": "httpMultipleHeadersAuth",
+              "options": {
+                "timeout": 5000,
+                "redirect": {
+                  "redirect": {
+                    "followRedirects": false
+                  }
+                },
+                "response": {
+                  "response": {
+                    "responseFormat": "json",
+                    "neverError": false
+                  }
+                }
+              }
+            },
+            "retryOnFail": false,
+            "continueOnFail": false,
+            "onError": "stopWorkflow",
+            "credentials": {
+              "httpMultipleHeadersAuth": {
+                "id": "__LHL_48H-7d366b19-WEB_SCOPE__",
+                "name": "Bind reviewed diagnostic credential"
+              }
+            }
+          },
+          {
+            "name": "Verify Runtime OFF",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-verify-runtime-off",
+            "position": [
+              840,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const r=$input.first()?.json;if(r?.contextAvailable!==true||r?.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>r[k]?.present!==true||r[k]?.isString!==true||r[k]?.isFalse!==true||r[k]?.isTrue!==false))throw Error('Runtime OFF differs');return [{json:{runtimeOff:true,backendCredentialAuthenticated:true,scopeCapabilityValidated:false}}];"
+            }
+          },
+          {
+            "name": "Return Terminal Probe",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "id": "probe-return-terminal-probe",
+            "position": [
+              1120,
+              0
+            ],
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ JSON.stringify($json) }}",
+              "options": {
+                "responseCode": 200
+              }
+            }
+          }
+        ],
+        "connections": {
+          "Authenticated Probe": {
+            "main": [
+              [
+                {
+                  "node": "Require Empty Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Require Empty Probe": {
+            "main": [
+              [
+                {
+                  "node": "Read Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Read Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Verify Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Verify Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Return Terminal Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Return Terminal Probe": {
+            "main": [
+              []
+            ]
+          }
+        },
+        "settings": {
+          "executionOrder": "v1",
+          "executionTimeout": 30,
+          "saveDataErrorExecution": "none",
+          "saveDataSuccessExecution": "none",
+          "saveManualExecutions": false,
+          "saveExecutionProgress": false,
+          "availableInMCP": false
+        }
+      }
+    },
+    {
+      "case": "amazon-single",
+      "credentialPart": "scope-header",
+      "canInstall": false,
+      "canExecute": false,
+      "unresolvedCredentialReferences": true,
+      "workflow": {
+        "name": "TEST-GELATO 48H-7d366b19-AMZ scope-header probe",
+        "nodes": [
+          {
+            "name": "Authenticated Probe",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "id": "probe-authenticated-probe",
+            "position": [
+              0,
+              0
+            ],
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "lhl-48h-7d366b19-amz-scope-header-probe",
+              "responseMode": "responseNode",
+              "authentication": "headerAuth"
+            },
+            "credentials": {
+              "httpHeaderAuth": {
+                "id": "__LHL_48H-7d366b19-AMZ_INTAKE__",
+                "name": "Bind reviewed new intake"
+              }
+            }
+          },
+          {
+            "name": "Require Empty Probe",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-require-empty-probe",
+            "position": [
+              280,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const b=$input.first()?.json?.body;if(!b||Array.isArray(b)||Object.keys(b).length)throw Error('Empty probe only');return [{json:{}}];"
+            }
+          },
+          {
+            "name": "Read Runtime OFF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "id": "probe-read-runtime-off",
+            "position": [
+              560,
+              0
+            ],
+            "parameters": {
+              "method": "GET",
+              "url": "https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft",
+              "authentication": "genericCredentialType",
+              "genericAuthType": "httpMultipleHeadersAuth",
+              "options": {
+                "timeout": 5000,
+                "redirect": {
+                  "redirect": {
+                    "followRedirects": false
+                  }
+                },
+                "response": {
+                  "response": {
+                    "responseFormat": "json",
+                    "neverError": false
+                  }
+                }
+              }
+            },
+            "retryOnFail": false,
+            "continueOnFail": false,
+            "onError": "stopWorkflow",
+            "credentials": {
+              "httpMultipleHeadersAuth": {
+                "id": "__LHL_48H-7d366b19-AMZ_SCOPE__",
+                "name": "Bind reviewed diagnostic credential"
+              }
+            }
+          },
+          {
+            "name": "Verify Runtime OFF",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-verify-runtime-off",
+            "position": [
+              840,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const r=$input.first()?.json;if(r?.contextAvailable!==true||r?.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>r[k]?.present!==true||r[k]?.isString!==true||r[k]?.isFalse!==true||r[k]?.isTrue!==false))throw Error('Runtime OFF differs');return [{json:{runtimeOff:true,backendCredentialAuthenticated:true,scopeCapabilityValidated:false}}];"
+            }
+          },
+          {
+            "name": "Return Terminal Probe",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "id": "probe-return-terminal-probe",
+            "position": [
+              1120,
+              0
+            ],
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ JSON.stringify($json) }}",
+              "options": {
+                "responseCode": 200
+              }
+            }
+          }
+        ],
+        "connections": {
+          "Authenticated Probe": {
+            "main": [
+              [
+                {
+                  "node": "Require Empty Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Require Empty Probe": {
+            "main": [
+              [
+                {
+                  "node": "Read Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Read Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Verify Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Verify Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Return Terminal Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Return Terminal Probe": {
+            "main": [
+              []
+            ]
+          }
+        },
+        "settings": {
+          "executionOrder": "v1",
+          "executionTimeout": 30,
+          "saveDataErrorExecution": "none",
+          "saveDataSuccessExecution": "none",
+          "saveManualExecutions": false,
+          "saveExecutionProgress": false,
+          "availableInMCP": false
+        }
+      }
+    },
+    {
+      "case": "amazon-siblings",
+      "credentialPart": "scope-header",
+      "canInstall": false,
+      "canExecute": false,
+      "unresolvedCredentialReferences": true,
+      "workflow": {
+        "name": "TEST-GELATO 48H-7d366b19-SIB scope-header probe",
+        "nodes": [
+          {
+            "name": "Authenticated Probe",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "id": "probe-authenticated-probe",
+            "position": [
+              0,
+              0
+            ],
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "lhl-48h-7d366b19-sib-scope-header-probe",
+              "responseMode": "responseNode",
+              "authentication": "headerAuth"
+            },
+            "credentials": {
+              "httpHeaderAuth": {
+                "id": "__LHL_48H-7d366b19-SIB_INTAKE__",
+                "name": "Bind reviewed new intake"
+              }
+            }
+          },
+          {
+            "name": "Require Empty Probe",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-require-empty-probe",
+            "position": [
+              280,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const b=$input.first()?.json?.body;if(!b||Array.isArray(b)||Object.keys(b).length)throw Error('Empty probe only');return [{json:{}}];"
+            }
+          },
+          {
+            "name": "Read Runtime OFF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "id": "probe-read-runtime-off",
+            "position": [
+              560,
+              0
+            ],
+            "parameters": {
+              "method": "GET",
+              "url": "https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft",
+              "authentication": "genericCredentialType",
+              "genericAuthType": "httpMultipleHeadersAuth",
+              "options": {
+                "timeout": 5000,
+                "redirect": {
+                  "redirect": {
+                    "followRedirects": false
+                  }
+                },
+                "response": {
+                  "response": {
+                    "responseFormat": "json",
+                    "neverError": false
+                  }
+                }
+              }
+            },
+            "retryOnFail": false,
+            "continueOnFail": false,
+            "onError": "stopWorkflow",
+            "credentials": {
+              "httpMultipleHeadersAuth": {
+                "id": "__LHL_48H-7d366b19-SIB_SCOPE__",
+                "name": "Bind reviewed diagnostic credential"
+              }
+            }
+          },
+          {
+            "name": "Verify Runtime OFF",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "id": "probe-verify-runtime-off",
+            "position": [
+              840,
+              0
+            ],
+            "parameters": {
+              "jsCode": "const r=$input.first()?.json;if(r?.contextAvailable!==true||r?.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>r[k]?.present!==true||r[k]?.isString!==true||r[k]?.isFalse!==true||r[k]?.isTrue!==false))throw Error('Runtime OFF differs');return [{json:{runtimeOff:true,backendCredentialAuthenticated:true,scopeCapabilityValidated:false}}];"
+            }
+          },
+          {
+            "name": "Return Terminal Probe",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "id": "probe-return-terminal-probe",
+            "position": [
+              1120,
+              0
+            ],
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ JSON.stringify($json) }}",
+              "options": {
+                "responseCode": 200
+              }
+            }
+          }
+        ],
+        "connections": {
+          "Authenticated Probe": {
+            "main": [
+              [
+                {
+                  "node": "Require Empty Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Require Empty Probe": {
+            "main": [
+              [
+                {
+                  "node": "Read Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Read Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Verify Runtime OFF",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Verify Runtime OFF": {
+            "main": [
+              [
+                {
+                  "node": "Return Terminal Probe",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Return Terminal Probe": {
+            "main": [
+              []
+            ]
+          }
+        },
+        "settings": {
+          "executionOrder": "v1",
+          "executionTimeout": 30,
+          "saveDataErrorExecution": "none",
+          "saveDataSuccessExecution": "none",
+          "saveManualExecutions": false,
+          "saveExecutionProgress": false,
+          "availableInMCP": false
+        }
+      }
+    }
+  ]
+}

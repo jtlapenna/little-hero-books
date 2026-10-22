@@ -1,0 +1,266 @@
+{
+  "schema": "lhl.gelato-draft-preparation-checks@1",
+  "observedAt": "2026-10-22T07:11:58.382310+00:00",
+  "baselineCommit": "4703b609ccaee65fd131105a7f3f87f3fc084f90",
+  "node": "24.19.0 arm64",
+  "suites": [
+    {
+      "name": "submission",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "terminal success message plus zero-network assertion"
+    },
+    {
+      "name": "protected-runner",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "final JSON"
+    },
+    {
+      "name": "isolated-preparation",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "final JSON"
+    },
+    {
+      "name": "protected-launch",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "final JSON"
+    },
+    {
+      "name": "protected-crashes",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "final JSON"
+    },
+    {
+      "name": "incident-safeguards",
+      "exitCode": 0,
+      "completeReceipt": true,
+      "receiptKind": "final JSON"
+    }
+  ],
+  "runner": {
+    "checks": 53,
+    "cases": [
+      "website: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "Amazon: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "siblings: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+      "Terminal assembly response beyond five seconds completes once before scoped cleanup",
+      "Twelve complete observation iterations fit the 200-call cap and stop without a thirteenth",
+      "queue: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "assembly: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "draft: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "activate: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+      "edited workflow version drift rejects instead of reporting a pass",
+      "published workflow differs rejects instead of reporting a pass",
+      "wrong scope rejects instead of reporting a pass",
+      "runtime OFF differs rejects instead of reporting a pass",
+      "wrong saved gate rejects instead of reporting a pass",
+      "wrong provider finances rejects instead of reporting a pass",
+      "zero-cost paid provider rejects instead of reporting a pass",
+      "draft marked in production rejects instead of reporting a pass",
+      "draft child marked shipped rejects instead of reporting a pass",
+      "draft with print job rejects instead of reporting a pass",
+      "draft with tracking rejects instead of reporting a pass",
+      "wrong provider item rejects instead of reporting a pass",
+      "wrong mapping rejects instead of reporting a pass",
+      "notification intent rejects instead of reporting a pass",
+      "empty timer rejects instead of reporting a pass",
+      "successful plus crashed timer rejects instead of reporting a pass",
+      "successful plus unknown timer state rejects instead of reporting a pass",
+      "wrong timer mode rejects instead of reporting a pass",
+      "incomplete timer provenance rejects instead of reporting a pass",
+      "future timer execution rejects instead of reporting a pass",
+      "zero scoped claims rejects instead of reporting a pass",
+      "future persisted refresh rejects instead of reporting a pass",
+      "artifact: wrong actual PDF bytes reject with no later unauthorized work",
+      "provider-file: wrong actual PDF bytes reject with no later unauthorized work",
+      "redirect: transport fails closed without retry or redirect",
+      "oversized: transport fails closed without retry or redirect",
+      "truncated: transport fails closed without retry or redirect",
+      "invalid-json: transport fails closed without retry or redirect",
+      "credential-error: transport fails closed without retry or redirect",
+      "Direct queue after journal claim cannot bypass successful private preflight",
+      "Concurrent direct queue calls reserve one slot before awaits and send exactly one POST",
+      "Concurrent register-status calls reserve one slot and perform one effect",
+      "Concurrent start calls reserve one slot and perform one effect",
+      "Adapter dispatch and activation cannot bypass durable ownership or verified stage ordering",
+      "Unapproved binding and wrong private account fail before transport",
+      "Binding schema rejects extra authority fields",
+      "Expired runner refuses work before claim/transport",
+      "Independent cleanup revokes after expiry without primary journal; missing evidence is reported unconfirmed",
+      "Hung webhook shutdown cannot suppress independent timer/peer shutdown; closure remains unconfirmed",
+      "Unconfirmed close still stops timer and reads closure; caller gets failure",
+      "Transport ignoring AbortSignal is actively deadline-raced instead of hanging cleanup",
+      "Lost contiguous journal tail cannot erase durable registration evidence or turn unknown activation into verified cleanup",
+      "Late timer activation cannot yield verified closure; scope revoked, timer stopped again and later cases remain blocked",
+      "Independent monitor closes immediately on owner exit without dispatching"
+    ],
+    "externalRequests": 0,
+    "productionOrderReads": 0,
+    "providerCalls": 0,
+    "deployments": 0,
+    "customerMessages": 0,
+    "limits": [
+      "Synthetic service protocols and short byte fixtures; not real provider/account/n8n proof",
+      "SIGKILL/separate-worker tests are in the companion crash suite"
+    ]
+  },
+  "launcher": {
+    "kind": "local-loopback-process-proof",
+    "checks": 15,
+    "passed": [
+      "healthy website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "Shutdown after monitor arm prevents primary spawn",
+      "Wrong reviewed raw-file digest rejects",
+      "Public context permissions reject",
+      "Public context directory rejects",
+      "Symlink private context rejects",
+      "Explicit draft-only mode rejects loopback context and unknown modes before any process/transport",
+      "Live command is paused pending incident review; rehearsal does not authorize execution",
+      "Nonzero spend, source and binding changes reject even with a new file checksum",
+      "healthy Amazon single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "healthy siblings: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "primary-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "coordinator-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "coordinator-group-int website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+      "coordinator-group-term website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged"
+    ],
+    "externalRequests": 0,
+    "liveOrderReads": 0,
+    "liveOrderWrites": 0,
+    "deployments": 0,
+    "customerMessages": 0
+  },
+  "crashes": {
+    "checks": 7,
+    "cases": [
+      "Healthy OS runner: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at claim: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at queue: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at assembly: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at draft: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+      "SIGKILL at activate: independent process revokes scope/stops timer; unresolved activation remains unconfirmed; restart has zero requests; six synthetic sentinels unchanged",
+      "Two real OS workers use actual fsync journal: one owner; changed packet/scope cannot select a fresh attempt directory"
+    ],
+    "separateProcesses": true,
+    "sigkill": true,
+    "loopbackOnly": true,
+    "externalRequests": 0,
+    "productionOrderReads": 0,
+    "providerCalls": 0,
+    "deployments": 0,
+    "customerMessages": 0,
+    "limitations": [
+      "OS SIGKILL and fsync calls do not prove power-loss survival or every filesystem",
+      "Simulated accepted service effects; hosted n8n/provider semantics still require a separately approved window"
+    ]
+  },
+  "incident": {
+    "checks": 104,
+    "externalRequests": 0,
+    "realOrderReads": 0,
+    "providerWrites": 0,
+    "customerMessages": 0,
+    "deployments": 0,
+    "scope": "Synthetic local incident and retired conversion regressions only"
+  },
+  "isolatedPreparation": {
+    "checks": 24,
+    "cases": [
+      "website: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+      "amazon: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+      "siblings: actual generated queue \u2192 assembly \u2192 independent hashes \u2192 quote/draft \u2192 owned timer \u2192 independent closure; replay denied",
+      "No ordinary graph overwrite, dynamic state, raw secret, direct provider, message sender or HTTP retry in candidates",
+      "Source hash and native definition drift rejected",
+      "Duplicate members, overlong window, non-test root and extra packet fields rejected",
+      "Queue trigger cannot inject selectors",
+      "Replay, duplicate group, hold and foreign queue output stop before native dispatch",
+      "Claim token, cohort and edition drift rejected at native intake",
+      "Expired native intake rejects; expired recurring trigger stops before HTTP",
+      "Draft stage cannot run without independent frozen-file proof",
+      "Lost/failed queue, assembly and draft acknowledgements close authority without retry",
+      "Wrong sibling byte hash stops before quote/create",
+      "Wrong account readback stops before queue",
+      "Wrong approval/spend binding cannot call even preflight",
+      "Expiry across blocking verification stops submission but permits revocation",
+      "Timer stop failure cannot suppress independent scope close/verification",
+      "Scope close failure still stops timer and fails entire case",
+      "Persistent journal failure cannot prevent close, timer stop or independent verification",
+      "Expiry during awaited journal write denies dispatch before adapter invocation",
+      "Nested payload and path aliases cannot override canonical single/sibling assembly selectors",
+      "Timer ticks without an actual successful scoped refresh cannot pass",
+      "Provider receipt must bind exact submission, root and account before polling registration",
+      "Two journal instances race on atomic mkdir; a new instance cannot reuse the claimed directory"
+    ],
+    "liveRequests": 0,
+    "credentialFilesRead": 0,
+    "hostedWorkflowMutations": 0,
+    "providerCreates": 0,
+    "customerMessages": 0,
+    "limitations": [
+      "Generated Code/HTTP contracts executed by a local VM harness; not a hosted n8n engine test",
+      "Timer start/recurrence, provider response and artifact fetch adapter are synthetic; no protected live adapter is shipped"
+    ]
+  },
+  "fixturePreparation": {
+    "canonicalW0W3W4Local": true,
+    "productionReadinessSubstituted": true,
+    "canonicalDraftReadySourceRejected": true,
+    "bundledConfigChanged": false,
+    "children": 4,
+    "manifests": 8,
+    "pngs": 132,
+    "pdfs": 4,
+    "frozenPdfHashesPreserved": true,
+    "externalRequests": 0,
+    "canPersist": false,
+    "canExecute": false
+  },
+  "probes": {
+    "checks": 36,
+    "candidates": 4,
+    "externalRequests": 0,
+    "providerRequests": 0,
+    "scopeCapabilityValidated": false,
+    "passed": true
+  },
+  "typeStrict": {
+    "baseSha": "4703b609ccaee65fd131105a7f3f87f3fc084f90",
+    "method": "Read-only compiler host overlays changed source with fetched local base; excludes newly added source. Same config/dependencies/generated types; no emit.",
+    "baselineDiagnostics": 394,
+    "currentDiagnostics": 394,
+    "baselineMultisetSha256": "2ab827e06f139e20744faae3387e270ff594304eaf20e546339849ebd8a362f9",
+    "currentMultisetSha256": "0a8ce9f8c135060979ba1bbc8c30ca89dd0a0f1a890518402c7490a5d8153456",
+    "sameDiagnosticMultiset": false
+  },
+  "typeReview": {
+    "method": "Supplemental comparison only: normalize the exact three-literal pending/rejected/in-review rendering prefix only for TS2367 in two unchanged existing ReviewStageStatus consumer files; original strict comparator unchanged.",
+    "baselineDiagnostics": 394,
+    "currentDiagnostics": 394,
+    "strictMessagesIdentical": false,
+    "normalizedExistingUnionRenderingOnly": true,
+    "removedRenderedMessages": 12,
+    "addedRenderedMessages": 12,
+    "affectedDiagnosticFiles": [
+      "src/app/orders/[orderId]/page.tsx",
+      "src/lib/review-page-filters.ts"
+    ],
+    "changedFileDiagnostics": [],
+    "globalTypecheckPassed": false
+  },
+  "liveActions": [],
+  "deployed": false,
+  "realHistoricalOrderReads": 0,
+  "controlWrites": 0,
+  "providerRequests": 0,
+  "bookConfigChanged": false,
+  "limitations": [
+    "Synthetic/intercepted and loopback service protocols only; no hosted runtime/credential/provider assertion",
+    "Supplemental type review is not a green full typecheck; strict comparison remains false",
+    "Human PDF/destination and exact staged setup/live approvals remain pending",
+    "Controlled fixture readiness substitution is not ordinary W0/W3/preview/customer approval proof"
+  ]
+}

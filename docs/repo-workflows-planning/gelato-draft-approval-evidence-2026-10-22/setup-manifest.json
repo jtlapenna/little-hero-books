@@ -1,0 +1,187 @@
+{
+  "schema": "lhl.gelato-draft-setup-review@1",
+  "canExecute": false,
+  "approval": null,
+  "resourceNonce": "7d366b19",
+  "backendSource": "Exact reviewed local diff/source manifest; final commit and deploy identity still pending publication approval",
+  "schemaChanges": 0,
+  "statusSecret": "Only if missing: configure GELATO_STATUS_API_KEY equal to exact scoped GELATO_API_KEY via protected local storage; no value retained here",
+  "credentialsToCreate": [
+    {
+      "name": "LHL-48H-7d366b19-backend",
+      "type": "httpHeaderAuth",
+      "purpose": "Existing backend authority copied only to new diagnostics"
+    },
+    {
+      "name": "48H-7d366b19-WEB-intake",
+      "type": "httpHeaderAuth",
+      "purpose": "New random isolated webhook intake, no normal caller change"
+    },
+    {
+      "name": "48H-7d366b19-WEB-scope",
+      "type": "httpMultipleHeadersAuth",
+      "purpose": "Existing backend authority plus new unissued exact-scope capability"
+    },
+    {
+      "name": "48H-7d366b19-AMZ-intake",
+      "type": "httpHeaderAuth",
+      "purpose": "New random isolated webhook intake, no normal caller change"
+    },
+    {
+      "name": "48H-7d366b19-AMZ-scope",
+      "type": "httpMultipleHeadersAuth",
+      "purpose": "Existing backend authority plus new unissued exact-scope capability"
+    },
+    {
+      "name": "48H-7d366b19-SIB-intake",
+      "type": "httpHeaderAuth",
+      "purpose": "New random isolated webhook intake, no normal caller change"
+    },
+    {
+      "name": "48H-7d366b19-SIB-scope",
+      "type": "httpMultipleHeadersAuth",
+      "purpose": "Existing backend authority plus new unissued exact-scope capability"
+    }
+  ],
+  "caseWorkflows": [
+    {
+      "case": "website-single",
+      "names": {
+        "queue": "TEST-GELATO 48H-7d366b19-WEB isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-WEB assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-WEB draft",
+        "timer": "TEST-GELATO 48H-7d366b19-WEB isolated status timer"
+      },
+      "initialActive": false,
+      "scopeIssued": false
+    },
+    {
+      "case": "amazon-single",
+      "names": {
+        "queue": "TEST-GELATO 48H-7d366b19-AMZ isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-AMZ assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-AMZ draft",
+        "timer": "TEST-GELATO 48H-7d366b19-AMZ isolated status timer"
+      },
+      "initialActive": false,
+      "scopeIssued": false
+    },
+    {
+      "case": "amazon-siblings",
+      "names": {
+        "queue": "TEST-GELATO 48H-7d366b19-SIB isolated queue",
+        "assembly": "TEST-GELATO 48H-7d366b19-SIB assembly",
+        "draft": "TEST-GELATO 48H-7d366b19-SIB draft",
+        "timer": "TEST-GELATO 48H-7d366b19-SIB isolated status timer"
+      },
+      "initialActive": false,
+      "scopeIssued": false
+    }
+  ],
+  "noOpProbePolicy": {
+    "url": "https://admin.littleherolabs.com/api/internal/w4/submit-gelato-draft",
+    "method": "GET",
+    "orderSelectors": false,
+    "checks": [
+      "contextAvailable=true",
+      "draftsEnabled=false",
+      "cloudflare/globalProcess/nodeProcess explicitly string false"
+    ],
+    "limitation": "Proves backend part of managed credentials only; exact scope token is additionally bound by private digest and first protected queue response, not proven by a GET that ignores it."
+  },
+  "providerRequests": 0,
+  "sourceAssetPlan": {
+    "pngObjects": 132,
+    "manifestObjects": 8,
+    "printPdfPreupload": 0,
+    "scope": "Four new child prefixes only; native assembly later creates PDFs",
+    "source": "Retained immutable role-labelled PNG bytes; current W0/W3 producer-generated dummy manifest candidates"
+  },
+  "databasePlan": {
+    "freshChildRows": 4,
+    "freshRootGroups": 3,
+    "createSubmissionClaims": 0,
+    "issueScopes": 0,
+    "setCustomerApproval": false,
+    "scope": "Only generated TEST-GELATO names; real DB IDs and recipient bound privately after permission; candidates cannot be directly persisted"
+  },
+  "allowedSetupEndpointFamilies": [
+    "GitHub reviewed personal-repo publication/CI",
+    "Cloudflare exact backend settings/deployment metadata and reviewed release; only missing dedicated status secret allowed",
+    "Supabase exact migration inventory and generated fresh TEST-GELATO fixture inserts; no order scans or existing-row updates",
+    "n8n credential creation and exact newly named diagnostic/probe workflows only; no ordinary definitions",
+    "R2 PUT/HEAD only 132 PNGs + 8 canonical manifest candidates under four generated fresh child prefixes"
+  ],
+  "stageA2Only": [
+    "Issue the approved parent/scope",
+    "Activate queue/assembly/draft for one named case",
+    "Trigger each exact new webhook once",
+    "Create an explicit held draft",
+    "Start/observe exact scope timer",
+    "Close and deactivate all four owned copies; independent readback"
+  ],
+  "notAuthorizedByThisFile": [
+    "Any actual setup",
+    "Provider calls",
+    "Order submission",
+    "Normal control changes",
+    "Historical-order reads",
+    "Funding",
+    "Regular orders/conversion",
+    "Customer messages"
+  ],
+  "noOpProbes": [
+    {
+      "name": "TEST-GELATO 48H-7d366b19-WEB backend probe",
+      "path": "lhl-48h-7d366b19-web-backend-probe",
+      "initialActive": false,
+      "maxInvocations": 1,
+      "credentialPart": "backend"
+    },
+    {
+      "name": "TEST-GELATO 48H-7d366b19-WEB scope-header probe",
+      "path": "lhl-48h-7d366b19-web-scope-header-probe",
+      "initialActive": false,
+      "maxInvocations": 1,
+      "credentialPart": "scope-header"
+    },
+    {
+      "name": "TEST-GELATO 48H-7d366b19-AMZ scope-header probe",
+      "path": "lhl-48h-7d366b19-amz-scope-header-probe",
+      "initialActive": false,
+      "maxInvocations": 1,
+      "credentialPart": "scope-header"
+    },
+    {
+      "name": "TEST-GELATO 48H-7d366b19-SIB scope-header probe",
+      "path": "lhl-48h-7d366b19-sib-scope-header-probe",
+      "initialActive": false,
+      "maxInvocations": 1,
+      "credentialPart": "scope-header"
+    }
+  ],
+  "diagnosticSetupCaps": {
+    "credentialCreates": 7,
+    "caseWorkflowCreates": 12,
+    "probeWorkflowCreates": 4,
+    "probeActivations": 4,
+    "probeInvocations": 4,
+    "probeDeactivations": 4,
+    "exactWorkflowMetadataGets": 40,
+    "normalWorkflowUpdates": 0,
+    "newCaseWorkflowActivations": 0,
+    "providerRequests": 0,
+    "sourcePngPuts": 132,
+    "sourceManifestPuts": 8,
+    "freshChildRowInserts": 4,
+    "existingRowUpdates": 0,
+    "scopeOrWindowIssuance": 0
+  },
+  "fixtureReadinessSubstitution": {
+    "requiresExplicitReview": true,
+    "globalConfigChanged": false,
+    "localCopyOnly": true,
+    "manifestSnapshot": "Controlled production-ready snapshot from in-memory active clone, as in prior combined tests; seeded fixture only. Canonical draft/test-mode W3 remains not ready and rejected. DB test rows remain book_specs.testMode=true and customer approval pending.",
+    "meaning": "Tests native W4/W4.1 using dummy ready inputs; does not prove actual W0/W3 or approve final content."
+  }
+}

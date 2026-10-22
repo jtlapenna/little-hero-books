@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {readFile,readdir} from 'node:fs/promises';
 import {z} from 'zod';
+import {GELATO_TERMINAL_WEBHOOK_MS,GELATO_METADATA_REQUEST_MS,GELATO_STATUS_OBSERVATION_ITERATIONS} from './gelato-runner-deadlines';
 import {definitionSha256,workflowDefinition} from './prepare-w1-native-queue';
 import {IsolatedCasePacket,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
 import {FileCaseJournal,NORMAL_FLAGS,validatePreparedClaim,type RunnerClaim,type IsolatedRunnerDependencies} from './gelato-isolated-case-runner';
@@ -69,9 +70,9 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
  const journal=new FileCaseJournal(protectedCaseDirectory(o.journalRoot,p));
  const requireOwner=()=>{if(!ownsAttempt)throw Error('Durable attempt ownership required');};
  const requirePreflight=()=>{requireOwner();if(!preflightVerified)throw Error('Successful private preflight required');};
- const request=async(url:string,method:'GET'|'POST',headers:Record<string,string>,body:unknown,signal:AbortSignal,cleanup=false,binary=false)=>{
+ const request=async(url:string,method:'GET'|'POST',headers:Record<string,string>,body:unknown,signal:AbortSignal,cleanup=false,binary=false,timeoutMs=GELATO_METADATA_REQUEST_MS)=>{
   signal.throwIfAborted();if(cleanup?++cleanupCalls>24:++calls>200)throw Error('Protected call budget ended');
-  const local=AbortSignal.any([signal,AbortSignal.timeout(5000)]);let response:Response;
+  const local=AbortSignal.any([signal,AbortSignal.timeout(timeoutMs)]);let response:Response;
   try{
    const pending=o.fetcher(url,{method,headers:{...headers,'Cache-Control':'no-cache',...(method==='POST'?{'Content-Type':'application/json'}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual',signal:local});
    // An injected adapter can ignore AbortSignal. Cleanup must still progress to stop/readback.
@@ -160,7 +161,7 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
  const verifyClosed=async(signal:AbortSignal)=>{
   const {s,win}=await scope(signal,true);const {job}=await registration(signal,true);
   if(!s.closed_at||!win.closed_at||(job&&(job.enabled!==false||job.lease_token!==null||job.lease_expires_at!==null)))throw Error('Independent closure missing');
-  await workflow('timer',false,signal,true);
+  for(const stage of stageNames)await workflow(stage,false,signal,true);
   const offControls=await controls(signal,true);
   if(!await timerActivationSettled(job!==null))throw Error('Timer activation acknowledgement unresolved; keep later cases stopped');
   return {scopeClosed:true,parentWindowClosed:true,registrationDisabled:true,leaseCleared:true,...offControls};
@@ -186,7 +187,7 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
    if(webhookPath!==workflowPath(p,stage)||dispatched.has(stage))throw Error('Workflow dispatch is not replayable');
    // Reserve synchronously before any await; another caller cannot pass the same slot.
    dispatched.add(stage);await active(signal);await workflow(stage,true,signal);signal.throwIfAborted();
-   const result=await json(b.n8nOrigin+'/webhook/'+webhookPath,'POST',{'x-lhl-isolated-intake':credentials.intake},body,signal);
+   const result=await request(b.n8nOrigin+'/webhook/'+webhookPath,'POST',{'x-lhl-isolated-intake':credentials.intake},body,signal,false,false,GELATO_TERMINAL_WEBHOOK_MS);
    if(stage==='queue')claim=validatePreparedClaim(result,p);return result;
   },
   verifyAssembly:async(c,_assembly,signal)=>{
@@ -226,11 +227,17 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
    const result=await isolation(action,signal);z.object({registered:z.literal(true),customerMessages:z.literal(false)}).strict().parse(result);statusRegistered=true;return result;
   },
   timer:async(action,signal)=>{
-   if(action==='stop'){await n8n('timer','/deactivate',signal,true);await workflow('timer',false,signal,true);return {stopped:true};}
+   if(action==='stop'){
+    // New webhook copies are owned by this window too. Restore every copy to OFF.
+    // Send every stop independently, timer first. One hung copy cannot suppress another stop.
+    const stages=['timer',...stageNames.filter(s=>s!=='timer')] as const;
+    const results=await Promise.allSettled(stages.map(async stage=>{await n8n(stage,'/deactivate',signal,true);await workflow(stage,false,signal,true);}));
+    if(results.some(r=>r.status==='rejected'))throw Error('Owned workflow closure unconfirmed');return {stopped:true};
+   }
    if(action==='start'){requirePreflight();if(!statusRegistered)throw Error('Owned status registration required');if(dispatched.has('timer'))throw Error('Timer start not replayable');dispatched.add('timer');await active(signal);await workflow('timer',false,signal);const {job}=await registration(signal);if(!job||job.enabled!==true||job.attempt_count!==0)throw Error('New owned status registration required');timerStartedAt=o.now();await n8n('timer','/activate',signal);await workflow('timer',true,signal);return {started:true,workflowSha256:b.workflowBindings.timer.definitionSha256};}
    if(!timerStartedAt||!providerId)throw Error('Owned timer has not started');
    const seen=new Set<string>(),completed:Array<{start:number;end:number}>=[];let successful=0;
-   for(let tick=0;tick<24;tick++){
+   for(let tick=0;tick<GELATO_STATUS_OBSERVATION_ITERATIONS;tick++){
     await active(signal);await workflow('timer',true,signal);
     const page=z.object({data:z.array(z.object({id,workflowId:id,status:z.string(),mode:z.string(),startedAt:instant,stoppedAt:instant.nullable()}).passthrough()).max(10),nextCursor:z.string().nullable().optional()}).parse(await json(b.n8nOrigin+'/api/v1/executions?'+new URLSearchParams({workflowId:b.workflowBindings.timer.id,limit:'10',includeData:'false'}),'GET',{'X-N8N-API-KEY':credentials.n8n},undefined,signal));
     if(page.nextCursor)throw Error('Timer observation incomplete');
