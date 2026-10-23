@@ -1,5 +1,7 @@
 # Cover-independent execution record
 
+Current status, October 23: core rollout and production W0 correction are complete. See the [release record](controlled-rollout-release-record-2026-10-23.md) for deployed versions, live smoke results and remaining launch gates. Earlier entries below describe their state at the time.
+
 Date: October 21, 2026. Scope: work possible before Jeff supplies final cover art. No workflow was changed in n8n, no config was published, no sales flag was enabled, and no print order was placed.
 
 ## Deployment and config contract
