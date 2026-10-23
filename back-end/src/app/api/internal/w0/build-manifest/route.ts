@@ -13,6 +13,41 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Read the shared setting only. No order, storage, config or n8n access. */
+export async function GET(request: NextRequest) {
+  const headers = { 'Cache-Control': 'private, no-store' };
+  if (!verifyBearerAuth(request).ok) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+  }
+  if (request.nextUrl.search) {
+    return NextResponse.json({ error: 'Query parameters are not supported' }, { status: 400, headers });
+  }
+  const setting = process.env.N8N_W0_WEBHOOK_URL;
+  type W0RouteTarget = 'unset' | 'selected-w0' | 'sibling-w0' | 'legacy-w0' | 'other' | 'invalid';
+  let target: W0RouteTarget = 'unset';
+  if (setting) {
+    try {
+      const url = new URL(setting);
+      const knownPaths: Record<string, W0RouteTarget> = {
+        '/webhook/order-intake-repo': 'selected-w0',
+        '/webhook/order-intake-sibtest': 'sibling-w0',
+        '/webhook/order-intake': 'legacy-w0',
+      };
+      target = url.origin === 'https://thepeakbeyond.app.n8n.cloud' &&
+        !url.username && !url.password && !url.search && !url.hash
+        ? knownPaths[url.pathname] ?? 'other'
+        : 'other';
+    } catch {
+      target = 'invalid';
+    }
+  }
+  return NextResponse.json({
+    schema: 'lhl.w0-route-check@1',
+    w0Setting: { configured: Boolean(setting), target },
+    selectedWorkflowId: '9E0oVs46bMoiyRIP',
+  }, { headers });
+}
+
 /**
  * POST /api/internal/w0/build-manifest
  *

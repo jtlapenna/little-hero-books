@@ -54,6 +54,9 @@ jobs:
       - name: Check asynchronous route parameters
         working-directory: back-end
         run: node --import tsx scripts/test-trigger-w0-route.ts
+      - name: Verify authenticated read-only W0 route diagnostic
+        working-directory: back-end
+        run: node --import tsx scripts/test-w0-route-check.ts
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end
