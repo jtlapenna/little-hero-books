@@ -57,6 +57,15 @@ jobs:
       - name: Verify authenticated read-only W0 route diagnostic
         working-directory: back-end
         run: node --import tsx scripts/test-w0-route-check.ts
+      - name: Verify frozen order selection and generation handoff
+        working-directory: back-end
+        run: |
+          node --import tsx scripts/test-w0-deployed-selection.ts
+          node --import tsx scripts/test-w1-frozen-manifest-handoff.ts
+          node --import tsx scripts/test-w2a-base-input.ts
+          node --import tsx scripts/test-w2a-pose-input.ts
+          node --import tsx scripts/test-w2a-frozen-generation-input.ts
+          node --import tsx scripts/test-publish-book-config-immutability.ts
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end

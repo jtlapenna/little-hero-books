@@ -1,0 +1,1 @@
+{"passed":true,"checks":24,"liveRequests":0,"customerMessages":0,"scope":"Actual ordinary cron route, selected fields, OFF/duplicate/approval/full-group/capacity gates; synthetic transports only"}

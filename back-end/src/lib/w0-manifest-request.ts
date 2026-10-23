@@ -24,6 +24,22 @@ export function parseW0ManifestRequest(value: unknown, compatibility: { allowLeg
     }
     selection[field] = values[0];
   }
+  const raw = input._raw && typeof input._raw === 'object' && !Array.isArray(input._raw)
+    ? input._raw as Record<string, unknown> : {};
+  const rawBody = raw.body && typeof raw.body === 'object' && !Array.isArray(raw.body)
+    ? raw.body as Record<string, unknown> : {};
+  const rawSources = [raw, raw.bookSpecs, raw.book_specs, raw.productInfo, raw.product_info,
+    rawBody, rawBody.bookSpecs, rawBody.book_specs, rawBody.productInfo, rawBody.product_info]
+    .filter((source): source is Record<string, unknown> =>
+      source !== null && typeof source === 'object' && !Array.isArray(source));
+  for (const [field, alias] of [['bookId', 'book_id'], ['formatId', 'format_id'], ['configVersion', 'config_version']] as const) {
+    const values = rawSources.flatMap((source) => [source[field], source[alias]]).filter((value) => value !== undefined);
+    if (values.some((value) => value !== values[0]) ||
+      (selection[field] !== undefined && values.some((value) => value !== selection[field])) ||
+      (field === 'configVersion' && selection[field] === undefined && values.length > 0)) {
+      throw new Error(`Conflicting W0 selection: ${field}`);
+    }
+  }
   const legacyMvp = compatibility.allowLegacyMvpIntake && envelope.payload !== undefined &&
     selection.bookId === 'book-mvp-simple-adventure' && selection.configSource === 'published-first' &&
     (selection.schemaVersion === undefined || selection.schemaVersion === 'v3') &&

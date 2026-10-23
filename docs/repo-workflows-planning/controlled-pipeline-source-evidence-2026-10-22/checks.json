@@ -1,0 +1,377 @@
+{
+  "schema": "lhl.controlled-pipeline-local-checks@1",
+  "sourceSnapshotSha256": "abf6bf2415f68394d1efad2ef7865c48f479d3548815008ae9dd5cc1894d84d2",
+  "environmentKeys": [
+    "HOME",
+    "PATH"
+  ],
+  "canExecute": false,
+  "canInstall": false,
+  "scope": "Synthetic services, VM fixtures, loopback workers, and disposable local PostgreSQL only",
+  "liveAcceptanceRenewed": false,
+  "suites": [
+    {
+      "name": "test-gelato-credential-auth.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-credential-auth.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-credential-auth.ts.txt",
+      "logSha256": "97687d5582a20e5a9a736830d9ddb9bc1ba56a054e330e738c913eeccd3f6fbc"
+    },
+    {
+      "name": "test-gelato-runtime-key-proof.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-runtime-key-proof.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-runtime-key-proof.ts.txt",
+      "logSha256": "29551ca11e07ef492162f8e22b4322a9409f0aacb08f142555410286a7f1aacd"
+    },
+    {
+      "name": "test-gelato-protected-runner.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-runner.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-protected-runner.ts.txt",
+      "logSha256": "cfcce4d6163c87e4f00538c3d855dcfc376a48768959df5f85f142c19a9afaaa"
+    },
+    {
+      "name": "test-gelato-protected-runner-crashes.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-runner-crashes.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-protected-runner-crashes.ts.txt",
+      "logSha256": "73eb68d5bb7acbd417d2735c384ae7200b43e1037f0fa5a3108f632511decec0"
+    },
+    {
+      "name": "test-gelato-protected-launch.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-launch.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-protected-launch.ts.txt",
+      "logSha256": "680eb72e6962ae88d97fd0ede4ab65ec40ea2ca5f2bfae6acf81c836385c3a24"
+    },
+    {
+      "name": "test-gelato-local-window.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-local-window.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-local-window.ts.txt",
+      "logSha256": "6e4f44d503e0aabee5af7f9bbbe0a8934fd56cc43bb13e9b7240c4e49f546877"
+    },
+    {
+      "name": "test-gelato-incident-safeguards.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-incident-safeguards.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-incident-safeguards.ts.txt",
+      "logSha256": "38fceb4dcf1c56a523a3f0249ea74c03b2e4287015d25d33a30ecea617afa565"
+    },
+    {
+      "name": "test-gelato-submission-runtime.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-submission-runtime.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-submission-runtime.ts.txt",
+      "logSha256": "c00a4dfc6969db48b8a0a67351952f36505444a0e427be98cde766829ad66b86"
+    },
+    {
+      "name": "test-access-boundary.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-access-boundary.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-access-boundary.ts.txt",
+      "logSha256": "f7428a06b46cf8606d41414e997e895f95536c04b4758da54f6082708675b770"
+    },
+    {
+      "name": "test-gelato-ordinary-release.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-ordinary-release.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-ordinary-release.ts.txt",
+      "logSha256": "a3ce587756f1368e970e6b65a8f9ec4784f430ee3170ac0f1d69034f13887e7f"
+    },
+    {
+      "name": "test-gelato-ordinary-router.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-ordinary-router.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-ordinary-router.ts.txt",
+      "logSha256": "b3c471ec1f74d7a2e1e61f5003c7de08cc6ed5a49b38615f648ee38dced17c53"
+    },
+    {
+      "name": "test-gelato-native-queue.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-native-queue.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-native-queue.ts.txt",
+      "logSha256": "f0e363d34ca496f09c1a623ee140c6c189f6869d46b83805ea8532ba62a59f41"
+    },
+    {
+      "name": "test-w0-deployed-selection.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-deployed-selection.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-deployed-selection.ts.txt",
+      "logSha256": "e2f9fe669bac1f8a4139c859aa510aa88143a983a73d345892aec29c418e470e"
+    },
+    {
+      "name": "test-w0-manifest-freeze.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-manifest-freeze.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-manifest-freeze.ts.txt",
+      "logSha256": "09ab509b96ba24ed3596638adb8afb8ecaa612b37b395164c0f5a610311466f9"
+    },
+    {
+      "name": "test-w0-legacy-rollout.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-legacy-rollout.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-legacy-rollout.ts.txt",
+      "logSha256": "1972c51c6cd7eae5ab2cea3b1241aed53acb32dc6319574226e4715eb6b034aa"
+    },
+    {
+      "name": "test-w1-frozen-manifest-handoff.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w1-frozen-manifest-handoff.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w1-frozen-manifest-handoff.ts.txt",
+      "logSha256": "002148904893b15f18b58e03f9d05ddbf6e840bc871d1d7f633fc4e385acd413"
+    },
+    {
+      "name": "test-w2a-base-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-base-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-base-input.ts.txt",
+      "logSha256": "76a8f889a211d0374026e03786bbe29466f518b19ae4cd18b90e7f0fc39fecfd"
+    },
+    {
+      "name": "test-w2a-pose-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-pose-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-pose-input.ts.txt",
+      "logSha256": "de45503e5ddbdeb9dfc434bb8b6f555cfd0d828667f3f0b14eacefdea6bb75fb"
+    },
+    {
+      "name": "test-w2a-frozen-generation-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-frozen-generation-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-frozen-generation-input.ts.txt",
+      "logSha256": "337461b71d94b799c489e8bd59a0c4686beeec54d6fc06cd562e58a3d40138c3"
+    },
+    {
+      "name": "test-w2-workflow-contracts.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2-workflow-contracts.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2-workflow-contracts.ts.txt",
+      "logSha256": "9d4e50237512b9dab651950b1820c7fc8370f0c5b55c47d4a81333e2e7eeea06"
+    },
+    {
+      "name": "test-publish-book-config-immutability.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-publish-book-config-immutability.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-publish-book-config-immutability.ts.txt",
+      "logSha256": "a8c7de177d8c487817c1ee6ea72c1cde2e65da882126114156f2bfab8091f6a8"
+    },
+    {
+      "name": "test-checkout-validation.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-checkout-validation.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-checkout-validation.ts.txt",
+      "logSha256": "ee7c58e145a91713a9385b08ac5ba33e7a07ed61635e8fe1fe4826b722eceb2b"
+    },
+    {
+      "name": "gelato-draft-approval-evidence-2026-10-22-probes",
+      "cwd": ".",
+      "command": [
+        "node",
+        "docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/test-probes.mjs"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-draft-approval-evidence-2026-10-22-probes.txt",
+      "logSha256": "ec554eca2992e0a86f9271223177fa27b5817e5096fd6efa6b57f0fd3e017e17"
+    },
+    {
+      "name": "gelato-auth-attestation-evidence-2026-10-22-probes",
+      "cwd": ".",
+      "command": [
+        "node",
+        "docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/test-probes.mjs"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-auth-attestation-evidence-2026-10-22-probes.txt",
+      "logSha256": "ec554eca2992e0a86f9271223177fa27b5817e5096fd6efa6b57f0fd3e017e17"
+    },
+    {
+      "name": "gelato-local-launch-evidence-2026-10-21-historical",
+      "cwd": ".",
+      "command": [
+        "python3",
+        "docs/repo-workflows-planning/gelato-local-launch-evidence-2026-10-21/verify.py"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-local-launch-evidence-2026-10-21-historical.txt",
+      "logSha256": "1cddda6d8152e48899711ec201a1a1b8b9c9a5d1f35ad4862f7a59481e299528"
+    },
+    {
+      "name": "gelato-incident-safeguards-evidence-2026-10-21-historical",
+      "cwd": ".",
+      "command": [
+        "python3",
+        "docs/repo-workflows-planning/gelato-incident-safeguards-evidence-2026-10-21/verify.py"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-incident-safeguards-evidence-2026-10-21-historical.txt",
+      "logSha256": "0591f2d90f86c9a41376022bb76096beee9b3c28437f87a1a6c83442e23ff263"
+    },
+    {
+      "name": "gelato-draft-approval-evidence-2026-10-22-historical",
+      "cwd": ".",
+      "command": [
+        "python3",
+        "docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/verify.py"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-draft-approval-evidence-2026-10-22-historical.txt",
+      "logSha256": "92dc4aab1be3f1ac83152d7644b114acd1d9d87c7c8596816b8c1f624c8075bb"
+    },
+    {
+      "name": "gelato-auth-attestation-evidence-2026-10-22-historical",
+      "cwd": ".",
+      "command": [
+        "python3",
+        "docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/verify.py"
+      ],
+      "exitCode": 0,
+      "log": "logs/gelato-auth-attestation-evidence-2026-10-22-historical.txt",
+      "logSha256": "da1fea1683b061fe9bd087476b75ed2f3b49dba1a1261929a2fda3c498402bd7"
+    },
+    {
+      "name": "activation-migration",
+      "cwd": "back-end",
+      "command": [
+        "bash",
+        "scripts/test-book-config-activation-migration.sh"
+      ],
+      "exitCode": 0,
+      "log": "logs/activation-migration.txt",
+      "logSha256": "ca5d1c70b14dbe8e0aaf4a000de531bc7b1f687763b8ae8284db7f85bed015bf"
+    }
+  ]
+}

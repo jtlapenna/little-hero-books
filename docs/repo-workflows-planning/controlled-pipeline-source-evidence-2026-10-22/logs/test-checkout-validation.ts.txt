@@ -1,0 +1,1 @@
+Checkout invalid-input and draft boundary: 7 cases passed; 0 external calls

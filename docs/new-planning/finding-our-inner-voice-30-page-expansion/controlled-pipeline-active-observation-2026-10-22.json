@@ -1,0 +1,425 @@
+{
+  "schema": "lhl.controlled-pipeline-active-observation@1",
+  "observedAt": "2026-10-22T14:23:29.932456+00:00",
+  "apiAccess": 200,
+  "mutations": {
+    "hostedWorkflows": 0,
+    "productionDatabase": 0,
+    "providerCalls": 0,
+    "customerMessages": 0
+  },
+  "production": {
+    "deploymentId": "0ea20157-14b9-4a23-a4e8-f69cafc63198",
+    "sourceSha": "d928e76cb5f1ee7f212579371661dbfa717e4c0b",
+    "w0Binding": "secret_text, value hidden",
+    "routerBinding": "absent, code fallback w1-1-router-sibtest",
+    "innerVoiceSales": "absent, off",
+    "gelatoDraftSubmission": false
+  },
+  "database": {
+    "activationRpc": "absent",
+    "databaseFunctionConsumers": 0,
+    "innerVoiceVersions": [
+      {
+        "version": 1,
+        "status": "draft",
+        "active": false
+      },
+      {
+        "version": 2,
+        "status": "draft",
+        "active": false
+      }
+    ],
+    "queue": {
+      "readyOrPendingW0": 0,
+      "processingGelato": 3,
+      "testNamedProcessingGelato": 3
+    }
+  },
+  "routeOwners": {
+    "orderIntakeRepo": {
+      "id": "9E0oVs46bMoiyRIP",
+      "active": true
+    },
+    "orderIntakeSibtest": {
+      "id": "Of0D9GEpoOYvYMTX",
+      "active": false
+    },
+    "router": {
+      "id": "TDwc85g03FqPf9D6",
+      "active": true
+    }
+  },
+  "workflows": [
+    {
+      "id": "9E0oVs46bMoiyRIP",
+      "name": "REPO - w0 - Order Intake & Validation",
+      "active": true,
+      "versionId": "6cb2afbe-5d68-4514-8279-9e61e2c22ddb",
+      "activeVersionId": "6cb2afbe-5d68-4514-8279-9e61e2c22ddb",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 15,
+      "nodes": 15,
+      "subworkflows": [],
+      "definitionSha256": "ebd54f163322976ab5a59227006535d891b745924e2b6fbd26f94fa2d86eadc1",
+      "connectionsSha256": "2cd73788c9a09ab7ccd4743508263774ba44a8c477afec64d7f9b6bca30f804e",
+      "webhooks": [
+        {
+          "path": "order-intake-repo",
+          "responseMode": "onReceived",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "cfba747b3209c866e26fe3b7be9d8afd82d21e6a280387b1df036dbf393889de"
+    },
+    {
+      "id": "TDwc85g03FqPf9D6",
+      "name": "REPO - w1.1 - Queue Manager and Router",
+      "active": true,
+      "versionId": "3b9ba6c9-7b6c-42fb-82f7-c90b81369c0c",
+      "activeVersionId": "3b9ba6c9-7b6c-42fb-82f7-c90b81369c0c",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 28,
+      "nodes": 28,
+      "subworkflows": [],
+      "definitionSha256": "6443826dcc16caaa19ae37b1eaca90557cc49104f42fac0d0521c655002ccff8",
+      "connectionsSha256": "34385e476b7952db8612d100975ba493921f5f60f3233fd0f37268bca6df4c15",
+      "webhooks": [
+        {
+          "path": "w1-1-router-sibtest",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "2d3585f815416a5aa8471b7c636a77ba62eefad8ead3b40d1d6043d4ee1c8113"
+    },
+    {
+      "id": "HduzTWm0ekmrvwrn",
+      "name": "REPO - w2A-Orchestrator",
+      "active": true,
+      "versionId": "c07cc1e9-1349-43bd-b1f0-929c4d7930da",
+      "activeVersionId": "c07cc1e9-1349-43bd-b1f0-929c4d7930da",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 40,
+      "nodes": 40,
+      "subworkflows": [
+        "S5apnAgeuitSIO5Z",
+        "kGob5aDJ6e5WRPh7",
+        "wblExdQhkoKOSM23",
+        "oKsq2x0gARt43k5U"
+      ],
+      "definitionSha256": "cf97e463d8a56690807bc83642fe92ccba8c1fb7602d59ac7cc4d36b4554d1e2",
+      "connectionsSha256": "639ad9fdc3d0374c99c9a231ff299caccd5a2c2e9d1b11eacce7a4008a528585",
+      "webhooks": [
+        {
+          "path": "2a-start-repo",
+          "responseMode": "onReceived",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "e273deb95f58904126fc851d1fbf55b8a6f2433b78a11f46fc9448b9a06928c5"
+    },
+    {
+      "id": "KhMxEgo57Deo1QWu",
+      "name": "REPO - w2B-main-orchestrator",
+      "active": true,
+      "versionId": "c48c6053-5033-4b79-9f0b-91cb5983ccd8",
+      "activeVersionId": "c48c6053-5033-4b79-9f0b-91cb5983ccd8",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 19,
+      "nodes": 19,
+      "subworkflows": [
+        "4fxha79xAEaYEBYb"
+      ],
+      "definitionSha256": "9e9cc5dd2f7be4582e429613dd6f335b2a968e1abce6f927c9356417bf1a413e",
+      "connectionsSha256": "3f241230c5fdf3ebfe731a21f25fdc99742cb8f89ddcfaebfcdac3c3d64d272b",
+      "webhooks": [
+        {
+          "path": "bg-removal-repo",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "51ea7c339f483a3504a9c0f126d60481b0a89cd6a10187c6bcdf74c05cc68902"
+    },
+    {
+      "id": "D4rQ0zJG8JlKhZqq",
+      "name": "REPO - w3-Book-Assembly",
+      "active": true,
+      "versionId": "2647e2af-c0f9-4299-a405-7633174a512e",
+      "activeVersionId": "2647e2af-c0f9-4299-a405-7633174a512e",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 53,
+      "nodes": 53,
+      "subworkflows": [],
+      "definitionSha256": "ac47716875b6e6800dbac189cc6d86018ea4a9fbbb50b4c24b6daaf44f01be3a",
+      "connectionsSha256": "327416342ac1181ce5eabb82fb1764f5ab31ae9b6894a862336cdf740e606af0",
+      "webhooks": [
+        {
+          "path": "book-assembly-repo",
+          "responseMode": "onReceived",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "e0409092413d9b18dba0463b29ae2ef597f10643b88e261fb914eeb1f7a4f64f"
+    },
+    {
+      "id": "m4qIN9PCgifUcYih",
+      "name": "REPO - w4-PRODUCTION-Print_Fulfillment",
+      "active": true,
+      "versionId": "1f2e0701-be4b-4350-89b8-73f2bb59f6f6",
+      "activeVersionId": "1f2e0701-be4b-4350-89b8-73f2bb59f6f6",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 72,
+      "nodes": 72,
+      "subworkflows": [],
+      "definitionSha256": "0bff95fb4b0d386eece6394096a5ef561c4dd2a0a5770afcd9b1d57302f7be82",
+      "connectionsSha256": "f78a7009d19227d5d9936cb85bf719c60f89c27da6b1f5af4e35c9549d12f2fb",
+      "webhooks": [
+        {
+          "path": "w4-pdf-print-repo",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "7cac15d78822d1abd587dc7ed4acb413197c38ffc7e53d4319ae4d583670d69f"
+    },
+    {
+      "id": "boWA0mB20qYK2g4x",
+      "name": "REPO - w4.1-Sibling-Aggregation",
+      "active": true,
+      "versionId": "3e4b6970-0a28-48d3-a1d6-4a2b365be54b",
+      "activeVersionId": "3e4b6970-0a28-48d3-a1d6-4a2b365be54b",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 49,
+      "nodes": 49,
+      "subworkflows": [],
+      "definitionSha256": "23a868791277568784781d158a4a237a8b6e8dce55ace73d4c216becfb73e68c",
+      "connectionsSha256": "6c5f0cf3d454e1195d7f5168a8b44e0b91b6f519659d6b6b3036f1b30dbd6417",
+      "webhooks": [
+        {
+          "path": "w4-1-sibling-aggregation-repo",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "e79cc7c023500eaf7c6dec317e05a0bea560310d184c531bfd10e637f614804e"
+    },
+    {
+      "id": "8ZqgZ7ksY0Fj8Acx",
+      "name": "W4 Gelato Print Fulfillment",
+      "active": false,
+      "versionId": "cfc4ecfc-c059-4d9e-87aa-49ac539b3683",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 9,
+      "subworkflows": [],
+      "definitionSha256": "41afe5ec8da83fc9de0b18358b7790a5b9a7aad77c135f041d44a1c09ee42123",
+      "connectionsSha256": "90f7e2956a4b58d40dceec283895fc21ba9a70d895169982f966aa5ddfea815a",
+      "webhooks": [
+        {
+          "path": "w4-gelato-print-repo",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
+    },
+    {
+      "id": "d7wi1rS0CxGVdRVb",
+      "name": "W4.1 Gelato Sibling Aggregation",
+      "active": false,
+      "versionId": "5592f6a2-2a2b-4852-96cf-f0109c4f8820",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 9,
+      "subworkflows": [],
+      "definitionSha256": "b06ef16bbb5c341ed288dcdca448c79913ba7766ce52ebe039d13d3f74803d04",
+      "connectionsSha256": "90f7e2956a4b58d40dceec283895fc21ba9a70d895169982f966aa5ddfea815a",
+      "webhooks": [
+        {
+          "path": "w4-1-sibling-aggregation-gelato-repo",
+          "responseMode": "responseNode",
+          "disabled": false
+        }
+      ],
+      "credentialReferencesSha256": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
+    },
+    {
+      "id": "S5apnAgeuitSIO5Z",
+      "name": "REPO - w2A-SW0-Base_Character_Generation",
+      "active": false,
+      "versionId": "fc12d0c8-ca89-4cc7-b0a7-4c6e18457171",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 16,
+      "subworkflows": [],
+      "definitionSha256": "1a64b40ec79896ff3b2393b9cdfe0f01bc2e46799d71e9a685e17a7ce21b030d",
+      "connectionsSha256": "f35ceda6d161cd484ee77a7459257c6004df5ca27b29f68ec9df808d952ba72a",
+      "webhooks": [],
+      "credentialReferencesSha256": "8f489cfa8d26af3bca23916aa8aa2d228de47c2ec2f81bdeb2198d2c0965e702"
+    },
+    {
+      "id": "kGob5aDJ6e5WRPh7",
+      "name": "REPO - w2A-SW1-Pose_Generation",
+      "active": false,
+      "versionId": "6a63af47-5158-49ab-9a61-ca88410be44e",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 46,
+      "subworkflows": [],
+      "definitionSha256": "d443854895597b21c58a3da257179fa737338384b097307245e69b505c1a412e",
+      "connectionsSha256": "4be08c912b79067aff0f71ba10922ecbb2e4ec61ee8dbbe3ff404d2bc422bb59",
+      "webhooks": [],
+      "credentialReferencesSha256": "af9b31213a599cf7666f7c814ca0c280c4134882d39e4168aff5550d84dee827"
+    },
+    {
+      "id": "wblExdQhkoKOSM23",
+      "name": "SIBLING - w2A-SW2-Pose_and_Style_QA",
+      "active": false,
+      "versionId": "2d69f8e8-979b-4eb6-ba4e-87057b1777f7",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 30,
+      "subworkflows": [],
+      "definitionSha256": "5ba533f137e4d312b29a6b4d738121fb13bd21bb62a8f102b9489d27c0fedc2f",
+      "connectionsSha256": "c26e153afda4f7a992fb7145daf9ae97e5ddeb3fa26e9aa0710ecb2ff2ad27da",
+      "webhooks": [],
+      "credentialReferencesSha256": "ee3725ca7b3cfd47d9dbe26fa1df8693b536cf628b773b9c90511c76a583e4b1"
+    },
+    {
+      "id": "oKsq2x0gARt43k5U",
+      "name": "SIBLING - w2A-SW3-Upload",
+      "active": false,
+      "versionId": "fe8a7432-79d0-45e5-8e71-8d291df93310",
+      "activeVersionId": null,
+      "hasActiveVersion": false,
+      "nodes": 21,
+      "subworkflows": [],
+      "definitionSha256": "ca43e98d85f2a8595b25b1a741c3eb2c5e7e553c5e11195c37d0d09cabd7069a",
+      "connectionsSha256": "f2283df0037314bf752826970ce21642460c8c3ab40201e953f039d6a7e99853",
+      "webhooks": [],
+      "credentialReferencesSha256": "3be2a9bffd350e55fa6f1e90cde3ce64740eebcb1350003f33b77f1df7784ca2"
+    },
+    {
+      "id": "4fxha79xAEaYEBYb",
+      "name": "REPO - w2B-sw1-single-pose",
+      "active": true,
+      "versionId": "2c9a2dfe-d336-4e01-9698-e107626b5133",
+      "activeVersionId": "2c9a2dfe-d336-4e01-9698-e107626b5133",
+      "hasActiveVersion": true,
+      "activeVersionNodeCount": 32,
+      "nodes": 32,
+      "subworkflows": [],
+      "definitionSha256": "005952b1f327389ae8149d514536327d9014834ffec59645249e57478f7eea3d",
+      "connectionsSha256": "8de3df5400a5122f81293ab9a839f47bb52a93b11d2e1a1a17fd375687ebef96",
+      "webhooks": [],
+      "credentialReferencesSha256": "0da6499198c6dee5e0c976128956f0a5c119f3fc70d750ebbb4d2e3cca13caea"
+    }
+  ],
+  "preparedCore": {
+    "canDeploy": false,
+    "workflows": {
+      "w0": {
+        "sourceDefinitionSha256": "8cc4475d1aec498d15d5773625d74b976080ef993fc54f82536349cd2558893b",
+        "candidateDefinitionSha256": "dc5b39b5a4a41c80a311f135e93ac7f32dc50f111be57e3f0ebd6269a2c0e1f7",
+        "nodes": 14,
+        "changedNodes": [
+          "Upload 1-manifest.json to R2",
+          "Normalize Payload",
+          "CONFIG (PRODUCTION)",
+          "Supabase Upsert (orders)2",
+          "Prepare Build 1 Manifest Body",
+          "Prepare w0 Upsert Node"
+        ],
+        "removedNodes": [
+          "Fallback (Skip Upload)"
+        ],
+        "changedConnections": [
+          "Upload 1-manifest.json to R2",
+          "Fallback (Skip Upload)",
+          "Extract & Validate Dedication"
+        ]
+      },
+      "w1": {
+        "sourceDefinitionSha256": "4f4775caddc58bdb2299dedbbf9fd827dfa43f85c798d174fa416dd3b3740e30",
+        "candidateDefinitionSha256": "492dc94e9ffabe43ae29758c5df74d8744e6accde480f6de7246b0ef8525eda9",
+        "nodes": 28,
+        "changedNodes": [
+          "Mark as Processing (2A)",
+          "Prep 2A Orders"
+        ],
+        "removedNodes": [],
+        "changedConnections": []
+      },
+      "w2a": {
+        "sourceDefinitionSha256": "dbad377a7c613dfe7ba005636d69148bb8817442dc880220ece023ef715c2622",
+        "candidateDefinitionSha256": "2c2bcfbec41df810f20623610901805b803a0816ed50ee8d8aa597ed8bef2076",
+        "nodes": 39,
+        "changedNodes": [
+          "Generate Character Hash1",
+          "Webhook (Router)",
+          "Start / Pass-through",
+          "Set Environment Defaults (code)",
+          "Prepare Resolve Pose Worklist Body"
+        ],
+        "removedNodes": [
+          "Respond to Webhook (Ack)"
+        ],
+        "changedConnections": [
+          "Generate Character Hash1",
+          "Set Environment Defaults (code)",
+          "Capture Order Context",
+          "Respond to Webhook (Ack)"
+        ]
+      }
+    }
+  },
+  "preparedGelato": {
+    "schema": "lhl.w1-native-queue-preparation@1",
+    "canDeploy": false,
+    "sourceDefinitionSha256": "12bcea110a781cf69ab4903f3ff9dc556441973a9aa5e119cde23b7e4ba9684b",
+    "candidateDefinitionSha256": "c4685aa79ea8a227ba8aec3624c65106070c32f510b222086510fbf04c4a3865",
+    "review": {
+      "existingNodesPreserved": 28,
+      "addedNodes": [
+        "Prepare Native Print Queue",
+        "Claim Native Print Queue",
+        "Expand Native Print Queue",
+        "IF Native Gelato Provider",
+        "IF Native Gelato Siblings",
+        "Trigger Native W4 Gelato",
+        "Trigger Native W4.1 Gelato",
+        "Capture Failed Native Gelato Claim",
+        "Fence Failed Native Gelato Claim",
+        "Confirm Native Gelato Fence"
+      ],
+      "supportedLegacyBoundary": "Prep Workflow 4 Orders \u2192 Classify W4 Orders \u2192 Validate Shipping for w4",
+      "existingSettingsAndCredentialsPreserved": true,
+      "activationIncluded": false,
+      "dynamicStateIncluded": false,
+      "newCredentialBindings": "Unresolved backend header-auth placeholders; no secrets in patch",
+      "limitations": [
+        "Archived input is not a fresh hosted readback",
+        "Requires reviewed backend queue route and separately verified W4/W4.1 targets",
+        "No activation, execution, polling registration, conversion, funding or customer messages"
+      ]
+    }
+  },
+  "tests": {
+    "activeW0": "reproduces selection downgrade; candidate parser rejects it",
+    "activeW1": "fails frozen character/config handoff",
+    "preparedW0": "passes producer-to-parser selection test",
+    "preparedW1W2A": "passes frozen handoff against actual-source candidates",
+    "nativeQueue": "44 offline checks pass",
+    "printerRouting": "passes config-selected routing suite",
+    "independentReview": "no concrete candidate finding"
+  },
+  "limits": [
+    "Production W0 secret value remains unknown",
+    "No hosted workflow patched, activated or executed",
+    "Added native queue stored-credential binding remains unresolved",
+    "Provider generation and bound W0-to-W3 isolated proof remain open"
+  ]
+}

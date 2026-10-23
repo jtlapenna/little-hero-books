@@ -2,6 +2,9 @@
 
 import { buildW2ABaseInput, loadBundledBookConfig } from '@/lib/books';
 import { buildW2ABaseInputResponse } from '@/app/api/internal/w2a/build-base-input/route';
+import { installW2AConfigFixture } from './helpers/w2a-config-fixture';
+
+const configFixture = installW2AConfigFixture();
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -142,11 +145,12 @@ async function main(): Promise<void> {
     'Expected route response builder to wrap the canonical W2A base input payload',
   );
 
-  console.log('test-w2a-base-input: ok');
+  assert(configFixture.reads.length > 0, 'Route must read the synthetic published config');
+  console.log('test-w2a-base-input: ok (synthetic published config, outbound requests blocked)');
 }
 
-main().catch((error) => {
+main().finally(() => configFixture.restore()).catch((error) => {
   console.error('test-w2a-base-input: failed');
   console.error(error);
-  process.exit(1);
+  process.exitCode = 1;
 });

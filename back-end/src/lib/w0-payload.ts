@@ -27,6 +27,9 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
   const productInfo = (order.product_info ?? order.productInfo) as Record<string, unknown> | undefined;
   const bookId = trimToString(productInfo?.bookId) ?? trimToString(productInfo?.book_id);
   const formatId = trimToString(productInfo?.formatId) ?? trimToString(productInfo?.format_id);
+  const configVersion = productInfo?.configVersion;
+  const pinnedVersion = bookId === 'book-finding-our-inner-voice' && typeof configVersion === 'number' &&
+    Number.isSafeInteger(configVersion) && configVersion >= 2 ? configVersion : undefined;
 
   const bookSpecs = productInfo?.totalPages != null
     ? {
@@ -36,6 +39,7 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
         bookType: productInfo.bookType ?? 'adventure',
         ...(bookId ? { bookId } : {}),
         ...(formatId ? { formatId } : {}),
+        ...(pinnedVersion ? { configVersion: pinnedVersion } : {}),
       }
     : {
         title: `${(characterSpecs as Record<string, unknown>).childName ?? 'Child'} and the Adventure Compass`,
@@ -44,6 +48,7 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
         bookType: 'adventure',
         ...(bookId ? { bookId } : {}),
         ...(formatId ? { formatId } : {}),
+        ...(pinnedVersion ? { configVersion: pinnedVersion } : {}),
       };
 
   return {
@@ -64,6 +69,7 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
     character_specs: characterSpecs,
     ...(bookId ? { bookId, book_id: bookId } : {}),
     ...(formatId ? { formatId, format_id: formatId } : {}),
+    ...(pinnedVersion ? { configVersion: pinnedVersion } : {}),
     bookSpecs,
     book_specs: bookSpecs,
     orderDetails: {

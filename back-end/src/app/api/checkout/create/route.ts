@@ -12,6 +12,8 @@ import { withIdempotency } from '@/lib/idempotency';
 import { calculateCharacterHash, calculatePreviewHash } from '@/lib/character-hash';
 import { DEFAULT_BOOK_ID } from '@/lib/order-paths';
 import { buildSiblingOrderId } from '@/lib/sibling-order-helpers';
+import { INNER_VOICE_NAME_MAX_LENGTH, innerVoiceNameTooLong } from '@/lib/books/inner-voice-name';
+import { loadPublishedBookConfigRecord } from '@/lib/books/runtime-book-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -204,6 +206,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestedProductInfo = (parsed.product_info ?? {}) as Record<string, unknown>;
+    const requestedBookId =
+      trimToString(requestedProductInfo.bookId) ??
+      trimToString(requestedProductInfo.book_id) ??
+      D2C_DEFAULT_BOOK_ID;
+    const requestedFormatId =
+      trimToString(requestedProductInfo.formatId) ??
+      trimToString(requestedProductInfo.format_id) ??
+      D2C_DEFAULT_FORMAT_ID;
+    let innerVoicePageCount: number | null = null;
+    let innerVoiceConfigVersion: number | null = null;
+    if (requestedBookId === 'book-finding-our-inner-voice') {
+      const entries = parsed.books ?? (parsed.character_specs ? [{ character_specs: parsed.character_specs }] : []);
+      const fields = entries.flatMap((entry, index) => {
+        const name = (entry.character_specs.childName ?? entry.character_specs.name ?? '').trim();
+        return innerVoiceNameTooLong(name)
+          ? [{ path: parsed.books ? `books.${index}.character_specs.childName` : 'character_specs.childName',
+               message: `Name must be ${INNER_VOICE_NAME_MAX_LENGTH} characters or fewer.` }]
+          : [];
+      });
+      if (fields.length) return NextResponse.json({ error: 'Validation failed', fields }, { status: 400, headers: corsHeaders });
+      if (process.env.D2C_INNER_VOICE_V2_SALES_ENABLED !== '1') {
+        return NextResponse.json({ error: 'This book is not available for checkout yet.' }, { status: 409, headers: corsHeaders });
+      }
+      try {
+        const published = await loadPublishedBookConfigRecord({ bookId: requestedBookId });
+        if (published.row.is_active !== true || published.config.version < 2 || published.config.status !== 'active') {
+          return NextResponse.json({ error: 'This book is not available for checkout yet.' }, { status: 409, headers: corsHeaders });
+        }
+        const format = published.config.formats[requestedFormatId];
+        if (!format || !format.channels.includes('d2c')) {
+          return NextResponse.json({ error: 'This book format is not available for checkout.' }, { status: 409, headers: corsHeaders });
+        }
+        innerVoicePageCount = format.interior.expectedPageCount;
+        innerVoiceConfigVersion = published.config.version;
+      } catch {
+        return NextResponse.json({ error: 'Book availability could not be verified.' }, { status: 503, headers: corsHeaders });
+      }
+    }
+
     // Purpose: build Stripe redirect URLs. Prefer env, fall back to allowed request Origin.
     const frontendOrigin = resolveFrontendOrigin(request);
     if (!frontendOrigin) {
@@ -232,15 +274,8 @@ export async function POST(request: NextRequest) {
         }
 
         const isSingleBook = bookInputs.length === 1;
-        const requestedProductInfo = (parsed.product_info ?? {}) as Record<string, unknown>;
-        const resolvedBookId =
-          trimToString(requestedProductInfo.bookId) ??
-          trimToString(requestedProductInfo.book_id) ??
-          D2C_DEFAULT_BOOK_ID;
-        const resolvedFormatId =
-          trimToString(requestedProductInfo.formatId) ??
-          trimToString(requestedProductInfo.format_id) ??
-          D2C_DEFAULT_FORMAT_ID;
+        const resolvedBookId = requestedBookId;
+        const resolvedFormatId = requestedFormatId;
         // For single book: use root_order_id directly (backward compat)
         // For multi-book: each book gets root-item-{index}
         const orderIds: string[] = [];
@@ -264,12 +299,13 @@ export async function POST(request: NextRequest) {
           const childName = character_specs.childName as string;
 
           const book_specs = {
-            title: `${childName} and the Adventure Compass`,
-            totalPages: 16,
-            format: '8.5x8.5_softcover',
-            bookType: 'adventure',
+            title: innerVoicePageCount !== null ? 'Finding Our Inner Voice' : `${childName} and the Adventure Compass`,
+            totalPages: innerVoicePageCount ?? 16,
+            format: innerVoicePageCount !== null ? resolvedFormatId : '8.5x8.5_softcover',
+            bookType: innerVoicePageCount !== null ? 'inner-voice' : 'adventure',
             bookId: resolvedBookId,
             formatId: resolvedFormatId,
+            ...(innerVoiceConfigVersion !== null ? { configVersion: innerVoiceConfigVersion } : {}),
           };
 
           const product_info = {

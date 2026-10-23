@@ -1,0 +1,1 @@
+PASS: complete local receipts, non-executable staged packet and retained evidence; no live acceptance claim.

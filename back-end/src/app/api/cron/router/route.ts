@@ -493,10 +493,11 @@ export async function GET(request: NextRequest) {
     // CRITICAL DUPLICATE-PREVENTION:
     // Some orders may incorrectly remain execution_status='ready_for_processing' even while a workflow is running.
     // If started_at or current_workflow are set, treat the order as in-flight and DO NOT route it again.
+    const routeOrderSelect = 'id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,started_at,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier,print_provider,print_book_id,print_format_id,print_config_version,print_submission_id,print_claim_token,gelato_order_id,gelato_status';
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier,print_provider,print_submission_id,print_claim_token,gelato_order_id,gelato_status')
+      .select(routeOrderSelect)
       .eq('execution_status', 'ready_for_processing')
       .not('next_workflow', 'is', null)
       .is('started_at', null)
@@ -771,20 +772,32 @@ export async function GET(request: NextRequest) {
     const nowIso = new Date().toISOString();
     const orderIds = ordersToRoute.map(o => o.id);
     
-    const { error: updateError } = await supabase
+    const { data: updatedOrders, error: updateError } = await supabase
       .from('orders')
       .update({ 
         queued_at: nowIso,
         status: 'queued_for_processing'  // Set status when actually queued by router
       })
-      .in('id', orderIds);
+      .in('id', orderIds)
+      .eq('execution_status', 'ready_for_processing')
+      .is('started_at', null)
+      .is('current_workflow', null)
+      .select(routeOrderSelect);
     
     if (updateError) {
-      console.warn(`[Cron Router] [${executionId}] Failed to update queued_at (continuing anyway):`, updateError.message);
-      // Continue even if update fails - don't block routing
-    } else {
-      console.log(`[Cron Router] [${executionId}] Updated queued_at for ${orderIds.length} order(s)`);
+      console.error(`[Cron Router] [${executionId}] Failed to queue orders:`, updateError.message);
+      return NextResponse.json({ error: 'Failed to queue orders', executionId }, { status: 503 });
     }
+    const updatedById = new Map((updatedOrders || []).map((order) => [order.id, order]));
+    const dispatchOrders = ordersToRoute.map((order) => updatedById.get(order.id));
+    if (dispatchOrders.some((order, index) => !order || !order.updated_at ||
+      order.execution_status !== 'ready_for_processing' ||
+      order.started_at !== null || order.current_workflow !== null ||
+      order.next_workflow !== ordersToRoute[index].next_workflow)) {
+      console.error(`[Cron Router] [${executionId}] Queued row revision is missing or changed`);
+      return NextResponse.json({ error: 'Queued row revision is missing or changed', executionId }, { status: 503 });
+    }
+    console.log(`[Cron Router] [${executionId}] Updated queued_at for ${orderIds.length} order(s)`);
 
     // 8. Orders exist - call n8n webhook (1 execution)
     const webhookStart = Date.now();
@@ -795,7 +808,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ orders: ordersToRoute }),
+      body: JSON.stringify({ orders: dispatchOrders }),
     });
     metrics.webhookCallMs = Date.now() - webhookStart;
 
