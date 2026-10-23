@@ -71,7 +71,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "cfba747b3209c866e26fe3b7be9d8afd82d21e6a280387b1df036dbf393889de"
+      "bindingReferencesDigest": "cfba747b3209c866e26fe3b7be9d8afd82d21e6a280387b1df036dbf393889de"
     },
     {
       "id": "TDwc85g03FqPf9D6",
@@ -92,7 +92,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "2d3585f815416a5aa8471b7c636a77ba62eefad8ead3b40d1d6043d4ee1c8113"
+      "bindingReferencesDigest": "2d3585f815416a5aa8471b7c636a77ba62eefad8ead3b40d1d6043d4ee1c8113"
     },
     {
       "id": "HduzTWm0ekmrvwrn",
@@ -118,7 +118,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "e273deb95f58904126fc851d1fbf55b8a6f2433b78a11f46fc9448b9a06928c5"
+      "bindingReferencesDigest": "e273deb95f58904126fc851d1fbf55b8a6f2433b78a11f46fc9448b9a06928c5"
     },
     {
       "id": "KhMxEgo57Deo1QWu",
@@ -141,7 +141,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "51ea7c339f483a3504a9c0f126d60481b0a89cd6a10187c6bcdf74c05cc68902"
+      "bindingReferencesDigest": "51ea7c339f483a3504a9c0f126d60481b0a89cd6a10187c6bcdf74c05cc68902"
     },
     {
       "id": "D4rQ0zJG8JlKhZqq",
@@ -162,7 +162,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "e0409092413d9b18dba0463b29ae2ef597f10643b88e261fb914eeb1f7a4f64f"
+      "bindingReferencesDigest": "e0409092413d9b18dba0463b29ae2ef597f10643b88e261fb914eeb1f7a4f64f"
     },
     {
       "id": "m4qIN9PCgifUcYih",
@@ -183,7 +183,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "7cac15d78822d1abd587dc7ed4acb413197c38ffc7e53d4319ae4d583670d69f"
+      "bindingReferencesDigest": "7cac15d78822d1abd587dc7ed4acb413197c38ffc7e53d4319ae4d583670d69f"
     },
     {
       "id": "boWA0mB20qYK2g4x",
@@ -204,7 +204,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "e79cc7c023500eaf7c6dec317e05a0bea560310d184c531bfd10e637f614804e"
+      "bindingReferencesDigest": "e79cc7c023500eaf7c6dec317e05a0bea560310d184c531bfd10e637f614804e"
     },
     {
       "id": "8ZqgZ7ksY0Fj8Acx",
@@ -224,7 +224,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
+      "bindingReferencesDigest": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
     },
     {
       "id": "d7wi1rS0CxGVdRVb",
@@ -244,7 +244,7 @@
           "disabled": false
         }
       ],
-      "credentialReferencesSha256": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
+      "bindingReferencesDigest": "10e42c146440d78e8120b252e0cad79a6f03430526fb6c970bb5719cd4036910"
     },
     {
       "id": "S5apnAgeuitSIO5Z",
@@ -258,7 +258,7 @@
       "definitionSha256": "1a64b40ec79896ff3b2393b9cdfe0f01bc2e46799d71e9a685e17a7ce21b030d",
       "connectionsSha256": "f35ceda6d161cd484ee77a7459257c6004df5ca27b29f68ec9df808d952ba72a",
       "webhooks": [],
-      "credentialReferencesSha256": "8f489cfa8d26af3bca23916aa8aa2d228de47c2ec2f81bdeb2198d2c0965e702"
+      "bindingReferencesDigest": "8f489cfa8d26af3bca23916aa8aa2d228de47c2ec2f81bdeb2198d2c0965e702"
     },
     {
       "id": "kGob5aDJ6e5WRPh7",
@@ -272,7 +272,7 @@
       "definitionSha256": "d443854895597b21c58a3da257179fa737338384b097307245e69b505c1a412e",
       "connectionsSha256": "4be08c912b79067aff0f71ba10922ecbb2e4ec61ee8dbbe3ff404d2bc422bb59",
       "webhooks": [],
-      "credentialReferencesSha256": "af9b31213a599cf7666f7c814ca0c280c4134882d39e4168aff5550d84dee827"
+      "bindingReferencesDigest": "af9b31213a599cf7666f7c814ca0c280c4134882d39e4168aff5550d84dee827"
     },
     {
       "id": "wblExdQhkoKOSM23",
@@ -286,7 +286,7 @@
       "definitionSha256": "5ba533f137e4d312b29a6b4d738121fb13bd21bb62a8f102b9489d27c0fedc2f",
       "connectionsSha256": "c26e153afda4f7a992fb7145daf9ae97e5ddeb3fa26e9aa0710ecb2ff2ad27da",
       "webhooks": [],
-      "credentialReferencesSha256": "ee3725ca7b3cfd47d9dbe26fa1df8693b536cf628b773b9c90511c76a583e4b1"
+      "bindingReferencesDigest": "ee3725ca7b3cfd47d9dbe26fa1df8693b536cf628b773b9c90511c76a583e4b1"
     },
     {
       "id": "oKsq2x0gARt43k5U",
@@ -300,7 +300,7 @@
       "definitionSha256": "ca43e98d85f2a8595b25b1a741c3eb2c5e7e553c5e11195c37d0d09cabd7069a",
       "connectionsSha256": "f2283df0037314bf752826970ce21642460c8c3ab40201e953f039d6a7e99853",
       "webhooks": [],
-      "credentialReferencesSha256": "3be2a9bffd350e55fa6f1e90cde3ce64740eebcb1350003f33b77f1df7784ca2"
+      "bindingReferencesDigest": "3be2a9bffd350e55fa6f1e90cde3ce64740eebcb1350003f33b77f1df7784ca2"
     },
     {
       "id": "4fxha79xAEaYEBYb",
@@ -315,7 +315,7 @@
       "definitionSha256": "005952b1f327389ae8149d514536327d9014834ffec59645249e57478f7eea3d",
       "connectionsSha256": "8de3df5400a5122f81293ab9a839f47bb52a93b11d2e1a1a17fd375687ebef96",
       "webhooks": [],
-      "credentialReferencesSha256": "0da6499198c6dee5e0c976128956f0a5c119f3fc70d750ebbb4d2e3cca13caea"
+      "bindingReferencesDigest": "0da6499198c6dee5e0c976128956f0a5c119f3fc70d750ebbb4d2e3cca13caea"
     }
   ],
   "preparedCore": {
