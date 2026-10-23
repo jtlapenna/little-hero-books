@@ -13,9 +13,28 @@ type CodeGraph = { nodes: Array<{ name: string; parameters?: { jsCode?: string; 
 async function runCode(graph: CodeGraph, name: string, context: Record<string, unknown>) {
   const code = graph.nodes.find((node) => node.name === name)?.parameters?.jsCode;
   assert.ok(code, `Missing ${name}`);
-  return await vm.runInNewContext(`(async () => { ${code}\n })()`, {
-    console: { log() {}, warn() {}, error() {} }, ...context,
-  }, { timeout: 1000 }) as Array<{ json: Record<string, unknown> }>;
+  const globals = { console: { log() {}, warn() {}, error() {} }, ...context } as Record<string, unknown>;
+  if (name === 'Prep 2A Orders') {
+    const fixtureFetch = context.fetch as (url: string) => Promise<{ ok: boolean; status?: number; json?: () => Promise<unknown> }>;
+    delete globals.fetch;
+    globals.helpers = {
+      httpRequest: async (options: Record<string, unknown>) => {
+        assert.deepEqual(Object.keys(options).sort(), ['disableFollowRedirect', 'json', 'method', 'returnFullResponse', 'timeout', 'url']);
+        assert.equal(options.method, 'GET');
+        assert.equal(options.json, true);
+        assert.equal(options.returnFullResponse, true);
+        assert.equal(options.timeout, 15000);
+        assert.equal(options.disableFollowRedirect, true);
+        assert.equal(new URL(String(options.url)).origin, 'https://pub-92cec53654f84771956bc84dfea65baa.r2.dev');
+        assert.equal(typeof fixtureFetch, 'function', 'Unexpected manifest helper request');
+        const response = await fixtureFetch(String(options.url));
+        return { statusCode: response.status ?? (response.ok ? 200 : 500), body: response.ok ? await response.json?.() : undefined };
+      },
+    };
+  }
+  const sandbox = vm.createContext(globals);
+  if (name === 'Prep 2A Orders') assert.equal(vm.runInContext('typeof fetch', sandbox), 'undefined', 'Code runtime has no global fetch');
+  return await vm.runInContext(`(async () => { ${code}\n })()`, sandbox, { timeout: 1000 }) as Array<{ json: Record<string, unknown> }>;
 }
 
 async function main() {
@@ -85,6 +104,16 @@ async function main() {
     fetch: async () => ({ ok: false, status: 503 }),
   });
   assert.equal(failedConfiguredFetch.length, 0, 'Configured row must stay unclaimed when frozen W0 cannot be read');
+  const timedOutConfiguredFetch = await runCode(repoWorkflow, 'Prep 2A Orders', {
+    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
+    fetch: async () => { throw new Error('Synthetic manifest timeout'); },
+  });
+  assert.equal(timedOutConfiguredFetch.length, 0, 'Helper timeout must hold configured row before claim');
+  const retryAfterTimeout = await runCode(repoWorkflow, 'Prep 2A Orders', {
+    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
+    fetch: async () => ({ ok: true, json: async () => manifest }),
+  });
+  assert.equal(retryAfterTimeout.length, 1, 'Read-only recovery may retry the same frozen manifest after timeout');
   const malformedConfiguredManifest = await runCode(repoWorkflow, 'Prep 2A Orders', {
     $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
     fetch: async () => ({ ok: true, json: async () => ({ schema: 'lhb.run-manifest@v3' }) }),

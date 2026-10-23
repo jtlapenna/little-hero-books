@@ -1,6 +1,6 @@
 {
   "schema": "lhl.controlled-character-handoff-local-checks@1",
-  "sourceSnapshotSha256": "3847bbbf3d54fc8871fa91037becad7c0f515ad311be4fb3d8bbf191eb1fe16b",
+  "sourceSnapshotSha256": "158bb2542eb6a2f0163288e15e17ec518ea1d683336b29b8f52dbe8cc94a415a",
   "environmentKeys": [
     "HOME",
     "PATH"

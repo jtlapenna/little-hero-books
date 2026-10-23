@@ -308,7 +308,7 @@
     {
       "path": "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
       "kind": "source",
-      "sha256": "96f31bb3de5d17f098319956da81d2b48acd5673cdba63b79426b92d4bc20696"
+      "sha256": "ce9a91b9f58af0eac1bbb4282aca464dcf47439d630809042ce1b6a95a993d2a"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -558,7 +558,7 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
       "kind": "source",
-      "sha256": "c3a95b0a722dc5624954a1dae843860864a2b9215d1d4ba03f02fc3d3c42242a"
+      "sha256": "908e137665094a36b763262e9315643dd6b99957db257f9bd131924307e6d2e0"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
@@ -578,12 +578,12 @@
     {
       "path": "docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/README.md",
       "kind": "evidence",
-      "sha256": "141646412b1bc106bdb2aa7c8e5abf870bbb05cf5c42ee553882b970bd93908b"
+      "sha256": "670157d67ca33c1a265d8d2ef9946b5d4ed69d774375d12e7a353e461366cd70"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/checks.json",
       "kind": "evidence",
-      "sha256": "ded1c79c379324da0f7e29256d0d39d17e5ca65fe4577d7f9670b909399561b5"
+      "sha256": "85daf7aa1e2d03eab103702688f870bd4b546e1946ff3f8c91d9563a0452b4e0"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/logs/test-w0-build-readonly.ts.txt",
