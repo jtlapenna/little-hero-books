@@ -1,10 +1,10 @@
 /** Local transport/receipt and failure tests. Global fetch is blocked. */
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,rmSync,readdirSync,readFileSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,rmSync,readdirSync,readFileSync,existsSync} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createProtectedRunnerAdapter,watchProtectedRunner,ProtectedRunnerBinding,protectedCaseDirectory} from './helpers/gelato-protected-runner-adapter';
+import {createProtectedRunnerAdapter,watchProtectedRunner,ProtectedRunnerBinding,ProtectedCredentialsSchema,protectedCaseDirectory} from './helpers/gelato-protected-runner-adapter';
 import {protectedRunnerFixture,fixtureServices} from './helpers/gelato-protected-runner-fixture';
 import {definitionSha256} from './helpers/prepare-w1-native-queue';
 import {runPreparedIsolatedCase} from './helpers/gelato-isolated-case-runner';
@@ -20,6 +20,55 @@ function setup(count=1,amazon=false){
  return {f,service,adapter,options,run:()=>runPreparedIsolatedCase(f.binding.packet,adapter.workflowHashes,approval,adapter.dependencies)};
 }
 async function main(){
+ {
+  const f=setup();const {diagnosticAccessClientId:unusedId,diagnosticAccessClientSecret:unusedSecret,...withoutAccess}=f.f.credentials;
+  const adapter=createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),{...f.options,credentials:withoutAccess});
+  await assert.rejects(runPreparedIsolatedCase(f.f.binding.packet,adapter.workflowHashes,{packetSha256:definitionSha256(f.f.binding.packet),workflowSha256:definitionSha256(adapter.workflowHashes),sourceSha:f.f.binding.packet.sourceSha,maximumSpendCents:0,draftOnly:true,customerMessages:false},adapter.dependencies),/Diagnostic Access credential pair required/);
+  assert.equal(f.service.calls.length,0);assert.equal(existsSync(protectedCaseDirectory(f.options.journalRoot,f.f.binding.packet)),false);
+  await assert.rejects(adapter.dependencies.preflight(new AbortController().signal));assert.equal(f.service.calls.length,0);
+  mark('Missing diagnostic Access pair fails before durable claim or transport; direct preflight cannot bypass ownership');
+ }
+ {
+  const f=setup();
+  for(const key of ['diagnosticAccessClientId','diagnosticAccessClientSecret'] as const){
+   const partial={...f.f.credentials};delete partial[key];assert.throws(()=>ProtectedCredentialsSchema.parse(partial));
+   for(const value of ['', 'bad value with spaces', 'bad\r\nInjected: value', 'bad\tsecret-token-value', 'unicode-token-\u00e9-more-than16', 'a'.repeat(513)]){
+    const candidate={...f.f.credentials,[key]:value};assert.throws(()=>createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),{...f.options,credentials:candidate}));
+   }
+  }
+  assert.throws(()=>ProtectedCredentialsSchema.parse({...f.f.credentials,diagnosticAccessExtra:'unreviewed-authority'}));assert.equal(f.service.calls.length,0);
+  mark('Partial, empty, whitespace, control, non-ASCII, oversized and unknown diagnostic credential fields reject before transport');
+  for(const secret of ['cfast_'+'a'.repeat(48),'b'.repeat(64)]){
+   const credentials={...f.f.credentials,diagnosticAccessClientId:'c'.repeat(32)+'.access',diagnosticAccessClientSecret:secret};
+   assert.doesNotThrow(()=>createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),{...f.options,credentials}));
+  }
+  mark('Modern cfast_ and legacy hex service secrets remain syntactically supported without logging values');
+ }
+ {
+  const f=setup();let diagnosticCalls=0;
+  const adapter=createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),{...f.options,fetcher:async(input,init)=>{
+   assert.equal(init?.credentials,'omit');const u=new URL(String(input)),headers=new Headers(init?.headers);
+   if(headers.has('CF-Access-Client-Id')||headers.has('CF-Access-Client-Secret')){
+    diagnosticCalls++;assert.equal(u.origin,f.f.binding.deploymentOrigin);assert.equal(u.pathname,'/api/internal/w4/submit-gelato-draft');assert.equal(init?.method,'GET');assert.match(u.searchParams.get('keyChallenge')??'',/^[a-f0-9]{64}$/);assert.equal(headers.get('Authorization'),'Bearer '+f.f.credentials.backend);
+   }
+   return f.options.fetcher(input,init);
+  }});
+  f.service.setFault((kind,result)=>{if(kind!=='runtime-off')return result;const headers=new Headers(result.headers);headers.set('Set-Cookie','CF_Authorization=SYNTHETIC-not-a-cookie-jar');return new Response(result.body,{status:result.status,headers});});
+  await runPreparedIsolatedCase(f.f.binding.packet,adapter.workflowHashes,{packetSha256:definitionSha256(f.f.binding.packet),workflowSha256:definitionSha256(adapter.workflowHashes),sourceSha:f.f.binding.packet.sourceSha,maximumSpendCents:0,draftOnly:true,customerMessages:false},adapter.dependencies);
+  assert.equal(diagnosticCalls,1);assert.equal(f.service.state.queueCalls,1);
+  const journal=protectedCaseDirectory(f.options.journalRoot,f.f.binding.packet);const retained=readdirSync(journal).map(name=>readFileSync(path.join(journal,name),'utf8')).join('');
+  for(const value of Object.values(f.f.credentials))if(typeof value==='string')assert.equal(retained.includes(value),false);
+  const {diagnosticAccessClientId:unusedId,diagnosticAccessClientSecret:unusedSecret,...withoutAccess}=f.f.credentials;
+  await createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),{...f.options,credentials:withoutAccess,now:()=>Date.parse(f.f.binding.packet.expiresAt)+1}).closeOnly();
+  assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);
+  mark('Actual diagnostic GET alone receives both Access headers; cookies never replay, journal excludes secrets and expired independent close needs no edge pair');
+ }
+ for(const status of [302,401,403]){
+  const f=setup();f.service.setFault((kind,result)=>kind==='runtime-off'?new Response('SYNTHETIC-untrusted-edge-body',{status,headers:status===302?{Location:'https://untrusted.example.invalid/'}:{}}):result);
+  await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,0);assert.equal(f.service.calls.filter(c=>c.path==='/api/internal/w4/submit-gelato-draft').length,1);assert(f.service.state.closed&&!f.service.state.timer);
+  mark('Diagnostic edge '+status+' stops before queue without redirect, retry or credential forwarding; cleanup remains independent');
+ }
+
  for(const [label,count,amazon]of [['website',1,false],['Amazon',1,true],['siblings',2,true]] as const){
   const f=setup(count,amazon);await f.run();assert.equal(f.service.state.draftCalls,1);assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);assert(Object.values(f.f.flows).every(w=>!w.active),'Every owned workflow copy returns OFF');f.service.assertSentinels();await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,1);mark(label+': concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied');
  }

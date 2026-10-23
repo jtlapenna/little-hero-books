@@ -49,6 +49,21 @@ async function scenario(action:'healthy'|'primary-death'|'coordinator-death'|'co
   if(action==='healthy'&&!amazon){
    let startedAfterStop=false;await assert.rejects(launchProtectedCase(file,digest,'rehearse',e=>{if(e==='armed')process.emit('SIGTERM');if(e==='primary-started')startedAfterStop=true;}));assert.equal(startedAfterStop,false);mark('Shutdown after monitor arm prevents primary spawn');
    const beforeCalls=service.calls.length;
+   const invalidFile=path.join(dir,'invalid-access.json');
+   for(const credentials of [
+    {...c.credentials,diagnosticAccessClientSecret:undefined},
+    {...c.credentials,diagnosticAccessClientSecret:'invalid\r\nsecret-header-value'},
+   ]){
+    await writeFile(invalidFile,JSON.stringify({...c,credentials}),{mode:0o600});
+    await assert.rejects(readLaunchContext(invalidFile,sha256(await readFile(invalidFile))));
+   }
+   const {diagnosticAccessClientId:unusedId,diagnosticAccessClientSecret:unusedSecret,...withoutAccess}=c.credentials;
+   await writeFile(invalidFile,JSON.stringify({...c,credentials:withoutAccess}),{mode:0o600});
+   assert((await readLaunchContext(invalidFile,sha256(await readFile(invalidFile)))).credentials);
+   await assert.rejects(launchProtectedCase(invalidFile,sha256(await readFile(invalidFile)),'rehearse'),/Diagnostic Access credential pair required/);
+   assert.equal(service.calls.length,beforeCalls);
+   mark('Private context preserves the complete diagnostic Access pair over real child IPC; invalid/partial fields reject and absent pair stops launch before monitor or transport');
+
    await assert.rejects(readLaunchContext(file,'a'.repeat(64)));mark('Wrong reviewed raw-file digest rejects');
    await chmod(file,0o644);await assert.rejects(readLaunchContext(file,digest));await chmod(file,0o600);mark('Public context permissions reject');
    await chmod(dir,0o755);await assert.rejects(readLaunchContext(file,digest));await chmod(dir,0o700);mark('Public context directory rejects');

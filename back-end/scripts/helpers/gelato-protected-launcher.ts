@@ -1,3 +1,4 @@
+import {requireDiagnosticAccessCredentials} from './gelato-protected-runner-adapter';
 /** Process coordinator; no network, credential discovery, scope issuer or default live action. */
 import {fork,type ChildProcess} from 'node:child_process';
 import {setTimeout as sleep} from 'node:timers/promises';
@@ -7,7 +8,7 @@ import {GELATO_LIVE_TESTS_PAUSED} from '../../src/lib/books/gelato-test-safety';
 export async function launchProtectedCase(file:string,digest:string,mode:'rehearse'|'execute-approved-unpaid'|'execute-approved-draft-only',events?:(event:'armed'|'primary-started',child:ChildProcess)=>void){
  if(mode==='execute-approved-unpaid')throw Error(GELATO_LIVE_TESTS_PAUSED);
  if(!['rehearse','execute-approved-draft-only'].includes(mode))throw Error('Explicit reviewed draft-only or rehearsal mode required');
- const c=await readLaunchContext(file,digest);
+ const c=await readLaunchContext(file,digest);requireDiagnosticAccessCredentials(c.credentials);
  if((mode==='rehearse')!==(c.transport.kind==='synthetic-loopback'))throw Error('Transport requires matching explicit command');
  if(Date.now()<Date.parse(c.binding.packet.startsAt)||Date.now()>=Date.parse(c.binding.packet.expiresAt))throw Error('Launch window inactive');
  let primary:ReturnType<typeof child>|undefined,stopping=false;

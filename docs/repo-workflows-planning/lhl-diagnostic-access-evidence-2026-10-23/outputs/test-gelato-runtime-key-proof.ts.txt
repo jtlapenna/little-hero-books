@@ -1,0 +1,1 @@
+{"checks":98,"actualGetHandler":true,"allSixKeySlotsChecked":true,"flagsFailClosed":true,"externalRequests":0,"providerCalls":0,"orderReads":0,"deployments":0,"customerMessages":0}

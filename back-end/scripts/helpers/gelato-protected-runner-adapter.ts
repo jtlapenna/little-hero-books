@@ -39,7 +39,24 @@ export const ProtectedRunnerBinding=z.object({
  if(b.funding.accountKeySha256!==p.accountKeySha256||Date.parse(b.funding.expiresAt)>Date.parse(p.expiresAt)||Date.parse(b.funding.expiresAt)<=Date.parse(b.funding.at))c.addIssue({code:'custom',message:'Funding attestation binding differs'});
 });
 export type ProtectedBinding=z.infer<typeof ProtectedRunnerBinding>;
-export interface ProtectedCredentials {backend:string;scope:string;intake:string;n8n:string;database:string;cloudflare:string;gelato:string}
+// Optional only so an independent monitor can close without the diagnostic edge key.
+// Execution claims/preflight require a complete pair before any durable claim/transport.
+const diagnosticAccessCredential = z.string().min(16).max(512).regex(/^[\x21-\x7e]+$/);
+export const ProtectedCredentialsSchema = z.object({
+ backend:z.string().min(16),scope:z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),
+ intake:z.string().min(16),n8n:z.string().min(16),database:z.string().min(16),
+ cloudflare:z.string().min(16),gelato:z.string().min(16),
+ diagnosticAccessClientId:diagnosticAccessCredential.optional(),
+ diagnosticAccessClientSecret:diagnosticAccessCredential.optional(),
+}).strict().superRefine((credentials,issue)=>{
+ if((credentials.diagnosticAccessClientId===undefined)!==(credentials.diagnosticAccessClientSecret===undefined)){
+  issue.addIssue({code:'custom',message:'Complete diagnostic Access credential pair required'});
+ }
+});
+export type ProtectedCredentials = z.infer<typeof ProtectedCredentialsSchema>;
+export function requireDiagnosticAccessCredentials(credentials:ProtectedCredentials):asserts credentials is ProtectedCredentials & {diagnosticAccessClientId:string;diagnosticAccessClientSecret:string}{
+ if(!credentials.diagnosticAccessClientId||!credentials.diagnosticAccessClientSecret)throw Error('Diagnostic Access credential pair required for execution');
+}
 export interface ProtectedRunnerOptions {
  fetcher:typeof fetch; // Mandatory injection: constructing this adapter cannot discover a live transport.
  now():number;
@@ -63,8 +80,12 @@ const windowSelect='root_order_id,child_order_ids,account_key_sha256,fixture_man
 export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:string,o:ProtectedRunnerOptions){
  const b=ProtectedRunnerBinding.parse(raw),p=b.packet;
  if(definitionSha256(b)!==approvedBindingSha256)throw Error('Protected binding is not approved');
- const credentials=z.object({backend:z.string().min(16),scope:z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),intake:z.string().min(16),n8n:z.string().min(16),database:z.string().min(16),cloudflare:z.string().min(16),gelato:z.string().min(16)}).strict().parse(o.credentials);
- if(Object.values(credentials).some(v=>retiredFingerprints.includes(sha256(v))))throw Error('Retired private authority rejected');
+ const credentials=ProtectedCredentialsSchema.parse(o.credentials);
+ if(Object.values(credentials).some(v=>typeof v==='string'&&retiredFingerprints.includes(sha256(v))))throw Error('Retired private authority rejected');
+ const diagnosticAccessHeaders=()=>{
+  requireDiagnosticAccessCredentials(credentials);
+  return {'CF-Access-Client-Id':credentials.diagnosticAccessClientId,'CF-Access-Client-Secret':credentials.diagnosticAccessClientSecret};
+ };
  if(sha256(credentials.gelato)!==p.accountKeySha256)throw Error('Private account key differs');
  // Each adapter owns finite budgets. Cleanup has an independent budget and never reads provider data.
  let calls=0,cleanupCalls=0,providerReads=0,totalBytes=0,cleanupBytes=0,claim:RunnerClaim|undefined,providerId:string|undefined,timerStartedAt=0;
@@ -76,7 +97,7 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
   signal.throwIfAborted();if(cleanup?++cleanupCalls>24:++calls>200)throw Error('Protected call budget ended');
   const local=AbortSignal.any([signal,AbortSignal.timeout(timeoutMs)]);let response:Response;
   try{
-   const pending=o.fetcher(url,{method,headers:{...headers,'Cache-Control':'no-cache',...(method==='POST'?{'Content-Type':'application/json'}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual',signal:local});
+   const pending=o.fetcher(url,{method,headers:{...headers,'Cache-Control':'no-cache',...(method==='POST'?{'Content-Type':'application/json'}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual',credentials:'omit',signal:local});
    // An injected adapter can ignore AbortSignal. Cleanup must still progress to stop/readback.
    void pending.then(r=>{if(local.aborted)void r.body?.cancel().catch(()=>{});},()=>{});
    response=await new Promise<Response>((resolve,reject)=>{
@@ -170,11 +191,11 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
   if(!await timerActivationSettled(job!==null))throw Error('Timer activation acknowledgement unresolved; keep later cases stopped');
   return {scopeClosed:true,parentWindowClosed:true,registrationDisabled:true,leaseCleared:true,...offControls};
  };
- const d:IsolatedRunnerDependencies={now:o.now,journal:{claim:async hash=>{if(hash!==definitionSha256(p))throw Error('Journal packet differs');await journal.claim(hash);await journal.record({step:'protected-binding:'+definitionSha256(b),state:'confirmed'});ownsAttempt=true;},record:e=>journal.record(e)},
+ const d:IsolatedRunnerDependencies={now:o.now,journal:{claim:async hash=>{if(hash!==definitionSha256(p))throw Error('Journal packet differs');diagnosticAccessHeaders();await journal.claim(hash);await journal.record({step:'protected-binding:'+definitionSha256(b),state:'confirmed'});ownsAttempt=true;},record:e=>journal.record(e)},
   preflight:async signal=>{
-   requireOwner();preflightVerified=false;await active(signal);
+   requireOwner();const accessHeaders=diagnosticAccessHeaders();preflightVerified=false;await active(signal);
    const challenge=randomBytes(32).toString('hex');
-   const diagnostic=await json(b.deploymentOrigin+'/api/internal/w4/submit-gelato-draft?keyChallenge='+challenge,'GET',{Authorization:'Bearer '+credentials.backend},undefined,signal) as Record<string,unknown>;
+   const diagnostic=await json(b.deploymentOrigin+'/api/internal/w4/submit-gelato-draft?keyChallenge='+challenge,'GET',{Authorization:'Bearer '+credentials.backend,...accessHeaders},undefined,signal) as Record<string,unknown>;
    if(diagnostic.contextAvailable!==true||diagnostic.draftsEnabled!==false||['cloudflare','globalProcess','nodeProcess'].some(k=>{const v=diagnostic[k] as Record<string,unknown>;return !v||v.present!==true||v.isString!==true||v.isFalse!==true||v.isTrue!==false;}))throw Error('Request-time OFF diagnostic differs');
    verifyGelatoRuntimeKeyProof(diagnostic.keyAttestation,challenge,credentials.gelato);
    if(o.now()-Date.parse(b.funding.at)>60_000||o.now()<Date.parse(b.funding.at)-1000||o.now()>=Date.parse(b.funding.expiresAt))throw Error('Fresh funding/message attestation required');

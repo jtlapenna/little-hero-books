@@ -11,7 +11,7 @@ import {ProtectedRunnerBinding,credentialReferenceSha256,sha256,type ProtectedBi
 
 export function protectedRunnerFixture(count=1,amazon=false){
  const now=Date.now(),root='TEST-GELATO-LOCAL-'+randomUUID().slice(0,8),source=JSON.parse(readFileSync(path.resolve(__dirname,'../../../docs/n8n-workflow-files/repo-centric/workflows',count===2?'w4.1-GELATO-Sibling-Aggregation.repo-centric.json':'w4-GELATO-Print_Fulfillment.repo-centric.json'),'utf8'));
- const credentials:ProtectedCredentials=Object.fromEntries(['backend','scope','intake','n8n','database','cloudflare','gelato'].map(k=>[k,'SYNTHETIC-'+k+'-'+randomUUID().replaceAll('-','')])) as unknown as ProtectedCredentials;
+ const credentials:ProtectedCredentials=Object.fromEntries(['backend','scope','intake','n8n','database','cloudflare','gelato','diagnosticAccessClientId','diagnosticAccessClientSecret'].map(k=>[k,'SYNTHETIC-'+k+'-'+randomUUID().replaceAll('-','')])) as unknown as ProtectedCredentials;
  const pdfs=Array.from({length:count},(_,i)=>Buffer.from('%PDF-1.4\nSYNTHETIC VISIBLE CHILD '+root+'-'+i+' '+(amazon||count===2?'AMAZON':'WEBSITE')+'\n%%EOF'));
  const p:IsolatedCase={schema:'lhl.gelato-isolated-case@1',runId:'LOCAL-'+randomUUID(),scopeId:randomUUID(),rootOrderId:root,sourceSha:'c'.repeat(40),nativeDefinitionSha256:definitionSha256(workflowDefinition(source)),fixtureManifestSha256:'a'.repeat(64),accountKeySha256:sha256(credentials.gelato),startsAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+20*60_000).toISOString(),members:pdfs.map((pdf,i)=>({orderDbId:101+i,orderId:count===1?root:root+'-'+i,edition:amazon||count===2?'amazon':'standard',pdfSha256:sha256(pdf)}))};
  const prepared=prepareIsolatedWorkflows(p,source);
@@ -38,6 +38,15 @@ export function fixtureServices(f:ProtectedFixture){
  const handle:typeof fetch=async(input,init)=>{
   const u=new URL(String(input)),method=init?.method??'GET',headers=new Headers(init?.headers);calls.push({method,path:u.pathname});
   assert.equal(init?.redirect,'manual');init?.signal?.throwIfAborted();
+  assert.equal(headers.has('Cookie'),false);
+  const diagnostic=u.origin===b.deploymentOrigin&&u.pathname==='/api/internal/w4/submit-gelato-draft'&&method==='GET';
+  if(diagnostic){
+   assert.equal(headers.get('CF-Access-Client-Id'),c.diagnosticAccessClientId);
+   assert.equal(headers.get('CF-Access-Client-Secret'),c.diagnosticAccessClientSecret);
+  }else{
+   assert.equal(headers.has('CF-Access-Client-Id'),false);
+   assert.equal(headers.has('CF-Access-Client-Secret'),false);
+  }
   let kind='',result:Response;
   if(u.hostname==='api.cloudflare.com'){
    assert.equal(method,'GET');assert.equal(u.pathname,'/client/v4/accounts/3daae940fcb6fc5b8bbd9bb8fcc62854/pages/projects/little-hero-labs-admin');assert.equal(headers.get('Authorization'),'Bearer '+c.cloudflare);state.metadataReads++;

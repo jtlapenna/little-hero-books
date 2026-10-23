@@ -65,4 +65,6 @@ jobs:
           python3 docs/repo-workflows-planning/gelato-draft-approval-evidence-2026-10-22/verify.py
           python3 docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/verify.py
           python3 docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/verify.py
-          python3 docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/verify.py --source
+          python3 docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/verify.py
+          python3 docs/repo-workflows-planning/lhl-diagnostic-access-evidence-2026-10-23/verify.py --source
+          python3 docs/repo-workflows-planning/lhl-diagnostic-access-evidence-2026-10-23/test-verifier.py
