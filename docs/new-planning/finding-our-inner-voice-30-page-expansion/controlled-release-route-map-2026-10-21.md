@@ -1,6 +1,8 @@
 # Controlled release route map, 2026-10-21
 
-This record covers read-only checks. It does not approve a production cutover.
+Current status, October 23: controlled core cutover is complete. Production reports `selected-w0` after same-source redeployment. W0, W1 and W2A published graphs and live no-order tests pass. The [release record](controlled-rollout-release-record-2026-10-23.md) holds current versions and limits. New-book sales and Gelato controls remain off.
+
+The dated observations below preserve the earlier read-only checks. Their former route and credential gaps are historical.
 
 Cloudflare Pages project `little-hero-labs-admin` reports production branch `main`. Its latest successful deployment at the check was `b5394e4d-5bf9-48c7-9878-8249769f6bd9`, from commit `5c900710179ad3604b27cc6bfc853aa720dcf17b` at `2026-10-21T20:04:25.485614Z`. Production has `N8N_W0_WEBHOOK_URL` as a secret. The API does not return its value. `N8N_ROUTER_WEBHOOK_URL` and `D2C_INNER_VOICE_V2_SALES_ENABLED` were absent. `GELATO_DRAFT_SUBMISSION_ENABLED` was `false`. The preview environment had no W0 or router setting and kept Gelato draft submission off.
 
