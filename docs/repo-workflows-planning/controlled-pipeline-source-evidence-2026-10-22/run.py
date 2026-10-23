@@ -21,6 +21,7 @@ SCRIPTS = [
     "test-gelato-ordinary-release.ts",
     "test-gelato-ordinary-router.ts",
     "test-gelato-native-queue.ts",
+    "test-gelato-isolation.ts",
     "test-w0-deployed-selection.ts",
     "test-w0-manifest-freeze.ts",
     "test-w0-legacy-rollout.ts",
@@ -51,6 +52,9 @@ def source_snapshot():
 
 def suites():
     result = [(name, "back-end", ["node", "--import", "tsx", "scripts/" + name]) for name in SCRIPTS]
+    result = [(name, directory, (["env", "LHL_TEST_PG_BIN=/opt/homebrew/opt/postgresql@17/bin", "LC_ALL=C"] + command)
+               if name == "test-gelato-isolation.ts" else command)
+              for name, directory, command in result]
     for folder in ["gelato-draft-approval-evidence-2026-10-22", "gelato-auth-attestation-evidence-2026-10-22"]:
         result.append((folder + "-probes", ".", ["node", "docs/repo-workflows-planning/" + folder + "/test-probes.mjs"]))
     for folder in ["gelato-local-launch-evidence-2026-10-21", "gelato-incident-safeguards-evidence-2026-10-21", "gelato-draft-approval-evidence-2026-10-22", "gelato-auth-attestation-evidence-2026-10-22"]:

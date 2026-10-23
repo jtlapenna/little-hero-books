@@ -63,7 +63,7 @@ spec = importlib.util.spec_from_file_location("controlled_evidence_run", EVIDENC
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 expected = runner.suites()
-assert len(checks["suites"]) == len(expected) == 29
+assert len(checks["suites"]) == len(expected) == 30
 for result, (name, directory, command) in zip(checks["suites"], expected):
     assert result["name"] == name and result["cwd"] == directory and result["command"] == command
     assert result["exitCode"] == 0, "Failed suite: " + name

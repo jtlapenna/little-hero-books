@@ -208,7 +208,7 @@
     {
       "path": "back-end/scripts/test-gelato-isolation.ts",
       "kind": "source",
-      "sha256": "d767612697a5dd354afba1d19698394cff1eb3e4e53882dea69552d23ee1b044"
+      "sha256": "6fba67e6fe5e448a0e48be4a7cbf30bb1a81ad168bfc35bb6e37dbf5beec6dc7"
     },
     {
       "path": "back-end/scripts/test-gelato-local-journey.ts",
@@ -553,17 +553,17 @@
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/README.md",
       "kind": "evidence",
-      "sha256": "6032c1ac5e4c5bf583b46b576fed39d714227a8226b407a387c5aaadf4a4bbe1"
+      "sha256": "7799649ad8d5b1afb1ce9d4e143677472038c484ccb4a42585a03d9ca5e87de4"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/checks.json",
       "kind": "evidence",
-      "sha256": "a0a860fc763387d31a50ebf7e34ac3ffa289ac2f80fe0995d53d832e5e38d913"
+      "sha256": "818ef45422b1301066bb93cd3ba37e7a2f6e8cecf7cf338e8e3156f8d14af80a"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/logs/activation-migration.txt",
       "kind": "evidence",
-      "sha256": "ca5d1c70b14dbe8e0aaf4a000de531bc7b1f687763b8ae8284db7f85bed015bf"
+      "sha256": "08775a6fe9704a03f468750c77733a101690231c4355d6d3b4ceca97862ce88b"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/logs/gelato-auth-attestation-evidence-2026-10-22-historical.txt",
@@ -614,6 +614,11 @@
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/logs/test-gelato-incident-safeguards.ts.txt",
       "kind": "evidence",
       "sha256": "38fceb4dcf1c56a523a3f0249ea74c03b2e4287015d25d33a30ecea617afa565"
+    },
+    {
+      "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/logs/test-gelato-isolation.ts.txt",
+      "kind": "evidence",
+      "sha256": "e9fa0c522e3aa2690c2156fea720dbeffcf5f8eec22cb8cdb3729d1cf6f4a32a"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/logs/test-gelato-local-window.ts.txt",
@@ -713,7 +718,7 @@
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/run.py",
       "kind": "evidence",
-      "sha256": "4a4590f2e1172053b5c06b765cc0778d8f6edff2528bb0d5c2dbea904cd8a119"
+      "sha256": "195ceacf9e7a01c81048c17aa94592f69d5fa822b5f092de60872c225bbd3188"
     },
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/test-verifier.py",
@@ -728,7 +733,7 @@
     {
       "path": "docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/verify.py",
       "kind": "evidence",
-      "sha256": "1558778d7917bd5cced002d2918228aee580d9a2f5315c6e18f85deffb3dac94"
+      "sha256": "e9f5f3034d117fa46fae78c992186d6391de89b7723725c1b6f7475467f72a7e"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-auth-attestation-evidence-2026-10-22/manifest.json",

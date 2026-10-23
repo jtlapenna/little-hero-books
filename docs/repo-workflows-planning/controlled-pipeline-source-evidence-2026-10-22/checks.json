@@ -1,6 +1,6 @@
 {
   "schema": "lhl.controlled-pipeline-local-checks@1",
-  "sourceSnapshotSha256": "abf6bf2415f68394d1efad2ef7865c48f479d3548815008ae9dd5cc1894d84d2",
+  "sourceSnapshotSha256": "45a3541683637d86aa724cb3fb5845e517a873133b0bfed818aa36e93b6ab83b",
   "environmentKeys": [
     "HOME",
     "PATH"
@@ -165,6 +165,22 @@
       "exitCode": 0,
       "log": "logs/test-gelato-native-queue.ts.txt",
       "logSha256": "f0e363d34ca496f09c1a623ee140c6c189f6869d46b83805ea8532ba62a59f41"
+    },
+    {
+      "name": "test-gelato-isolation.ts",
+      "cwd": "back-end",
+      "command": [
+        "env",
+        "LHL_TEST_PG_BIN=/opt/homebrew/opt/postgresql@17/bin",
+        "LC_ALL=C",
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-isolation.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-gelato-isolation.ts.txt",
+      "logSha256": "e9fa0c522e3aa2690c2156fea720dbeffcf5f8eec22cb8cdb3729d1cf6f4a32a"
     },
     {
       "name": "test-w0-deployed-selection.ts",
@@ -371,7 +387,7 @@
       ],
       "exitCode": 0,
       "log": "logs/activation-migration.txt",
-      "logSha256": "ca5d1c70b14dbe8e0aaf4a000de531bc7b1f687763b8ae8284db7f85bed015bf"
+      "logSha256": "08775a6fe9704a03f468750c77733a101690231c4355d6d3b4ceca97862ce88b"
     }
   ]
 }
