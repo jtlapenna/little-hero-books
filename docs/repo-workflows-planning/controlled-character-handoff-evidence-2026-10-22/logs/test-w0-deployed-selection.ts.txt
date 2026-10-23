@@ -1,0 +1,2 @@
+Downloaded W0 graph check skipped; pass its export path to run it
+Repo W0 producer-to-parser selection guard passed

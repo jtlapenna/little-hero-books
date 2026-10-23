@@ -1,0 +1,2 @@
+Existing W0 producer rollout compatibility regression passed
+[Create Manifest] Error: { code: 'P0001', message: 'Synthetic frozen assignment rejected' }

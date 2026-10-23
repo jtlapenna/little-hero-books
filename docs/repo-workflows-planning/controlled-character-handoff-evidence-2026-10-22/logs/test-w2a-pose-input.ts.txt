@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "bookTwoOrderPrefix": "book-2-example/orders/FIXTURE-BOOK2-POSE-001",
+  "defaultOrderPrefix": "book-mvp-simple-adventure/orders/FIXTURE-W2A-DEFAULT-001",
+  "bookTwoUploadKey": "book-2-example/order-generated-assets/characters/fixturebook2posehash/poses/pose07_r1.png",
+  "worklistPoseCount": 10,
+  "retryCompatOrderId": "TEST-ORDER-016",
+  "retryCompatBackendUrl": "https://preview-admin.example",
+  "replayStorageKey": "book-mvp-simple-adventure/order-generated-assets/characters/replayposehash001/poses/pose02.png"
+}

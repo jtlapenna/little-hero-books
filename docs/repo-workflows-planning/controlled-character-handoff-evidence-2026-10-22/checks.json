@@ -1,0 +1,144 @@
+{
+  "schema": "lhl.controlled-character-handoff-local-checks@1",
+  "sourceSnapshotSha256": "158bb2542eb6a2f0163288e15e17ec518ea1d683336b29b8f52dbe8cc94a415a",
+  "environmentKeys": [
+    "HOME",
+    "PATH"
+  ],
+  "canExecute": false,
+  "canInstall": false,
+  "scope": "Synthetic services, VM fixtures and isolated Workers only",
+  "liveAcceptanceRenewed": false,
+  "suites": [
+    {
+      "name": "test-w0-character-handoff.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-character-handoff.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-character-handoff.ts.txt",
+      "logSha256": "e070ff23c4e66c4bd75603571cf1f17a745a35c1a889fdf05c0d6121383a365e"
+    },
+    {
+      "name": "test-w0-build-readonly.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-build-readonly.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-build-readonly.ts.txt",
+      "logSha256": "8f9e120575d37275424d558d8b57cd57e3cd3c0be754f39842fab3779a59bd00"
+    },
+    {
+      "name": "test-w0-publication-worker.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-publication-worker.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-publication-worker.ts.txt",
+      "logSha256": "4d0a0d00f17caa92307ab31505f4e725212a35531e59891a6d84cfbb61f11c6f"
+    },
+    {
+      "name": "test-w0-manifest-freeze.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-manifest-freeze.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-manifest-freeze.ts.txt",
+      "logSha256": "09ab509b96ba24ed3596638adb8afb8ecaa612b37b395164c0f5a610311466f9"
+    },
+    {
+      "name": "test-w0-legacy-rollout.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-legacy-rollout.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-legacy-rollout.ts.txt",
+      "logSha256": "1972c51c6cd7eae5ab2cea3b1241aed53acb32dc6319574226e4715eb6b034aa"
+    },
+    {
+      "name": "test-w0-deployed-selection.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w0-deployed-selection.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w0-deployed-selection.ts.txt",
+      "logSha256": "e2f9fe669bac1f8a4139c859aa510aa88143a983a73d345892aec29c418e470e"
+    },
+    {
+      "name": "test-w1-frozen-manifest-handoff.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w1-frozen-manifest-handoff.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w1-frozen-manifest-handoff.ts.txt",
+      "logSha256": "002148904893b15f18b58e03f9d05ddbf6e840bc871d1d7f633fc4e385acd413"
+    },
+    {
+      "name": "test-w2a-base-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-base-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-base-input.ts.txt",
+      "logSha256": "76a8f889a211d0374026e03786bbe29466f518b19ae4cd18b90e7f0fc39fecfd"
+    },
+    {
+      "name": "test-w2a-pose-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-pose-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-pose-input.ts.txt",
+      "logSha256": "de45503e5ddbdeb9dfc434bb8b6f555cfd0d828667f3f0b14eacefdea6bb75fb"
+    },
+    {
+      "name": "test-w2a-frozen-generation-input.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-w2a-frozen-generation-input.ts"
+      ],
+      "exitCode": 0,
+      "log": "logs/test-w2a-frozen-generation-input.ts.txt",
+      "logSha256": "337461b71d94b799c489e8bd59a0c4686beeec54d6fc06cd562e58a3d40138c3"
+    }
+  ]
+}

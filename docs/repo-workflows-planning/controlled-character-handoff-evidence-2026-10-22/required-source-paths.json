@@ -1,0 +1,16 @@
+[
+  ".github/workflows/check-gelato-local-launch.yml",
+  ".github/workflows/check-gelato-ordinary-release.yml",
+  ".github/workflows/check-production-build.yml",
+  "back-end/scripts/test-w0-build-readonly.ts",
+  "back-end/scripts/test-w0-character-handoff.ts",
+  "back-end/scripts/test-w0-deployed-selection.ts",
+  "back-end/scripts/test-w0-legacy-rollout.ts",
+  "back-end/scripts/test-w0-manifest-freeze.ts",
+  "back-end/scripts/test-w0-publication-worker.ts",
+  "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
+  "back-end/scripts/test-w2a-base-input.ts",
+  "back-end/scripts/test-w2a-frozen-generation-input.ts",
+  "back-end/scripts/test-w2a-pose-input.ts",
+  "back-end/src/lib/w0-manifest-builder.ts"
+]

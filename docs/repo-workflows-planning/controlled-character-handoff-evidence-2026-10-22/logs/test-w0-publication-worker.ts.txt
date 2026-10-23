@@ -1,0 +1,1 @@
+Production-config Worker: actual published-config builder -> signed conditional W0 creation; website/Amazon held state preserved, frozen reuse and denied write fail closed; zero real service calls

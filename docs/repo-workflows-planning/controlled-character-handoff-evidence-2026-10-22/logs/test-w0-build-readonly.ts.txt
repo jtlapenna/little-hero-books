@@ -1,0 +1,1 @@
+Actual W0 builder: published config -> absent/held/frozen website and Amazon inputs; only signed R2/DB GETs, zero writes, zero real network calls

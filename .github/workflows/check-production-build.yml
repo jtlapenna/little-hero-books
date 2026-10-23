@@ -61,6 +61,7 @@ jobs:
         working-directory: back-end
         run: |
           node --import tsx scripts/test-w0-deployed-selection.ts
+          node --import tsx scripts/test-w0-character-handoff.ts
           node --import tsx scripts/test-w1-frozen-manifest-handoff.ts
           node --import tsx scripts/test-w2a-base-input.ts
           node --import tsx scripts/test-w2a-pose-input.ts
