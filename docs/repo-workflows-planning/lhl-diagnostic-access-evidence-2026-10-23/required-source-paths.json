@@ -1,0 +1,13 @@
+[
+  ".github/workflows/check-gelato-local-launch.yml",
+  ".github/workflows/check-gelato-ordinary-release.yml",
+  "back-end/scripts/helpers/gelato-protected-launch-context.ts",
+  "back-end/scripts/helpers/gelato-protected-launcher.ts",
+  "back-end/scripts/helpers/gelato-protected-runner-adapter.ts",
+  "back-end/scripts/helpers/gelato-protected-runner-fixture.ts",
+  "back-end/scripts/test-gelato-credential-auth.ts",
+  "back-end/scripts/test-gelato-protected-launch.ts",
+  "back-end/scripts/test-gelato-protected-runner-crashes.ts",
+  "back-end/scripts/test-gelato-protected-runner.ts",
+  "back-end/scripts/test-gelato-runtime-key-proof.ts"
+]

@@ -1,0 +1,243 @@
+{
+  "schema": "lhl.diagnostic-access-local-checks@1",
+  "canExecute": false,
+  "canInstall": false,
+  "liveAcceptanceRenewed": false,
+  "environmentKeys": [
+    "NODE_ENV",
+    "PATH"
+  ],
+  "runtime": "v24.19.0",
+  "sourceSnapshotSha256": "4224e2cf3543f06ba371bbb9dc6b03baf6a10ae98ab966aaae3ca59de50afada",
+  "suites": [
+    {
+      "name": "test-gelato-protected-runner.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-runner.ts"
+      ],
+      "exitCode": 0,
+      "log": "outputs/test-gelato-protected-runner.ts.txt",
+      "logSha256": "b283754078e79f9cdfc715953af30169fbfe3e7923f1a297251958b943083f14",
+      "summary": {
+        "checks": 75,
+        "cases": [
+          "Missing diagnostic Access pair fails before durable claim or transport; direct preflight cannot bypass ownership",
+          "Partial, empty, whitespace, control, non-ASCII, oversized and unknown diagnostic credential fields reject before transport",
+          "Modern cfast_ and legacy hex service secrets remain syntactically supported without logging values",
+          "Actual diagnostic GET alone receives both Access headers; cookies never replay, journal excludes secrets and expired independent close needs no edge pair",
+          "Diagnostic edge 302 stops before queue without redirect, retry or credential forwarding; cleanup remains independent",
+          "Diagnostic edge 401 stops before queue without redirect, retry or credential forwarding; cleanup remains independent",
+          "Diagnostic edge 403 stops before queue without redirect, retry or credential forwarding; cleanup remains independent",
+          "website: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+          "Amazon: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+          "siblings: concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied",
+          "Terminal assembly response beyond five seconds completes once before scoped cleanup",
+          "Twelve complete observation iterations fit the 200-call cap and stop without a thirteenth",
+          "missing proof: no queue, independent close and shutdown still run",
+          "malformed proof: no queue, independent close and shutdown still run",
+          "replayed challenge: no queue, independent close and shutdown still run",
+          "Wrong cloudflare/order key proof rejects before queue and permits cleanup",
+          "Wrong cloudflare/status key proof rejects before queue and permits cleanup",
+          "Wrong globalProcess/order key proof rejects before queue and permits cleanup",
+          "Wrong globalProcess/status key proof rejects before queue and permits cleanup",
+          "Wrong nodeProcess/order key proof rejects before queue and permits cleanup",
+          "Wrong nodeProcess/status key proof rejects before queue and permits cleanup",
+          "Wrong deployment id stops before runtime proof/queue; revocation still attempted",
+          "Wrong deployment url stops before runtime proof/queue; revocation still attempted",
+          "Deployment moves across proof/readback: no queue and owned cleanup still attempted",
+          "Missing/wrong secret metadata cannot be accepted as a valid mask",
+          "Missing/wrong secret metadata cannot be accepted as a valid mask",
+          "Old/unpinned contexts and foreign/mutable deployment origins fail before transport",
+          "queue: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+          "assembly: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+          "draft: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+          "activate: accepted effect with lost acknowledgement is never retried and cleanup is independent",
+          "edited workflow version drift rejects instead of reporting a pass",
+          "published workflow differs rejects instead of reporting a pass",
+          "wrong scope rejects instead of reporting a pass",
+          "runtime OFF differs rejects instead of reporting a pass",
+          "wrong saved gate rejects instead of reporting a pass",
+          "wrong provider finances rejects instead of reporting a pass",
+          "zero-cost paid provider rejects instead of reporting a pass",
+          "draft marked in production rejects instead of reporting a pass",
+          "draft child marked shipped rejects instead of reporting a pass",
+          "draft with print job rejects instead of reporting a pass",
+          "draft with tracking rejects instead of reporting a pass",
+          "wrong provider item rejects instead of reporting a pass",
+          "wrong mapping rejects instead of reporting a pass",
+          "notification intent rejects instead of reporting a pass",
+          "empty timer rejects instead of reporting a pass",
+          "successful plus crashed timer rejects instead of reporting a pass",
+          "successful plus unknown timer state rejects instead of reporting a pass",
+          "wrong timer mode rejects instead of reporting a pass",
+          "incomplete timer provenance rejects instead of reporting a pass",
+          "future timer execution rejects instead of reporting a pass",
+          "zero scoped claims rejects instead of reporting a pass",
+          "future persisted refresh rejects instead of reporting a pass",
+          "artifact: wrong actual PDF bytes reject with no later unauthorized work",
+          "provider-file: wrong actual PDF bytes reject with no later unauthorized work",
+          "redirect: transport fails closed without retry or redirect",
+          "oversized: transport fails closed without retry or redirect",
+          "truncated: transport fails closed without retry or redirect",
+          "invalid-json: transport fails closed without retry or redirect",
+          "credential-error: transport fails closed without retry or redirect",
+          "Direct queue after journal claim cannot bypass successful private preflight",
+          "Concurrent direct queue calls reserve one slot before awaits and send exactly one POST",
+          "Concurrent register-status calls reserve one slot and perform one effect",
+          "Concurrent start calls reserve one slot and perform one effect",
+          "Adapter dispatch and activation cannot bypass durable ownership or verified stage ordering",
+          "Unapproved binding and wrong private account fail before transport",
+          "Binding schema rejects extra authority fields",
+          "Expired runner refuses work before claim/transport",
+          "Independent cleanup revokes after expiry without primary journal; missing evidence is reported unconfirmed",
+          "Hung webhook shutdown cannot suppress independent timer/peer shutdown; closure remains unconfirmed",
+          "Unconfirmed close still stops timer and reads closure; caller gets failure",
+          "Transport ignoring AbortSignal is actively deadline-raced instead of hanging cleanup",
+          "Lost contiguous journal tail cannot erase durable registration evidence or turn unknown activation into verified cleanup",
+          "Late timer activation cannot yield verified closure; scope revoked, timer stopped again and later cases remain blocked",
+          "Independent monitor closes immediately on owner exit without dispatching"
+        ],
+        "externalRequests": 0,
+        "productionOrderReads": 0,
+        "providerCalls": 0,
+        "deployments": 0,
+        "customerMessages": 0,
+        "limits": [
+          "Synthetic service protocols and short byte fixtures; not real provider/account/n8n proof",
+          "SIGKILL/separate-worker tests are in the companion crash suite"
+        ]
+      }
+    },
+    {
+      "name": "test-gelato-protected-launch.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-launch.ts"
+      ],
+      "exitCode": 0,
+      "log": "outputs/test-gelato-protected-launch.ts.txt",
+      "logSha256": "38c752333c7696711d0357009cf79189ff6f056441ddcc559f1ca9dc5c193ac4",
+      "summary": {
+        "kind": "local-loopback-process-proof",
+        "checks": 16,
+        "passed": [
+          "healthy website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "Shutdown after monitor arm prevents primary spawn",
+          "Private context preserves the complete diagnostic Access pair over real child IPC; invalid/partial fields reject and absent pair stops launch before monitor or transport",
+          "Wrong reviewed raw-file digest rejects",
+          "Public context permissions reject",
+          "Public context directory rejects",
+          "Symlink private context rejects",
+          "Explicit draft-only mode rejects loopback context and unknown modes before any process/transport",
+          "Live command is paused pending incident review; rehearsal does not authorize execution",
+          "Nonzero spend, source and binding changes reject even with a new file checksum",
+          "healthy Amazon single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "healthy siblings: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "primary-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "coordinator-death website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "coordinator-group-int website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged",
+          "coordinator-group-term website single: armed monitor, closed authority, no business replay and six synthetic sentinels unchanged"
+        ],
+        "externalRequests": 0,
+        "liveOrderReads": 0,
+        "liveOrderWrites": 0,
+        "deployments": 0,
+        "customerMessages": 0
+      }
+    },
+    {
+      "name": "test-gelato-protected-runner-crashes.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-protected-runner-crashes.ts"
+      ],
+      "exitCode": 0,
+      "log": "outputs/test-gelato-protected-runner-crashes.ts.txt",
+      "logSha256": "73eb68d5bb7acbd417d2735c384ae7200b43e1037f0fa5a3108f632511decec0",
+      "summary": {
+        "checks": 7,
+        "cases": [
+          "Healthy OS runner: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+          "SIGKILL at claim: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+          "SIGKILL at queue: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+          "SIGKILL at assembly: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+          "SIGKILL at draft: independent process revokes scope/stops timer and verifies closure; restart has zero requests; six synthetic sentinels unchanged",
+          "SIGKILL at activate: independent process revokes scope/stops timer; unresolved activation remains unconfirmed; restart has zero requests; six synthetic sentinels unchanged",
+          "Two real OS workers use actual fsync journal: one owner; changed packet/scope cannot select a fresh attempt directory"
+        ],
+        "separateProcesses": true,
+        "sigkill": true,
+        "loopbackOnly": true,
+        "externalRequests": 0,
+        "productionOrderReads": 0,
+        "providerCalls": 0,
+        "deployments": 0,
+        "customerMessages": 0,
+        "limitations": [
+          "OS SIGKILL and fsync calls do not prove power-loss survival or every filesystem",
+          "Simulated accepted service effects; hosted n8n/provider semantics still require a separately approved window"
+        ]
+      }
+    },
+    {
+      "name": "test-gelato-credential-auth.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-credential-auth.ts"
+      ],
+      "exitCode": 0,
+      "log": "outputs/test-gelato-credential-auth.ts.txt",
+      "logSha256": "97687d5582a20e5a9a736830d9ddb9bc1ba56a054e330e738c913eeccd3f6fbc",
+      "summary": {
+        "checks": 12,
+        "upstreamAuthExcerptsExecuted": true,
+        "legacyModeReproducedWithoutHeaders": true,
+        "bothScopedHeadersApplied": true,
+        "backendOnlyPreserved": true,
+        "externalRequests": 0,
+        "hostedCalls": 0,
+        "credentialFilesRead": 0,
+        "limits": [
+          "Pinned upstream excerpts, not a hosted n8n execution or proof of installed engine version"
+        ]
+      }
+    },
+    {
+      "name": "test-gelato-runtime-key-proof.ts",
+      "cwd": "back-end",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/test-gelato-runtime-key-proof.ts"
+      ],
+      "exitCode": 0,
+      "log": "outputs/test-gelato-runtime-key-proof.ts.txt",
+      "logSha256": "29551ca11e07ef492162f8e22b4322a9409f0aacb08f142555410286a7f1aacd",
+      "summary": {
+        "checks": 98,
+        "actualGetHandler": true,
+        "allSixKeySlotsChecked": true,
+        "flagsFailClosed": true,
+        "externalRequests": 0,
+        "providerCalls": 0,
+        "orderReads": 0,
+        "deployments": 0,
+        "customerMessages": 0
+      }
+    }
+  ]
+}
