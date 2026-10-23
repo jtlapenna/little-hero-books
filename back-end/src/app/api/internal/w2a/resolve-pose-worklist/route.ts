@@ -1,6 +1,7 @@
 import { loadBundledBookConfig } from '@/lib/books/load-book-config';
 import { canFallbackToBundled } from '@/lib/books/runtime-book-config';
 import { validateRenderSnapshot } from '@/lib/books/book-render-recipe';
+import { reconcileFrozenW2AInput } from '@/lib/books/w2a-frozen-input';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyBearerAuth } from "@/lib/auth";
 import { downloadManifest } from "@/lib/r2-service";
@@ -56,7 +57,8 @@ function toPositiveInt(value: unknown): number | undefined {
     return undefined;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  if (!/^[1-9][0-9]*$/.test(value)) return undefined;
+  const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
@@ -207,6 +209,17 @@ export async function resolveW2APoseWorklistResponse(
       oneManifestSnapshot = normalizeW0Manifest(manifest, {
         fallbackManifestKey: oneManifestKey,
       });
+      if (orderId && oneManifestSnapshot.orderId !== orderId) {
+        throw new Error('Frozen W0 manifest order identity does not match W2A request');
+      }
+      if (oneManifestSnapshot.renderSnapshot && !orderId) {
+        throw new Error('Configured W2A request requires orderId');
+      }
+      const embeddedKey = isRecord(manifest) && isRecord(manifest.artifacts)
+        ? toTrimmedString(manifest.artifacts.manifestKey) : null;
+      if (embeddedKey && embeddedKey !== oneManifestKey) {
+        throw new Error('Frozen W0 manifest key does not match selected key');
+      }
     }
   }
 
@@ -216,6 +229,40 @@ export async function resolveW2APoseWorklistResponse(
     toPositiveInt(body.configVersion) ??
     toPositiveInt(body.version) ??
     undefined;
+  if (oneManifestSnapshot) {
+    const identityContexts = [body, orderContext];
+    for (const context of identityContexts) {
+      for (const field of ['bookId', 'print_book_id', 'printBookId'] as const) {
+        const declared = toTrimmedString(context[field]);
+        if (declared && declared !== oneManifestSnapshot.bookId) {
+          throw new Error('Frozen W0 manifest book identity does not match W2A request');
+        }
+      }
+      for (const field of ['formatId', 'print_format_id', 'printFormatId'] as const) {
+        const declared = toTrimmedString(context[field]);
+        if (declared && declared !== oneManifestSnapshot.formatId) {
+          throw new Error('Frozen W0 manifest format identity does not match W2A request');
+        }
+      }
+      for (const field of ['configVersion', 'version', 'print_config_version', 'printConfigVersion'] as const) {
+        const raw = context[field];
+        const declared = toPositiveInt(raw);
+        if (raw !== undefined && raw !== null && raw !== '' && !declared) {
+          throw new Error('Frozen W0 manifest version identity is malformed');
+        }
+        if (declared && declared !== oneManifestSnapshot.configVersion) {
+          throw new Error('Frozen W0 manifest version identity does not match W2A request');
+        }
+      }
+    }
+    if (oneManifestSnapshot.schema === 'lhb.run-manifest@v3' &&
+        (oneManifestSnapshot.provider === 'gelato' ||
+          oneManifestSnapshot.bookId === 'book-finding-our-inner-voice') &&
+        !oneManifestSnapshot.renderSnapshot) {
+      throw new Error('Configured W0 manifest requires its frozen render snapshot');
+    }
+    body = reconcileFrozenW2AInput(body, oneManifestSnapshot);
+  }
   const inferredBookIdFromHints = inferBookIdFromPathLikes(...resolveManifestHints(body));
   const resolvedBookId =
     oneManifestSnapshot?.bookId ??

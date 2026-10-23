@@ -1,0 +1,1 @@
+Published book config immutability and activation regressions passed

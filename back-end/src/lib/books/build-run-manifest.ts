@@ -1,5 +1,6 @@
 import { loadBundledBookConfig } from '@/lib/books/load-book-config';
 import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
+import { innerVoiceNameTooLong } from './inner-voice-name';
 import {
   loadRuntimeBookConfig,
   type BookConfigRuntimeSource,
@@ -52,6 +53,12 @@ export function buildW0RunManifestFromConfig(
   const runId = input.runId ?? `w0-${input.orderId}-${Date.now()}`;
   const rootOrderId = input.rootOrderId ?? input.orderId;
   if (config.rendering.recipe && config.status === 'draft' && input.input?.bookSpecs?.testMode !== true) throw new Error('Draft configured book intake requires bookSpecs.testMode:true');
+  if (config.bookId === 'book-finding-our-inner-voice' && config.version >= 2) {
+    const specs = input.input?.characterSpecs ?? {};
+    const childName = typeof specs.childName === 'string' ? specs.childName.trim()
+      : typeof specs.name === 'string' ? specs.name.trim() : '';
+    if (innerVoiceNameTooLong(childName)) throw new Error('Inner Voice child name must be 30 characters or fewer');
+  }
   const resolved = resolvePagePlan(config, input.formatId);
   if (resolved.renderSnapshot) resolved.renderSnapshot.testOnly = input.input?.bookSpecs?.testMode === true;
   const formatId = input.formatId ?? config.defaultFormatId;

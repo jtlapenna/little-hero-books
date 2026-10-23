@@ -11,6 +11,8 @@ type WorkflowNode = {
   name?: string;
   type?: string;
   typeVersion?: number;
+  disabled?: boolean;
+  onError?: string;
   parameters?: Record<string, unknown>;
 };
 
@@ -151,7 +153,7 @@ async function main(): Promise<void> {
       | {
           main?: Array<Array<{ node?: string }>>;
         }
-      | undefined) ?? undefined;
+      | undefined) ?? {};
 
   assert(
     w2aTopLevelWebhookNode.disabled !== true,
@@ -1007,7 +1009,7 @@ async function main(): Promise<void> {
       w3ExtractAssemblyInputCode.includes("normalized.workflowSkipped === true") &&
       w3ExtractAssemblyInputCode.includes("return [];") &&
       w3ExtractAssemblyInputCode.includes(
-        "Bearer REDACTED_PROVIDER_CREDENTIAL",
+        "Bearer REDACTED_BACKEND_API_TOKEN",
       ) &&
       w3BuildAssemblyInputCode.includes("return $input.all();") &&
       !w3BuildAssemblyInputCode.includes("parseJsonPrefix") &&
@@ -1033,7 +1035,7 @@ async function main(): Promise<void> {
       w3PreviewPlanCode.includes("...j") &&
       w3PreviewPlanCode.includes("json: true") &&
       w3PreviewPlanCode.includes(
-        "Bearer REDACTED_PROVIDER_CREDENTIAL",
+        "Bearer REDACTED_BACKEND_API_TOKEN",
       ),
     "Repo-centric W3 preview planning should be repo-owned behind the build-preview-plan route, with the workflow only fanning that response into the legacy cover/page branches",
   );
@@ -1066,7 +1068,7 @@ async function main(): Promise<void> {
       w3GeneratePageImageCode.includes("...j") &&
       w3GeneratePageImageCode.includes("json: true") &&
       w3GeneratePageImageCode.includes(
-        "Bearer REDACTED_PROVIDER_CREDENTIAL",
+        "Bearer REDACTED_BACKEND_API_TOKEN",
       ),
     "Repo-centric W3 page preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
   );
@@ -1079,7 +1081,7 @@ async function main(): Promise<void> {
       w3GenerateCoverCode.includes("...j") &&
       w3GenerateCoverCode.includes("json: true") &&
       w3GenerateCoverCode.includes(
-        "Bearer REDACTED_PROVIDER_CREDENTIAL",
+        "Bearer REDACTED_BACKEND_API_TOKEN",
       ),
     "Repo-centric W3 cover preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
   );

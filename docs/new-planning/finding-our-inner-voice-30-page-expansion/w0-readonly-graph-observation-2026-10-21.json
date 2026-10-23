@@ -1,0 +1,84 @@
+{
+  "schema": "lhb.n8n-readonly-graph-observation@v1",
+  "observed_on": "2026-10-21",
+  "source": "Signed-in n8n editor Download export; temporary raw export deleted after tests",
+  "export_sha256": "26271d9946d5da0cefd6b63f8bb5e536f9f410da42ee111b9ac0f3be839609e5",
+  "workflow_id": "9E0oVs46bMoiyRIP",
+  "active": true,
+  "version_id": "6cb2afbe-5d68-4514-8279-9e61e2c22ddb",
+  "node_count": 15,
+  "repo_export": "docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json",
+  "repo_export_sha256": "6a7bfcfc6cabe9095e4e196c271b0aa47bf0d3a74ffd3fbbd858e1af43085f17",
+  "repo_node_count": 14,
+  "webhooks": [
+    {
+      "name": "Webhook",
+      "path": "order-intake-repo",
+      "responseMode": null
+    }
+  ],
+  "deployed_only_node_names": [
+    "Fallback (Skip Upload)"
+  ],
+  "repo_only_node_names": [],
+  "code_node_hashes": [
+    {
+      "node": "CONFIG (PRODUCTION)",
+      "deployed_sha256": "8e5659aceeb5d93ab45458aa233a493f6c18cea58d83bea38da736dcce0c1dac",
+      "repo_sha256": "c9f8dcb1ad8a69720f3915ce964e4c79faf035fdb92acca8abe089652f692634",
+      "matches": false
+    },
+    {
+      "node": "Create Binary (manifest.json)",
+      "deployed_sha256": "5a9088b5f535e5c8046692b68b27365c354ebadcd4c751d20a852e2e7a57a85e",
+      "repo_sha256": "5a9088b5f535e5c8046692b68b27365c354ebadcd4c751d20a852e2e7a57a85e",
+      "matches": true
+    },
+    {
+      "node": "Extract & Validate Dedication",
+      "deployed_sha256": "1267a68be0d6b781293a5243ce39ee64e2887ef4a44ac7890cf2f2ff9aaf4174",
+      "repo_sha256": "1267a68be0d6b781293a5243ce39ee64e2887ef4a44ac7890cf2f2ff9aaf4174",
+      "matches": true
+    },
+    {
+      "node": "Mock Order (AMAZON Testing)",
+      "deployed_sha256": "e99b54a5c55a0e20ea351e782ad6b4579b7566963f892853c00855c26d92af75",
+      "repo_sha256": "e99b54a5c55a0e20ea351e782ad6b4579b7566963f892853c00855c26d92af75",
+      "matches": true
+    },
+    {
+      "node": "Mock Order (STANDARD Testing)",
+      "deployed_sha256": "dd528d8f24bdcfb0599d8328aec6a7a1b7feae71371400539029d92bf9eb7d44",
+      "repo_sha256": "dd528d8f24bdcfb0599d8328aec6a7a1b7feae71371400539029d92bf9eb7d44",
+      "matches": true
+    },
+    {
+      "node": "Normalize Payload",
+      "deployed_sha256": "9415ad6fbc912c5220ca8df958142a4a6bc2ed662febce985acf3aee4d117339",
+      "repo_sha256": "4a97360e7540a4f512e003f64cd4322aa76e314ab1b61fe811fc3b91b3fb15e7",
+      "matches": false
+    },
+    {
+      "node": "Prepare Build 1 Manifest Body",
+      "deployed_sha256": "ecc4865a5bef2769f537141371962ec5bf4fa7ab9410d31226323a2e35e7dcf7",
+      "repo_sha256": "0beb14a45249aa55ed335aa4d32a8ffe7301da0b1b7f4ea9eb3cec6b682c9c7a",
+      "matches": false
+    },
+    {
+      "node": "Prepare w0 Upsert Node",
+      "deployed_sha256": "a26823960519aa97fd5a22b13ea7119f746c61daae53e9a5d957d01d4740d26f",
+      "repo_sha256": "e854fac16729efc442bd4a1fbc9767b00fb588ac6d03c6694c5e3555aa0ac47e",
+      "matches": false
+    }
+  ],
+  "note": "Allowlisted metadata only. Raw workflow may contain secrets and must not be committed.",
+  "behavioral_observation": {
+    "selection": "Active Normalize Payload omits bookId, formatId and configVersion; active Prepare Build node selects book-mvp-simple-adventure with published-first",
+    "synthetic_inner_voice_v2_result_before_guard": "Backend parser accepted active request as legacy MVP v1; repo graph selected Inner Voice v2",
+    "upload_failure_path": "Active Upload 1-manifest.json to R2 error output reaches Fallback (Skip Upload), then Supabase Upsert (orders)2",
+    "upsert_guard": "Active Prepare w0 Upsert Node does not require published.success and published.published",
+    "backend_effective_production_w0_url": "unknown: Cloudflare Pages production secret is not readable from checked deployment surface",
+    "test": "back-end/scripts/test-w0-deployed-selection.ts; synthetic, network-denied; fails before parser guard and passes after"
+  },
+  "raw_export_retention": "Temporary download deleted after sanitized observation and network-denied checks; SHA-256 retained for audit. Re-download to rerun active-graph probes."
+}

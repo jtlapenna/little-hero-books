@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 async function main() {
  Object.assign(process.env,{SUPABASE_URL:'https://local-router.example.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-router-only',CRON_SECRET:'synthetic-router-cron',N8N_ROUTER_WEBHOOK_URL:'https://router.example.test/webhook/w1-1-router',GELATO_DRAFT_SUBMISSION_ENABLED:'false',GELATO_STATUS_POLLING_ENABLED:'false',GELATO_NOTIFICATIONS_ENABLED:'false'});
  type Row=Record<string,unknown>;
- let candidates:Row[]=[], siblings:Row[]=[], slots=5, groupFailure=false, routed:Row[]=[], queued:number[]=[], forbidden:string[]=[];
+ let candidates:Row[]=[], siblings:Row[]=[], slots=5, groupFailure=false, patchMarkedInFlight=false, routed:Row[]=[], queued:number[]=[], forbidden:string[]=[];
  const original=globalThis.fetch, log=console.log, warn=console.warn, error=console.error;
  console.log=console.warn=console.error=()=>undefined;
  const ready=(id:number,extra:Row={})=>({id,orderId:'LOCAL-ORDINARY-'+id,root_order_id:'LOCAL-ORDINARY-'+id,print_provider:'gelato',next_workflow:'4',execution_status:'ready_for_processing',customer_approval_required:true,customer_approval_status:'approved',current_workflow:null,started_at:null,...extra});
@@ -18,7 +18,7 @@ async function main() {
   if(table!=='orders'){forbidden.push(String(table));throw Error('Unexpected database operation');}
   let rows:Row[]=[];
   if(u.searchParams.get('execution_status')==='eq.ready_for_processing'&&u.searchParams.has('next_workflow')) {
-   const selected=u.searchParams.get('select')!; for(const key of ['print_provider','print_submission_id','print_claim_token','gelato_status']) assert(selected.includes(key),'Actual router must select '+key);
+   const selected=u.searchParams.get('select')!; for(const key of ['print_provider','print_submission_id','print_claim_token','gelato_status','started_at']) assert(selected.includes(key),'Actual router must select '+key);
    rows=candidates;
   } else if(['root_order_id','amazon_order_id','orderId'].some(key=>u.searchParams.get(key)?.startsWith('in.'))) {
    if(groupFailure) return Response.json({message:'Synthetic group lookup unavailable'},{status:503});
@@ -28,7 +28,13 @@ async function main() {
   }
   if(r.method==='PATCH') {
    const change=await r.json();assert.deepEqual(Object.keys(change).sort(),['queued_at','status']);
-   const ids=u.searchParams.get('id')?.slice(4,-1).split(',').map(Number)??[];queued.push(...ids);return Response.json([]);
+   assert.equal(u.searchParams.get('execution_status'),'eq.ready_for_processing');
+   assert.equal(u.searchParams.get('started_at'),'is.null');
+   assert.equal(u.searchParams.get('current_workflow'),'is.null');
+   const ids=u.searchParams.get('id')?.slice(4,-1).split(',').map(Number)??[];queued.push(...ids);
+   if(patchMarkedInFlight) return Response.json([]);
+   const updated=ids.map(id=>[...candidates,...siblings].find(row=>row.id===id)).filter((row):row is Row=>Boolean(row)).map(row=>({...row,updated_at:new Date().toISOString()}));
+   return Response.json(updated);
   }
   assert(['GET','HEAD'].includes(r.method),'Only queue writes allowed');
   return new Response(r.method==='HEAD'?null:JSON.stringify(r.headers.get('accept')?.includes('object')?rows[0]??null:rows),{headers:{'content-type':'application/json','content-range':'0-0/0'}});
@@ -36,8 +42,9 @@ async function main() {
  try {
   const {GET}=await import('../src/app/api/cron/router/route');
   let checks=0;
-  const run=async(expected:number[])=>{routed=[];queued=[];const response=await GET(request());assert.equal(response.status,200,await response.clone().text());assert.deepEqual(routed.map(x=>x.id),expected);assert.deepEqual(queued,expected);assert.deepEqual(forbidden,[]);checks++};
+  const run=async(expected:number[])=>{routed=[];queued=[];const response=await GET(request());assert.equal(response.status,200,await response.clone().text());assert.deepEqual(routed.map(x=>x.id),expected);assert(routed.every(x=>typeof x.updated_at==='string'));assert.deepEqual(queued,expected);assert.deepEqual(forbidden,[]);checks++};
   candidates=[ready(1),ready(2,{print_provider:'lulu'})];await run([2]);
+  routed=[];queued=[];patchMarkedInFlight=true;const raced=await GET(request());assert.equal(raced.status,503);assert.deepEqual(routed,[]);patchMarkedInFlight=false;checks++;
   candidates=[ready(1,{next_workflow:'4-aggregate'})];await run([]);
   candidates=[ready(1,{print_provider:null})];await run([]);
   process.env.GELATO_DRAFT_SUBMISSION_ENABLED='true';

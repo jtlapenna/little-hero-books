@@ -1,0 +1,3 @@
+[Gelato webhook receipt] {"event":"order_status_updated","eventSha256":"45190308dacbae1aae293d14620a91505749389db765c037e13da624f069aaa2","orderSha256":"77241995c22ec503e0c953d7ff1fc5bd602e002433d01aa8ccfb1bacf3115bf4","disposition":"disabled"}
+[Gelato webhook receipt] {"event":"order_status_updated","eventSha256":"45190308dacbae1aae293d14620a91505749389db765c037e13da624f069aaa2","orderSha256":"77241995c22ec503e0c953d7ff1fc5bd602e002433d01aa8ccfb1bacf3115bf4","disposition":"disabled"}
+Default-deny actual middleware + routes: privileged/direct-host/unknown/data/image denial, CSRF GET/HEAD, exact public contracts, cron/machine, signed Stripe/Lulu, request IDs and no-side-effect rejection passed; zero live traffic

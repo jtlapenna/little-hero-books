@@ -19,6 +19,7 @@ export interface NormalizedW0Manifest {
   expectedPdfPageCount?: number;
   schema: string | null;
   orderId: string | null;
+  characterHash: string | null;
   rootOrderId: string | null;
   amazonOrderId: string | null;
   bookId: string | null;
@@ -153,6 +154,7 @@ function normalizeV3Manifest(
     } : {}),
     schema: manifest.schema,
     orderId: manifest.order.orderId,
+    characterHash: toStringValue(manifest.artifacts.characterPrefix?.split('/').filter(Boolean).at(-1)),
     rootOrderId: manifest.order.rootOrderId,
     amazonOrderId: manifest.order.amazonOrderId,
     bookId: manifest.book.bookConfigRef.bookId,
@@ -188,13 +190,20 @@ function normalizeLegacyManifest(
     toObject(manifest.shippingAddress) ??
     {};
   const manifestKey = options.fallbackManifestKey ?? null;
+  const declaredOrderId = toStringValue(manifest.orderId);
+  const nestedOrderId = toStringValue(order.orderId);
+  if (declaredOrderId && nestedOrderId && declaredOrderId !== nestedOrderId) {
+    throw new Error('Legacy W0 manifest has conflicting order identity');
+  }
   const orderId =
-    toStringValue(manifest.orderId) ??
+    declaredOrderId ??
+    nestedOrderId ??
     extractOrderIdFromManifestKey(manifestKey);
 
   return {
     schema: toStringValue(manifest.schema),
     orderId,
+    characterHash: toStringValue(manifest.characterHash) ?? toStringValue(order.characterHash),
     rootOrderId:
       toStringValue(manifest.rootOrderId) ??
       toStringValue(manifest.siblingGroupId) ??

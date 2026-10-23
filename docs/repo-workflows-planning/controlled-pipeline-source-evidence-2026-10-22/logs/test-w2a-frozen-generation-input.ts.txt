@@ -1,0 +1,1 @@
+Frozen W0 to W2A base/pose: standard and amazon pass; identity drift rejected before claim; no fetches

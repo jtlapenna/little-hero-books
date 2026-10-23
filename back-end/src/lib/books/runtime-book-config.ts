@@ -200,7 +200,8 @@ export function parsePublishedBookConfigRow(
     );
   }
 
-  const checksum = computeBookConfigChecksum(config);
+  // Stored checksum covers the persisted JSON, before schema defaults are added.
+  const checksum = computeBookConfigChecksum(parsedRawConfig as BookConfig);
   const storedChecksum = typeof row.checksum === 'string' ? row.checksum.trim() : '';
   if (storedChecksum !== checksum) {
     throw new PublishedBookConfigError(
@@ -353,29 +354,6 @@ export async function loadPublishedBookConfig(
   return record.config;
 }
 
-async function getExistingPublishedBookConfigIsActive(
-  bookId: string,
-  version: number,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('book_configs')
-    .select('is_active')
-    .eq('book_id', bookId)
-    .eq('version', version)
-    .maybeSingle();
-
-  if (isTableMissingError(error, 'book_configs')) {
-    throw new Error('book_configs table is not available');
-  }
-  if (error) {
-    throw new Error(
-      `Failed to read existing book config activation state for ${bookId}@v${version}: ${error.message}`,
-    );
-  }
-
-  return (data as { is_active?: boolean } | null)?.is_active === true;
-}
-
 export async function loadRuntimeBookConfig(
   options: LoadRuntimeBookConfigOptions,
 ): Promise<BookConfig> {
@@ -401,25 +379,33 @@ export async function publishBookConfig(
   const bookConfigsTable = () => supabase.from('book_configs');
 
   try {
-    const existingIsActive = await getExistingPublishedBookConfigIsActive(
-      config.bookId,
-      config.version,
-    );
     const inactivePayload = buildBookConfigPublishPayload(config, {
       publishedBy: options.publishedBy,
-      activate: options.activate ? false : existingIsActive,
+      activate: false,
     });
-
-    const upsert = await bookConfigsTable()
-      .upsert(inactivePayload, { onConflict: 'book_id,version' });
-
-    if (isTableMissingError(upsert.error, 'book_configs')) {
-      throw new Error('book_configs table is not available');
+    let existing: PublishedBookConfigRecord | null = null;
+    try {
+      existing = await loadPublishedBookConfigRecord({ bookId: config.bookId, version: config.version });
+    } catch (error) {
+      if (!(error instanceof PublishedBookConfigError && error.code === 'not-found')) throw error;
     }
-    if (upsert.error) {
-      throw new Error(
-        `Failed to publish book config ${config.bookId}@v${config.version}: ${upsert.error.message}`,
-      );
+    if (existing && existing.checksum !== inactivePayload.checksum) {
+      throw new Error(`Published book config ${config.bookId}@v${config.version} already exists with a different checksum; use a new version`);
+    }
+    if (!existing) {
+      const insert = await bookConfigsTable().insert(inactivePayload);
+      if (isTableMissingError(insert.error, 'book_configs')) {
+        throw new Error('book_configs table is not available');
+      }
+      if (insert.error) {
+        if (insert.error.code !== '23505') {
+          throw new Error(`Failed to publish book config ${config.bookId}@v${config.version}: ${insert.error.message}`);
+        }
+        const raced = await loadPublishedBookConfigRecord({ bookId: config.bookId, version: config.version });
+        if (raced.checksum !== inactivePayload.checksum) {
+          throw new Error(`Published book config ${config.bookId}@v${config.version} already exists with a different checksum; use a new version`);
+        }
+      }
     }
 
     let verified = await loadPublishedBookConfigRecord({
@@ -434,29 +420,12 @@ export async function publishBookConfig(
     }
 
     if (options.activate) {
-      const deactivate = await bookConfigsTable()
-        .update({ is_active: false, updated_at: inactivePayload.updated_at })
-        .eq('book_id', config.bookId)
-        .neq('version', config.version);
-
-      if (isTableMissingError(deactivate.error, 'book_configs')) {
-        throw new Error('book_configs table is not available');
-      }
-      if (deactivate.error) {
-        throw new Error(
-          `Failed to deactivate previous book config versions for ${config.bookId}: ${deactivate.error.message}`,
-        );
-      }
-
-      const activePayload = buildBookConfigPublishPayload(config, {
-        publishedBy: options.publishedBy,
-        activate: true,
+      const activate = await supabase.rpc('activate_book_config_version', {
+        p_book_id: config.bookId,
+        p_version: config.version,
+        p_checksum: inactivePayload.checksum,
+        p_expected_config_json: inactivePayload.config_json,
       });
-      const activate = await bookConfigsTable()
-        .update(activePayload)
-        .eq('book_id', config.bookId)
-        .eq('version', config.version);
-
       if (activate.error) {
         throw new Error(
           `Failed to mark ${config.bookId}@v${config.version} active: ${activate.error.message}`,
@@ -468,7 +437,7 @@ export async function publishBookConfig(
         version: config.version,
       });
 
-      if (verified.row.is_active !== true || verified.checksum !== activePayload.checksum) {
+      if (verified.row.is_active !== true || verified.checksum !== inactivePayload.checksum) {
         throw new Error(
           `Published book config ${config.bookId}@v${config.version} failed post-activation verification`,
         );

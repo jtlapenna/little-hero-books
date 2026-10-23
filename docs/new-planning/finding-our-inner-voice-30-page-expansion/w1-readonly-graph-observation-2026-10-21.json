@@ -1,0 +1,37 @@
+{
+  "schema": "lhb.n8n-readonly-graph-observation@v1",
+  "observed_on": "2026-10-21",
+  "source": "Signed-in n8n editor Download export. Original file retained outside repository.",
+  "export_sha256": "933909568aff413496bd90d83c217b38639c2ea770a73f55b4e73741842eeee3",
+  "workflow_id": "TDwc85g03FqPf9D6",
+  "active": true,
+  "node_count": 28,
+  "repo_export": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+  "repo_export_sha256": "d823172f973372348ab3165682e65eaba5d0520968e94af10e707308b871dae1",
+  "repo_node_count": 36,
+  "repo_only_node_names": [
+    "Claim and Route Gelato Groups",
+    "Fence Gelato Claim After Dispatch Failure",
+    "IF Gelato Claim Dispatch",
+    "IF Gelato Print Provider",
+    "IF Gelato Sibling Group",
+    "Log Gelato Claim Held",
+    "Trigger W4 Gelato",
+    "Trigger W4.1 Gelato"
+  ],
+  "deployed_only_node_names": [],
+  "note": "Allowlisted metadata only. The downloaded graph contains a literal backend bearer token and must not be committed.",
+  "credential_observation": {
+    "node": "Get Signed URL (1\u2011manifest)-W4",
+    "kind": "Literal 64-character backend bearer token in Code node; source labels it BACKEND_API_TOKEN. Validity and production backend match not established.",
+    "references": "The observed graph contains one direct literal bearer-token assignment in this node; no Supabase service-role key identified by the bounded scan.",
+    "candidate": "Repo export uses a redacted placeholder; replacement must use a supported n8n credential or runtime binding and be verified on an isolated workflow before live cutover.",
+    "migration_order": "Back up active graph; provision replacement binding; test signed URL retrieval with a synthetic missing key in isolation; deploy credential-backed graph; verify W1 routing and W4 signed URL retrieval; then retire old token after consumer inventory."
+  },
+  "frozen_manifest_handoff": {
+    "test": "back-end/scripts/test-w1-frozen-manifest-handoff.ts run against downloaded active export and repo export",
+    "result": "Prep 2A Orders retains one_manifest_url when cron row has character_specs but omits book_specs; configured W2A resolver downloads the frozen W0 v3 snapshot and selects Inner Voice v2 standard with 32 pages. Missing selected key rejects.",
+    "limit": "This covers W1 2A preparation and repo W2A resolver with synthetic data. It does not prove the effective production cron URL, active W2A graph, or provider execution."
+  },
+  "raw_export_retention": "Temporary download deleted after sanitized observation and network-denied checks; SHA-256 retained for audit. Re-download to rerun active-graph probes."
+}

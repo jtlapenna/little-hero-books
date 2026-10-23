@@ -1,7 +1,9 @@
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import {
   resolveOrderPathContext,
+  buildOrderPrefix,
   buildManifestKeyFromOrderPrefix,
+  extractManifestKey,
 } from '@/lib/order-paths';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 
@@ -205,6 +207,19 @@ function resolveBaseContext(input: JsonRecord): BuildW2AManifestBaseContext {
       ) ?? undefined,
     pathLikes,
   });
+  if (orderPrefix !== buildOrderPrefix(orderId, bookId)) {
+    throw new Error('W2A order prefix does not match order identity');
+  }
+  for (const value of [input.bookId, input.print_book_id, orderContext.bookId, bookSpecs.bookId]) {
+    const requestedBookId = toTrimmedString(value);
+    if (requestedBookId && requestedBookId !== bookId) {
+      throw new Error('W2A order prefix does not match book identity');
+    }
+  }
+  const selectedOneManifestKey = oneManifestUrl ? extractManifestKey(oneManifestUrl) : null;
+  if (selectedOneManifestKey && selectedOneManifestKey !== buildManifestKeyFromOrderPrefix(orderPrefix, '1')) {
+    throw new Error('W2A 1-manifest pointer does not match order prefix');
+  }
 
   const manifestKey = buildManifestKeyFromOrderPrefix(orderPrefix, '2a');
   const backendUrl =
@@ -816,4 +831,18 @@ export async function uploadW2AManifest(
     JSON.stringify(manifest, null, 2),
     'application/json',
   );
+}
+
+export async function uploadW2ABootstrapIfAbsent(
+  manifestKey: string,
+  manifest: JsonRecord,
+): Promise<boolean> {
+  const response = await putObject(
+    R2_ORDERS_BUCKET,
+    manifestKey,
+    JSON.stringify(manifest, null, 2),
+    'application/json',
+    { ifNoneMatch: '*' },
+  );
+  return response.status !== 412;
 }

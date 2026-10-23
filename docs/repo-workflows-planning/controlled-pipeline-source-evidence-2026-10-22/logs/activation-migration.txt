@@ -1,0 +1,11 @@
+Book config activation migration checks passed
+psql:/tmp/lhl-book-config-activation.YsXKIG/activation.sql:68: NOTICE:  function public.activate_book_config_version(text,pg_catalog.int4,text) does not exist, skipping
+psql:/tmp/lhl-book-config-activation.YsXKIG/activation.sql:68: NOTICE:  function public.activate_book_config_version(text,pg_catalog.int4,text,jsonb) does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:52: NOTICE:  constraint "book_configs_version_positive" of relation "book_configs" does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:52: NOTICE:  constraint "book_configs_status_valid" of relation "book_configs" does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:52: NOTICE:  constraint "book_configs_checksum_sha256" of relation "book_configs" does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:52: NOTICE:  constraint "book_configs_config_json_object" of relation "book_configs" does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:52: NOTICE:  constraint "book_configs_identity_matches_payload" of relation "book_configs" does not exist, skipping
+psql:/Users/jeff/.codex/worktrees/controlled-order-pipeline/little-hero-books/docs/database/migration-add-book-configs.sql:100: NOTICE:  trigger "update_book_configs_updated_at" for relation "book_configs" does not exist, skipping
+psql:/tmp/lhl-book-config-activation.YsXKIG/activation.sql:68: NOTICE:  function public.activate_book_config_version(text,pg_catalog.int4,text) does not exist, skipping
+psql:/tmp/lhl-book-config-activation.YsXKIG/activation.sql:68: NOTICE:  function public.activate_book_config_version(text,pg_catalog.int4,text,jsonb) does not exist, skipping

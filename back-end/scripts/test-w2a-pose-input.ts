@@ -3,6 +3,9 @@
 import { buildW2APoseInput, loadBundledBookConfig } from "@/lib/books";
 import { buildW2APoseInputResponse } from "@/app/api/internal/w2a/build-pose-input/route";
 import { resolveW2APoseWorklistResponse } from "@/app/api/internal/w2a/resolve-pose-worklist/route";
+import { installW2AConfigFixture } from './helpers/w2a-config-fixture';
+
+const configFixture = installW2AConfigFixture();
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -361,6 +364,7 @@ async function main(): Promise<void> {
     "Expected W2A pose-input route to emit replay-ready artifact URLs for already-succeeded pose jobs",
   );
 
+  assert(configFixture.reads.length >= 2, 'Pose and replay routes must read synthetic published configs');
   console.log(
     JSON.stringify(
       {
@@ -379,7 +383,7 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error) => {
+main().finally(() => configFixture.restore()).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

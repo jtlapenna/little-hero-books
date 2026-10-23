@@ -1,0 +1,1 @@
+PASS: local launcher/readiness evidence. No fresh provider, funding, workflow or physical proof.
