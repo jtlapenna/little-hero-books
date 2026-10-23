@@ -1,0 +1,10 @@
+{
+  "schema": "lhl.native-config-isolation@1",
+  "harnessSha256": "7ca77765c3119891fac36792749e128b9435daf5008a1eb533b59a33fc4a3d60",
+  "installedConfigSourceSha256": "a362f2542bfa03ceff8f24ec8ca94289193dda0529d6eb24c4718bbcb5da13e8",
+  "n8nUserFolderTakesPrecedence": true,
+  "childHomeOverride": false,
+  "childCwdIsIsolated": true,
+  "nativeSqliteLocationAssertedInEveryScenario": true,
+  "scope": "n8n instance settings and SQLite config location; no claim about every dependency filesystem read"
+}

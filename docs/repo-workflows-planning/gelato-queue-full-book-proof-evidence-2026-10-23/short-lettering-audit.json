@@ -1,0 +1,264 @@
+{
+  "schema": "lhb.local-v2-lettering-audit@v1",
+  "childName": "Alexandra",
+  "pagesScanned": 512,
+  "findings": [],
+  "collisions": [
+    {
+      "formatId": "standard",
+      "guide": "cat",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "cat",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "dog",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "dog",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "owl",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "owl",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "lion",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "lion",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "tiger",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "tiger",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "penguin",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "penguin",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "unicorn",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "unicorn",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "t-rex",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "t-rex",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "cat",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "cat",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "dog",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "dog",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "owl",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "owl",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "lion",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "lion",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "tiger",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "tiger",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "penguin",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "penguin",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "unicorn",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "unicorn",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "t-rex",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "t-rex",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    }
+  ]
+}

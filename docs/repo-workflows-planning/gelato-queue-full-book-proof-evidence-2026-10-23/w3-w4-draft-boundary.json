@@ -1,0 +1,361 @@
+{
+  "receipts": [
+    {
+      "formatId": "standard",
+      "pages": 32,
+      "sourceRasterHashes": [
+        {
+          "pageNumber": 0,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p00.png",
+          "pngSha256": "485c2b28a7c98ed62d47d899a707bcca8ebffce348a8b3b43a525a1106acc0bf"
+        },
+        {
+          "pageNumber": 1,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p01.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 2,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p02.png",
+          "pngSha256": "7475bd6264f806d47635fd30a49ae061b733df877df4b61bc87f88c2ba79b301"
+        },
+        {
+          "pageNumber": 3,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p03.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 4,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p04.png",
+          "pngSha256": "b2af9e0f6e3dc73796879027fd56c44e31d73db38ee9b641060957a6a5987efc"
+        },
+        {
+          "pageNumber": 5,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p05.png",
+          "pngSha256": "f53ec12fcab5059882ba3afb0c2527a2a8851995558c10d225513e1d03d67eb5"
+        },
+        {
+          "pageNumber": 6,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p06.png",
+          "pngSha256": "91f6272e0a6ece2688b1e8e07cc4a140c402c87b2afd1391875d2a71acf5b444"
+        },
+        {
+          "pageNumber": 7,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p07.png",
+          "pngSha256": "c7d5feebf33373fa24a7526dd4c36932b022701bf296442a65e7b744fbb5b839"
+        },
+        {
+          "pageNumber": 8,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p08.png",
+          "pngSha256": "3125daa176ebd1533c561e6b730644e1366c43db6986e3b5de073a98203f0e74"
+        },
+        {
+          "pageNumber": 9,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p09.png",
+          "pngSha256": "92b520f1a7ca49cce7ebbc07482ee01c43abfa30e9fd9462ae098f8a727bec33"
+        },
+        {
+          "pageNumber": 10,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p10.png",
+          "pngSha256": "9f9d5964d5e560a3f54e875189d119c072f5274e0ecc966ac5db161f73a5a84f"
+        },
+        {
+          "pageNumber": 11,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p11.png",
+          "pngSha256": "90fe9cce7fd9de7be97e1764744944a686e4d46bb01a001fa35d551b13d86bcf"
+        },
+        {
+          "pageNumber": 12,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p12.png",
+          "pngSha256": "22ac1e47b81afa2fefb80441734a2aa03b89db1168e135f1380627425f1f48eb"
+        },
+        {
+          "pageNumber": 13,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p13.png",
+          "pngSha256": "66d14085dc9e3c19215d17c5c3067645cd274fbbcb6bba787125f0d08e1490b4"
+        },
+        {
+          "pageNumber": 14,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p14.png",
+          "pngSha256": "26e135de11165ee2d778dc75497e06a8f345478bde1e14882dc61983248fe69c"
+        },
+        {
+          "pageNumber": 15,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p15.png",
+          "pngSha256": "1c1a2e2d2461c1b8fbf623930993a1faced963aaba8893464219a2d32befee7c"
+        },
+        {
+          "pageNumber": 16,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p16.png",
+          "pngSha256": "a6be6758e9217bd7b4a34941fc45588ea1123330a049ba9bd9cc09c6c30a8815"
+        },
+        {
+          "pageNumber": 17,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p17.png",
+          "pngSha256": "2226181dc3d41bc826021607cc54015475265e7b9faa23d607e2a9512edde9e2"
+        },
+        {
+          "pageNumber": 18,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p18.png",
+          "pngSha256": "a39ec757964f7f3370be136df57b384bc38e6a1e91a6fa166ac5a550190c22e7"
+        },
+        {
+          "pageNumber": 19,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p19.png",
+          "pngSha256": "94295d857b541f065c5dad8fd1242f425fe685371deee81de50b3981c13bed05"
+        },
+        {
+          "pageNumber": 20,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p20.png",
+          "pngSha256": "fb87cbe1f05f63205d1b1b77749eef7784f8885e89b89477f17dacfe4f06956c"
+        },
+        {
+          "pageNumber": 21,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p21.png",
+          "pngSha256": "47994227f1dc97ec1320ff96cef04409b89cc1ead61dd7c6af5f9e96317a83f4"
+        },
+        {
+          "pageNumber": 22,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p22.png",
+          "pngSha256": "0f75e0cdd8e8fd7f3da24feb683c0477072d5ab825f240fbe29793d37dfe0651"
+        },
+        {
+          "pageNumber": 23,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p23.png",
+          "pngSha256": "cfd0cb02960f62635af8180d6c2cb39041d3e580290d4707c5e2541f12a8915c"
+        },
+        {
+          "pageNumber": 24,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p24.png",
+          "pngSha256": "aa4b00688e3d882376f44334680f065e82651b23a4012c3257878fd2016db1ff"
+        },
+        {
+          "pageNumber": 25,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p25.png",
+          "pngSha256": "41a0c773d830e8d24789aef6158bf9fefb8312ce15af36d259f6f9b75973b264"
+        },
+        {
+          "pageNumber": 26,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p26.png",
+          "pngSha256": "51c8d051add40bd841dcc58ee4d7d44f25be5fee221b3b175dc0eca20cbe2620"
+        },
+        {
+          "pageNumber": 27,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p27.png",
+          "pngSha256": "1510e321f532d9522c1583cb7e145ac12862de9cbfe56189965b50ec722c4d47"
+        },
+        {
+          "pageNumber": 28,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p28.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 29,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p29.png",
+          "pngSha256": "25c967ecafce7e91b97e266ce7a2492889c2836941428b5069b593a3edab54f3"
+        },
+        {
+          "pageNumber": 30,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p30.png",
+          "pngSha256": "354014efb8866904926955040fe12ee22af1c4cbfe69a06516bbb1f74dfd495c"
+        },
+        {
+          "pageNumber": 31,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-standard-cat/preview-images/p31.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        }
+      ],
+      "draft": true,
+      "testOnly": true,
+      "readyForBook": false,
+      "actualW3ManifestProducer": true,
+      "actualW4ConsumerRejected": true,
+      "wrongOrderRejected": true,
+      "wrongFormatRejected": true,
+      "reorderedLabelsRejected": true,
+      "missingPageNotReady": true,
+      "providerCalls": 0,
+      "poseInputs": "retained reference fixtures, not current W2 output"
+    },
+    {
+      "formatId": "amazon",
+      "pages": 32,
+      "sourceRasterHashes": [
+        {
+          "pageNumber": 0,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p00.png",
+          "pngSha256": "485c2b28a7c98ed62d47d899a707bcca8ebffce348a8b3b43a525a1106acc0bf"
+        },
+        {
+          "pageNumber": 1,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p01.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 2,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p02.png",
+          "pngSha256": "7475bd6264f806d47635fd30a49ae061b733df877df4b61bc87f88c2ba79b301"
+        },
+        {
+          "pageNumber": 3,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p03.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 4,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p04.png",
+          "pngSha256": "b2af9e0f6e3dc73796879027fd56c44e31d73db38ee9b641060957a6a5987efc"
+        },
+        {
+          "pageNumber": 5,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p05.png",
+          "pngSha256": "f53ec12fcab5059882ba3afb0c2527a2a8851995558c10d225513e1d03d67eb5"
+        },
+        {
+          "pageNumber": 6,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p06.png",
+          "pngSha256": "91f6272e0a6ece2688b1e8e07cc4a140c402c87b2afd1391875d2a71acf5b444"
+        },
+        {
+          "pageNumber": 7,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p07.png",
+          "pngSha256": "c7d5feebf33373fa24a7526dd4c36932b022701bf296442a65e7b744fbb5b839"
+        },
+        {
+          "pageNumber": 8,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p08.png",
+          "pngSha256": "3125daa176ebd1533c561e6b730644e1366c43db6986e3b5de073a98203f0e74"
+        },
+        {
+          "pageNumber": 9,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p09.png",
+          "pngSha256": "92b520f1a7ca49cce7ebbc07482ee01c43abfa30e9fd9462ae098f8a727bec33"
+        },
+        {
+          "pageNumber": 10,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p10.png",
+          "pngSha256": "9f9d5964d5e560a3f54e875189d119c072f5274e0ecc966ac5db161f73a5a84f"
+        },
+        {
+          "pageNumber": 11,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p11.png",
+          "pngSha256": "90fe9cce7fd9de7be97e1764744944a686e4d46bb01a001fa35d551b13d86bcf"
+        },
+        {
+          "pageNumber": 12,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p12.png",
+          "pngSha256": "22ac1e47b81afa2fefb80441734a2aa03b89db1168e135f1380627425f1f48eb"
+        },
+        {
+          "pageNumber": 13,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p13.png",
+          "pngSha256": "66d14085dc9e3c19215d17c5c3067645cd274fbbcb6bba787125f0d08e1490b4"
+        },
+        {
+          "pageNumber": 14,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p14.png",
+          "pngSha256": "26e135de11165ee2d778dc75497e06a8f345478bde1e14882dc61983248fe69c"
+        },
+        {
+          "pageNumber": 15,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p15.png",
+          "pngSha256": "1c1a2e2d2461c1b8fbf623930993a1faced963aaba8893464219a2d32befee7c"
+        },
+        {
+          "pageNumber": 16,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p16.png",
+          "pngSha256": "a6be6758e9217bd7b4a34941fc45588ea1123330a049ba9bd9cc09c6c30a8815"
+        },
+        {
+          "pageNumber": 17,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p17.png",
+          "pngSha256": "2226181dc3d41bc826021607cc54015475265e7b9faa23d607e2a9512edde9e2"
+        },
+        {
+          "pageNumber": 18,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p18.png",
+          "pngSha256": "a39ec757964f7f3370be136df57b384bc38e6a1e91a6fa166ac5a550190c22e7"
+        },
+        {
+          "pageNumber": 19,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p19.png",
+          "pngSha256": "94295d857b541f065c5dad8fd1242f425fe685371deee81de50b3981c13bed05"
+        },
+        {
+          "pageNumber": 20,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p20.png",
+          "pngSha256": "fb87cbe1f05f63205d1b1b77749eef7784f8885e89b89477f17dacfe4f06956c"
+        },
+        {
+          "pageNumber": 21,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p21.png",
+          "pngSha256": "47994227f1dc97ec1320ff96cef04409b89cc1ead61dd7c6af5f9e96317a83f4"
+        },
+        {
+          "pageNumber": 22,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p22.png",
+          "pngSha256": "0f75e0cdd8e8fd7f3da24feb683c0477072d5ab825f240fbe29793d37dfe0651"
+        },
+        {
+          "pageNumber": 23,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p23.png",
+          "pngSha256": "cfd0cb02960f62635af8180d6c2cb39041d3e580290d4707c5e2541f12a8915c"
+        },
+        {
+          "pageNumber": 24,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p24.png",
+          "pngSha256": "aa4b00688e3d882376f44334680f065e82651b23a4012c3257878fd2016db1ff"
+        },
+        {
+          "pageNumber": 25,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p25.png",
+          "pngSha256": "41a0c773d830e8d24789aef6158bf9fefb8312ce15af36d259f6f9b75973b264"
+        },
+        {
+          "pageNumber": 26,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p26.png",
+          "pngSha256": "51c8d051add40bd841dcc58ee4d7d44f25be5fee221b3b175dc0eca20cbe2620"
+        },
+        {
+          "pageNumber": 27,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p27.png",
+          "pngSha256": "1510e321f532d9522c1583cb7e145ac12862de9cbfe56189965b50ec722c4d47"
+        },
+        {
+          "pageNumber": 28,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p28.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        },
+        {
+          "pageNumber": 29,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p29.png",
+          "pngSha256": "25c967ecafce7e91b97e266ce7a2492889c2836941428b5069b593a3edab54f3"
+        },
+        {
+          "pageNumber": 30,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p30.png",
+          "pngSha256": "354014efb8866904926955040fe12ee22af1c4cbfe69a06516bbb1f74dfd495c"
+        },
+        {
+          "pageNumber": 31,
+          "r2Key": "book-finding-our-inner-voice/orders/PROOF-amazon-cat/preview-images/p31.png",
+          "pngSha256": "508626ffd4592df7cee172f0fe90c1f5fa72da4b31bc7393534d7cb4ad23b4a1"
+        }
+      ],
+      "draft": true,
+      "testOnly": true,
+      "readyForBook": false,
+      "actualW3ManifestProducer": true,
+      "actualW4ConsumerRejected": true,
+      "wrongOrderRejected": true,
+      "wrongFormatRejected": true,
+      "reorderedLabelsRejected": true,
+      "missingPageNotReady": true,
+      "providerCalls": 0,
+      "poseInputs": "retained reference fixtures, not current W2 output"
+    }
+  ],
+  "sourceFreezeSha256": "69ae56335699a7a944b901d1bc607be7f81bf4c7d71cb8816aaacacb255efe6a",
+  "probeSha256": "36e6372f5545a856690f3a321810e6571ae85d7f25bce0a6c76382000bba57c5",
+  "liveRequests": 0
+}
