@@ -100,6 +100,23 @@ async function main() {
       const denied = await compiledFetch(origin + '/api/orders');
       assert.equal(denied.status, 401);
       assert.match(denied.headers.get('cache-control')!, /private.*no-store/);
+      const routeCheckPath = origin + '/api/internal/w0/build-manifest';
+      const deniedRouteCheck = await compiledFetch(routeCheckPath);
+      assert.equal(deniedRouteCheck.status, 401);
+      const routeCheck = await compiledFetch(routeCheckPath, {
+        headers: { authorization: 'Bearer synthetic-compiled-worker-machine' },
+      });
+      assert.equal(routeCheck.status, 200, await routeCheck.clone().text());
+      assert.match(routeCheck.headers.get('cache-control')!, /private.*no-store/);
+      assert.deepEqual(await routeCheck.json(), {
+        schema: 'lhl.w0-route-check@1',
+        w0Setting: { configured: true, target: 'other' },
+        selectedWorkflowId: '9E0oVs46bMoiyRIP',
+      });
+      const queryRouteCheck = await compiledFetch(routeCheckPath + '?probe=1', {
+        headers: { authorization: 'Bearer synthetic-compiled-worker-machine' },
+      });
+      assert.equal(queryRouteCheck.status, 400);
       const redirect = await compiledFetch(origin + '/orders', { headers: nav });
       assert.equal(redirect.status, 303);
       assert.equal(new URL(redirect.headers.get('location')!).pathname, '/__access_setup');
