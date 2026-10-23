@@ -316,6 +316,17 @@ function buildVisualCharacterHash(
   return createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
 }
 
+function resolveNormalizedCharacterHash(
+  input: NormalizedW0WorkflowInput,
+  characterSpecs: Record<string, unknown> | undefined,
+): string | null {
+  return toStringValue(input.characterHash) ??
+    toStringValue(input.character_hash) ??
+    toStringValue(input._raw?.characterHash) ??
+    toStringValue(input._raw?.character_hash) ??
+    buildVisualCharacterHash(characterSpecs);
+}
+
 function buildOrderRecordFromNormalizedInput(
   input: NormalizedW0WorkflowInput,
 ): OrderRecord {
@@ -394,6 +405,7 @@ function buildOrderRecordFromNormalizedInput(
       null,
     dedication_text: dedicationText,
     character_specs: characterSpecs,
+    character_hash: resolveNormalizedCharacterHash(input, characterSpecs),
     book_specs: bookSpecs,
     product_info: {
       quantity,
@@ -483,7 +495,7 @@ function buildV3ManifestInput(
     configVersion: options.configVersion,
     configSource: options.configSource,
     formatId: selection.formatId,
-    characterHash: toStringValue(order.character_hash) ?? null,
+    characterHash: toStringValue(order.character_hash) ?? buildVisualCharacterHash(characterSpecs),
     requestedShippingTier:
       toStringValue(order.shipping_tier) ??
       toStringValue(selection.productInfo.shippingTier) ??
@@ -676,12 +688,7 @@ export function buildW0OrderUpsertPayload({
     throw new Error('Manifest is missing orderId for Supabase upsert payload');
   }
 
-  const explicitCharacterHash =
-    toStringValue(normalizedInput.characterHash) ??
-    toStringValue(normalizedInput.character_hash) ??
-    toStringValue(normalizedInput._raw?.characterHash) ??
-    toStringValue(normalizedInput._raw?.character_hash) ??
-    null;
+  const characterHash = resolveNormalizedCharacterHash(normalizedInput, characterSpecs);
   const body: Record<string, unknown> = {
     orderId: primaryOrderId,
     print_provider: print.provider ?? null,
@@ -705,7 +712,7 @@ export function buildW0OrderUpsertPayload({
       toStringValue(manifestInput.dedicationText) ??
       extractDedicationText(manifestOrder.dedication as any),
     character_specs: characterSpecs,
-    character_hash: explicitCharacterHash ?? buildVisualCharacterHash(characterSpecs),
+    character_hash: characterHash,
     customer_email:
       toStringValue(buyer.email) ??
       toStringValue(normalizedInput.customerEmail) ??

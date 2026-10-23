@@ -1,0 +1,26 @@
+{
+  "schema": "lhl.controlled-evidence-verifier-tests@1",
+  "cases": [
+    {
+      "case": "changed-runtime-source",
+      "rejected": true,
+      "exitCode": 1
+    },
+    {
+      "case": "lost-prior-coverage",
+      "rejected": true,
+      "exitCode": 1
+    },
+    {
+      "case": "failed-suite",
+      "rejected": true,
+      "exitCode": 1
+    },
+    {
+      "case": "changed-output-log",
+      "rejected": true,
+      "exitCode": 1
+    }
+  ],
+  "scope": "Disposable copies only; repository source and retained evidence untouched"
+}

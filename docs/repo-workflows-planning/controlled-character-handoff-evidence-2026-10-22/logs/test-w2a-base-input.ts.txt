@@ -1,0 +1,1 @@
+test-w2a-base-input: ok (synthetic published config, outbound requests blocked)
