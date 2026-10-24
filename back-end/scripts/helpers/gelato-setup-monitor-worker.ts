@@ -12,10 +12,11 @@ async function finish(p:Promise<unknown>){
  catch{process.exitCode=1;await send({kind:'failed',receiptUnconfirmed:true});}
  if(process.connected)process.disconnect();
 }
-const stop=()=>{ownerGone=true;if(monitor)void finish(monitor.ownerExited());else process.exitCode=1;};
+const boot=setTimeout(()=>{if(!received)process.exit(1);},10000);
+const stop=()=>{ownerGone=true;if(monitor)void finish(monitor.ownerExited());else{process.exitCode=1;if(!received){clearTimeout(boot);if(process.connected)process.disconnect();}}};
 process.on('disconnect',()=>{if(!done)stop();});for(const s of ['SIGTERM','SIGINT'] as const)process.on(s,stop);
 process.on('message',async raw=>{
- if(raw==='owner-exited'){stop();return;}if(raw==='retire'){if(monitor)await finish(monitor.retire());return;}if(received)return;received=true;
+ if(raw==='owner-exited'){stop();return;}if(raw==='retire'){if(monitor)await finish(monitor.retire());return;}if(received)return;received=true;clearTimeout(boot);
  try{const c=LaunchContext.parse(raw);if(c.transport.kind!=='synthetic-loopback')throw Error('Local review harness requires synthetic loopback');
   await privateDirectory(c.journalRoot);record=privateJournal(c.journalRoot);bindingSha256=c.bindingSha256;packetSha256=c.approval.packetSha256;
   const origin=c.transport.origin,direct=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Unwired transport denied');};
@@ -32,4 +33,5 @@ process.on('message',async raw=>{
   timer=setInterval(()=>{if(monitor?.state()==='armed')void finish(monitor.tick());},20);
  }catch{done=true;process.exitCode=1;await send({kind:'failed'});if(process.connected)process.disconnect();}
 });
-setTimeout(()=>{if(!received)process.exit(1);},10000).unref();
+// A send callback does not prove this entrypoint loaded. Announce readiness only after handlers exist.
+if(!process.connected)stop();else void send({kind:'ready-for-context'});

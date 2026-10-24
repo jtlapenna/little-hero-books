@@ -1,6 +1,6 @@
 {
   "schema": "lhl.admission-settlement-local-checks@1",
-  "recordedAt": "2026-10-24T00:09:04.603311+00:00",
+  "recordedAt": "2026-10-24T00:21:06.294936+00:00",
   "baseSha": "c259ed45b98b3166a53a28efb6463fff0a4713e3",
   "repairGroups": 44,
   "legacyIsolationGroups": 30,
@@ -8,7 +8,7 @@
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
-  "sourceSnapshotSha256": "a48eca3eddfaa211a5d1c3dcf23fa23b308e7ee13e2acced99662a5959409784",
+  "sourceSnapshotSha256": "497ddfdd950bec9ecea9ab531ecd1ffe13515e3b3b2ebccf33bedf447de066ca",
   "suites": [
     {
       "name": "database",
@@ -64,7 +64,7 @@
       "name": "processes",
       "exitCode": 0,
       "log": "outputs/processes.txt",
-      "logSha256": "3e9ce98c0962f3809cddef9efa45db76c0c67811c853b73883ec8761f1a29a4c",
+      "logSha256": "c61942cc7f1a9e344ac4018f7985ec3e0491c7e880c2b051d2282e70fe4c56db",
       "summary": {
         "passed": true,
         "groups": 17,
@@ -104,9 +104,9 @@
           {
             "mode": "foreign-closure",
             "calls": 15,
-            "bytes": 54094,
+            "bytes": 54097,
             "workerKind": "closed",
-            "workerBytes": 54094
+            "workerBytes": 54097
           },
           {
             "mode": "spoofed-closure",
@@ -118,23 +118,23 @@
           {
             "mode": "stale-closure",
             "calls": 15,
-            "bytes": 54097,
+            "bytes": 54095,
             "workerKind": "closed",
-            "workerBytes": 54097
+            "workerBytes": 54095
           },
           {
             "mode": "empty-rejection",
             "calls": 15,
-            "bytes": 53091,
+            "bytes": 53092,
             "workerKind": "closed",
-            "workerBytes": 53091
+            "workerBytes": 53092
           },
           {
             "mode": "empty-body-rejection",
             "calls": 15,
-            "bytes": 54097,
+            "bytes": 54094,
             "workerKind": "closed",
-            "workerBytes": 54097
+            "workerBytes": 54094
           },
           {
             "mode": "lost-ack",
@@ -146,9 +146,9 @@
           {
             "mode": "bad-closure",
             "calls": 15,
-            "bytes": 54094,
+            "bytes": 54097,
             "workerKind": "closed",
-            "workerBytes": 54094
+            "workerBytes": 54097
           },
           {
             "mode": "delayed-dispatch",
@@ -167,9 +167,9 @@
           {
             "mode": "owner-before",
             "calls": 15,
-            "bytes": 53091,
+            "bytes": 53092,
             "workerKind": "closed",
-            "workerBytes": 53091
+            "workerBytes": 53092
           },
           {
             "mode": "owner-during",
@@ -181,16 +181,16 @@
           {
             "mode": "owner-after",
             "calls": 15,
-            "bytes": 54097,
+            "bytes": 54091,
             "workerKind": "closed",
-            "workerBytes": 54097
+            "workerBytes": 54091
           },
           {
             "mode": "failed-revoke",
             "calls": 15,
-            "bytes": 53375,
+            "bytes": 53376,
             "workerKind": "failed",
-            "workerBytes": 53342
+            "workerBytes": 53343
           }
         ]
       }

@@ -17,13 +17,14 @@ export async function withFencedAdmission<T>(raw:Launch,proof:ClosureProof,admit
  const receiptFile=path.join(c.journalRoot,'setup-settlement-terminal.json');
  const record=privateJournal(c.journalRoot);record('setup-settlement-intent',{at:new Date().toISOString(),bindingSha256:c.bindingSha256,packetSha256:c.approval.packetSha256,contextSha256:proof.sha256});
  const worker=fork(path.join(__dirname,'gelato-setup-monitor-worker.ts'),[],{detached:true,execPath:process.execPath,execArgv:['--import','tsx'],env:{PATH:process.env.PATH,NODE_ENV:'test'},stdio:['ignore','ignore','ignore','ipc']});
- let ended=false,exit:number|null=null,armed=false,terminal:any,stopping=false,success=false,result:T,primaryError:unknown,hasPrimaryError=false;
- worker.once('exit',v=>{ended=true;exit=v;});worker.once('error',()=>{ended=true;exit=1;});worker.on('message',(v:any)=>{if(v?.kind==='armed')armed=true;else if(['retired','closed','failed'].includes(v?.kind))terminal=v;});
+ let ended=false,exit:number|null=null,ready=false,armed=false,terminal:any,stopping=false,success=false,result:T,primaryError:unknown,hasPrimaryError=false;
+ worker.once('exit',v=>{ended=true;exit=v;});worker.once('error',()=>{ended=true;exit=1;});worker.on('message',(v:any)=>{if(v?.kind==='ready-for-context')ready=true;else if(v?.kind==='armed')armed=true;else if(['retired','closed','failed'].includes(v?.kind))terminal=v;});
  const send=(v:Launch|'owner-exited'|'retire')=>{if(worker.connected)worker.send(v,()=>{});};const stop=()=>{stopping=true;send('owner-exited');};
- process.once('SIGINT',stop);process.once('SIGTERM',stop);send(c);
+ process.once('SIGINT',stop);process.once('SIGTERM',stop);
  const wait=async(test:()=>boolean,ms:number)=>{const until=Date.now()+ms;while(!test()){assert(Date.now()<until,'Setup worker outcome unconfirmed');await sleep(10);}};
  const guard=()=>assert(armed&&!ended&&!terminal&&!stopping&&Date.now()<Date.parse(p.expiresAt),'Setup monitor/window unavailable');
  try{
+  await wait(()=>ready||ended,10000);assert(ready&&!ended&&!stopping,'Setup worker not ready for context');send(c);
   await wait(()=>armed||ended,10000);guard();onArmed?.(worker.pid!);assert(admissionWaitMs>0&&admissionWaitMs<=45000);
   let settled=false,admissionFailed=false,error:unknown;void admit(guard).then(()=>{settled=true;},e=>{admissionFailed=true;error=e;settled=true;});
   const until=Math.min(Date.now()+admissionWaitMs,Date.parse(p.expiresAt));

@@ -74,7 +74,7 @@
     {
       "path": "back-end/scripts/helpers/gelato-fenced-admission.ts",
       "kind": "source",
-      "sha256": "efdc044e2c874106166a1c7bc52976ba7f7a0ab48c487729b8d702b131c640f2"
+      "sha256": "b429cdff3a4090bd093a035cc50ce8a429f906f501c5e18bf7a9fa6367955694"
     },
     {
       "path": "back-end/scripts/helpers/gelato-isolated-case-runner.ts",
@@ -139,7 +139,7 @@
     {
       "path": "back-end/scripts/helpers/gelato-setup-monitor-worker.ts",
       "kind": "source",
-      "sha256": "788633e28f297558cc98ad98716651bad82dc06f521febb30a892793297f7266"
+      "sha256": "f03bf87a3e44f4d501611369b14e965b1ebf2fef6af63fddd1bbe578deaa6f51"
     },
     {
       "path": "back-end/scripts/helpers/prepare-gelato-isolated-workflows.ts",
@@ -194,7 +194,7 @@
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-processes.ts",
       "kind": "source",
-      "sha256": "d873f75c6b8c3118858ba7cfa33d23632e4c8d437f29cc65bacb4e2325d1b866"
+      "sha256": "0dbbfbec4277890ad3fb9f7edff164bc2b48d75ad7635149533c1a3dce1c1f6b"
     },
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-transport.ts",
@@ -634,12 +634,12 @@
     {
       "path": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23/README.md",
       "kind": "evidence",
-      "sha256": "b602d8cadec0d7e440985d5d18fc0d28e62bf1a7b979c586f7f48d9b331070ec"
+      "sha256": "5314017c604482aea9e465eed9118e00e642c8bd1813f914ee9d5e8fd743825a"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23/checks.json",
       "kind": "evidence",
-      "sha256": "fd8dd100566867b7cc947379dc5d2d5e204b740049a0b690abfc8f77c15470af"
+      "sha256": "73adfed1e66c3ca49dc06cea87d541b36a0c0ef6035012f8d81ed6efcdf81a06"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23/outputs/boundaries.txt",
@@ -659,7 +659,7 @@
     {
       "path": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23/outputs/processes.txt",
       "kind": "evidence",
-      "sha256": "3e9ce98c0962f3809cddef9efa45db76c0c67811c853b73883ec8761f1a29a4c"
+      "sha256": "c61942cc7f1a9e344ac4018f7985ec3e0491c7e880c2b051d2282e70fe4c56db"
     },
     {
       "path": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23/outputs/transport.txt",

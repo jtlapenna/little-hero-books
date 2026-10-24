@@ -1,6 +1,7 @@
 /** Real worker/IPC + actual SQL admission/revocation; all HTTP targets are synthetic localhost interceptions. */
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,chmod,writeFile,readFile,rm,realpath} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
 import path from 'node:path';import os from 'node:os';import http from 'node:http';import {fork,type ChildProcess} from 'node:child_process';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {LocalPreviewDatabase,quote} from '../../scripts/testing/local-preview-database';
@@ -64,8 +65,22 @@ async function main(){
   let terminalReceipt:any;
   try{
    if(mode==='owner-startup'){
-    const child=fork(path.join(__dirname,'helpers/gelato-setup-monitor-worker.ts'),[],{execArgv:['--import','tsx'],env:{PATH:process.env.PATH,NODE_ENV:'test'},stdio:['ignore','ignore','ignore','ipc']});
-    const exit=new Promise<number|null>(resolve=>child.once('exit',resolve));child.send(c,()=>child.disconnect());
+    const worker=path.join(__dirname,'helpers/gelato-setup-monitor-worker.ts');
+    // Reproduce a disconnect before the actual TSX worker entrypoint loads: no accepted context means no receipt/authority, and exit must fail closed.
+    const delayed=path.join(folder,'delayed-worker.mjs');await writeFile(delayed,"if(process.connected)await new Promise(r=>process.once('disconnect',r));await import("+JSON.stringify(pathToFileURL(worker).href)+');',{mode:0o600});
+    const early=fork(delayed,[],{execArgv:['--import','tsx'],env:{PATH:process.env.PATH,NODE_ENV:'test'},stdio:['ignore','ignore','ignore','ipc']});
+    const earlyExit=new Promise<number|null>(resolve=>early.once('exit',resolve));early.send(c,()=>early.disconnect());assert.equal(await Promise.race([earlyExit,sleep(10000,undefined,{ref:false}).then(()=>{throw Error('Pre-entrypoint disconnect did not terminate');})]),1);
+    await assert.rejects(readFile(path.join(journalRoot,'setup-settlement-terminal.json')),{code:'ENOENT'});assert.equal(setupCalls,0);
+    for(const cancellation of ['message','signal']){
+     const idle=fork(worker,[],{execArgv:['--import','tsx'],env:{PATH:process.env.PATH,NODE_ENV:'test'},stdio:['ignore','ignore','ignore','ipc']});let idleReady=false;idle.on('message',(v:any)=>{if(v?.kind==='ready-for-context')idleReady=true;});const idleExit=new Promise<number|null>(resolve=>idle.once('exit',resolve));await wait(()=>idleReady);
+     if(cancellation==='message')idle.send('owner-exited');else idle.kill('SIGTERM');assert.equal(await Promise.race([idleExit,sleep(10000,undefined,{ref:false}).then(()=>{throw Error('Pre-context cancellation did not terminate');})]),1);
+     await assert.rejects(readFile(path.join(journalRoot,'setup-settlement-terminal.json')),{code:'ENOENT'});assert.equal(setupCalls,0);
+    }
+    // Hold only this synthetic privateDirectory lstat until disconnect, making pre-arm owner loss deterministic without production test hooks.
+    const preload=path.join(folder,'hold-directory.mjs');await writeFile(preload,`import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';const original=fs.promises.lstat;fs.promises.lstat=async function(value,...args){if(String(value)===${JSON.stringify(journalRoot)}){process.send?.({kind:'initialization-blocked'});await new Promise(resolve=>{if(!process.connected)resolve();else process.once('disconnect',resolve);});}return original.call(this,value,...args);};syncBuiltinESMExports();`,{mode:0o600});
+    const child=fork(worker,[],{execArgv:['--import',preload,'--import','tsx'],env:{PATH:process.env.PATH,NODE_ENV:'test'},stdio:['ignore','ignore','ignore','ipc']});let ready=false,blocked=false,armed=false;
+    child.on('message',(v:any)=>{if(v?.kind==='ready-for-context')ready=true;if(v?.kind==='initialization-blocked')blocked=true;if(v?.kind==='armed')armed=true;});
+    const exit=new Promise<number|null>(resolve=>child.once('exit',resolve));await wait(()=>ready);child.send(c);await wait(()=>blocked);assert.equal(armed,false);assert.equal(setupCalls,0);child.disconnect();
     const code=await Promise.race([exit,sleep(10000,undefined,{ref:false}).then(()=>{throw Error('Startup owner-loss cleanup did not settle');})]);assert.equal(code,0);
     terminalReceipt=JSON.parse(await readFile(path.join(journalRoot,'setup-settlement-terminal.json'),'utf8'));assert.equal(terminalReceipt.terminal.kind,'closed');assert.equal(terminalReceipt.terminal.result.confirmed,true);assert.equal(terminalReceipt.terminal.result.calls,setupCalls);assert.equal(terminalReceipt.terminal.result.bytes,setupBytes);closed(db,fixture);assert.equal(service.state.queueCalls,0);mark('IPC disconnect during worker startup is latched and immediately settles cleanup');
    }else if(mode.startsWith('owner-')){

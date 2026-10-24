@@ -6,6 +6,8 @@ The repair suite passed **44 grouped checks**:16 actual PostgreSQL admission gro
 
 Independent local review found and corrected foreign closure acceptance, insufficient worker-outcome assertions, loopback response identity, response cancellation, remaining response-byte accounting, startup owner loss and falsy rejection handling. Confirmed cleanup requires a durable CLOSED worker receipt tied to the current case, complete canonical primary journal and current packet/binding/context/plan/workflow identities. Healthy completion retires the idle setup actor with0calls. Tested cleanup uses15calls within its24call/16MB reservation; an existing registration adds at most one exact read. Failed revocation stays FAILED and stops later work.
 
+The first hosted Linux run exposed IPC messages arriving before the TSX worker entrypoint had installed its listeners. The controller now waits for explicit worker readiness and still requires the armed acknowledgment before admission. The startup group deterministically covers disconnect before entrypoint load (failure with no fabricated receipt), message/signal cancellation before context (bounded failure), and owner loss while the actual private-directory check is blocked (confirmed cleanup of the known binding). The test-only filesystem preload targets only its synthetic journal directory; no production timing hook is added.
+
 ## Reproduction
 Install the locked back-end dependencies normally. From back-end:
 ```
