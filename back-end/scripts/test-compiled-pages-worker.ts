@@ -38,6 +38,7 @@ async function main() {
       bindings: {
         SUPABASE_URL: 'https://compiled-worker-db.example.test', NEXT_PUBLIC_SUPABASE_URL: 'https://compiled-worker-db.example.test',
         SUPABASE_SERVICE_ROLE_KEY: 'synthetic-compiled-worker-key', BACKEND_API_TOKEN: 'synthetic-compiled-worker-machine',
+        CRON_SECRET: 'synthetic-compiled-cron-replacement',
         ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com',
         N8N_W0_WEBHOOK_URL: 'https://compiled-worker-w0.example.test/hook',
         STRIPE_SECRET_KEY: 'sk_test_synthetic_compiled_body', STRIPE_WEBHOOK_SECRET: 'whsec_synthetic_compiled_body',
@@ -93,6 +94,23 @@ async function main() {
         request.end(init.body);
       });
       const origin = 'https://admin.littleherolabs.com';
+      // The actual emitted boundary, OpenNext init and full Next route must agree on
+      // the synthetic replacement, while disabled scheduling has no business effects.
+      const cronEffects = () => ({ outbound, syntheticIdempotency, csvDownloads, csvInserts, csvUpdates, csvTriggers });
+      const beforeCron = cronEffects();
+      assert.deepEqual(beforeCron, { outbound: 0, syntheticIdempotency: 0, csvDownloads: 0, csvInserts: 0, csvUpdates: 0, csvTriggers: 0 });
+      assert.equal(allowSyntheticIdempotency, false); assert.equal(csvMode, undefined);
+      for (const authorization of [undefined, 'Bearer synthetic-compiled-cron-previous', 'Bearer synthetic-compiled-cron-replacement']) {
+        const accepted = authorization === 'Bearer synthetic-compiled-cron-replacement';
+        const response = await compiledFetch(origin + '/api/cron/gelato-status', {
+          method: 'POST', headers: authorization ? { authorization } : {},
+        });
+        assert.equal(response.status, accepted ? 200 : 401, await response.clone().text());
+        assert.equal(response.headers.get('cache-control'), 'private, no-store');
+        assert.deepEqual(await response.json(), accepted ? { disabled: true, checked: 0, delivered: 0, customerMessages: false } : { error: 'Unauthorized' });
+        assert.deepEqual(cronEffects(), beforeCron, 'disabled cron must not reach any outbound or synthetic business effect');
+      }
+      console.log('Compiled cron: missing/previous authority denied, replacement returns exact disabled payload; all effect counters zero');
       const nav = { accept: 'text/html', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' };
       const login = await compiledFetch(origin + '/__access_setup', { headers: nav });
       assert.equal(login.status, 401);
@@ -214,6 +232,6 @@ async function main() {
     finally { await inflateProbe.dispose(); }
 
   } finally { await rm(temporary, { recursive: true, force: true }); }
-  console.log('Actual compiled Pages Worker: login denial, navigation redirect, protected API denial, bounded CSV multipart and remote archive parsing, preview cache caps, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
+  console.log('Actual compiled Pages Worker: disabled scheduled cron with synthetic replacement, login denial, navigation redirect, protected API denial, bounded CSV multipart and remote archive parsing, preview cache caps, checkout validation, escaped login routing, React page rendering, streamed body caps and exact signed Stripe text; synthetic idempotency only, zero live traffic');
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

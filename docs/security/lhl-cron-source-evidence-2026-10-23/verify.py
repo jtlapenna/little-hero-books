@@ -6,7 +6,7 @@ EVIDENCE = Path(__file__).resolve().parent
 ROOT = EVIDENCE.parents[2]
 PARENT = 'docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23'
 OWN = 'docs/security/lhl-cron-source-evidence-2026-10-23'
-ADDED = {'back-end/src/app/api/cron/amazon-orders/route.ts', 'back-end/scripts/test-amazon-cron-auth-logging.ts'}
+ADDED = {'back-end/src/app/api/cron/amazon-orders/route.ts', 'back-end/scripts/create-pages-upload-identity.ts', 'back-end/scripts/test-amazon-cron-auth-logging.ts', 'back-end/scripts/prepare-gelato-runtime-bindings.mjs', 'back-end/scripts/test-compiled-pages-worker.ts', 'back-end/scripts/test-pages-upload-identity.ts', '.github/workflows/deploy-cloudflare-pages.yml'}
 EFFECTS = ['canInstall', 'canExecute', 'liveAcceptanceRenewed', 'suiteExecutionRenewed']
 def digest(data): return hashlib.sha256(data).hexdigest()
 def safe(root, relative):

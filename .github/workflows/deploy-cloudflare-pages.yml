@@ -59,13 +59,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Deploy verified package with locked Wrangler
+        id: deploy_package
         working-directory: back-end
         run: |
           set -euo pipefail
           node scripts/prepare-gelato-runtime-bindings.mjs --verify
+          node --import tsx scripts/create-pages-upload-identity.ts
+          echo "identity_recorded=true" >> "$GITHUB_OUTPUT"
           node node_modules/wrangler/bin/wrangler.js pages deploy .open-next/cloudflare --project-name=little-hero-labs-admin --branch=main
       - name: Verify anonymous privileged access is rejected
         run: |
           set -euo pipefail
           test "$(curl -sS -o /dev/null -w '%{http_code}' https://admin.littleherolabs.com/api/orders)" = 401
           test "$(curl -sS -o /dev/null -w '%{http_code}' https://admin.littleherolabs.com/api/admin/session)" = 401
+      - name: Retain sanitized pre-dispatch input observation, including after upload failure
+        if: ${{ always() && steps.deploy_package.outputs.identity_recorded == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, official pin verified
+        with:
+          name: lhl-pages-upload-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/lhl-pages-upload-input.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          include-hidden-files: false

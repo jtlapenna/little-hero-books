@@ -76,6 +76,9 @@ jobs:
       - name: Exercise actual compiled Pages Worker without provider access
         working-directory: back-end
         run: node --import tsx scripts/test-compiled-pages-worker.ts
+      - name: Verify native upload-input fixtures and actual built package with synthetic context
+        working-directory: back-end
+        run: node --import tsx scripts/test-pages-upload-identity.ts --built-package
       - run: node scripts/security/test-hosted-release-checks.mjs
   frontend:
     runs-on: ubuntu-latest
