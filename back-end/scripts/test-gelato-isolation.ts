@@ -54,6 +54,8 @@ async function main(){
  const oldHash=value("SELECT to_jsonb(md5(coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.id),'[]'::jsonb)::text)) FROM public.print_provider_submissions s");
  for(let i=0;i<2;i++)db.sql(readFileSync(path.join(root,'database',migration[0]),'utf8'));
  assert.equal(value('SELECT count(*) FROM public.gelato_isolation_scopes'),0);assert.equal(value("SELECT to_jsonb(md5(coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.id),'[]'::jsonb)::text)) FROM public.print_provider_submissions s"),oldHash);mark('Migration applied twice, empty scope and unchanged preexisting submissions');
+ const settlement=readdirSync(path.join(root,'database')).filter(n=>n.endsWith('_gelato_admission_settlement.sql'));assert.equal(settlement.length,1);for(let i=0;i<2;i++)db.sql(readFileSync(path.join(root,'database',settlement[0]),'utf8'));
+ assert.equal(value('SELECT count(*) FROM public.gelato_admission_revocations'),0);assert.equal(value("SELECT to_jsonb(md5(coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.id),'[]'::jsonb)::text)) FROM public.print_provider_submissions s"),oldHash);mark('Settlement migration applied twice without revoking or changing existing cohorts');
  db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_email text,ADD COLUMN IF NOT EXISTS quantity integer');
  assert.deepEqual(value("SELECT to_jsonb(j)-'engineering_scope_id' FROM public.gelato_scheduled_status j WHERE submission_id="+quote(historical[0])),ordinaryBefore);
  const sentinel=()=>value("SELECT to_jsonb(md5(coalesce(jsonb_agg(to_jsonb(o) ORDER BY id),'[]'::jsonb)::text)) FROM public.orders o WHERE id>=8000");const beforeSentinel=sentinel();

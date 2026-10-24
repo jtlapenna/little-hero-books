@@ -1,0 +1,7 @@
+PASS Expired admitted scope closes exact owned registration and lease; repeated revoke succeeds
+PASS Foreign registration rejects and rolls back inherited close, parent close, and tombstone atomically
+PASS Foreign registration account rejects without clearing foreign lease
+PASS Existing scope UUID with foreign root and revoked UUID with admitted foreign root both reject
+PASS Different-root concurrent cleanup serializes on shared UUID then rejects rebinding
+PASS Direct INSERT already inside BEFORE trigger sees fence committed after original command snapshot
+{"passed":true,"checks":["Expired admitted scope closes exact owned registration and lease; repeated revoke succeeds","Foreign registration rejects and rolls back inherited close, parent close, and tombstone atomically","Foreign registration account rejects without clearing foreign lease","Existing scope UUID with foreign root and revoked UUID with admitted foreign root both reject","Different-root concurrent cleanup serializes on shared UUID then rejects rebinding","Direct INSERT already inside BEFORE trigger sees fence committed after original command snapshot"]}

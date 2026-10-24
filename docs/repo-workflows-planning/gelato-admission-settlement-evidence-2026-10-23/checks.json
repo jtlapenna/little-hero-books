@@ -1,0 +1,282 @@
+{
+  "schema": "lhl.admission-settlement-local-checks@1",
+  "recordedAt": "2026-10-24T00:21:06.294936+00:00",
+  "baseSha": "c259ed45b98b3166a53a28efb6463fff0a4713e3",
+  "repairGroups": 44,
+  "legacyIsolationGroups": 30,
+  "strictFocusedTypecheck": "passed",
+  "canInstall": false,
+  "canExecute": false,
+  "liveAcceptanceRenewed": false,
+  "sourceSnapshotSha256": "497ddfdd950bec9ecea9ab531ecd1ffe13515e3b3b2ebccf33bedf447de066ca",
+  "suites": [
+    {
+      "name": "database",
+      "exitCode": 0,
+      "log": "outputs/database.txt",
+      "logSha256": "18a9906bc0d6d54d29dbddb6022732a88ed222b42ffc06e2659a73da1590dfde",
+      "summary": {
+        "passed": true,
+        "groups": 16,
+        "realDisposablePostgres": true,
+        "canonicalAdmissionProducer": true,
+        "hostedOrProviderCalls": 0,
+        "realCredentialsRead": 0,
+        "liveOrdersRead": 0,
+        "checks": [
+          "Original SQL reproduces cleanup-before-admission race",
+          "Candidate applies twice without enrolling or reopening authority",
+          "Revocation first permanently rejects delayed canonical admission 1 children",
+          "Revocation first permanently rejects delayed canonical admission 2 children",
+          "Admission first is closed once and cannot replay 1 children",
+          "Admission first is closed once and cannot replay 2 children",
+          "Actual revocation waits for pending admission commit then closes it",
+          "Admission already waiting on root lock sees committed revocation and rolls back",
+          "Admission rollback/lost setup leaves durable revocation and pending fixture",
+          "Existing scope rejects foreign token/account/fixture/root/UUID/membership without side effects",
+          "Durable fence cannot be rebound by a foreign identity",
+          "Malformed identity and non-test fixtures rejected before revocation",
+          "RLS/grants and permanent tombstone prevent anonymous access or reopening",
+          "Stale-snapshot isolation levels fail closed",
+          "Two cleanup workers settle one immutable fence idempotently",
+          "Six synthetic excluded rows unchanged; both gates OFF; no submissions or messages"
+        ]
+      }
+    },
+    {
+      "name": "boundaries",
+      "exitCode": 0,
+      "log": "outputs/boundaries.txt",
+      "logSha256": "b651a8ea0867c85d0537b7127a920fe501455dbb88f54a5ae62a00dc6ca4f0b3",
+      "summary": {
+        "passed": true,
+        "checks": [
+          "Expired admitted scope closes exact owned registration and lease; repeated revoke succeeds",
+          "Foreign registration rejects and rolls back inherited close, parent close, and tombstone atomically",
+          "Foreign registration account rejects without clearing foreign lease",
+          "Existing scope UUID with foreign root and revoked UUID with admitted foreign root both reject",
+          "Different-root concurrent cleanup serializes on shared UUID then rejects rebinding",
+          "Direct INSERT already inside BEFORE trigger sees fence committed after original command snapshot"
+        ]
+      }
+    },
+    {
+      "name": "processes",
+      "exitCode": 0,
+      "log": "outputs/processes.txt",
+      "logSha256": "c61942cc7f1a9e344ac4018f7985ec3e0491c7e880c2b051d2282e70fe4c56db",
+      "summary": {
+        "passed": true,
+        "groups": 17,
+        "realWorkerIpc": true,
+        "actualCanonicalSql": true,
+        "actualLocalDatabase": true,
+        "provider": "synthetic interception only",
+        "hostedRequests": 0,
+        "liveOrders": 0,
+        "checks": [
+          "Healthy canonical runner closes actual admission before acknowledged zero-call retirement",
+          "Exclusive durable setup intent rejects replay before another worker or admission",
+          "foreign-closure blocks business or demands cleanup instead of retiring",
+          "spoofed-closure blocks business or demands cleanup instead of retiring",
+          "stale-closure blocks business or demands cleanup instead of retiring",
+          "empty-rejection blocks business or demands cleanup instead of retiring",
+          "empty-body-rejection blocks business or demands cleanup instead of retiring",
+          "lost-ack blocks business or demands cleanup instead of retiring",
+          "bad-closure blocks business or demands cleanup instead of retiring",
+          "delayed-dispatch blocks business or demands cleanup instead of retiring",
+          "IPC disconnect during worker startup is latched and immediately settles cleanup",
+          "Owner SIGKILL before admission leaves settled durable closure",
+          "Owner SIGKILL during admission leaves settled durable closure",
+          "Owner SIGKILL after admission leaves settled durable closure",
+          "Unconfirmed revocation fails closed and never reports successful cleanup",
+          "Retirement racing expiry joins existing cleanup and cannot claim zero calls",
+          "Acknowledged idle retirement ignores later owner disconnect without starting cleanup"
+        ],
+        "cleanupAccounting": [
+          {
+            "mode": "healthy",
+            "calls": 0,
+            "bytes": 0,
+            "workerKind": "retired",
+            "workerBytes": 0
+          },
+          {
+            "mode": "foreign-closure",
+            "calls": 15,
+            "bytes": 54097,
+            "workerKind": "closed",
+            "workerBytes": 54097
+          },
+          {
+            "mode": "spoofed-closure",
+            "calls": 15,
+            "bytes": 54096,
+            "workerKind": "closed",
+            "workerBytes": 54096
+          },
+          {
+            "mode": "stale-closure",
+            "calls": 15,
+            "bytes": 54095,
+            "workerKind": "closed",
+            "workerBytes": 54095
+          },
+          {
+            "mode": "empty-rejection",
+            "calls": 15,
+            "bytes": 53092,
+            "workerKind": "closed",
+            "workerBytes": 53092
+          },
+          {
+            "mode": "empty-body-rejection",
+            "calls": 15,
+            "bytes": 54094,
+            "workerKind": "closed",
+            "workerBytes": 54094
+          },
+          {
+            "mode": "lost-ack",
+            "calls": 15,
+            "bytes": 54097,
+            "workerKind": "closed",
+            "workerBytes": 54097
+          },
+          {
+            "mode": "bad-closure",
+            "calls": 15,
+            "bytes": 54097,
+            "workerKind": "closed",
+            "workerBytes": 54097
+          },
+          {
+            "mode": "delayed-dispatch",
+            "calls": 15,
+            "bytes": 53092,
+            "workerKind": "closed",
+            "workerBytes": 53092
+          },
+          {
+            "mode": "owner-startup",
+            "calls": 15,
+            "bytes": 53092,
+            "workerKind": "closed",
+            "workerBytes": 53092
+          },
+          {
+            "mode": "owner-before",
+            "calls": 15,
+            "bytes": 53092,
+            "workerKind": "closed",
+            "workerBytes": 53092
+          },
+          {
+            "mode": "owner-during",
+            "calls": 15,
+            "bytes": 54097,
+            "workerKind": "closed",
+            "workerBytes": 54097
+          },
+          {
+            "mode": "owner-after",
+            "calls": 15,
+            "bytes": 54091,
+            "workerKind": "closed",
+            "workerBytes": 54091
+          },
+          {
+            "mode": "failed-revoke",
+            "calls": 15,
+            "bytes": 53376,
+            "workerKind": "failed",
+            "workerBytes": 53343
+          }
+        ]
+      }
+    },
+    {
+      "name": "transport",
+      "exitCode": 0,
+      "log": "outputs/transport.txt",
+      "logSha256": "18eedc4dc30c591152da3b608456c22f421fae17e42c830bf20a1de31ad9682d",
+      "summary": {
+        "passed": true,
+        "groups": 5,
+        "hostedOrHttpCalls": 0,
+        "syntheticFetchOnly": true
+      }
+    },
+    {
+      "name": "legacy-isolation",
+      "exitCode": 0,
+      "log": "outputs/legacy-isolation.txt",
+      "logSha256": "89f97867f3e7b6fcca4e68b471ff4565d136ef695d8291ac30d6fe5b70e021f1",
+      "summary": {
+        "checks": 30,
+        "cases": [
+          "Migration applied twice, empty scope and unchanged preexisting submissions",
+          "Settlement migration applied twice without revoking or changing existing cohorts",
+          "Actual route rejects missing machine auth, malformed capability, forged selectors/actions before transport",
+          "Wrong capability rejected before any order selector",
+          "Each shared control ON rejects isolated work before all transports",
+          "Each database gate ON rejects before scoped order selectors",
+          "Even TEST-labelled historical submitted roots cannot acquire a fresh permission",
+          "Test-mode removal and approval revoked after TS preflight prevent SQL claim",
+          "Canonical claim rehydration rejects concurrent reparenting before any manifest or foreign-group lookup",
+          "Actual ordinary queue and cron remain OFF with no provider reads",
+          "Real SQL queue producer \u2192 prepared scoped guard \u2192 native assembly consumer: website",
+          "Actual scoped HTTP \u2192 canonical W0 claim \u2192 SQL \u2192 registered poll: website",
+          "Real SQL queue producer \u2192 prepared scoped guard \u2192 native assembly consumer: Amazon single",
+          "Actual scoped HTTP \u2192 canonical W0 claim \u2192 SQL \u2192 registered poll: amazon-single",
+          "Real SQL queue producer \u2192 prepared scoped guard \u2192 native assembly consumer: siblings",
+          "Actual scoped HTTP \u2192 canonical W0 claim \u2192 SQL \u2192 registered poll: amazon-siblings",
+          "Populated ordinary registration preserved/claimable; ordinary selector skips all isolated jobs",
+          "Wrong-path NULL-scope registration cannot escape into ordinary polling or be silently adopted",
+          "Two actual HTTP workers race: one SQL claim, one dispatch, no duplicate submission",
+          "Committed queue acknowledgement lost: retry observes consumed scope and does not redispatch",
+          "Real scheduler flow persists intercepted 429 classification and Retry-After",
+          "Crash/expired lease cannot finish; persistent three-claim cap survives registration replay",
+          "Swapped sibling provider file bytes cause visible review hold, never a create or message",
+          "Expired polling lease reclaimed with a new token; old worker rejected, new worker finishes",
+          "Real two-session blocking finish crosses scope expiry and all writes roll back",
+          "Close during lease disables own registration, clears lease, closes parent, rejects stale finish/reopen; close idempotent",
+          "Expired scope denies before order reads; revocation survives account rotation and ON drift",
+          "Anonymous/authenticated ACL denial and invoker-only functions",
+          "Foreign submission fence and wrong account registration rejected",
+          "Final local closure: all scopes/leases closed, six synthetic sentinels byte-identical, zero intents, gates/flags OFF"
+        ],
+        "localSql": true,
+        "actualHttpAndRuntime": true,
+        "syntheticProviderReads": 5,
+        "liveRequests": 0,
+        "providerCreates": 0,
+        "regularConversions": 0,
+        "customerMessages": 0,
+        "limitations": [
+          "Draft provider persistence is seeded locally after real queue claim; no hosted W0/W3/W4 execution or provider prepress proof",
+          "No deployment, hosted migration, account funding audit or customer records accessed"
+        ]
+      }
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0,
+      "log": "outputs/typecheck.txt",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": null
+    }
+  ],
+  "hostedCalls": 0,
+  "providerCalls": 0,
+  "liveOrderReads": 0,
+  "liveOrderWrites": 0,
+  "historicalOrdersTouched": 0,
+  "controlsChanged": 0,
+  "deployment": 0,
+  "funding": 0,
+  "conversions": 0,
+  "printing": 0,
+  "customerMessages": 0,
+  "credentialFilesRead": 0
+}

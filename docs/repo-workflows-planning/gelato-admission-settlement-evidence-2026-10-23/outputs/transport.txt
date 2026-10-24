@@ -1,0 +1,6 @@
+PASS normal
+PASS rotated-no-access-pair
+PASS redirect
+PASS huge-known-length
+PASS aborted-fetch
+{"passed":true,"groups":5,"hostedOrHttpCalls":0,"syntheticFetchOnly":true}
