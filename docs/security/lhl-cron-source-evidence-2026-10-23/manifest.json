@@ -2,7 +2,7 @@
   "schema": "lhl.cron-source-overlay@1",
   "parent": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23",
   "parentManifestSha256": "04e43536f0b9d2bb50e5bd9eab81732b6c536507abf7a863538208bca02b9320",
-  "sourceSnapshotSha256": "81dc27a23d9148f55f0e6c71d82f77bb1b118c6f8a3ecb9651bd7d446cc4dddd",
+  "sourceSnapshotSha256": "aa25cd78867ce73a5af77bad3406a49715833829cdc05f7d15be4b222eedcc2f",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
@@ -21,12 +21,17 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "fcfe4c2e42055f9cc92a0eacbe2c728c09181cff4a925175eb304212015703cc"
+      "sha256": "d1a25b7ec3497182a15c03555e0a57e21344b75af32d56ece5460fb9daf9ffbf"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
       "kind": "source",
       "sha256": "6713b5a3a0e60cdb5a4a5bfbe8d4312a40d39c3e629af9d6f1ea877b1a0b29ca"
+    },
+    {
+      "path": ".github/workflows/deploy-cloudflare-pages.yml",
+      "kind": "source",
+      "sha256": "e19a974e54d0bd25c499c111765792dd3dd9f3183cdd40d34793eaeff113ae33"
     },
     {
       "path": "back-end/package-lock.json",
@@ -47,6 +52,11 @@
       "path": "back-end/scripts/compare-gelato-incident-types.mjs",
       "kind": "source",
       "sha256": "e2be111719bac02617f6cdc901aae5904b8494cdde012d438eea5c83e92261d4"
+    },
+    {
+      "path": "back-end/scripts/create-pages-upload-identity.ts",
+      "kind": "source",
+      "sha256": "70ca220de683878e8312bd47c8b86cc9069d232f0da36b515985a3a6cfb4648f"
     },
     {
       "path": "back-end/scripts/fixtures/n8n-LICENSE.md",
@@ -174,6 +184,11 @@
       "sha256": "1187d91dbfbb04e103c4957fdaf4dad2b117b5f3aba3224335374b14c1b9981f"
     },
     {
+      "path": "back-end/scripts/prepare-gelato-runtime-bindings.mjs",
+      "kind": "source",
+      "sha256": "880056186f72a758628fbcd827fbae9099d080807f8413e378ca8f42a4bfaa9e"
+    },
+    {
       "path": "back-end/scripts/publish-book-config.ts",
       "kind": "source",
       "sha256": "56b778a22cb625995f28e3e29c16e23e25a3450beb95a9360946f132eea054cd"
@@ -192,6 +207,11 @@
       "path": "back-end/scripts/test-checkout-validation.ts",
       "kind": "source",
       "sha256": "977bf8a10324f3e1885597eb2e008383403b0056c366f30a4ef4a63012a0507d"
+    },
+    {
+      "path": "back-end/scripts/test-compiled-pages-worker.ts",
+      "kind": "source",
+      "sha256": "b72574c5584411b5ade47160484288bc6ffe05863bb8f777018c2994502ea592"
     },
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-boundaries.ts",
@@ -317,6 +337,11 @@
       "path": "back-end/scripts/test-gelato-submission.ts",
       "kind": "source",
       "sha256": "7de18fe0bab36dbc07abe0e10431dca6a6486bbde867be586514aa3c0081ff9e"
+    },
+    {
+      "path": "back-end/scripts/test-pages-upload-identity.ts",
+      "kind": "source",
+      "sha256": "d88900cbaa426f9c4625114fefdc9b8787b6255194deec6361fb981643c163a2"
     },
     {
       "path": "back-end/scripts/test-publish-book-config-immutability.ts",
@@ -716,17 +741,17 @@
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/README.md",
       "kind": "evidence",
-      "sha256": "bfba5338a7de3f0bb9779f36ba4bdfc9939cae36a589b5421c5a5b28e9bf4ed2"
+      "sha256": "e2c10056431ad7f4c629f617318837b119d2c260f5a1331e10ddbfdeff07a0a8"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/test-verifier.py",
       "kind": "evidence",
-      "sha256": "a425e7358d4d974d2338c671daa4ede0371fef3b99f0d8d86d7a3b60e11cf3d0"
+      "sha256": "0f24d9385ca71681cbe2db7f1ce7c5df0132f0d139762db8f8a78fbded75a4ec"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/verify.py",
       "kind": "evidence",
-      "sha256": "067d12ea5aa4cfef794ab7c0c7578e9bb2f01f741248f3fb8c30956b3bb70fe0"
+      "sha256": "d08dc9d0e289d4068b365a6c8493a3bb9395a20ef8fbf69d902a65617a46cb5b"
     },
     {
       "path": "scripts/security/compromised-credential-fingerprints.json",

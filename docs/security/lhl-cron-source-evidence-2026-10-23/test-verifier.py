@@ -20,7 +20,7 @@ while queue:
         if (ROOT/relative).is_file():paths.add(relative)
         if relative.endswith('/manifest.json') and (ROOT/relative).is_file():queue.append(ROOT/relative)
         if relative.endswith('/verify.py') and (ROOT/relative).with_name('manifest.json').is_file():queue.append((ROOT/relative).with_name('manifest.json'))
-cases=['changed-repair','changed-ancestor','changed-route','changed-new-regression','changed-inherited-adapter','changed-workflow','lost-prior-coverage','failed-suite','changed-output','nonzero-live','missing-worker-confirmation','unsafe-path','changed-parent','changed-overlay','renewed-authority']
+cases=['changed-repair','changed-ancestor','changed-route','changed-new-regression','changed-inherited-adapter','changed-workflow','changed-upload-helper','changed-upload-producer','changed-upload-test','changed-compiled-test','changed-deploy-workflow','changed-build-workflow','lost-prior-coverage','failed-suite','changed-output','nonzero-live','missing-worker-confirmation','unsafe-path','changed-parent','changed-overlay','renewed-authority']
 results=[]
 for case in cases:
     with tempfile.TemporaryDirectory(prefix='lhl-cron-source-overlay-') as temp:
@@ -31,8 +31,8 @@ for case in cases:
         overlay=root/REL; m=copy.deepcopy(original); parent=root/PARENT; pm=json.loads((parent/'manifest.json').read_text())
         def reseal_parent(path):
             next(v for v in pm['files'] if v['path']==str(path.relative_to(root)))['sha256']=sha(path)
-        if case in ['changed-repair','changed-route','changed-new-regression','changed-inherited-adapter','changed-workflow']:
-            target={'changed-repair':'back-end/scripts/helpers/gelato-setup-cleanup.ts','changed-route':'back-end/src/app/api/cron/amazon-orders/route.ts','changed-new-regression':'back-end/scripts/test-amazon-cron-auth-logging.ts','changed-inherited-adapter':'back-end/scripts/helpers/gelato-protected-runner-adapter.ts','changed-workflow':'.github/workflows/check-gelato-local-launch.yml'}[case]
+        if case in ['changed-repair','changed-route','changed-new-regression','changed-inherited-adapter','changed-workflow','changed-upload-helper','changed-upload-producer','changed-upload-test','changed-compiled-test','changed-deploy-workflow','changed-build-workflow']:
+            target={'changed-repair':'back-end/scripts/helpers/gelato-setup-cleanup.ts','changed-route':'back-end/src/app/api/cron/amazon-orders/route.ts','changed-new-regression':'back-end/scripts/test-amazon-cron-auth-logging.ts','changed-inherited-adapter':'back-end/scripts/helpers/gelato-protected-runner-adapter.ts','changed-workflow':'.github/workflows/check-gelato-local-launch.yml','changed-upload-helper':'back-end/scripts/prepare-gelato-runtime-bindings.mjs','changed-upload-producer':'back-end/scripts/create-pages-upload-identity.ts','changed-upload-test':'back-end/scripts/test-pages-upload-identity.ts','changed-compiled-test':'back-end/scripts/test-compiled-pages-worker.ts','changed-deploy-workflow':'.github/workflows/deploy-cloudflare-pages.yml','changed-build-workflow':'.github/workflows/check-production-build.yml'}[case]
             p=root/target;p.write_text(p.read_text()+'\n# SYNTHETIC CORRUPTION\n');expected='Hash mismatch: '+target
         elif case=='lost-prior-coverage':
             m['files']=[v for v in m['files'] if v['path']!='back-end/src/lib/books/gelato-api-client.ts'];expected='Lost or unexpected source coverage'

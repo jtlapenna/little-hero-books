@@ -1,7 +1,9 @@
 import { ACCESS_RUNTIME_CONFIG, assertAccessBindingSourceFormat, applyAccessRuntimeBindings, discoveredRuntimeConfig, writePreparedRuntimeConfig, verifyPreparedRuntimeBindings } from './prepare-access-runtime-bindings.mjs';
 import fs from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const GELATO_RUNTIME_FLAGS = Object.freeze([
@@ -86,11 +88,62 @@ export async function prepareGelatoRuntimeBindingFile({ env, sourceSha, configPa
   catch { throw new BindingPreparationError('Runtime binding configuration verification failed'); }
 }
 
+/** Offline input verification only. The caller must obtain committedConfigText from the reviewed Git blob. */
+export async function verifyReviewedRuntimeBindingFile({ configPath, sourceSha, committedConfigText }) {
+  try {
+    requireValue(/^[a-f0-9]{40}$/.test(sourceSha) && typeof committedConfigText === 'string', 'Invalid reviewed source');
+    const receiptPath = join(dirname(configPath), '.wrangler/lhl-runtime-bindings.json');
+    const readInput = async file => {
+      requireValue(await fs.realpath(file) === resolve(file), 'Invalid input path');
+      const handle = await fs.open(file, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK);
+      try {
+        const before = await handle.stat();
+        requireValue(before.isFile() && before.nlink === 1 && before.size > 0 && before.size <= 1024 * 1024, 'Invalid input file');
+        const bytes = Buffer.alloc(before.size + 1);
+        let length = 0;
+        while (length < bytes.length) {
+          const result = await handle.read(bytes, length, bytes.length - length, null);
+          if (!result.bytesRead) break;
+          length += result.bytesRead;
+        }
+        const after = await handle.stat();
+        requireValue(length === before.size && before.dev === after.dev && before.ino === after.ino && before.size === after.size && before.mtimeMs === after.mtimeMs, 'Changed input file');
+        requireValue(await fs.realpath(file) === resolve(file), 'Changed input path');
+        const current = await fs.lstat(file);
+        requireValue(current.dev === before.dev && current.ino === before.ino && !current.isSymbolicLink(), 'Changed input path');
+        return bytes.subarray(0, length);
+      } finally { await handle.close(); }
+    };
+    const configBytes = await readInput(configPath);
+    const receiptBytes = await readInput(receiptPath);
+    const receipt = JSON.parse(receiptBytes.toString('utf8'));
+    const exactKeys = (value, keys) => record(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
+    requireValue(exactKeys(receipt, ['sourceSha', 'configSha256', 'expected']) && receipt.sourceSha === sourceSha, 'Invalid binding receipt');
+    requireValue(exactKeys(receipt.expected, [...GELATO_RUNTIME_FLAGS, ...ACCESS_RUNTIME_CONFIG]), 'Invalid binding fields');
+    const flags = Object.fromEntries(GELATO_RUNTIME_FLAGS.map(name => [name, receipt.expected[name]]));
+    const access = Object.fromEntries(ACCESS_RUNTIME_CONFIG.map(name => [name, receipt.expected[name]]));
+    const reconstructed = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(committedConfigText, flags), access);
+    requireValue(Buffer.from(reconstructed, 'utf8').equals(configBytes), 'Unreviewed configuration change');
+    verifyPreparedRuntimeBindings(configPath, sourceSha);
+    requireValue(configBytes.equals(await readInput(configPath)) && receiptBytes.equals(await readInput(receiptPath)), 'Changed verified inputs');
+    const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+    return { schema: 'lhl.reviewed-runtime-input@1', sourceSha,
+      configSha256: digest(configBytes), bindingReceiptSha256: digest(receiptBytes), flags };
+  } catch { throw new BindingPreparationError('Reviewed runtime input verification failed'); }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
     const configPath = new URL('../wrangler.toml', import.meta.url).pathname;
-    if (process.argv[2] === '--verify') verifyPreparedRuntimeBindings(configPath, sourceSha);
+    if (process.argv[2] === '--verify-reviewed-source') {
+      const committedConfigText = execFileSync('git', ['show', `${sourceSha}:back-end/wrangler.toml`], {
+        encoding: 'utf8', maxBuffer: 1024 * 1024, timeout: 15000, stdio: 'pipe',
+        env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+          GIT_NO_REPLACE_OBJECTS: '1', GIT_NO_LAZY_FETCH: '1', GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: '' },
+      });
+      await verifyReviewedRuntimeBindingFile({ configPath, sourceSha, committedConfigText });
+    } else if (process.argv[2] === '--verify') verifyPreparedRuntimeBindings(configPath, sourceSha);
     else await prepareGelatoRuntimeBindingFile({ env: process.env, sourceSha, configPath });
     console.log('Verified LHL runtime bindings');
   } catch (error) {
