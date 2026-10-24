@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "incremental": false,
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "scripts/helpers/gelato-admission-sql.ts",
+    "scripts/helpers/gelato-case-evidence.ts",
+    "scripts/helpers/gelato-setup-cleanup.ts",
+    "scripts/helpers/gelato-setup-monitor-worker.ts",
+    "scripts/helpers/gelato-fenced-admission.ts",
+    "scripts/test-gelato-admission-settlement*.ts"
+  ],
+  "exclude": []
+}

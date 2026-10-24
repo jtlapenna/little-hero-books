@@ -1,0 +1,17 @@
+PASS Original SQL reproduces cleanup-before-admission race
+PASS Candidate applies twice without enrolling or reopening authority
+PASS Revocation first permanently rejects delayed canonical admission 1 children
+PASS Revocation first permanently rejects delayed canonical admission 2 children
+PASS Admission first is closed once and cannot replay 1 children
+PASS Admission first is closed once and cannot replay 2 children
+PASS Actual revocation waits for pending admission commit then closes it
+PASS Admission already waiting on root lock sees committed revocation and rolls back
+PASS Admission rollback/lost setup leaves durable revocation and pending fixture
+PASS Existing scope rejects foreign token/account/fixture/root/UUID/membership without side effects
+PASS Durable fence cannot be rebound by a foreign identity
+PASS Malformed identity and non-test fixtures rejected before revocation
+PASS RLS/grants and permanent tombstone prevent anonymous access or reopening
+PASS Stale-snapshot isolation levels fail closed
+PASS Two cleanup workers settle one immutable fence idempotently
+PASS Six synthetic excluded rows unchanged; both gates OFF; no submissions or messages
+{"passed":true,"groups":16,"realDisposablePostgres":true,"canonicalAdmissionProducer":true,"hostedOrProviderCalls":0,"realCredentialsRead":0,"liveOrdersRead":0,"checks":["Original SQL reproduces cleanup-before-admission race","Candidate applies twice without enrolling or reopening authority","Revocation first permanently rejects delayed canonical admission 1 children","Revocation first permanently rejects delayed canonical admission 2 children","Admission first is closed once and cannot replay 1 children","Admission first is closed once and cannot replay 2 children","Actual revocation waits for pending admission commit then closes it","Admission already waiting on root lock sees committed revocation and rolls back","Admission rollback/lost setup leaves durable revocation and pending fixture","Existing scope rejects foreign token/account/fixture/root/UUID/membership without side effects","Durable fence cannot be rebound by a foreign identity","Malformed identity and non-test fixtures rejected before revocation","RLS/grants and permanent tombstone prevent anonymous access or reopening","Stale-snapshot isolation levels fail closed","Two cleanup workers settle one immutable fence idempotently","Six synthetic excluded rows unchanged; both gates OFF; no submissions or messages"]}
