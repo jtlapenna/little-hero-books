@@ -1,0 +1,60 @@
+{
+  "schema": "lhb.cover-independent-proof-summary@v1",
+  "verifiedAt": "2026-10-23T16:56:11.400811+00:00",
+  "base": "df3b7d08fe228ecffe988b371e2b2ad548a2f607",
+  "nativeCases": 16,
+  "nativeNetworkDenialChecks": 11,
+  "workflowCandidateNodes": 38,
+  "originalNodesPreserved": 28,
+  "hostedWorkflowChanges": 0,
+  "providerCalls": 0,
+  "renderProofs": [
+    {
+      "manifest": "/Users/jeff/.codex/private-artifacts/lhl-gelato-extension-2026-10-23-bgmlne7a/book-proof-short-v3/html/render-result-reconciled.json",
+      "manifestSha256": "95154de4a2e77190512858c9666ca7cdc5674a08d6e366f1b3c9f4ebcfed7b2a",
+      "decodedPages": 512,
+      "size": [
+        2625,
+        2625
+      ],
+      "initialDiskFailures": 2,
+      "recovery": "Full Amazon/cat rerender after short-run disk failures; three Amazon/unicorn long-run pages rerendered"
+    },
+    {
+      "manifest": "/Users/jeff/.codex/private-artifacts/lhl-gelato-extension-2026-10-23-bgmlne7a/book-proof-final-long-v2/html/render-result-reconciled.json",
+      "manifestSha256": "13459916ef86cf720817bbfb670becd81c65f13493746d55246395b19150ca66",
+      "decodedPages": 128,
+      "size": [
+        2625,
+        2625
+      ],
+      "initialDiskFailures": 3,
+      "recovery": "Full Amazon/cat rerender after short-run disk failures; three Amazon/unicorn long-run pages rerendered"
+    }
+  ],
+  "printPdfs": 2,
+  "independentPdfPagesChecked": 70,
+  "draftW4Refusals": 2,
+  "sourceFreeze": "/Users/jeff/.codex/private-artifacts/lhl-gelato-extension-2026-10-23-bgmlne7a/book-proof-short-v3/source-freeze-completed.private.json",
+  "sourceFreezeSha256": "69ae56335699a7a944b901d1bc607be7f81bf4c7d71cb8816aaacacb255efe6a",
+  "replayedIdenticalHtmlFiles": 514,
+  "negativeTruncatedRasterRejected": true,
+  "userReviewDirectory": "/Users/jeff/Projects/little-hero-books/output/cover-independent-proof-2026-10-23",
+  "limits": [
+    "No current W2 output: retained reference poses and synthetic 2B",
+    "Mixed earlier rendering source, not deployed production config",
+    "PDF assembler uses explicit local fixture W4 input; actual draft W3 correctly rejected by real W4 consumer",
+    "No hosted queue execution, SQL claim or provider workflow run",
+    "Book and provider release remain blocked by separate launch gates"
+  ],
+  "evidenceFiles": {
+    "native-queue-runtime.json": "7ec4bdda8c282b358a52f6e89bfc0cfc074b9dacea9cd6d7ace2085195f678af",
+    "native-config-isolation.json": "880d93ae1ac0afb0aa91b5ddf33a6a8eb43474e1529ebeaa3b8859cc62e1e7c7",
+    "w3-w4-draft-boundary.json": "d4715b7ad51a2e3e08aa2863bc457f5f0bb4f6b8dbfd664a4e63e8cbabb46639",
+    "pdf-receipts.json": "bb6db79d656e8ab22fda3f3f5d3d772b27202f48977ff1f30c27513b308fc18e",
+    "schema-observation.json": "d9ab01d548fe62e74d9469558fa38ffd74ebb2ac9731e9d7c897a6680a026d69",
+    "independent-review.json": "d9f193ba25bc5bec4bc6d79bb9c6e0442157ef336cbee274ff08106de745edca",
+    "short-lettering-audit.json": "407e8d66fee67327cce1f88521be4eab1897fa39a93c2da184f680056e8275b8",
+    "long-lettering-audit.json": "0f534485dd36617a4d791553804929ac4d0340dc3d560c9e5008ee0e96086993"
+  }
+}

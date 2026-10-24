@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-10-23T16:37:45.387083+00:00",
+  "method": "Supabase execute_sql, pg_catalog only",
+  "project": "mdnthwpcnphjnnblbvxk",
+  "tablesPresent": [
+    "print_provider_dispatch_gates",
+    "print_provider_submissions",
+    "print_provider_submission_orders",
+    "print_provider_submission_items",
+    "print_provider_submission_notifications"
+  ],
+  "functionsPresent": [
+    "claim_gelato_print_submission",
+    "fence_gelato_print_submission",
+    "register_gelato_print_artifact",
+    "record_gelato_quote_snapshot",
+    "begin_gelato_print_submission",
+    "authorize_gelato_print_send",
+    "record_gelato_accepted_root",
+    "persist_gelato_draft_result"
+  ],
+  "limits": [
+    "Signatures/presence only, no function invocation or body parity check",
+    "No order or incident data read",
+    "No migration applied"
+  ]
+}
