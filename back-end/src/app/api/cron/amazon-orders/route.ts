@@ -750,14 +750,7 @@ export async function GET(request: NextRequest) {
   }
   
   if (authHeader !== `Bearer ${secretToUse}`) {
-    console.error('[Cron Amazon Orders] Unauthorized - missing or invalid CRON_SECRET', {
-      hasHeader: !!authHeader,
-      headerLength: authHeader?.length || 0,
-      cronSecretSet: !!secretToUse,
-      cronSecretLength: secretToUse?.length || 0,
-      headerValue: authHeader?.substring(0, 30) + '...',
-      expectedPrefix: `Bearer ${secretToUse?.substring(0, 10)}...`
-    });
+    console.error('[Cron Amazon Orders] Unauthorized - missing or invalid CRON_SECRET');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
