@@ -1,0 +1,125 @@
+{
+  "schema": "lhl.gelato-extension-implementation-review@1",
+  "at": "2026-10-23T16:49:22.628238+00:00",
+  "reviewer": "active_graph_candidate_review",
+  "verdict": "clear_for_documented_local_proof_boundary",
+  "sourceHashes": {
+    "back-end/scripts/test-w1-native-queue-runtime.ts": "540ef1ec16ceb23939739591f6b7eac1737e68d9b72933ec921fdce0cb11070d",
+    "back-end/scripts/prove-inner-voice-w3-w4-local.ts": "36e6372f5545a856690f3a321810e6571ae85d7f25bce0a6c76382000bba57c5",
+    "scripts/prepare-inner-voice-proof-snapshot.py": "41048c5d609e7cfcfd5b4422c6e481140ca95a6aa116b81224f9cb1f57896e5d"
+  },
+  "evidenceHashes": {
+    "native-rehearsal-final/native-queue-runtime.sanitized.json": "b99974340d84b919b38730498b394ccb6684f60b2e6d5f05114d2d71db04b0f5",
+    "book-proof-cat/cat-w3-w4-proof.json": "827a7c11c05a7c0aa5615b383832acde7e059a2a62c6fcb90bd02655a1041e4c",
+    "book-proof-cat/source-raster-ledger.json": "6d7b481efbae13bf5cb5810f3f7cf4e240fda5b5b04f2f591dcc461c2715941f"
+  },
+  "findings": [
+    {
+      "priority": "Medium",
+      "file": "back-end/scripts/test-w1-native-queue-runtime.ts",
+      "location": "generated loopback-only guard",
+      "issue": "String TCP port form reaches original Socket.connect, and dns.resolve is not guarded. Existing known HTTP nodes use guarded object form; no external request observed.",
+      "proof": "Exact guard evaluated with mocked underlying transports. connect(\"443\", external numeric IP) reached mock; actual net._normalizeArgs confirmed valid TCP options. No network invoked.",
+      "fix": "Validate normalized connection arguments and deny resolver APIs; extend denial tests or add independently verified OS isolation.",
+      "status": "resolved_in_final_source_and_bounded_evidence"
+    },
+    {
+      "priority": "Medium",
+      "file": "back-end/scripts/test-w1-native-queue-runtime.ts",
+      "location": "execute raw-result assertions",
+      "issue": "CLI exit code and root resultData.error are not checked. Empty run can satisfy zero-call expectations despite orchestration failure.",
+      "proof": "Source inspection. Independently parsed all16 saved artifacts; none show this failure: positives finished true with no root error; expected errors match lastNodeExecuted.",
+      "fix": "Assert coherent CLI exit, finished/root-error and exact expected terminal node, with negative fixture for root error without node run.",
+      "status": "resolved_in_final_source_and_bounded_evidence"
+    },
+    {
+      "priority": "Medium",
+      "file": "back-end/scripts/prove-inner-voice-w3-w4-local.ts",
+      "location": "freeze.htmlFiles optional iteration",
+      "issue": "Short-v3 freeze has no HTML hash entries; optional fallback silently skips HTML validation for cat evidence.",
+      "proof": "Saved short-v3 source ledger has455 source records and0 htmlFiles. Long-v2 has514 HTML records. All current frozen source hashes independently match both ledgers.",
+      "fix": "Current source now requires514 HTML hash entries. Generate a new compatible freeze and receipt; original short-v3 cat receipt retains its historical limitation.",
+      "status": "resolved_in_final_source_and_bounded_evidence"
+    }
+  ],
+  "resolvedDuringReview": [
+    "W3/W4 probe now verifies source-file closure, raster/render ledger hashes and per-label PNG hashes, and fully decodes PNGs. Earlier metadata-only corruption gap is fixed in current source, but old receipt does not inherit changed verifier checks.",
+    "Current W3/W4 source now requires514 HTML records and rejects missing older HTML ledger."
+  ],
+  "probes": [
+    {
+      "name": "truncated-RGB-PNG",
+      "network": 0,
+      "fileWrites": 0,
+      "result": "2625x2625 channels3 metadata accepted truncated in-memory PNG; full raw decode rejected."
+    },
+    {
+      "name": "native-connect-guard",
+      "network": 0,
+      "fileWrites": 0,
+      "result": "Mocked exact guard permits string-port outside-host TCP form; object form denied."
+    },
+    {
+      "name": "saved-native-artifacts",
+      "network": 0,
+      "result": "All16 saved logs independently parsed; expected positive/root-error/terminal-node behavior observed."
+    },
+    {
+      "name": "frozen-source-readback",
+      "network": 0,
+      "result": "All source hashes match both short-v3 and long-v2 ledgers."
+    }
+  ],
+  "limits": [
+    "Independent final review reran six mocked transport denials and inspected all16 final native raw results; did not rerun full native suite.",
+    "Native guard is JavaScript socket, DNS and datagram isolation, not an OS sandbox. Known execution graph has loopback substitutions and synthetic credentials.",
+    "Native rehearsal excludes legacy claim/dispatch, actual SQL claims, hosted W4 engine, provider and customer operations.",
+    "Actual local W3 manifest production and W4 draft refusal proved for64 cat pages. Positive production-ready W4 generation remains unproved.",
+    "Two canonical35-page PDFs have70 independently decoded page checks in saved receipts. Review independently verified PDF hashes and all64 source raster identities, without repeating full PDF decoding.",
+    "Full512 short-name and128 long-name render reconciliation remains outside this checkpoint until final all-file verification completes. Disk-full first attempts are not successful proof.",
+    "External node_modules symlink remains an explicitly disclosed dependency boundary.",
+    "No hosted installation, provider generation, approved cover, print quality, physical fulfillment or broad release readiness proved.",
+    "No live requests or repo source/Git mutations by reviewer."
+  ],
+  "finalCheckpoint": {
+    "at": "2026-10-23T16:54:40.033073+00:00",
+    "unresolvedMaterialFindings": [],
+    "sourceHashes": {
+      "back-end/scripts/test-w1-native-queue-runtime.ts": "7ca77765c3119891fac36792749e128b9435daf5008a1eb533b59a33fc4a3d60",
+      "back-end/scripts/prove-inner-voice-w3-w4-local.ts": "36e6372f5545a856690f3a321810e6571ae85d7f25bce0a6c76382000bba57c5",
+      "scripts/prepare-inner-voice-proof-snapshot.py": "41048c5d609e7cfcfd5b4422c6e481140ca95a6aa116b81224f9cb1f57896e5d"
+    },
+    "evidenceHashes": {
+      "native-rehearsal-policy-guard-final/native-queue-runtime.sanitized.json": "7ec4bdda8c282b358a52f6e89bfc0cfc074b9dacea9cd6d7ace2085195f678af",
+      "book-proof-short-v3/source-freeze-completed.private.json": "69ae56335699a7a944b901d1bc607be7f81bf4c7d71cb8816aaacacb255efe6a",
+      "book-proof-cat-contract-final/cat-w3-w4-proof.json": "d4715b7ad51a2e3e08aa2863bc457f5f0bb4f6b8dbfd664a4e63e8cbabb46639",
+      "book-proof-cat-contract-final/source-raster-ledger.json": "9117a1d177ea1964a57b405d60f0939d917d87e83438f625d8d4f3ac99c1c58a",
+      "print-proof-cat-final/pdf-receipts.json": "bb6db79d656e8ab22fda3f3f5d3d772b27202f48977ff1f30c27513b308fc18e",
+      "print-proof-cat-final/rasters.json": "c1deda3c4132bbd41cca1ae960c9b4cdcda3bdfeac017689da5acda012754699"
+    },
+    "independentChecks": {
+      "priorTCPBypassAndDNSFormsBlockedWithMockedTransports": 6,
+      "finalNativeLogsParsed": 16,
+      "finalNativeRootErrorAndFinishedCoherent": true,
+      "savedNativeCasesPassed": 16,
+      "savedNativeNetworkDenialChecks": 11,
+      "completedFreezeSourceFilesMatched": 455,
+      "completedFreezeAssetFilesMatched": 89,
+      "completedFreezeHTMLFilesMatched": 514,
+      "strictW3RasterHashesMatched": 64,
+      "strictW3ReceiptProbeAndFreezeBindingsMatched": true,
+      "actualPDFFileHashesMatched": 2,
+      "savedPDFVerifiedPageEntries": 70,
+      "PDFInteriorRasterFilesMatchStrictW3Ledger": 64,
+      "liveRequests": 0,
+      "repoSourceEdits": 0
+    },
+    "historicalLedgerReconciliation": {
+      "pdfRasterManifestBindsEarlierLedger": true,
+      "earlierAndStrictLedgerPageEntriesIdentical": true,
+      "onlyChangedLedgerField": "sourceFreezeSha256",
+      "note": "Completed source-freeze replay adds514 identical HTML hash entries. Earlier ledger and original freeze preserved. Both PDF source images match strict ledger per-label hashes."
+    },
+    "boundedVerdict": "Previous isolation, terminal coherence, PNG decode and HTML/source binding findings are closed at exact final hashes. Reports preserve local-engine, mock-dependency, retained-pose, provisional-cover and draft-refusal limits."
+  }
+}

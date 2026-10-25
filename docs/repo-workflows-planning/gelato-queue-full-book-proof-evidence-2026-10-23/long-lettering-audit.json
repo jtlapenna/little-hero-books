@@ -1,0 +1,153 @@
+{
+  "schema": "lhb.local-v2-lettering-audit@v1",
+  "childName": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+  "pagesScanned": 128,
+  "findings": [
+    {
+      "formatId": "standard",
+      "guide": "cat",
+      "pageLabel": "p09",
+      "id": "text-10-01",
+      "outside": false,
+      "totalWords": 5,
+      "lines": 2,
+      "lastLine": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW.",
+      "bounds": {
+        "x": 1226.453125,
+        "y": 95,
+        "width": 1146.328125,
+        "height": 136.125,
+        "top": 95,
+        "right": 2372.78125,
+        "bottom": 231.125,
+        "left": 1226.453125
+      }
+    },
+    {
+      "formatId": "standard",
+      "guide": "unicorn",
+      "pageLabel": "p09",
+      "id": "text-10-01",
+      "outside": false,
+      "totalWords": 5,
+      "lines": 2,
+      "lastLine": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW.",
+      "bounds": {
+        "x": 1226.453125,
+        "y": 95,
+        "width": 1146.328125,
+        "height": 136.125,
+        "top": 95,
+        "right": 2372.78125,
+        "bottom": 231.125,
+        "left": 1226.453125
+      }
+    },
+    {
+      "formatId": "amazon",
+      "guide": "cat",
+      "pageLabel": "p09",
+      "id": "text-10-01",
+      "outside": false,
+      "totalWords": 5,
+      "lines": 2,
+      "lastLine": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW.",
+      "bounds": {
+        "x": 1226.453125,
+        "y": 95,
+        "width": 1146.328125,
+        "height": 136.125,
+        "top": 95,
+        "right": 2372.78125,
+        "bottom": 231.125,
+        "left": 1226.453125
+      }
+    },
+    {
+      "formatId": "amazon",
+      "guide": "unicorn",
+      "pageLabel": "p09",
+      "id": "text-10-01",
+      "outside": false,
+      "totalWords": 5,
+      "lines": 2,
+      "lastLine": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW.",
+      "bounds": {
+        "x": 1226.453125,
+        "y": 95,
+        "width": 1146.328125,
+        "height": 136.125,
+        "top": 95,
+        "right": 2372.78125,
+        "bottom": 231.125,
+        "left": 1226.453125
+      }
+    }
+  ],
+  "collisions": [
+    {
+      "formatId": "standard",
+      "guide": "cat",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "cat",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "standard",
+      "guide": "unicorn",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "standard",
+      "guide": "unicorn",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "cat",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "cat",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    },
+    {
+      "formatId": "amazon",
+      "guide": "unicorn",
+      "pageLabel": "p13",
+      "first": "text-14-02",
+      "second": "text-14-03",
+      "overlapRatio": 0.13102273494169422
+    },
+    {
+      "formatId": "amazon",
+      "guide": "unicorn",
+      "pageLabel": "p21",
+      "first": "text-22-01",
+      "second": "text-22-03",
+      "overlapRatio": 0.14586476680121077
+    }
+  ]
+}
