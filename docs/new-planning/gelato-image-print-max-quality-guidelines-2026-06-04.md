@@ -2,9 +2,11 @@
 
 Date: 2026-06-04
 
+Reviewed and reconciled: 2026-10-25. This is the historical investigation. Use [Gelato print-quality preflight — 2026-10-25](gelato-print-quality-preflight-2026-10-25.md) for the current source-grounded procedure, color-management decisions, current implementation gaps, and first-new-proof acceptance checklist. Share [Jeff's current handoff](../handoffs/gelato-print-quality-handoff-2026-10-25.md).
+
 Audience: Jeff / implementation agent / image-prep agent.
 
-Purpose: define the highest-quality Gelato image and PDF preparation path for the 30-page `Finding Our Inner Voice` relaunch. This should be used before any new or resized images are incorporated into W3/W4 workflows.
+Purpose: preserve the original quality investigation and proposed adjustments. The current selected book has 32 inner/API pages and a 35-page upload; the original experiment used 30 inner/API pages and a 33-page upload. Product-specific authenticated geometry supersedes the old inferred sample dimensions.
 
 ## Decision Context
 
@@ -102,27 +104,15 @@ Recommended adjustment approach:
 - Work from the best available source master.
 - Preserve or convert to sRGB for the current PNG-based workflow.
 - Make global adjustments conservatively:
-  - Vibrance or saturation: about `+3%` to `+6%`.
-  - Contrast: about `+2%` to `+4%`.
+  - Vibrance or saturation: about `+3%` to `+6%` (historical experimental wording, not calibrated Photoshop slider units).
+  - Contrast: about `+2%` to `+4%` (historical experimental wording, not an automatic batch prescription).
   - Midtone lift only if a page prints dark or muddy.
 - Protect child skin and hair tones. Gelato already scored very well on skin-tone accuracy.
 - Keep all pages visually consistent; do not tune one page so far that it breaks the set.
 - Apply subtle output sharpening only after final resize.
 - Avoid halos, crunchy grain, jagged linework, and sharpened text artifacts.
 
-Suggested ImageMagick resize baseline:
-
-```sh
-magick input.png \
-  -strip \
-  -colorspace sRGB \
-  -gravity center \
-  -resize 2457x2457^ \
-  -extent 2457x2457 \
-  -units PixelsPerInch \
-  -density 300 \
-  output.png
-```
+The former ImageMagick baseline used `-strip` before `-colorspace sRGB` and resized to 2457 px. Do not reuse it for the current book: stripping can discard source color interpretation, and the selected product uses the 2434 px target above. Use the current preflight's profile-aware conversion and deliberate crop/resize procedure.
 
 Optional gentle sharpening test after final resize:
 
@@ -143,15 +133,16 @@ The current preferred path is the lossless PNG-to-PDF flow:
 - Final PDF uses `/FlateDecode` image streams.
 - Final PDF should contain zero `/DCTDecode` JPEG streams.
 
-Gelato also recommends PDF/X-4 where possible. If Jeff has a reliable prepress path to produce PDF/X-4 without changing the page art or introducing JPEG compression, that is worth testing. Do not force PDF/X-4 if it destabilizes the current lossless path.
+Current research identifies PDF/X-4 with a GRACoL 2006 output intent as Gelato's requested PDF path. The existing basic DeviceRGB lossless builder is not equivalent. Resolve source tagging, output intent and validation using the current preflight; do not silently treat the historical basic PDF as compliant or introduce lossy recompression during conversion.
 
 Final PDF expectations:
 
-- 33 PDF pages for Gelato photo book upload:
+- Current configured upload: 35 PDF pages (32 inner/API pages):
   - page 1: cover spread
   - page 2: blank front endpaper
-  - pages 3-32: 30 printable interior pages
-  - page 33: blank back endpaper
+  - pages 3-34: 32 printable interior pages
+  - page 35: blank back endpaper
+- Historical sample only: 30 inner/API pages in a 33-page upload.
 - No crop marks.
 - No unintentional transparency.
 - No stray text, fake letters, watermarks, or printer marks.
@@ -166,9 +157,10 @@ Per-image metadata checklist:
 
 - File is PNG.
 - Pixel size is exactly correct:
-  - interior pages: `2457 x 2457 px`
-  - spread master: `4914 x 2457 px`
-  - split spiral pages: `2457 x 2457 px`
+  - interior pages: `2434 x 2434 px`
+  - spread master: `4868 x 2434 px`
+  - split spread pages: `2434 x 2434 px`
+  - current 32-inner-page cover: `4832 x 2434 px`
 - Density metadata is 300 PPI where present.
 - Color space is sRGB / RGB.
 - Bit depth is expected and compatible with the PDF builder.

@@ -206,6 +206,8 @@ Shipping option source notes:
 
 ## Print Asset Quality Audit
 
+Historical sample audit. Preserve the original measurements/results below. Current product geometry, source preparation, color management and first-new-proof checks are in [Gelato print-quality preflight — 2026-10-25](gelato-print-quality-preflight-2026-10-25.md). Do not use these sample dimensions or file counts as the current book's production contract.
+
 Audit date: 2026-05-12.
 
 Source assets:

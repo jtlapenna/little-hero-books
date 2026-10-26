@@ -2,6 +2,8 @@
 
 Date: 2026-06-01
 
+Historical runbook. For current print preparation, use [Gelato print-quality preflight — 2026-10-25](gelato-print-quality-preflight-2026-10-25.md) and [Jeff's handoff](../handoffs/gelato-print-quality-handoff-2026-10-25.md). The earlier 30-page story and inferred 4 mm / 208 mm / 2457 px dimensions below are historical, not current production instructions. Preserve the authenticated 3 mm / 206 mm geometry and 32-inner/35-PDF-page contract documented in [the product resolution](../repo-workflows-planning/w4-gelato-product-contract-resolution-2026-10-11.md). Historical commands below have not been upgraded into a color-managed production recipe.
+
 Use this with `finding-our-inner-voice-gelato-30-locked-image-brief-2026-06-01.md`.
 
 ## Do We Have Enough?
