@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "workerSource": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+  "approval": {
+    "scope": "Only fresh W4 54699/54700 and W4.1 54701 approved as regular unpaid orders",
+    "maximumSpend": 0,
+    "paidPrinting": false,
+    "customerMessages": false
+  },
+  "fundingInspection": {
+    "inspectedAt": "2026-10-16T09:30:45.542683+00:00",
+    "accountKeySha256": "96b0c7ee34c2819e0f5f8960965cfa32f4f68adf87b49fc3a4f611c784df4ea9",
+    "noPaymentMethods": true,
+    "wallets": 14,
+    "allWalletsInactiveZero": true,
+    "autoTopup": false,
+    "plan": "Free",
+    "monthlyInvoices": false,
+    "invoicePerOrder": true,
+    "ownerConfirmedNoOtherFunding": true
+  },
+  "queueAttempt": {
+    "httpStatus": 409,
+    "action": "queue",
+    "completed": false,
+    "requiresReview": true,
+    "customerMessages": false,
+    "normalControlsEnabled": false,
+    "results": [
+      {
+        "authorizationId": "5ee9de58-9452-49fc-8819-cabc8828a511",
+        "state": "converted",
+        "persistenceConfirmed": true,
+        "closureConfirmed": true,
+        "unsafeFundingOrProductionObserved": false
+      },
+      {
+        "authorizationId": "dba49ca9-e298-453e-b3db-5dab496091d3",
+        "state": "converted",
+        "persistenceConfirmed": true,
+        "closureConfirmed": true,
+        "unsafeFundingOrProductionObserved": false
+      },
+      {
+        "authorizationId": "c53af5da-c0b9-46e9-8ae3-b253efdaead5",
+        "state": "outcome_unknown",
+        "persistenceConfirmed": true,
+        "closureConfirmed": true,
+        "unsafeFundingOrProductionObserved": false
+      }
+    ],
+    "privateResponseSha256": "06141ebcfb7525f9a4e14b102763f5689f6adf3035386a8ea4cd9c56d8c11709",
+    "privateJournalSha256": "c967cba6613f5f24026cb58c77332ec2091a17d28c730312b3796afd40379b6b"
+  },
+  "readOnlyReconciliation": {
+    "at": "2026-10-16T09:38:33.185Z",
+    "cases": [
+      {
+        "kind": "website-single",
+        "authorityState": "converted",
+        "authorityClosed": true,
+        "id": "48a1e362-ae3c-429b-867d-6f74d31ac0f5",
+        "orderType": "order",
+        "financialStatus": "pending",
+        "fulfillmentStatus": "created"
+      },
+      {
+        "kind": "amazon-single",
+        "authorityState": "converted",
+        "authorityClosed": true,
+        "id": "ce39d72c-d67f-4d02-a7b5-7575fdd3d606",
+        "orderType": "order",
+        "financialStatus": "pending",
+        "fulfillmentStatus": "created"
+      },
+      {
+        "kind": "amazon-siblings",
+        "authorityState": "outcome_unknown",
+        "authorityClosed": true,
+        "id": "39975e01-41af-4bff-9792-900c12834444",
+        "orderType": "order",
+        "financialStatus": "pending",
+        "fulfillmentStatus": "created"
+      }
+    ],
+    "providerWrites": 0,
+    "conversionReplays": 0,
+    "privateReceiptSha256": "f72e8230050e249b65ce10c60dbb8ee02e88b4ad2d98b4780fd2376dd15f0eab"
+  },
+  "observationRecovery": {
+    "at": "2026-10-16T09:43:30.390Z",
+    "action": "observe",
+    "providerWrites": 0,
+    "conversionReplays": 0,
+    "authoritiesCreated": 0,
+    "customerMessages": false,
+    "privateReceiptSha256": "de527775de9d80512de257a8d0310ea375e8c057073f738150b5aada0cdbc4bb",
+    "cases": [
+      {
+        "kind": "website-single",
+        "authorizationId": "5ee9de58-9452-49fc-8819-cabc8828a511",
+        "authorityState": "converted",
+        "authorityClosed": true,
+        "workflowExecutionId": "54699",
+        "submissionId": "b34225ca-bb6e-4f04-9254-39aa3ecc875c",
+        "provider": {
+          "id": "48a1e362-ae3c-429b-867d-6f74d31ac0f5",
+          "orderType": "order",
+          "financialStatus": "pending",
+          "fulfillmentStatus": "created",
+          "currency": "USD",
+          "processingStatus": null,
+          "shipmentMethodUid": "usps_ground_advantage",
+          "shippingPrice": null,
+          "processingLogCount": 0,
+          "items": [
+            {
+              "id": "c11d9583-7a20-4949-a696-3de7afa411f2",
+              "itemReferenceId": "lhb-item-1138",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "processedFileUrlPresent": false,
+              "printJobCount": 0
+            }
+          ],
+          "receipts": [
+            {
+              "type": "contract",
+              "currency": "USD",
+              "productsPrice": 0,
+              "shippingPrice": 0,
+              "total": 0,
+              "totalVat": 0,
+              "totalInclVat": 0,
+              "isCalculated": true
+            }
+          ]
+        },
+        "admin": {
+          "orderId": "TEST-GELATO-W-6lbmieratf9pn9sostul5q4dhk",
+          "submissionId": "b34225ca-bb6e-4f04-9254-39aa3ecc875c",
+          "state": "submitted",
+          "canRefresh": true,
+          "canCancel": false,
+          "customerNotificationCount": 0,
+          "items": [
+            {
+              "active": true,
+              "orderId": "TEST-GELATO-W-6lbmieratf9pn9sostul5q4dhk",
+              "providerOrderId": "48a1e362-ae3c-429b-867d-6f74d31ac0f5",
+              "providerItemId": "c11d9583-7a20-4949-a696-3de7afa411f2",
+              "status": "created",
+              "actionReason": "awaiting_draft_review"
+            }
+          ]
+        },
+        "observations": {
+          "patchHttpStatus": 200,
+          "patchResponseSha256": "840595798dbac57906c3a25f817adb772f1111bf4e034905305aec0fefe65273",
+          "diagnosticQuoteId": "e7474e50-8b7a-4fa3-836c-0104b00e246d",
+          "quoteResponseSha256": "b947ca19ae2c5f37ca3108d9501f9770573b79e3a082ddfa171493a2d2d5212c",
+          "providerResponseSha256": "afb2ce35286327c2b3cd459945d7cbcad1ad8adab9c6cb99106502fb4af9b112",
+          "noNewCreate": true,
+          "unsafeFundingOrProductionObserved": false,
+          "needsAttention": null,
+          "noAutomaticRetry": null
+        },
+        "artifacts": [
+          {
+            "child_order_id": 1138,
+            "provider_item_id": "c11d9583-7a20-4949-a696-3de7afa411f2",
+            "sha256": "3958dd3b8ed9cb421b423bd5dc60ac91048e56a9adc2aab1a289a65ce3b3a9fe"
+          }
+        ]
+      },
+      {
+        "kind": "amazon-single",
+        "authorizationId": "dba49ca9-e298-453e-b3db-5dab496091d3",
+        "authorityState": "converted",
+        "authorityClosed": true,
+        "workflowExecutionId": "54700",
+        "submissionId": "0e3e7f48-3da5-4318-b9e5-6877d73e7a53",
+        "provider": {
+          "id": "ce39d72c-d67f-4d02-a7b5-7575fdd3d606",
+          "orderType": "order",
+          "financialStatus": "pending",
+          "fulfillmentStatus": "created",
+          "currency": "USD",
+          "processingStatus": null,
+          "shipmentMethodUid": "usps_priority_mail_standard",
+          "shippingPrice": null,
+          "processingLogCount": 0,
+          "items": [
+            {
+              "id": "2f15ca3e-3fe0-41b6-9cdb-53187b31bd82",
+              "itemReferenceId": "lhb-item-1139",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "processedFileUrlPresent": false,
+              "printJobCount": 0
+            }
+          ],
+          "receipts": [
+            {
+              "type": "contract",
+              "currency": "USD",
+              "productsPrice": 0,
+              "shippingPrice": 0,
+              "total": 0,
+              "totalVat": 0,
+              "totalInclVat": 0,
+              "isCalculated": true
+            }
+          ]
+        },
+        "admin": {
+          "orderId": "TEST-GELATO-A-6lbmieratf9pn9sostul5q4dhk",
+          "submissionId": "0e3e7f48-3da5-4318-b9e5-6877d73e7a53",
+          "state": "submitted",
+          "canRefresh": true,
+          "canCancel": false,
+          "customerNotificationCount": 0,
+          "items": [
+            {
+              "active": true,
+              "orderId": "TEST-GELATO-A-6lbmieratf9pn9sostul5q4dhk",
+              "providerOrderId": "ce39d72c-d67f-4d02-a7b5-7575fdd3d606",
+              "providerItemId": "2f15ca3e-3fe0-41b6-9cdb-53187b31bd82",
+              "status": "created",
+              "actionReason": "awaiting_draft_review"
+            }
+          ]
+        },
+        "observations": {
+          "patchHttpStatus": 200,
+          "patchResponseSha256": "8e8973ae80976da2668c9e7d9d7ea28549dcc0d625b939694f5f0c286fc9c3c5",
+          "diagnosticQuoteId": "a44b498f-efde-41a4-9942-bd4a6703d840",
+          "quoteResponseSha256": "9961f7b1df9de56eacaf9c9f55333787cabd176a1446e517bd2cad92fb3fb3cb",
+          "providerResponseSha256": "8e8973ae80976da2668c9e7d9d7ea28549dcc0d625b939694f5f0c286fc9c3c5",
+          "noNewCreate": true,
+          "unsafeFundingOrProductionObserved": false,
+          "needsAttention": null,
+          "noAutomaticRetry": null
+        },
+        "artifacts": [
+          {
+            "child_order_id": 1139,
+            "provider_item_id": "2f15ca3e-3fe0-41b6-9cdb-53187b31bd82",
+            "sha256": "c88a684b7afb1580850d5ca7e833407135373f67e246b8e044ca478f017c12a5"
+          }
+        ]
+      },
+      {
+        "kind": "amazon-siblings",
+        "authorizationId": "c53af5da-c0b9-46e9-8ae3-b253efdaead5",
+        "authorityState": "converted",
+        "authorityClosed": true,
+        "workflowExecutionId": "54701",
+        "submissionId": "23b3c4e1-5f29-42da-894d-6612dcda1e17",
+        "provider": {
+          "id": "39975e01-41af-4bff-9792-900c12834444",
+          "orderType": "order",
+          "financialStatus": "pending",
+          "fulfillmentStatus": "created",
+          "currency": "USD",
+          "processingStatus": null,
+          "shipmentMethodUid": "ups_2_day",
+          "shippingPrice": null,
+          "processingLogCount": 0,
+          "items": [
+            {
+              "id": "a8358ba8-d7a9-4fa8-b3f1-f16b87a7afd2",
+              "itemReferenceId": "lhb-item-1140",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "processedFileUrlPresent": false,
+              "printJobCount": 0
+            },
+            {
+              "id": "52d64a08-a443-48f6-8e3c-ead1c8b96bac",
+              "itemReferenceId": "lhb-item-1141",
+              "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+              "quantity": 1,
+              "pageCount": 32,
+              "fulfillmentStatus": "created",
+              "processedFileUrlPresent": false,
+              "printJobCount": 0
+            }
+          ],
+          "receipts": [
+            {
+              "type": "contract",
+              "currency": "USD",
+              "productsPrice": 0,
+              "shippingPrice": 0,
+              "total": 0,
+              "totalVat": 0,
+              "totalInclVat": 0,
+              "isCalculated": true
+            }
+          ]
+        },
+        "admin": {
+          "orderId": "TEST-GELATO-S-6lbmieratf9pn9sostul5q4dhk-item-1",
+          "submissionId": "23b3c4e1-5f29-42da-894d-6612dcda1e17",
+          "state": "submitted",
+          "canRefresh": true,
+          "canCancel": false,
+          "customerNotificationCount": 0,
+          "items": [
+            {
+              "active": true,
+              "orderId": "TEST-GELATO-S-6lbmieratf9pn9sostul5q4dhk-item-1",
+              "providerOrderId": "39975e01-41af-4bff-9792-900c12834444",
+              "providerItemId": "a8358ba8-d7a9-4fa8-b3f1-f16b87a7afd2",
+              "status": "created",
+              "actionReason": "awaiting_draft_review"
+            },
+            {
+              "active": true,
+              "orderId": "TEST-GELATO-S-6lbmieratf9pn9sostul5q4dhk-item-2",
+              "providerOrderId": "39975e01-41af-4bff-9792-900c12834444",
+              "providerItemId": "52d64a08-a443-48f6-8e3c-ead1c8b96bac",
+              "status": "created",
+              "actionReason": "awaiting_draft_review"
+            }
+          ]
+        },
+        "observations": {
+          "patchHttpStatus": 200,
+          "patchResponseSha256": "15d974f943c0238b878dc04f69e61f05a37f258df3e76cd5c53b2a39700d30f0",
+          "diagnosticQuoteId": "2e36138b-00ab-46cf-a570-d02623808916",
+          "quoteResponseSha256": "1ee7f4b585deb1389942b718260f0eb31463ce05572c6e49ce262e9d6057e3b1",
+          "providerResponseSha256": "12b23e66b8d2667e8580906df4c5c7e78752fff3b54ec0496db57e30eac0ccde",
+          "noNewCreate": true,
+          "unsafeFundingOrProductionObserved": false,
+          "needsAttention": true,
+          "noAutomaticRetry": true
+        },
+        "artifacts": [
+          {
+            "child_order_id": 1140,
+            "provider_item_id": "a8358ba8-d7a9-4fa8-b3f1-f16b87a7afd2",
+            "sha256": "849970c0c3508173e9871be6d739f07ad16564f1179f045e5dd3c877aa6f4c87"
+          },
+          {
+            "child_order_id": 1141,
+            "provider_item_id": "52d64a08-a443-48f6-8e3c-ead1c8b96bac",
+            "sha256": "0a0e651874e80b591d43a8bd5743693a3727f9c78778c9a056eed1949dac1b20"
+          }
+        ]
+      }
+    ],
+    "controls": {
+      "at": "2026-10-16T09:43:34.644Z",
+      "source": "7fb9771a11cccc49bfac0836408be536c0d3d6bf",
+      "deployment": "89bd9108-f88d-4266-bef2-7e8dd7142a25",
+      "normalFlagsOff": true,
+      "normalDispatch": false,
+      "allWorkflowCopiesInactive": true,
+      "customerIntents": 0,
+      "openConversionAuthorizations": 0
+    }
+  },
+  "boundary": "All three provider roots are regular/created/financial pending. No payment, printing or invoice reconciliation is established. The sibling unknown state was recovered using observe only; the queue and conversion were never replayed. Original unresolved marker is retained."
+}
