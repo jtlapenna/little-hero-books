@@ -40,6 +40,10 @@ async function main() {
  const {buildGelatoReleaseReview}=await import('../src/lib/books/gelato-release-review');
  const {ordinaryPrintRoutingBlocker}=await import('../src/lib/books/gelato-print-admission');
  const {POST:approve}=await import('../src/app/api/preview/[orderId]/approve/route');
+ const {POST:reject}=await import('../src/app/api/preview/[orderId]/reject/route');
+ const {approveStage}=await import('../src/lib/approval-store');
+ const {POST:finalApproval}=await import('../src/app/api/orders/[orderId]/final-approval/route');
+ const {publishW3Manifest}=await import('../src/lib/workers/w3-manifest-publish');
  const {POST:claim}=await import('../src/app/api/internal/orders/print-routing/claim/route');
  const {POST:singlePdf}=await import('../src/app/api/internal/w4/build-gelato-print-pdf/route');
  const {POST:siblingPdf}=await import('../src/app/api/internal/w4/build-gelato-sibling-print-pdf/route');
@@ -78,13 +82,16 @@ async function main() {
     if(name==='fence_gelato_print_submission'){ctx.submission.request_state='outcome_unknown';return Response.json(null);}
     throw Error('Unexpected local RPC '+name);
    }
-   assert.equal(r.method,'GET','No direct DB mutation outside isolated RPC simulation');
+   if(r.method==='PATCH' && ['orders','preview_tokens'].includes(name)) { const entries=match(name==='orders'?rows:tokens,u), patch=await r.json();entries.forEach(row=>Object.assign(row,patch));return Response.json(r.headers.get('accept')?.includes('object')?entries[0]??null:entries); }
+   if(r.method==='POST' && name==='preview_tokens') { const row={...await r.json(),created_at:new Date().toISOString(),used_at:null};tokens.push(row);return Response.json(row); }
+   if(r.method==='POST' && name==='customer_feedback') return Response.json(null);
+   assert.equal(r.method,'GET','No unexpected DB mutation');
    let entries:Row[]=name==='orders'?rows:name==='preview_tokens'?tokens:name==='print_provider_submissions'?[ctx.submission]:name==='print_provider_submission_items'?ctx.members:name==='print_provider_submission_orders'?ctx.providerOrders:name==='print_provider_submission_notifications'?[]:(()=>{throw Error('Unexpected table '+name)})();
    entries=match(entries,u);return Response.json(r.headers.get('accept')?.includes('object')?entries[0]??null:entries);
   }
   if(u.hostname==='little-hero-orders.synthetic-journey.r2.cloudflarestorage.com'){
    const key=decodeURIComponent(u.pathname.slice(1));
-   if(r.method==='PUT'){assert(key.includes('/gelato/print/'));blobs.set(key,Buffer.from(await r.arrayBuffer()));return new Response(null,{status:200});}
+   if(r.method==='PUT'){assert(key.includes('/gelato/print/') || key.endsWith('/manifests/3-manifest.json')); blobs.set(key,Buffer.from(await r.arrayBuffer()));return new Response(null,{status:200});}
    assert(['GET','HEAD'].includes(r.method));const value=manifests.has(key)?Buffer.from(JSON.stringify(manifests.get(key))):blobs.get(key);
    return new Response(r.method==='HEAD'?null:value?Uint8Array.from(value):null,{status:value?200:404,headers:{'content-type':key.endsWith('.json')?'application/json':key.endsWith('.png')?'image/png':'application/pdf'}});
   }
@@ -102,7 +109,9 @@ async function main() {
   }
   throw Error('No real network: unexpected '+u.origin);
  };
- for(const [caseIndex,format,count,label] of [[1,'standard',1,'website'],[2,'amazon',1,'amazon-single'],[3,'amazon',2,'amazon-siblings']] as const){
+ const definitions=[[1,'standard',1,'website'],[2,'amazon',1,'amazon-single'],[3,'amazon',2,'amazon-siblings']] as const;
+ const selected=definitions.filter(x=>!process.env.GELATO_LOCAL_CASE||x[3]===process.env.GELATO_LOCAL_CASE);assert(selected.length,'Unknown local case');
+ for(const [caseIndex,format,count,label] of selected){
   rows=[];tokens=[];blobs=new Map();manifests=new Map();raw=undefined;
   const root='LOCAL-JOURNEY-'+caseIndex;submissionId='11111111-1111-4111-8111-'+String(caseIndex).padStart(12,'0');const beforeCreates=creates;
   const bundled=loadBundledBookConfig({bookId:'book-finding-our-inner-voice',version:2});assert.equal(bundled.status,'draft');
@@ -120,6 +129,29 @@ async function main() {
    rows.push(row);tokens.push({token:'local-journey-token-'+caseIndex+'-'+i,order_id:orderId,used_at:null,expires_at:new Date(Date.now()+86400000).toISOString()});
    const sources=rasterManifest.caseChildren.find((x:Row)=>x.role===role);assert(sources&&sources.assets.length===33);assert.equal(sources.formatId,format);
    for(let j=0;j<33;j++){const asset=sources.assets[j];assert(asset.filename.startsWith(role+'/'));assert.match(asset.filename,/^(WEB-A|AMZ-A|SIB-A|SIB-B)\/[A-Za-z0-9_-]+\.png$/);const bytes:Buffer=await readFile(path.join(directory,asset.filename));assert.equal(sha(bytes),asset.pngSha256);const key=j===32?prefix+'/preview-images/cover-spread.png':prefix+'/preview-images/'+one.book.resolved.pageLabels[j]+'.png';blobs.set(key,bytes);}
+  }
+  if(process.env.GELATO_LOCAL_REVISIONS==='1' && caseIndex===1){
+   const row=rows[0], oldToken=String(tokens[0].token), expectedKey=String(row.manifest_3_url);
+   const correction=await reject(request(bindings.BACKEND_URL+'/api/preview/'+row.orderId+'/reject',{token:oldToken,feedback:{pageNumber:3,issueType:'pose',description:'Synthetic placeholder pose correction'}}),{params:Promise.resolve({orderId:String(row.orderId)})});
+   assert.equal(correction.status,200,await correction.clone().text());assert.equal((await correction.json()).revisionsRemaining,0);
+   assert.equal(row.customer_approval_status,'revision_requested');assert.equal(row.next_workflow,null);
+   assert.equal((await approve(request(bindings.BACKEND_URL+'/api/preview/'+row.orderId+'/approve',{token:oldToken}),{params:Promise.resolve({orderId:String(row.orderId)})})).status,401);
+   await approveStage(String(row.orderId),'preBria');assert.equal(row.next_workflow,'2B');assert.equal(row.customer_approval_required,true);
+   await approveStage(String(row.orderId),'postBria');assert.equal(row.next_workflow,'3');assert.equal(row.customer_approval_required,true);
+   // Rebuild/publish the reviewed placeholder proof through the actual producer. Generation/character art is substituted locally.
+   const one=manifests.get(String(row.one_manifest_url)) as ReturnType<typeof buildW0RunManifestFromConfig>, normalized=normalizeW0Manifest(one), prefix=one.artifacts.orderPrefix;
+   const rebuilt=await publishW3Manifest({orderId:row.orderId,rootOrderId:root,bookId:config.bookId,formatId:format,configVersion:2,renderSnapshot:normalized.renderSnapshot,oneManifestKey:one.artifacts.manifestKey,backendUrl:bindings.BACKEND_URL,orderR2BaseKey:prefix,pagePreviewImages:one.book.resolved.pagePlan.map(p=>({pageNumber:p.index,r2Key:prefix+'/preview-images/'+p.label+'.png'})),coverPngR2Key:prefix+'/preview-images/cover-spread.png'}, {loadManifestImpl:async key=>manifests.get(key),getOrderImpl:async()=>row,updateOrderImpl:async(_id,patch)=>{Object.assign(row,patch);return row;}});
+   assert.equal(rebuilt.manifest3Key,expectedKey);manifests.set(rebuilt.manifest3Key,rebuilt.manifest);
+   assert.equal(row.customer_approval_status,'not_requested');assert.equal(row.customer_approval_required,true);assert.equal(previewMutationReady(row),false);
+   await approveStage(String(row.orderId),'postPdf');assert.equal(row.customer_approval_required,true);
+   const final=await finalApproval(request(bindings.BACKEND_URL+'/api/orders/'+row.orderId+'/final-approval',{notifyCustomer:false}),{params:Promise.resolve({orderId:String(row.orderId)})});
+   assert.equal(final.status,200,await final.clone().text());
+   const renewedToken=tokens.find(x=>!x.used_at);assert(renewedToken);assert.notEqual(renewedToken.token,oldToken);
+   assert.equal(row.customer_approval_status,'pending');
+   assert.equal(previewMutationReady(row),true);
+   const pending=await claim(request(bindings.BACKEND_URL+'/api/internal/orders/print-routing/claim',{orderDbIds:[row.id],idempotencyKey:'local-revision-pending'}));assert.equal(pending.status,409);
+   // The regular loop below now approves this new proof/token, never the consumed old link.
+   tokens=tokens.filter(x=>x.token===renewedToken.token);
   }
   const pendingClaim=await claim(request(bindings.BACKEND_URL+'/api/internal/orders/print-routing/claim',{orderDbIds:rows.map(row=>row.id),idempotencyKey:'local-pending-'+caseIndex}));assert.equal(pendingClaim.status,409);
   rows.forEach(row=>row.print_provider=null);
@@ -203,9 +235,9 @@ async function main() {
   const statusJourney=process.env.GELATO_LOCAL_STATUS_JOURNEY==='1' ? await (await import('./helpers/gelato-local-status-journey')).proveLocalStatusJourney({context:ctx!,raw,rows,blobs}) : undefined;
   results.push({...(combinedJourney?{combinedJourney}:{}),...(statusJourney?{statusJourney}:{}),case:label,children:count,productUid:GelatoSavedSnapshotSchema.parse(ctx!.submission.request_snapshot).config.productUid,innerPageCount:32,apiPageCount:32,uploadedPdfPageCount:35,quantityPerItem:1,pdfHashes:fingerprints,pdfPageCounts:ctx!.members.map(m=>m.pdf_page_count),providerCreates:creates-beforeCreates,releaseReview:packet,nativeHttpPaths:paths,state:ctx!.submission.request_state,localNativeQueueBridge:process.env.GELATO_LOCAL_NATIVE_QUEUE==='1',liveControlsAccessed:false,testProcessControlRestoredOff:true,upstream:'canonical W0/W3 producer; dummy raster substitution; simulated admin decision and DB/RPC adapters',config:'in-memory active clone; bundled v2 stays draft'});
  }
- assert.equal(new Set(results.flatMap(result=>result.pdfHashes as string[])).size,4);assert.equal(creates,3);assert.equal(claims,3);assert(calls.every(x=>!x.startsWith('PATCH order.gelatoapis.com')));assert.equal(process.env.GELATO_DRAFT_SUBMISSION_ENABLED,'false');
+ const expectedChildren=selected.reduce((n,x)=>n+x[2],0);assert.equal(new Set(results.flatMap(result=>result.pdfHashes as string[])).size,expectedChildren);assert.equal(creates,selected.length);assert.equal(claims,selected.length);assert(calls.every(x=>!x.startsWith('PATCH order.gelatoapis.com')));assert.equal(process.env.GELATO_DRAFT_SUBMISSION_ENABLED,'false');
  if(process.env.GELATO_LOCAL_JOURNEY_OUTPUT)await writeFile(process.env.GELATO_LOCAL_JOURNEY_OUTPUT,JSON.stringify({passed:true,cases:results,liveRequests:0,providerSimulation:{creates,quotes},limitations:['Positive submission uses a temporary process-local true binding with fake services; live controls never accessed','No hosted n8n engine','Upstream image generation and admin decision simulated',process.env.GELATO_LOCAL_PERSISTENT_JOURNEY==='1'?'Assembled draft graph handed to disposable PostgreSQL; REST transport simulated, not PostgREST':'Atomic SQL independently tested, not PostgREST',process.env.GELATO_LOCAL_PERSISTENT_JOURNEY==='1'?'Regular conversion and lifecycle simulated over disposable SQL; no real provider or physical production':'No regular release/conversion or physical production']},null,2)+'\n');
- console.log(JSON.stringify({passed:true,cases:results.map(x=>x.case),childPdfs:4,syntheticDraftCreates:creates,liveRequests:0}));
+ console.log(JSON.stringify({passed:true,cases:results.map(x=>x.case),childPdfs:expectedChildren,revisionJourney:process.env.GELATO_LOCAL_REVISIONS==='1',syntheticDraftCreates:creates,liveRequests:0}));
  } finally {Object.assign(process.env,bindings);globalThis.fetch=previous;}
 }
 void main().catch(e=>{console.error(e);process.exitCode=1});

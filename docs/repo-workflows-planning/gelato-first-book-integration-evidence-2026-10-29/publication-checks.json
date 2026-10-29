@@ -1,0 +1,28 @@
+{
+  "schema": "lhl.first-book-publication-checks@1",
+  "sourceSnapshotSha256": "9c85fe9a640e8a83ab61993e6190f40fa1726196f3108a0870910c2a936fca5d",
+  "independentReleaseBookReview2": "cleared both confirmed blockers",
+  "independentReleaseCiReview2": "cleared current-source binding blocker",
+  "actualW2CompletionAndW3EntryChecks": 9,
+  "actualReviewResetChecks": 32,
+  "websiteRevisionJourney": "one synthetic draft; zero live requests",
+  "currentSourceBindings": 147,
+  "verifierNegativeCases": 21,
+  "historicalParentReceipts": "unchanged",
+  "originalOverlay": "byte-exact archive",
+  "typecheck": {
+    "baseline": 360,
+    "current": 359,
+    "added": [],
+    "comparison": "same tsconfig/dependencies; tracked changed source virtually replaced from HEAD and newly added files excluded; code/message/file multiset ignores shifted line numbers"
+  },
+  "directUserPublicationApproval": "call_45f090518293483b9edb4b885dc5379f",
+  "directUserPersonalAccountClarification": "call_6055bb3ea018427e969d14ee7258b78d: Use my amoeboar account",
+  "verifiedPersonalPublisher": "amoeboar",
+  "repositoryPermission": "WRITE",
+  "remoteMainAfterFreshFetch": "f7efbb3308df1111568890ed6de9ae5c7c38fe74",
+  "mergeAuthorized": false,
+  "deploymentAuthorized": false,
+  "businessServiceEffects": 0,
+  "paidRuntime": "blocked"
+}

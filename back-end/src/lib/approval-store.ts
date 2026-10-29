@@ -1,5 +1,6 @@
 import { getOrderFromSupabase, supabase } from './supabase-client';
 import { updateOrderStatus } from './status-service';
+import { BookReviewStage, invalidateBookReview } from './book-review-invalidation';
 
 export interface ApprovalResult {
   reviewer: string;
@@ -61,6 +62,8 @@ export async function approveStage(
   stage: string,
   nextStatus: StageStatus['status'] = 'approved'
 ): Promise<ApprovalResult> {
+  BookReviewStage.parse(stage);
+  if (nextStatus !== 'approved') await invalidateBookReview(orderId, BookReviewStage.parse(stage));
   const reviewer = 'system'; // TODO: auth context
   const approvedAt = new Date().toISOString();
 
@@ -79,11 +82,8 @@ export async function approveStage(
       reviewedAt: approvedAt,
       reviewer
     };
-  } else {
-    reviewStages[stage] = {
-      status: 'pending'
-    };
   }
+  // Reset uses the canonical in-review hold written above, including downstream invalidation.
 
   const nowIso = new Date().toISOString();
 
@@ -140,8 +140,8 @@ export async function approveStage(
         : {}),
       ...(shouldClearCustomerRevision
         ? {
-            customer_approval_status: null,
-            customer_approval_required: false,
+            customer_approval_status: 'revision_requested',
+            customer_approval_required: true,
             customer_approval_requested_at: null,
             customer_approval_approved_at: null
           }
@@ -275,27 +275,19 @@ export async function unapproveStageIfNeeded(
 
   console.log(`[unapproveStageIfNeeded] Unapproving stage ${stage} for order ${orderId} due to ${flagCount} flag(s)`);
 
-  // Set stage status to 'pending'
-  reviewStages[stage] = {
-    status: 'pending'
-    // Remove approvedAt, reviewer, etc. - reset to pending state
-  };
+  await invalidateBookReview(orderId, BookReviewStage.parse(stage));
 
   try {
-    // Update Supabase - just unapprove the stage
-    // Note: We don't clear workflow queue here - if workflow hasn't started yet,
-    // it should check stage approval before starting. If it has started, we don't want to interrupt it.
-    await updateOrderStatus(orderId, {
-      review_stages: reviewStages
-    });
-
+    // Return the canonical held state, including all invalidated downstream stages.
+    const held = await getOrderFromSupabase(orderId);
+    const heldStages = sanitizeReviewStages(held?.review_stages);
     console.log(`[unapproveStageIfNeeded] ✅ Successfully unapproved stage ${stage} for order ${orderId}`);
 
     return {
       reviewer: 'system',
       approvedAt: new Date().toISOString(),
       status: 'pending',
-      reviewStages
+      reviewStages: heldStages
     };
   } catch (error) {
     console.error(`[unapproveStageIfNeeded] ❌ Failed to unapprove stage ${stage} for order ${orderId}:`, error);

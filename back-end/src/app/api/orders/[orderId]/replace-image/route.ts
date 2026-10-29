@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BookReviewStage, invalidateBookReview } from '@/lib/book-review-invalidation';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
 import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
@@ -287,6 +288,9 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Hold the exact order before the first asset/manifest mutation; old links cannot approve the replacement.
+    await invalidateBookReview(orderId, BookReviewStage.parse(stage));
 
     const poseNumber = poseNumberStr ? parseInt(poseNumberStr, 10) : null;
     const pageNumber = pageNumberStr ? parseInt(pageNumberStr, 10) : null;

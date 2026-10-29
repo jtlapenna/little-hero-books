@@ -1,3 +1,4 @@
+import { customerRevisionsRemaining } from '@/lib/customer-corrections';
 /**
  * Process preview reminders: send reminder-day-1, reminder-day-2, or auto-approval
  * message via Amazon Message Center for orders in "pending" approval.
@@ -138,7 +139,7 @@ export async function processPreviewReminders(
     }
 
     const previewUrl = `${customerSiteUrl}/approve/${token.token}`;
-    const revisionsRemaining = Math.max(0, 2 - (row.revision_count ?? 0));
+    const revisionsRemaining = customerRevisionsRemaining(row.revision_count ?? 0);
 
     try {
       if (hoursSince >= effectiveHours) {

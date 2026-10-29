@@ -2,7 +2,7 @@
   "schema": "lhl.cron-source-overlay@1",
   "parent": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23",
   "parentManifestSha256": "04e43536f0b9d2bb50e5bd9eab81732b6c536507abf7a863538208bca02b9320",
-  "sourceSnapshotSha256": "aa25cd78867ce73a5af77bad3406a49715833829cdc05f7d15be4b222eedcc2f",
+  "sourceSnapshotSha256": "afbd72d30baef92bd394d2e07ffc02b70571b948cb1e09511624246af692bdff",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
@@ -16,7 +16,7 @@
     {
       "path": ".github/workflows/check-gelato-ordinary-release.yml",
       "kind": "source",
-      "sha256": "e912b61785cb21dd755ea0721cf4df85b20a9caed3142e3390b9f7e2dbb36ceb"
+      "sha256": "e0ba5dcefd2d7f4904c0f9800d79aeb1e9ab72d5306318328dc196386de0b5ca"
     },
     {
       "path": ".github/workflows/check-production-build.yml",
@@ -41,7 +41,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "4fecd1af38ad05e7c4d5ccbd858b151e0d72af78727af163ef9609a04d590eb8"
+      "sha256": "a5da3b3cd5b1796641b40b2b55c5df2de4876edb526d9d3f0119d5e8beeb5f2f"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -286,7 +286,7 @@
     {
       "path": "back-end/scripts/test-gelato-local-journey.ts",
       "kind": "source",
-      "sha256": "edea321846c3d65cd0c434705487a4b6053567245d8dd573096fcc30ecc94650"
+      "sha256": "ce60f87ee732f11902c1cbcaf6d1d7533e3a2ae3063abebffb4eb67ea4d4c296"
     },
     {
       "path": "back-end/scripts/test-gelato-local-window.ts",

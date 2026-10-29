@@ -1,3 +1,4 @@
+import { customerRevisionsRemaining } from '@/lib/customer-corrections';
 /**
  * API Route: Reject Preview / Request Revision
  * 
@@ -98,7 +99,7 @@ export async function POST(
       message: 'Revision request submitted successfully',
       orderId: orderId,
       revisionCount: currentRevisionCount + 1,
-      revisionsRemaining: Math.max(0, 2 - (currentRevisionCount + 1))
+      revisionsRemaining: customerRevisionsRemaining(currentRevisionCount + 1)
     }, {
       headers: corsHeaders,
     });
