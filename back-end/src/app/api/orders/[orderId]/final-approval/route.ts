@@ -1,3 +1,4 @@
+import { customerRevisionsRemaining } from '@/lib/customer-corrections';
 // Fix: Remove await before .catch() in notification logging
 // Fix: Include actual error reason when Amazon messaging fails
 // Force deployment: Apply AWS credentials configuration
@@ -266,7 +267,9 @@ async function handleFinalApproval(
   };
 
   // D2C: send preview link by email
-  if (platform === 'd2c') {
+  if (payload.notifyCustomer === false) {
+    notificationResult.reason = 'Customer notification withheld by operator.';
+  } else if (platform === 'd2c') {
     if (!orderRecord.customer_email?.trim()) {
       notificationResult.reason = 'D2C order missing customer_email.';
     } else {
@@ -356,10 +359,7 @@ async function handleFinalApproval(
           }
         });
       } else {
-        const revisionsRemaining = Math.max(
-          0,
-          2 - (orderRecord.revision_count || 0)
-        );
+        const revisionsRemaining = customerRevisionsRemaining(orderRecord.revision_count ?? 0);
         const childName =
           (orderRecord.character_specs &&
             (orderRecord.character_specs.childName ||

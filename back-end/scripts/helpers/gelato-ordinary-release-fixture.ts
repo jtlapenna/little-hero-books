@@ -76,9 +76,9 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
   const d:OrdinaryReleaseDependencies={apiKey:'synthetic-release-account',enabled:async()=>enabled,now:()=>new Date(time),budgetMs:2000,
    context:async id=>{assert.equal(id,f.context.submission.id);return structuredClone(f.context);},order:async key=>f.rows.get(key)??null,artifact:async key=>f.blobs.get(key)!,fetcher,
    payableEvidence:async()=>payable,createStoredFileVerifier:signal=>{verifierPhases++;return createGelatoStoredFileVerifier({loadArtifact:async key=>new Response(Uint8Array.from(f.blobs.get(key)!)),fetcher,signal,budgetMs:1000});},
-   store:{acquire:async(requested,account)=>{assert.equal(requested,id);assert.equal(account,permit.accountSha256);claims++;
+   store:{acquire:async(requested,account)=>{assert.equal(requested,permit.id);assert.equal(account,permit.accountSha256);claims++;
     if(state!=='ready')return{kind:state==='preparing'?'busy':'already_attempted'};state='preparing';owner=randomUUID();version++;return{kind:'acquired',permit:structuredClone(permit),ownerToken:owner};},
-    authorizeSend:async(requested,token,digest)=>{assert.equal(requested,id);assert.equal(token,owner);assert.equal(digest,permit.packetSha256);assert.equal(state,'preparing');
+    authorizeSend:async(requested,token,digest)=>{assert.equal(requested,permit.id);assert.equal(token,owner);assert.equal(digest,permit.packetSha256);assert.equal(state,'preparing');
      if(fault==='authorize-unknown'){state='sending';throw Error('Synthetic lost authorization response');}
      if(fault==='authorize-false')return false;
      state='sending';
@@ -88,7 +88,7 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
      if(fault==='file-after-authorization')f.blobs.set(permit.artifacts[0].key,Buffer.from('Changed after authorization'));
      if(fault==='off-after-authorization')enabled=false;
      return true;},
-    finish:async(requested,token,outcome,orders)=>{assert.equal(requested,id);assert.equal(token,owner);finishes++;
+    finish:async(requested,token,outcome,orders)=>{assert.equal(requested,permit.id);assert.equal(token,owner);finishes++;
      if(!persist)throw Error('Synthetic lost persistence');
      if(outcome==='converted'){assert(orders&&orders.length===1);assert.equal(orders[0].orderType,'order');assert.equal(orders[0].items.length,children);}
      state=outcome;return true;}}};

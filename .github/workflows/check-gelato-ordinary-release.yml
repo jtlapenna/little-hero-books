@@ -23,6 +23,12 @@ jobs:
       - name: Verify synthetic release guards without global service access
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-ordinary-release.ts
+      - name: Verify book review invalidation and exact human release approval locally
+        working-directory: back-end
+        run: |
+          env -i PATH="$PATH" node --import tsx scripts/test-book-review-invalidation.ts
+          env -i PATH="$PATH" node --import tsx scripts/test-book-reassembly.ts
+          env -i PATH="$PATH" node --import tsx scripts/test-gelato-release-application.ts
       - name: Load the reviewed disposable PostgreSQL 17 image
         run: |
           docker pull postgres:17@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317
@@ -43,6 +49,13 @@ jobs:
       - name: Generate visible dummy book rasters using locked Sharp
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/create-gelato-local-rasters.ts "$RUNNER_TEMP/gelato-combined-rasters" "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Verify one ordinary placeholder revision through the actual approval and draft routes
+        working-directory: back-end
+        run: |
+          env -i PATH="$PATH" \
+            GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" \
+            GELATO_LOCAL_CASE=website GELATO_LOCAL_REVISIONS=1 GELATO_LOCAL_NATIVE_QUEUE=1 \
+            node --import tsx scripts/test-gelato-local-journey.ts
       - name: Verify assembled books through persistent release, scheduler and admin
         working-directory: back-end
         run: |

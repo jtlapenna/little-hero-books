@@ -91,7 +91,8 @@ async function main() {
             putObjectImpl: async () => {
               effects++;
             },
-            getOrderImpl: async () => null,
+            invalidateReviewImpl: async () => {},
+          getOrderImpl: async () => null,
             updateOrderImpl: async () => {
               effects++;
               return true;
@@ -115,7 +116,8 @@ async function main() {
     for (const renderSnapshot of [null, false, {}, ""]) {
       let effects = 0;
       await assert.rejects(() => publishW3Manifest({ orderId, bookId: "book-mvp-simple-adventure", renderSnapshot, bookStatus: "draft", renderingSchema: "lhb.book-render@v1", testOnly: true, bookSpecs: { testMode: true }, pagePreviewImages: [] }, {
-        putObjectImpl: async () => { effects++; }, getOrderImpl: async () => null,
+        putObjectImpl: async () => { effects++; }, invalidateReviewImpl: async () => {},
+          getOrderImpl: async () => null,
         updateOrderImpl: async () => { effects++; return true; },
       }));
       assert.equal(effects, 0);

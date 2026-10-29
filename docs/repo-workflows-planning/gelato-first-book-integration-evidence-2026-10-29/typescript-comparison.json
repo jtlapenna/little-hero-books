@@ -1,0 +1,6 @@
+{
+  "baseline": 360,
+  "current": 359,
+  "added": [],
+  "comparison": "same tsconfig/dependencies; tracked changed source virtually replaced from HEAD and newly added files excluded; code/message/file multiset ignores shifted line numbers"
+}

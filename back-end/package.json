@@ -147,7 +147,9 @@
     "test:gelato-isolated-preparation": "node --import tsx scripts/test-gelato-isolated-preparation.ts",
     "test:gelato-protected-runner": "node --import tsx scripts/test-gelato-protected-runner.ts && node --import tsx scripts/test-gelato-protected-runner-crashes.ts",
     "prepare:gelato-isolated-workflows": "node --import tsx scripts/prepare-gelato-isolated-workflows.ts",
-    "test:gelato-admission-settlement": "node --import tsx scripts/test-gelato-admission-settlement.ts && node --import tsx scripts/test-gelato-admission-settlement-boundaries.ts && node --import tsx scripts/test-gelato-admission-settlement-processes.ts && node --import tsx scripts/test-gelato-admission-settlement-transport.ts && tsc -p tsconfig.gelato-admission-settlement.json --noEmit"
+    "test:gelato-admission-settlement": "node --import tsx scripts/test-gelato-admission-settlement.ts && node --import tsx scripts/test-gelato-admission-settlement-boundaries.ts && node --import tsx scripts/test-gelato-admission-settlement-processes.ts && node --import tsx scripts/test-gelato-admission-settlement-transport.ts && tsc -p tsconfig.gelato-admission-settlement.json --noEmit",
+    "test:book-review-invalidation": "node --import tsx scripts/test-book-review-invalidation.ts",
+    "test:gelato-release-application": "node --import tsx scripts/test-gelato-release-application.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

@@ -1,0 +1,128 @@
+{
+  "schema": "lhl.first-book-publication-source@1",
+  "baseCommit": "f7efbb3308df1111568890ed6de9ae5c7c38fe74",
+  "sourceSnapshotSha256": "9c85fe9a640e8a83ab61993e6190f40fa1726196f3108a0870910c2a936fca5d",
+  "files": [
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "sha256": "e0ba5dcefd2d7f4904c0f9800d79aeb1e9ab72d5306318328dc196386de0b5ca",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "a5da3b3cd5b1796641b40b2b55c5df2de4876edb526d9d3f0119d5e8beeb5f2f",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+      "sha256": "ccd13a0d04fa39b1ecf6937211d339c80e052ea83a2f5dd465d5a7473fbf080c",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-book-reassembly.ts",
+      "sha256": "c0f68dfe524648cfc5cc7ad1de2350e6ccd3252fec25987707f092a9576720b7",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-book-review-invalidation.ts",
+      "sha256": "7c019b7b7455aa2a61313e1f869a9fdc6b97396acb3cca517ce8894848c77ec0",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-configured-w3-boundaries.ts",
+      "sha256": "ef989f334f79b3e3e5ca7c08429bd89719d7bf30eaad3f087c6b2a5bb012f10c",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-configured-w3-pipeline.ts",
+      "sha256": "a87c900f16fc0c21e3f7097cb16b4b2402ca13594ed12ecc68fc7271d74bfa78",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-local-journey.ts",
+      "sha256": "ce60f87ee732f11902c1cbcaf6d1d7533e3a2ae3063abebffb4eb67ea4d4c296",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-release-application.ts",
+      "sha256": "431a83e23cc71c315361cc67bdea2d3f41bbf38d79e9c2ef7ca168a3536052e0",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-w3-manifest-publish.ts",
+      "sha256": "68512f3cb85701c6556a085183a03f4ac0f5116dc52b0454e535031b8e41754f",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/admin/gelato-release/route.ts",
+      "sha256": "6275e56904a7d30f6f55a7374fffc06daeebfb6caf0daa832b595fb4e003e38f",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/notifications/preview/amazon/route.ts",
+      "sha256": "6eb5bf69431daba44c9386eacdf6027484f98b30ac47b15d1e60ba9b1ff78af5",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/auto-flip-pose/route.ts",
+      "sha256": "191e11616cc105bbe93d1c94edb2f3c6a579b8df4a32ed0ffdac169c5abb90b9",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/final-approval/route.ts",
+      "sha256": "26b0b2cc4bcc684d81cbb7b29dffae98ca3cf77b074bc1fc1d7efa51f5d1b2c8",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/replace-image/route.ts",
+      "sha256": "d79f4138c63fac5bc925164b8635369ee2d38dc977197d8f44d9f149d6635291",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/app/api/preview/[orderId]/reject/route.ts",
+      "sha256": "f793376c29621404cb6a558ea2d3d872038355a19c9714f694c919a4ff42931a",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/approval-store.ts",
+      "sha256": "1a497f78a848fdf6735e0d0f0efc8b537296de353509690b515b33ffc06ed692",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/book-review-invalidation.ts",
+      "sha256": "7c3b93429fede709f7085913a91ce3bc17cfcc031e76845436d3d7dfb62da0f1",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-application.ts",
+      "sha256": "eef011954bd196acb203c8a275a80046d2d80d0b3c0163164fca0c765b5cab50",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-runtime.ts",
+      "sha256": "55604c3ab317f5621c8b6dc77969a0aea2a1694a31d244247caa5b16d56e809c",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/customer-corrections.ts",
+      "sha256": "516a30d4f37440ed3af6461fb9bf67d80f80c02ec3a6cab7d834db929acdec4e",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/notifications/process-preview-reminders.ts",
+      "sha256": "367fcb3dd7dad348768918f67a401abe1daa3362874b8624e94b841c1128b2ea",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
+      "sha256": "c01e62cc5d12e9933741932b53761f3c40c7c41fa6716e5784fb858061d089be",
+      "mode": "0o644"
+    }
+  ],
+  "supersedesCurrentSourceOnly": "source-manifest.json",
+  "historicalSourceAndQaPreserved": true,
+  "currentCronOverlaySha256": "de940065fdbf9715ee7c9e741d2326f8e8b84727c970f494d9db6c13d5fe1bca",
+  "oldOverlayPreservedSha256": "82c8d565198b3c9da867798747d00c9bc1bf969b7c7577f58484e0c3468042b6",
+  "canDeploy": false,
+  "canPrint": false
+}

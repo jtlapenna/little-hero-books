@@ -1,4 +1,8 @@
 import { z } from 'zod';
+export const CUSTOMER_REVISION_LIMIT = 1;
+export function customerRevisionsRemaining(count: unknown): number {
+  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? Math.max(0, CUSTOMER_REVISION_LIMIT - count) : 0;
+}
 import type { CustomerCorrection } from '@/types/order';
 
 const receiptSchema = z.object({

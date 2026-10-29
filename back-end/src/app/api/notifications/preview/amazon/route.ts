@@ -1,3 +1,4 @@
+import { customerRevisionsRemaining } from '@/lib/customer-corrections';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
       reminderType: payload.reminderType,
       previewUrl,
       childName,
-      revisionsRemaining: Math.max(0, 2 - (order.revision_count || 0))
+      revisionsRemaining: customerRevisionsRemaining(order.revision_count ?? 0)
     });
 
     await logNotificationAttempt({
