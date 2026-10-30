@@ -1,0 +1,76 @@
+{
+  "at": "2026-10-30T04:38:12.078512+00:00",
+  "pr": 65,
+  "initialHead": "ba787c0b6e00b66151fa87afce38d84aa8a8bd8c",
+  "initialChecks": {
+    "passed": 10,
+    "failed": 2
+  },
+  "failures": [
+    {
+      "run": 41003307537,
+      "job": "local-release-core",
+      "cause": "Synthetic quote clock advanced1second ahead of real SQL wall clock; SQL correctly refused future-date evidence",
+      "fix": "Advance provenance IDs/hashes but do not advance clock in real SQL fixture; assert quote time not future; preserve default advancing clock in in-memory tests"
+    },
+    {
+      "run": 41003307421,
+      "job": "local-only",
+      "cause": "Current source-overlay workflow/package hashes did not include new reviewed suite invocation",
+      "fix": "Archive exact prior current manifest; update only2 current source rows and snapshot/provenance; retained parent proofs and false authority unchanged"
+    }
+  ],
+  "runtimeOrSqlSafetyWeakened": false,
+  "sourceSnapshotSha256": "3a16e01dc161d0b49de3298ea12f3e949fcdbdc1b9d436ef2bc940c7da999b8e",
+  "checks": {
+    "service": 33,
+    "disposablePostgres": {
+      "suite": "ordinary-release-disposable-postgres",
+      "postgres": "17.11 (Homebrew)",
+      "checks": [
+        "idempotent additive migration, populated legacy orders/submissions unchanged, empty OFF gate before lookup",
+        "anonymous/authenticated denied; RLS on; service RPCs invoker rights",
+        "website W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+        "Amazon W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+        "Amazon siblings W4.1 real SQL store/core path, one intercepted PATCH, replay blocked",
+        "canonical nested quantity two accepted by SQL and release review",
+        "canonical object/string nested JSON-null quantities default to one",
+        "two concurrent workers, same permit: one durable owner and one PATCH",
+        "two independently approved permits for same provider root: one PATCH across approvals",
+        "independent roots progress concurrently",
+        "missing payable date, binding fingerprint, taxes or total rejected atomically",
+        "current name, approval and shipping revocations roll back send authorization/root consumption",
+        "OFF revocation, immutable packet, NULL/infinite/overlong direct-DML leases rejected",
+        "lost acquire acknowledgement: held, expired preparation fenced; new approval can send once",
+        "lost durable-send acknowledgement consumes permit; OFF read-only draft observation never retries",
+        "crashed sender fenced, active sender protected, expired OFF observer records conversion without PATCH",
+        "provider accepted but readback lost: durable unknown then read-only recovery, no second send",
+        "lost finish acknowledgement preserves committed closure across retries",
+        "version3 acknowledged estimate, real SQL ownership/concurrency/closure, one intercepted PATCH and no replay",
+        "SQL refuses fabricated final costs, omitted disclosures, cap claims and invalid quoted-subtotal arithmetic",
+        "changed live-shaped product estimate cannot reuse persisted version3 approval",
+        "version3 SQL send guard preserves current buyer approval and atomic root fencing",
+        "version3 uncertain acceptance reconciles read-only with local gate OFF and no second PATCH",
+        "final local gate OFF, no notification intents, legacy rows intact"
+      ],
+      "passed": 24,
+      "provider": "intercepted only",
+      "hostedDatabase": false,
+      "liveOrdersRead": 0,
+      "liveOrdersWritten": 0,
+      "normalControlsChanged": false,
+      "finalLocalGate": false
+    },
+    "sourceBindings": 147,
+    "tamperRejections": 21,
+    "typesBaseline": 359,
+    "changedFileTypes": 0
+  },
+  "independentReviewers": [
+    "/root/publication095_money_review",
+    "/root/publication095_rollout_review"
+  ],
+  "providerCalls": 0,
+  "hostedDatabaseCalls": 0,
+  "publicationScope": "followup commit/push same existing PR65; no new PR or merge/deploy/paid effect"
+}

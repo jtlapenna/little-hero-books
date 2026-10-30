@@ -204,7 +204,8 @@ async function main() {
         putObjectImpl: async (_bucket, _key, body) => {
           stored = JSON.parse(String(body));
         },
-        getOrderImpl: async () => ({
+        invalidateReviewImpl: async () => {},
+          getOrderImpl: async () => ({
           customer_email: null,
           customer_approval_status: "not_requested",
           review_stages: {},

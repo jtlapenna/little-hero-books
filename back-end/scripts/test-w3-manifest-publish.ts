@@ -159,6 +159,7 @@ async function main(): Promise<void> {
     },
     {
       now: new Date('2026-03-27T04:05:00.000Z'),
+      invalidateReviewImpl: async () => {},
       getOrderImpl: async () => ({
         review_stages: {
           preBria: { status: 'approved' },

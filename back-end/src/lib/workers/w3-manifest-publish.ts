@@ -1,3 +1,4 @@
+import { invalidateBookReview } from '@/lib/book-review-invalidation';
 import { resolveW3ManifestOptions } from '@/lib/books/w3-manifest';
 import { buildW3Manifest, type BuildW3ManifestResult } from '@/lib/books';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -22,6 +23,7 @@ type UpdateOrderImpl = (
 ) => Promise<unknown>;
 
 export interface PublishW3ManifestOptions {
+  invalidateReviewImpl?: (orderId: string) => Promise<void>;
   getOrderImpl?: GetOrderImpl;
   updateOrderImpl?: UpdateOrderImpl;
   putObjectImpl?: PutObjectImpl;
@@ -127,6 +129,8 @@ export async function publishW3Manifest(
   const manifestKey = built.manifest3Key;
   const manifestUrl = built.manifest3Url;
 
+  // Withdraw the previous proof/queue and retire its approval links before replacing its manifest.
+  await (options.invalidateReviewImpl ?? ((id) => invalidateBookReview(id, 'postPdf', undefined, 'assembly-publish')))(built.orderId);
   await putObjectImpl(
     R2_ORDERS_BUCKET,
     manifestKey,

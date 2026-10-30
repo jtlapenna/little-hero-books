@@ -4,24 +4,11 @@ import { getObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { createGelatoSubmissionStore, type GelatoSubmissionStore } from './gelato-submission-store';
 import { createGelatoStoredFileVerifier } from './gelato-stored-file';
 import type { EngineeringConversionDependencies } from './gelato-engineering-conversion';
+import { readGelatoArtifactBytes as readEngineeringArtifact } from './gelato-artifact-bytes';
+export { readEngineeringArtifact };
 
 const controlNames = ['GELATO_DRAFT_SUBMISSION_ENABLED','GELATO_CANCEL_ENABLED','GELATO_STATUS_RELAY_ENABLED','GELATO_STATUS_POLLING_ENABLED','GELATO_NOTIFICATIONS_ENABLED','GELATO_SCHEDULED_STATUS_ENABLED'];
 type Sources = { environment?: Record<string, string | undefined>; database?: SupabaseClient; store?: GelatoSubmissionStore; fetcher?: typeof fetch };
-export async function readEngineeringArtifact(load: (signal: AbortSignal) => Promise<Response>, budgetMs=30_000): Promise<Uint8Array> {
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(new Error('Engineering PDF read timed out')),budgetMs);
-  let abortHandler: (()=>void)|undefined;
-  const aborted=new Promise<never>((_,reject)=>{abortHandler=()=>reject(new Error('Engineering PDF read timed out'));controller.signal.addEventListener('abort',abortHandler,{once:true});});
-  let reader: ReadableStreamDefaultReader<Uint8Array>|undefined;
-  try {
-    const response=await Promise.race([load(controller.signal),aborted]);
-    if(!response.ok||!response.body)throw new Error('Engineering PDF lookup failed');
-    reader=response.body.getReader();const chunks:Uint8Array[]=[];let length=0;
-    for(;;){const next=await Promise.race([reader.read(),aborted]);if(next.done)break;length+=next.value.length;if(length>64_000_000)throw new Error('Engineering PDF exceeds bound');chunks.push(next.value);}
-    return Buffer.concat(chunks);
-  } catch(error){if(reader)void reader.cancel().catch(()=>undefined);throw error;}
-  finally {clearTimeout(timeout);if(abortHandler)controller.signal.removeEventListener('abort',abortHandler);}
-}
 export function gelatoEngineeringConversionRuntime(sources: Sources = {}): EngineeringConversionDependencies {
   const environment = sources.environment ?? process.env;
   const apiKey = environment.GELATO_API_KEY;

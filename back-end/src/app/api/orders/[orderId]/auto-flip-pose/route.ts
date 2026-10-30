@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { invalidateBookReview } from '@/lib/book-review-invalidation';
 import { getObject, putObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { updateOrderInSupabase } from '@/lib/supabase-client';
 import {
@@ -468,6 +469,7 @@ export async function POST(
       buffer: sourceImage,
     });
 
+    await invalidateBookReview(orderId, 'preBria', undefined, 'pose-generation');
     try {
       await putObject(sourceBucket, canonicalKey, transformedUpload.buffer, transformedUpload.contentType);
     } catch (error) {
