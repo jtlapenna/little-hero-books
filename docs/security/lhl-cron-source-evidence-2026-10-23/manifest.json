@@ -2,7 +2,7 @@
   "schema": "lhl.cron-source-overlay@1",
   "parent": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23",
   "parentManifestSha256": "04e43536f0b9d2bb50e5bd9eab81732b6c536507abf7a863538208bca02b9320",
-  "sourceSnapshotSha256": "aa25cd78867ce73a5af77bad3406a49715833829cdc05f7d15be4b222eedcc2f",
+  "sourceSnapshotSha256": "3bab6f81dc5ba12a3525d2625097fd966b8a858f9ec39e57370bb6e6ea6bef24",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
@@ -16,12 +16,12 @@
     {
       "path": ".github/workflows/check-gelato-ordinary-release.yml",
       "kind": "source",
-      "sha256": "e912b61785cb21dd755ea0721cf4df85b20a9caed3142e3390b9f7e2dbb36ceb"
+      "sha256": "425ccad7e0ebcbe4a158da2afe9ff78defe402b4fe6e37f7f58d0efccf915225"
     },
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "d1a25b7ec3497182a15c03555e0a57e21344b75af32d56ece5460fb9daf9ffbf"
+      "sha256": "d5ad99248d2cf0a1a5396f8e51747f8813cfec3493b390e5c8862b804b491b8a"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -41,7 +41,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "4fecd1af38ad05e7c4d5ccbd858b151e0d72af78727af163ef9609a04d590eb8"
+      "sha256": "f8500c9a9e5a20ecfb5e228345545c809c53655e300197c90400bf88f514b6a5"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -286,7 +286,7 @@
     {
       "path": "back-end/scripts/test-gelato-local-journey.ts",
       "kind": "source",
-      "sha256": "edea321846c3d65cd0c434705487a4b6053567245d8dd573096fcc30ecc94650"
+      "sha256": "ce60f87ee732f11902c1cbcaf6d1d7533e3a2ae3063abebffb4eb67ea4d4c296"
     },
     {
       "path": "back-end/scripts/test-gelato-local-window.ts",
@@ -576,12 +576,12 @@
     {
       "path": "back-end/src/lib/books/runtime-book-config.ts",
       "kind": "source",
-      "sha256": "04f5b53b7d9252b7a63919796bb2d9fc983f50e2aa3451c17e1004ca21c01923"
+      "sha256": "02ff2464b34d88afedc3f2c8b1aa43052d26e87c7033d0b76cfde4012d39840c"
     },
     {
       "path": "back-end/src/lib/books/types.ts",
       "kind": "source",
-      "sha256": "97e0dba81016f8b6b109757bab95ef5e32d9c11bb445f6325070ce64f65c4d5a"
+      "sha256": "4216cb7b6b2063c5d91db29b3e6a5589f50683b36e25681bd1080abfd687b689"
     },
     {
       "path": "back-end/src/lib/books/w2a-frozen-input.ts",
@@ -763,5 +763,8 @@
       "kind": "source",
       "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
     }
-  ]
+  ],
+  "previousCurrentManifestArchive": "docs/security/lhl-cron-source-evidence-2026-10-23/history/manifest-before-book-config-2026-10-30.json",
+  "previousCurrentManifestSha256": "c854c2071d8bd96c6545380aea590d813f3fb4215554ee6a8eca829c4029a16d",
+  "currentBindingReason": "Reviewed phase002 shared-config validation and its CI regression; refresh three current-source bindings only, preserving historical parent evidence and all false execution-authority fields"
 }
