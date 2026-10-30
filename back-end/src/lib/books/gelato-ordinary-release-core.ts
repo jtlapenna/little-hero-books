@@ -10,6 +10,7 @@ import { observeGelatoMonetaryQuote } from './gelato-financial-observation';
 import { type GelatoProviderOrder, validateGelatoConnectedOrdersWithFiles } from './gelato-provider-snapshot';
 import type { GelatoSubmissionContext } from './gelato-submission-store';
 import type { GelatoStoredFileVerifier } from './gelato-stored-file';
+import {ESTIMATE_TEST_PRINT_POLICY,GelatoReleaseEstimateSchema,type ReleaseQuoteContext} from './gelato-release-estimate';
 
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
 const Cents = z.string().regex(/^(0|[1-9]\d{0,11})$/);
@@ -20,6 +21,10 @@ export const OrdinaryReleasePermitSchema = z.object({ id: z.string().uuid(), sub
  accountSha256: Hash, packetSha256: Hash, requestSnapshotSha256:Hash, artifacts: z.array(Artifact).min(1).max(100), currency: z.literal('USD'),
  maximumTotalCents: Cents, approvedAt: z.string().datetime({offset:true}), expiresAt: z.string().datetime({offset:true}) }).strict();
 export type OrdinaryReleasePermit = z.infer<typeof OrdinaryReleasePermitSchema>;
+export const OrdinaryEstimatePermitSchema=OrdinaryReleasePermitSchema.omit({maximumTotalCents:true}).extend({
+ pricingPolicy:z.literal(ESTIMATE_TEST_PRINT_POLICY),maximumQuotedSubtotalCents:Cents,artifacts:z.array(Artifact).length(1)}).strict();
+export const AnyOrdinaryReleasePermitSchema=z.union([OrdinaryReleasePermitSchema,OrdinaryEstimatePermitSchema]);
+export type AnyOrdinaryReleasePermit=z.infer<typeof AnyOrdinaryReleasePermitSchema>;
 // This contract is NOT inferred from the existing partial Gelato quote. A future
 // reviewed adapter must establish every component from trusted provider evidence.
 export const OrdinaryPayableEvidenceSchema = z.object({ source: z.literal('verified_provider_payable'), accountSha256: Hash,
@@ -27,6 +32,18 @@ export const OrdinaryPayableEvidenceSchema = z.object({ source: z.literal('verif
  productsCents: Cents, shippingCents: Cents, taxesCents: Cents, feesCents: Cents, discountCents: Cents,
  totalCents: Cents, quoteResponseSha256:Hash, responseSha256: Hash }).strict();
 export type OrdinaryPayableEvidence = z.infer<typeof OrdinaryPayableEvidenceSchema>;
+export const OrdinaryReleasePacketSchema = z.object({ version:z.literal(2), permitId:z.string().uuid(),
+ approvedAt:z.string().datetime({offset:true}), expiresAt:z.string().datetime({offset:true}), submissionId:z.string().uuid(),
+ providerOrderId:ProviderId, accountSha256:Hash, originalRequestSha256:Hash,
+ artifacts:z.array(Artifact.extend({pdfPageCount:z.number().int().positive()})).min(1).max(100),
+ destinationSha256:Hash, shippingTier:z.string().min(1), shipmentMethodUid:z.string().min(1),
+ currency:z.literal('USD'), maximumTotalCents:Cents, payable:OrdinaryPayableEvidenceSchema }).strict();
+export type OrdinaryReleasePacket = z.infer<typeof OrdinaryReleasePacketSchema>;
+export const OrdinaryEstimatePacketSchema=OrdinaryReleasePacketSchema.omit({version:true,maximumTotalCents:true,payable:true}).extend({
+ version:z.literal(3),pricingPolicy:z.literal(ESTIMATE_TEST_PRINT_POLICY),maximumQuotedSubtotalCents:Cents,estimate:GelatoReleaseEstimateSchema,
+ artifacts:z.array(Artifact.extend({pdfPageCount:z.number().int().positive()})).length(1)}).strict();
+export const AnyOrdinaryReleasePacketSchema=z.union([OrdinaryReleasePacketSchema,OrdinaryEstimatePacketSchema]);
+export type AnyOrdinaryReleasePacket=z.infer<typeof AnyOrdinaryReleasePacketSchema>;
 export type OrdinaryReleaseOutcome = 'converted' | 'outcome_unknown' | 'preflight_failed';
 export interface OrdinaryReleaseStore {
  // A persistent, service-only CAS must never reacquire sending/unknown/closed work.
@@ -48,7 +65,10 @@ export interface OrdinaryReleaseDependencies {
  createStoredFileVerifier(signal:AbortSignal): GelatoStoredFileVerifier;
  // Required injection: there is no global fetch fallback or provider entry point.
  fetcher: typeof fetch;
- payableEvidence(rawQuote: unknown): Promise<unknown>;
+ pricingPolicy?:typeof ESTIMATE_TEST_PRINT_POLICY;
+ payableEvidence(rawQuote: unknown,context?:ReleaseQuoteContext): Promise<unknown>;
+ // Persisted original human-reviewed packet, never a fresh quote substituted at send.
+ approvedPacket?: (permitId:string) => Promise<unknown>;
  now?: () => Date; budgetMs?: number;
 }
 function canonical(value: unknown): string {
@@ -60,9 +80,10 @@ export const ordinaryReleaseDigest = (value: unknown) => createHash('sha256').up
 const manualTransport = (d:OrdinaryReleaseDependencies):typeof fetch => (input,init)=>d.fetcher(input,{...init,redirect:'manual'});
 const keyDigest = (value: string) => createHash('sha256').update(value).digest('hex');
 const now = (d: OrdinaryReleaseDependencies) => (d.now ?? (()=>new Date()))();
-function assertPermit(permit: OrdinaryReleasePermit, d: OrdinaryReleaseDependencies) {
+function assertPermit(permit: AnyOrdinaryReleasePermit, d: OrdinaryReleaseDependencies) {
  const time=now(d).getTime(), approved=Date.parse(permit.approvedAt), expires=Date.parse(permit.expiresAt);
  if (!d.apiKey.trim() || keyDigest(d.apiKey)!==permit.accountSha256) throw Error('release_account_mismatch');
+ if(('pricingPolicy' in permit?permit.pricingPolicy:undefined)!==d.pricingPolicy)throw Error('release_pricing_policy_mismatch');
  if (!Number.isFinite(time) || approved>time || expires<=time || expires<=approved || expires-approved>15*60000) throw Error('release_approval_expired');
 }
 function amounts(value: string): string {
@@ -70,7 +91,7 @@ function amounts(value: string): string {
  const [whole,fraction='']=value.split('.');return (BigInt(whole)*BigInt(100)+BigInt(fraction.padEnd(2,'0'))).toString();
 }
 const preparationOnly = new Set(['ordinary_release_transport_not_installed','specific_paid_test_approval_required','taxes_fees_and_payable_total_unverified']);
-async function assertArtifactScope(permit:OrdinaryReleasePermit,context:GelatoSubmissionContext,saved:GelatoSavedSnapshot){
+async function assertArtifactScope(permit:AnyOrdinaryReleasePermit,context:GelatoSubmissionContext,saved:GelatoSavedSnapshot){
  if(context.members.length!==permit.artifacts.length || saved.request.items.length!==permit.artifacts.length ||
   new Set(context.members.map(m=>m.child_order_id)).size!==context.members.length || new Set(context.members.map(m=>m.child_order_key)).size!==context.members.length ||
   new Set(context.members.map(m=>m.item_reference_id)).size!==context.members.length || new Set(context.members.map(m=>m.provider_item_id)).size!==context.members.length ||
@@ -87,13 +108,14 @@ async function assertArtifactScope(permit:OrdinaryReleasePermit,context:GelatoSu
    orderDbId:member.child_order_id,configVersion:artifact.configVersion,inputFingerprint:member.artifact_fingerprint}}))throw Error('release_request_artifact_scope_mismatch');
  }
 }
-export function prepareOrdinaryRelease(permitValue: unknown,d:OrdinaryReleaseDependencies,signal:AbortSignal){
- return bounded(signal,()=>performOrdinaryReleasePreparation(permitValue,d,signal));
+export function prepareOrdinaryRelease(permitValue: unknown,d:OrdinaryReleaseDependencies,signal:AbortSignal,approvedPacket?:unknown){
+ return bounded(signal,()=>performOrdinaryReleasePreparation(permitValue,d,signal,approvedPacket));
 }
-async function performOrdinaryReleasePreparation(permitValue: unknown, d: OrdinaryReleaseDependencies, signal: AbortSignal) {
- const permit=OrdinaryReleasePermitSchema.parse(permitValue); assertPermit(permit,d); signal.throwIfAborted();
+async function performOrdinaryReleasePreparation(permitValue: unknown, d: OrdinaryReleaseDependencies, signal: AbortSignal, approvedPacket?:unknown) {
+ const permit=AnyOrdinaryReleasePermitSchema.parse(permitValue); assertPermit(permit,d); signal.throwIfAborted();
  const context=await d.context(permit.submissionId); signal.throwIfAborted();
  const saved=GelatoSavedSnapshotSchema.parse(context.submission.request_snapshot);
+ if('pricingPolicy' in permit && (saved.request.items.length!==1||saved.request.items[0].quantity!==1))throw Error('estimate_policy_single_test_copy_required');
  if(ordinaryReleaseDigest(saved)!==permit.requestSnapshotSha256)throw Error('release_approved_snapshot_mismatch');
  if(context.submission.id!==permit.submissionId || saved.request.orderReferenceId!==context.submission.order_reference_id || saved.request.customerReferenceId!==context.submission.root_order_id || context.submission.accepted_root_order_id!==permit.providerOrderId ||
   context.providerOrders.length!==1 || context.providerOrders[0].provider_order_id!==permit.providerOrderId ||
@@ -119,7 +141,9 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
  const request={orderReferenceId:saved.request.orderReferenceId,customerReferenceId:saved.request.customerReferenceId,currency:saved.request.currency,
   recipient:saved.request.shippingAddress,allowMultipleQuotes:false as const,products:saved.request.items};
  const rawQuote=await requestGelatoQuote(request,{apiKey:d.apiKey,fetcher:manualTransport(d),signal});
- const money=OrdinaryPayableEvidenceSchema.parse(await d.payableEvidence(rawQuote));
+ const money=z.union([OrdinaryPayableEvidenceSchema,GelatoReleaseEstimateSchema]).parse(await d.payableEvidence(rawQuote,{
+  accountSha256:permit.accountSha256,request,config:saved.config,shippingTier:saved.shippingTier,now:now(d)}));
+ if(('pricingPolicy' in permit)!==(money.source==='gelato_product_shipping_estimate'))throw Error('release_pricing_evidence_mismatch');
  const selected=validateGelatoQuote({response:rawQuote,request,config:saved.config,shippingTier:saved.shippingTier,quotedAt:money.quotedAt,now:now(d)});
  if(money.quoteResponseSha256!==ordinaryReleaseDigest(rawQuote) || money.accountSha256!==permit.accountSha256 || money.quoteId!==selected.quoteId || money.requestFingerprint!==selected.requestFingerprint ||
   money.currency!==permit.currency || selected.shipmentMethodUid!==saved.request.shipmentMethodUid)throw Error('release_payable_binding_mismatch');
@@ -145,15 +169,36 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
  const blockers=review.blockers.filter(reason=>!preparationOnly.has(reason));
  if(blockers.length)throw Error('release_review_blocked:'+blockers.join(','));
  if(review.productsCents!==money.productsCents || review.shippingCents!==money.shippingCents)throw Error('release_payable_components_mismatch');
- const total=BigInt(money.productsCents)+BigInt(money.shippingCents)+BigInt(money.taxesCents)+BigInt(money.feesCents)-BigInt(money.discountCents);
- if(total<BigInt(0) || total.toString()!==money.totalCents || total>BigInt(permit.maximumTotalCents))throw Error('release_spend_limit_or_arithmetic');
+ if('pricingPolicy' in permit){
+  if(money.source!=='gelato_product_shipping_estimate'||String(BigInt(money.productsCents)+BigInt(money.shippingCents))!==money.quotedSubtotalCents||
+   BigInt(money.quotedSubtotalCents)>BigInt(permit.maximumQuotedSubtotalCents))throw Error('release_estimate_limit_or_arithmetic');
+ }else{
+  if(money.source!=='verified_provider_payable')throw Error('release_verified_total_required');
+  const total=BigInt(money.productsCents)+BigInt(money.shippingCents)+BigInt(money.taxesCents)+BigInt(money.feesCents)-BigInt(money.discountCents);
+  if(total<BigInt(0) || total.toString()!==money.totalCents || total>BigInt(permit.maximumTotalCents))throw Error('release_spend_limit_or_arithmetic');
+ }
  // Validate every monetary line's cent precision, including aggregate quantity lines.
  for(const product of currentQuote.products){if(product.price===null)throw Error('release_unknown_product_cost');amounts(product.price);}
  await assertPrinterSendAuthority(saved.request.items,now(d)); signal.throwIfAborted(); assertPermit(permit,d);
- const packet={version:2,permitId:permit.id,approvedAt:permit.approvedAt,expiresAt:permit.expiresAt,submissionId:permit.submissionId,providerOrderId:permit.providerOrderId,accountSha256:permit.accountSha256,
+ const basePacket={permitId:permit.id,approvedAt:permit.approvedAt,expiresAt:permit.expiresAt,submissionId:permit.submissionId,providerOrderId:permit.providerOrderId,accountSha256:permit.accountSha256,
   originalRequestSha256:ordinaryReleaseDigest(saved),artifacts:permit.artifacts.map(a=>({...a,pdfPageCount:context.members.find(m=>m.child_order_id===a.childOrderId)!.pdf_page_count})),destinationSha256:ordinaryReleaseDigest(saved.request.shippingAddress),
-  shippingTier:saved.shippingTier,shipmentMethodUid:saved.request.shipmentMethodUid,currency:permit.currency,
-  maximumTotalCents:permit.maximumTotalCents,payable:money};
+  shippingTier:saved.shippingTier,shipmentMethodUid:saved.request.shipmentMethodUid,currency:permit.currency};
+ const freshPacket=AnyOrdinaryReleasePacketSchema.parse('pricingPolicy' in permit?
+  {...basePacket,version:3,pricingPolicy:permit.pricingPolicy,maximumQuotedSubtotalCents:permit.maximumQuotedSubtotalCents,estimate:money}:
+  {...basePacket,version:2,maximumTotalCents:permit.maximumTotalCents,payable:money});
+ // Quote IDs/timestamps/response hashes are observation provenance, not price or
+ // spending authority. Preserve the complete approved packet for SQL/audit, but
+ // compare every commercial/authority field with independently validated fresh evidence.
+ const terms=(packet:AnyOrdinaryReleasePacket)=>{
+  const value=packet.version===2?packet.payable:packet.estimate;
+  const {quoteId:_quoteId,quotedAt:_quotedAt,quoteResponseSha256:_quoteHash,responseSha256:_responseHash,...commercial}=value;
+  return packet.version===2?{...packet,payable:commercial}:{...packet,estimate:commercial};
+ };
+ const packet=approvedPacket===undefined?freshPacket:AnyOrdinaryReleasePacketSchema.parse(approvedPacket);
+ if(approvedPacket!==undefined && (ordinaryReleaseDigest(packet)!==permit.packetSha256 ||
+  ordinaryReleaseDigest(terms(packet))!==ordinaryReleaseDigest(terms(freshPacket))))throw Error('release_approved_packet_changed');
+ const approvedAge=now(d).getTime()-Date.parse((packet.version===2?packet.payable:packet.estimate).quotedAt);
+ if(!Number.isFinite(approvedAge)||approvedAge<0||approvedAge>15*60000)throw Error('release_approved_quote_expired');
  const currentAuthority=async()=>{
   const latest=await d.context(permit.submissionId);
   const binding=(c:GelatoSubmissionContext)=>({submission:c.submission,members:c.members,providerOrders:c.providerOrders});
@@ -163,7 +208,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   if(finalReview.blockers.some(reason=>!preparationOnly.has(reason)))throw Error('release_final_authority_changed');
   await assertPrinterSendAuthority(saved.request.items,now(d)); assertPermit(permit,d); signal.throwIfAborted();
  };
- return {packet,packetSha256:ordinaryReleaseDigest(packet),currentAuthority};
+ return {packet,packetSha256:ordinaryReleaseDigest(packet),currentObservation:money,currentAuthority};
 }
 async function bounded<T>(signal: AbortSignal, work:()=>Promise<T>):Promise<T>{
  signal.throwIfAborted();
@@ -184,9 +229,11 @@ export async function executeOrdinaryRelease(id:string,d:OrdinaryReleaseDependen
   const acquired=await bounded(controller.signal,()=>d.store.acquire(id,keyDigest(d.apiKey),now(d).toISOString()));
   if(acquired.kind!=='acquired')return {state:acquired.kind,providerMutationAttempted:false};
   owner=z.string().uuid().parse(acquired.ownerToken);
-  const permit=OrdinaryReleasePermitSchema.parse(acquired.permit);
+  const permit=AnyOrdinaryReleasePermitSchema.parse(acquired.permit);
   if(permit.id!==id)throw Error('release_permit_identity_mismatch');
-  const prepared=await bounded(controller.signal,()=>prepareOrdinaryRelease(permit,d,controller.signal));
+  const approvedPacket=d.approvedPacket?await bounded(controller.signal,()=>d.approvedPacket!(id)):undefined;
+  if(d.approvedPacket && approvedPacket==null)throw Error('release_recorded_packet_missing');
+  const prepared=await bounded(controller.signal,()=>prepareOrdinaryRelease(permit,d,controller.signal,approvedPacket));
   if(prepared.packetSha256!==permit.packetSha256)throw Error('release_approved_packet_changed');
   if(!await bounded(controller.signal,()=>d.enabled!()))throw Error('release_disabled_before_send');
   assertPermit(permit,d); controller.signal.throwIfAborted();
@@ -225,7 +272,7 @@ export function observeOrdinaryRelease(permitValue:unknown,d:OrdinaryReleaseDepe
  return bounded(signal,()=>performOrdinaryReleaseObservation(permitValue,d,signal));
 }
 async function performOrdinaryReleaseObservation(permitValue:unknown,d:OrdinaryReleaseDependencies,signal:AbortSignal){
- const permit=OrdinaryReleasePermitSchema.parse(permitValue);
+ const permit=AnyOrdinaryReleasePermitSchema.parse(permitValue);
  // Reconciliation remains useful after approval expiry; exact account and bindings still apply.
  if(!d.apiKey.trim() || keyDigest(d.apiKey)!==permit.accountSha256)throw Error('release_account_mismatch');
  const context=await d.context(permit.submissionId); signal.throwIfAborted();

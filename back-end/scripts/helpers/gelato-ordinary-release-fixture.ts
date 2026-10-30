@@ -33,14 +33,14 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
   }
   let enabled=true,converted=false,patches=0,reads=0,quotes=0,claims=0,finishes=0,version=0;
   let state:'ready'|'preparing'|'sending'|OrdinaryReleaseOutcome='ready';let owner:string|null=null;
-  let fault='',persist=true,verifierPhases=0;let payable:unknown;const violations:string[]=[];const attempts:string[]=[];
+  let fault='',persist=true,verifierPhases=0,refreshQuoteMetadata=false,advanceQuoteClock=true,observation=0,currentQuoteId='reviewed-payable-quote',productCents=1218,shippingCents=500;let payable:unknown;const violations:string[]=[];const attempts:string[]=[];
   const id=randomUUID();
   const raw=()=>({...f.raw(),orderType:converted?'order':'draft',fulfillmentStatus:converted?'created':'draft',financialStatus:converted?'pending':'draft',
    items:f.raw().items.map((item,i)=>({...item,files:[{type:'default',url:'https://gelato-api-live.s3.eu-west-1.amazonaws.com/release-'+i+'.pdf'}]}))});
   const permit:OrdinaryReleasePermit={id,submissionId:f.context.submission.id,providerOrderId:f.a.provider_root_id,accountSha256:hash('synthetic-release-account'),packetSha256:'0'.repeat(64),requestSnapshotSha256:ordinaryReleaseDigest(saved),
    artifacts:f.context.members.map(m=>({childOrderId:m.child_order_id,itemReferenceId:m.item_reference_id,providerItemId:m.provider_item_id!,bookId:'book-finding-our-inner-voice',formatId:format,configVersion:2,key:m.artifact_key!,sha256:hash(f.blobs.get(m.artifact_key!)!)})),
    currency:'USD',maximumTotalCents:children===1&&quantity===1?'2000':'10000',approvedAt:clock.toISOString(),expiresAt:new Date(clock.getTime()+15*60000).toISOString()};
-  const quoteRaw=()=>({orderReferenceId:saved.request.orderReferenceId,quotes:[{id:'reviewed-payable-quote',itemReferenceIds:saved.request.items.map(i=>i.itemReferenceId),products:saved.request.items.map(i=>({...i,price:12.18*i.quantity,currency:'USD'})),shipmentMethods:[{shipmentMethodUid:saved.request.shipmentMethodUid,type:'normal',price:5,currency:'USD'}]}]});
+  const quoteRaw=()=>({orderReferenceId:saved.request.orderReferenceId,quotes:[{id:currentQuoteId,itemReferenceIds:saved.request.items.map(i=>i.itemReferenceId),products:saved.request.items.map(i=>({...i,price:productCents*i.quantity/100,currency:'USD'})),shipmentMethods:[{shipmentMethodUid:saved.request.shipmentMethodUid,type:'normal',price:shippingCents/100,currency:'USD'}]}]});
   const fullPayable={source:'verified_provider_payable',accountSha256:permit.accountSha256,quoteId:'reviewed-payable-quote',requestFingerprint:f.context.submission.quote_request_fingerprint!,quotedAt:clock.toISOString(),currency:'USD',
    productsCents:String(1218*children*quantity),shippingCents:'500',taxesCents:'100',feesCents:'0',discountCents:'0',totalCents:String(1218*children*quantity+600),quoteResponseSha256:ordinaryReleaseDigest(quoteRaw()),responseSha256:hash('synthetic complete payable evidence '+index)};
   payable=fullPayable;
@@ -53,7 +53,12 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
    }
    assert.equal(url.origin,'https://order.gelatoapis.com');assert.equal(r.headers.get('x-api-key'),'synthetic-release-account');
    assert.equal(r.redirect,'manual');
-   if(r.method==='POST'){quotes++;assert.equal(url.pathname,'/v4/orders:quote');return Response.json(quoteRaw());}
+   if(r.method==='POST'){
+    quotes++;assert.equal(url.pathname,'/v4/orders:quote');
+    if(refreshQuoteMetadata){observation++;currentQuoteId='fresh-observation-'+observation;if(advanceQuoteClock)time=new Date(time.getTime()+1000);
+     payable={...(payable as object),quoteId:currentQuoteId,quotedAt:time.toISOString(),quoteResponseSha256:ordinaryReleaseDigest(quoteRaw()),responseSha256:hash('fresh evidence '+observation)};}
+    return Response.json(quoteRaw());
+   }
    assert.equal(url.pathname,'/v4/orders/'+permit.providerOrderId);
    if(r.method==='PATCH'){
     assert.equal(state,'sending');assert.equal(owner!==null,true);patches++;assert.equal(patches,1);assert.deepEqual(await r.json(),{orderType:'order'});
@@ -94,6 +99,6 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
      state=outcome;return true;}}};
   const prepared=await prepareOrdinaryRelease(permit,d,AbortSignal.timeout(2000));permit.packetSha256=prepared.packetSha256;
   reads=0;quotes=0;attempts.length=0;
-  return{f,d,permit,fullPayable,setTransportSending:()=>{state='sending';owner='55555555-5555-4555-8555-555555555555';},setPayable:(value:unknown)=>{payable=value;},setFault:(v:string)=>{fault=v;},setEnabled:(v:boolean)=>{enabled=v;},setTime:(v:Date)=>{time=v;},setPersist:(v:boolean)=>{persist=v;},
+  return{f,d,permit,packet:prepared.packet,fullPayable,setQuotePrices:(product:number,shipping:number)=>{productCents=product;shippingCents=shipping;},setRefreshQuoteMetadata:(value:boolean,advanceClock=true)=>{refreshQuoteMetadata=value;advanceQuoteClock=advanceClock;},setTransportSending:()=>{state='sending';owner='55555555-5555-4555-8555-555555555555';},setPayable:(value:unknown)=>{payable=value;},setFault:(v:string)=>{fault=v;},setEnabled:(v:boolean)=>{enabled=v;},setTime:(v:Date)=>{time=v;},setPersist:(v:boolean)=>{persist=v;},
    convertExternally:()=>{converted=true;},stats:()=>({patches,reads,quotes,claims,finishes,state,version,verifierPhases,violations,attempts}),assertClean:()=>assert.deepEqual(violations,[])};
  }

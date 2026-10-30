@@ -1,11 +1,11 @@
 /** Explicit database injection only. This module does not issue approvals from HTTP or enable a control. */
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { OrdinaryReleasePermitSchema, ordinaryReleaseDigest, observeOrdinaryRelease, type OrdinaryReleaseDependencies, type OrdinaryReleaseStore } from './gelato-ordinary-release-core';
+import { AnyOrdinaryReleasePermitSchema, ordinaryReleaseDigest, observeOrdinaryRelease, type OrdinaryReleaseDependencies, type OrdinaryReleaseStore } from './gelato-ordinary-release-core';
 import { GelatoProviderOrderSchema } from './gelato-provider-snapshot';
-const Owner = z.object({kind:z.literal('acquired'),permit:OrdinaryReleasePermitSchema,ownerToken:z.string().uuid()}).strict();
+const Owner = z.object({kind:z.literal('acquired'),permit:AnyOrdinaryReleasePermitSchema,ownerToken:z.string().uuid()}).strict();
 const Held = z.object({kind:z.enum(['busy','already_attempted','disabled'])}).strict();
-const Observing = z.object({kind:z.literal('observe'),permit:OrdinaryReleasePermitSchema,ownerToken:z.string().uuid()}).strict();
+const Observing = z.object({kind:z.literal('observe'),permit:AnyOrdinaryReleasePermitSchema,ownerToken:z.string().uuid()}).strict();
 async function rpc(database:SupabaseClient,name:string,parameters:Record<string,unknown>,signal?:AbortSignal){
  const {data,error}=await database.rpc(name,parameters).abortSignal(signal??AbortSignal.timeout(5000));
  if(error)throw Error('Ordinary release persistence was not confirmed');return data as unknown;
@@ -19,7 +19,7 @@ export function createOrdinaryReleaseStore(database:SupabaseClient):OrdinaryRele
 }
 /** Trusted operator boundary, not an approval API. Only invoke AFTER specific recorded approval. */
 export async function registerReviewedOrdinaryRelease(database:SupabaseClient,input:{permit:unknown;packet:unknown;actor:string;approvalEvidenceSha256:string}){
- const permit=OrdinaryReleasePermitSchema.parse(input.permit);
+ const permit=AnyOrdinaryReleasePermitSchema.parse(input.permit);
  if(ordinaryReleaseDigest(input.packet)!==permit.packetSha256)throw Error('Reviewed ordinary packet differs');
  z.string().trim().min(1).max(200).parse(input.actor);z.string().regex(/^[a-f0-9]{64}$/).parse(input.approvalEvidenceSha256);
  const id=z.string().uuid().parse(await rpc(database,'register_gelato_ordinary_release',{p_permit:permit,p_packet:input.packet,p_actor:input.actor,p_evidence_sha256:input.approvalEvidenceSha256}));

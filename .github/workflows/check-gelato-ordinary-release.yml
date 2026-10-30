@@ -29,6 +29,7 @@ jobs:
           env -i PATH="$PATH" node --import tsx scripts/test-book-review-invalidation.ts
           env -i PATH="$PATH" node --import tsx scripts/test-book-reassembly.ts
           env -i PATH="$PATH" node --import tsx scripts/test-gelato-release-application.ts
+          env -i PATH="$PATH" node --import tsx scripts/test-gelato-release-service.ts
       - name: Load the reviewed disposable PostgreSQL 17 image
         run: |
           docker pull postgres:17@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317

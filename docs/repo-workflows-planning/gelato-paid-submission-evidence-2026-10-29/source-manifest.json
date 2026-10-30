@@ -1,0 +1,57 @@
+{
+  "schema": "lhl.paid-submission-local-source@1",
+  "at": "2026-10-30T03:42:57.234159+00:00",
+  "base": "14575ffcb634fb1ed5c6e30c603f7e8bdb12db54",
+  "equivalentMergedBase": "98e50d913a622e8fb18b06b9f3f67413f1418490",
+  "sourceSnapshotSha256": "e8c9ea1853b80ccb42aabcba1aad8a32e2d4f9cf0d651db4abeaffa4fe0b9dc1",
+  "files": [
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "sha256": "425ccad7e0ebcbe4a158da2afe9ff78defe402b4fe6e37f7f58d0efccf915225"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "f8500c9a9e5a20ecfb5e228345545c809c53655e300197c90400bf88f514b6a5"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
+      "sha256": "ba9d8a9bef6e4042b4e0c73a9103fe9075a48ccc15f1c99c66a263cd390a8809"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-application.ts",
+      "sha256": "63cf59d60dbd4103b56c706b0c212553210416774163d787a814dd7300a4b774"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-runtime.ts",
+      "sha256": "ed8220aea9e4323750bbdee4557f8ddbd518ed5af4f079d07ea6baf480f47bb2"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-service.ts",
+      "sha256": "95c37e00f5940d3e463e8398dbb2889127b19058291cfee229c0ea4240bec4fc"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-artifact-bytes.ts",
+      "sha256": "59887f72733b274ce1c80c58454a9fba9534dc71d762247761c42bad622381a5"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-engineering-conversion-runtime.ts",
+      "sha256": "95cb5b15a75c94c54d283229d1893031295555387492a42c0da4c3e6d597fab4"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+      "sha256": "a21e9da22bbb14960aee36b170ff6aefa7871464ab4f72eadb2c5e8aa45258db"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-release-application.ts",
+      "sha256": "09358ddcf9eadd87afb1d7a2f6a0cf6eda16a1fff18a857c1cb509b491775a2c"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-release-service.ts",
+      "sha256": "151688b9d90f0cc92c614755727d80461ad1b87b8dff0244fe9bb6c52a7bc93b"
+    }
+  ],
+  "published": false,
+  "deployed": false,
+  "liveActivation": false,
+  "historicalReceiptsResealed": false
+}
