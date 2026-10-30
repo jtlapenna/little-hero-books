@@ -200,9 +200,14 @@ async function main(){
   x.d.pricingPolicy=ESTIMATE_TEST_PRINT_POLICY;
   x.d.payableEvidence=async(raw,context)=>{assert(context);return observeGelatoReleaseEstimate(raw,context);};
   x.d.approvedPacket=async id=>value(service('SELECT packet FROM public.gelato_ordinary_release_permits WHERE id='+quote(id)+'::uuid'));
-  x.setRefreshQuoteMetadata(true);
+  // The SQL server uses wall time. Change quote provenance without advancing
+  // a synthetic clock into its future (the in-memory suite tests advancing time).
+  const beforeQuoteTime=x.d.now!().getTime();
+  x.setRefreshQuoteMetadata(true,false);
   const prepared=await prepareOrdinaryRelease(permit,x.d,AbortSignal.timeout(30000));permit.packetSha256=prepared.packetSha256;
-  assert(prepared.packet.version===3);return {permit,packet:prepared.packet};
+  assert(prepared.packet.version===3);assert.equal(x.d.now!().getTime(),beforeQuoteTime);
+  assert(Date.parse(prepared.packet.estimate.quotedAt)<=Date.now(),'SQL fixture quote must not be future-dated');
+  return {permit,packet:prepared.packet};
  }
  const registerEstimate=async(x:Fixture,p:Awaited<ReturnType<typeof estimated>>)=>registerReviewedOrdinaryRelease(database,{
   permit:p.permit,packet:p.packet,actor:'local-estimate-reviewer',approvalEvidenceSha256:ordinaryReleaseDigest({approveExactOrder:true,acknowledgeFinalChargeMayDiffer:true,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,packetSha256:p.permit.packetSha256})});

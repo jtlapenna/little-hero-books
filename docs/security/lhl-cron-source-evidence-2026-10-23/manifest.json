@@ -2,7 +2,7 @@
   "schema": "lhl.cron-source-overlay@1",
   "parent": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23",
   "parentManifestSha256": "04e43536f0b9d2bb50e5bd9eab81732b6c536507abf7a863538208bca02b9320",
-  "sourceSnapshotSha256": "afbd72d30baef92bd394d2e07ffc02b70571b948cb1e09511624246af692bdff",
+  "sourceSnapshotSha256": "242e2c9ae6d58011de85268e7959da0c8f4df393d80355978cb893fe05d43762",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
@@ -16,7 +16,7 @@
     {
       "path": ".github/workflows/check-gelato-ordinary-release.yml",
       "kind": "source",
-      "sha256": "e0ba5dcefd2d7f4904c0f9800d79aeb1e9ab72d5306318328dc196386de0b5ca"
+      "sha256": "425ccad7e0ebcbe4a158da2afe9ff78defe402b4fe6e37f7f58d0efccf915225"
     },
     {
       "path": ".github/workflows/check-production-build.yml",
@@ -41,7 +41,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "a5da3b3cd5b1796641b40b2b55c5df2de4876edb526d9d3f0119d5e8beeb5f2f"
+      "sha256": "f8500c9a9e5a20ecfb5e228345545c809c53655e300197c90400bf88f514b6a5"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -763,5 +763,8 @@
       "kind": "source",
       "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
     }
-  ]
+  ],
+  "previousCurrentManifestArchive": "docs/security/lhl-cron-source-evidence-2026-10-23/history/manifest-before-estimate-pr65.json",
+  "previousCurrentManifestSha256": "de940065fdbf9715ee7c9e741d2326f8e8b84727c970f494d9db6c13d5fe1bca",
+  "currentBindingReason": "PR65 adds reviewed estimate service test to package/ordinary-release workflow; retained parent evidence and all execution-authority false fields unchanged"
 }

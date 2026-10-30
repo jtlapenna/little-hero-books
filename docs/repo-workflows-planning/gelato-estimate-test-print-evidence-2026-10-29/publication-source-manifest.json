@@ -1,11 +1,11 @@
 {
   "schema": "lhl.disclosed-estimate-source@1",
-  "at": "2026-10-30T04:27:43.431317+00:00",
+  "at": "2026-10-30T04:38:12.078512+00:00",
   "worktree": "/Users/johncapogna/.codex/worktrees/gelato-first-book-integration/little-hero-books",
   "branch": "codex/gelato-estimate-test-print",
   "base": "98e50d913a622e8fb18b06b9f3f67413f1418490",
   "baseFetch": "main98e50d91 freshly fetched with amoeboar; unchanged",
-  "sourceSnapshotSha256": "70f3424090d13c92211b06ee2e895bbf61c20c91c6602de429f34e9a118a256d",
+  "sourceSnapshotSha256": "3a16e01dc161d0b49de3298ea12f3e949fcdbdc1b9d436ef2bc940c7da999b8e",
   "files": [
     {
       "path": ".github/workflows/check-gelato-ordinary-release.yml",
@@ -19,12 +19,12 @@
     },
     {
       "path": "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
-      "sha256": "4c411578bd59f54a7c89edb6e4588331ac72ce4d689a9f2a0bd344f5e3f58f8c",
+      "sha256": "26a5c8204e6b492c6c8b671d8d401de6f360b8bbba4753960c5aee8c5b8dd42b",
       "mode": "0o644"
     },
     {
       "path": "back-end/scripts/test-gelato-ordinary-release-store.ts",
-      "sha256": "ec9ba9e7760bdea44d9beb00a1b3325f6db1b6145604ca07a561be4003f7ff0d",
+      "sha256": "e9e6a9e34ff5e7404d02d5402e35ab32db59d151354216b4db6502e232c48e65",
       "mode": "0o644"
     },
     {
@@ -93,5 +93,18 @@
   "activation": false,
   "historicalMigrationChanged": false,
   "approvedBaselineSourceSnapshotSha256": "7784480aedaaf27d7c7d3c81d6116f2d96c767192b6fc70e1f8f3408bc60ecbe",
-  "formattingCorrection": "One trailing space removed from staged migration; normalized SQL byte content equal; original phase094 manifest retained"
+  "formattingCorrection": "One trailing space removed from staged migration; normalized SQL byte content equal; original phase094 manifest retained",
+  "publicationParentHead": "ba787c0b6e00b66151fa87afce38d84aa8a8bd8c",
+  "initialPublicationSourceSnapshotSha256": "70f3424090d13c92211b06ee2e895bbf61c20c91c6602de429f34e9a118a256d",
+  "ciRepair": "SQL fixture retains real wall clock for refreshed quotes; current source overlay updates approved workflow/package bindings; runtime and SQL freshness/approval guards unchanged",
+  "additionalCiBindingFiles": [
+    {
+      "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
+      "sha256": "c854c2071d8bd96c6545380aea590d813f3fb4215554ee6a8eca829c4029a16d"
+    },
+    {
+      "path": "docs/security/lhl-cron-source-evidence-2026-10-23/history/manifest-before-estimate-pr65.json",
+      "sha256": "de940065fdbf9715ee7c9e741d2326f8e8b84727c970f494d9db6c13d5fe1bca"
+    }
+  ]
 }
