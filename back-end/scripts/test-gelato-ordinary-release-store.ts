@@ -9,6 +9,8 @@ import {createOrdinaryReleaseFixture} from './helpers/gelato-ordinary-release-fi
 import {createOrdinaryReleaseStore,registerReviewedOrdinaryRelease,reapExpiredOrdinaryRelease,reconcileStoredOrdinaryRelease} from '../src/lib/books/gelato-ordinary-release-store';
 import {executeOrdinaryRelease,prepareOrdinaryRelease,ordinaryReleaseDigest} from '../src/lib/books/gelato-ordinary-release-core';
 import {createGelatoSubmissionStore} from '../src/lib/books/gelato-submission-store';
+import {AnyOrdinaryReleasePermitSchema} from '../src/lib/books/gelato-ordinary-release-core';
+import {ESTIMATE_TEST_PRINT_POLICY,observeGelatoReleaseEstimate} from '../src/lib/books/gelato-release-estimate';
 
 const root=path.resolve(__dirname,'../..'), db=new LocalPreviewDatabase();
 const checks:string[]=[],mark=(name:string)=>{checks.push(name);console.log('PASS '+name);};
@@ -90,6 +92,7 @@ async function main(){
  const populated=db.sql('SELECT jsonb_build_object(\'submissions\',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.print_provider_submissions s),\'members\',(SELECT jsonb_agg(to_jsonb(i) ORDER BY child_order_id) FROM public.print_provider_submission_items i),\'roots\',(SELECT jsonb_agg(to_jsonb(o) ORDER BY provider_order_id) FROM public.print_provider_submission_orders o))');
  const ordersBefore=db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o');
  const migration=readFileSync(path.join(root,'database/20261019081857_gelato_ordinary_release_store.sql'),'utf8');db.sql(migration);db.sql(migration);
+ const estimateMigration=readFileSync(path.join(root,'database/20261030035034_gelato_disclosed_estimate_release.sql'),'utf8');db.sql(estimateMigration);db.sql(estimateMigration);
  assert.equal(db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o'),ordersBefore);
  assert.equal(db.sql('SELECT jsonb_build_object(\'submissions\',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.print_provider_submissions s),\'members\',(SELECT jsonb_agg(to_jsonb(i) ORDER BY child_order_id) FROM public.print_provider_submission_items i),\'roots\',(SELECT jsonb_agg(to_jsonb(o) ORDER BY provider_order_id) FROM public.print_provider_submission_orders o))'),populated);
  assert.equal(db.sql('SELECT count(*) FROM public.gelato_ordinary_release_permits'),'0');
@@ -136,7 +139,7 @@ async function main(){
  }
  for(const field of ['quotedAt','requestFingerprint','totalCents','taxesCents']){
   const x=await fresh();const prepared=await prepareOrdinaryRelease(x.permit,x.d,AbortSignal.timeout(30000));
-  const packet=structuredClone(prepared.packet);delete (packet.payable as Record<string,unknown>)[field];
+  const packet=structuredClone(prepared.packet);assert(packet.version===2);delete (packet.payable as Record<string,unknown>)[field];
   const permit={...x.permit,packetSha256:ordinaryReleaseDigest(packet)};
   await assert.rejects(registerReviewedOrdinaryRelease(database,{permit,packet,actor:'local-reviewer',approvalEvidenceSha256:'a'.repeat(64)}));
   assert.equal(db.sql('SELECT count(*) FROM public.gelato_ordinary_release_permits WHERE id='+quote(permit.id)+'::uuid'),'0');
@@ -190,6 +193,53 @@ async function main(){
  }
  {
   const x=await fresh();await approval(x);loseAck='finish_gelato_ordinary_release';const result=await executeOrdinaryRelease(x.permit.id,x.d);assert.equal(result.state,'converted');assert.equal(result.persistenceConfirmed,false);assert.equal(row(x.permit.id).state,'converted');assert.equal((await executeOrdinaryRelease(x.permit.id,x.d)).state,'already_attempted');assert.equal(x.stats().patches,1);mark('lost finish acknowledgement preserves committed closure across retries');
+ }
+ async function estimated(x:Fixture,maximum='2000'){
+  const {maximumTotalCents:_legacyCap,...base}=x.permit;
+  const permit=AnyOrdinaryReleasePermitSchema.parse({...base,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,maximumQuotedSubtotalCents:maximum});
+  x.d.pricingPolicy=ESTIMATE_TEST_PRINT_POLICY;
+  x.d.payableEvidence=async(raw,context)=>{assert(context);return observeGelatoReleaseEstimate(raw,context);};
+  x.d.approvedPacket=async id=>value(service('SELECT packet FROM public.gelato_ordinary_release_permits WHERE id='+quote(id)+'::uuid'));
+  x.setRefreshQuoteMetadata(true);
+  const prepared=await prepareOrdinaryRelease(permit,x.d,AbortSignal.timeout(30000));permit.packetSha256=prepared.packetSha256;
+  assert(prepared.packet.version===3);return {permit,packet:prepared.packet};
+ }
+ const registerEstimate=async(x:Fixture,p:Awaited<ReturnType<typeof estimated>>)=>registerReviewedOrdinaryRelease(database,{
+  permit:p.permit,packet:p.packet,actor:'local-estimate-reviewer',approvalEvidenceSha256:ordinaryReleaseDigest({approveExactOrder:true,acknowledgeFinalChargeMayDiffer:true,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,packetSha256:p.permit.packetSha256})});
+ {
+  const x=await fresh(),p=await estimated(x);await registerEstimate(x,p);
+  const results=await Promise.all([executeOrdinaryRelease(p.permit.id,x.d),executeOrdinaryRelease(p.permit.id,x.d)]);
+  assert.equal(results.filter(v=>v.state==='converted').length,1);assert.equal(x.stats().patches,1);assert.equal(row(p.permit.id).state,'converted');
+  assert.equal(row(p.permit.id).packet.version,3);assert.equal(row(p.permit.id).packet.estimate.totalCents,null);
+  assert.equal(row(p.permit.id).packet.estimate.providerChargeCapEnforced,false);assert(!('maximumTotalCents' in row(p.permit.id).permit));
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'already_attempted');x.assertClean();
+  mark('version3 acknowledged estimate, real SQL ownership/concurrency/closure, one intercepted PATCH and no replay');
+ }
+ for(const change of [{taxesCents:'0'},{totalCents:'1718'},{finalChargeMayDiffer:false},{providerChargeCapEnforced:true},{quotedSubtotalCents:'1719'}]){
+  const x=await fresh(),p=await estimated(x);Object.assign(p.packet.estimate,change);p.permit.packetSha256=ordinaryReleaseDigest(p.packet);
+  await assert.rejects(registerEstimate(x,p));assert.equal(db.sql('SELECT count(*) FROM public.gelato_ordinary_release_permits WHERE id='+quote(p.permit.id)+'::uuid'),'0');
+ }
+ mark('SQL refuses fabricated final costs, omitted disclosures, cap claims and invalid quoted-subtotal arithmetic');
+ {
+  const x=await fresh(),p=await estimated(x);await registerEstimate(x,p);x.setQuotePrices(1219,500);
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'preflight_failed');assert.equal(x.stats().patches,0);
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'already_attempted');
+  mark('changed live-shaped product estimate cannot reuse persisted version3 approval');
+ }
+ {
+  const x=await fresh(),p=await estimated(x);await registerEstimate(x,p);
+  const owner=await store.acquire(p.permit.id,p.permit.accountSha256,new Date().toISOString());assert(owner.kind==='acquired');
+  db.sql('UPDATE public.orders SET customer_approval_status=\'revision_requested\' WHERE id='+p.permit.artifacts[0].childOrderId);
+  await assert.rejects(store.authorizeSend(p.permit.id,owner.ownerToken,p.permit.packetSha256,new Date().toISOString()));
+  assert.equal(ledger(x).consumed_at,null);assert.equal(x.stats().patches,0);
+  mark('version3 SQL send guard preserves current buyer approval and atomic root fencing');
+ }
+ {
+  const x=await fresh(),p=await estimated(x);await registerEstimate(x,p);x.setFault('readback');
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'outcome_unknown');assert.equal(x.stats().patches,1);
+  x.setFault('');enabled(false);assert.equal((await reconcileStoredOrdinaryRelease(database,p.permit.id,x.d)).state,'converted');
+  assert.equal(x.stats().patches,1);enabled(true);
+  mark('version3 uncertain acceptance reconciles read-only with local gate OFF and no second PATCH');
  }
  enabled(false);assert.equal(db.sql('SELECT count(*) FROM public.print_provider_submission_notifications'),'0');
  assert.equal(db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o WHERE id<=4'),legacy);

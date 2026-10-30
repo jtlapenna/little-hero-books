@@ -1,0 +1,384 @@
+{
+  "at": "2026-10-30T04:01:06.273204+00:00",
+  "service": {
+    "passed": true,
+    "checks": 33,
+    "cases": [
+      "actual service module imports without reading ambient credential bindings",
+      "fresh observation IDs/time/hashes preserve exact economic approval through actual composed service",
+      "tax change after approved packet refuses provider mutation",
+      "shipping change after approved packet refuses provider mutation",
+      "currency change after approved packet refuses provider mutation",
+      "recipient change after approved packet refuses provider mutation",
+      "file change after approved packet refuses provider mutation",
+      "revision change after approved packet refuses provider mutation",
+      "account change after approved packet refuses provider mutation",
+      "expiry change after approved packet refuses provider mutation",
+      "partial quote cannot manufacture missing tax fees or guaranteed total",
+      "activation OFF stops before acquisition and provider send",
+      "database OFF stops before acquisition and provider send",
+      "missing persisted packet stops instead of rebinding to a fresh quote",
+      "reviewed packet required and forged observation packet refused",
+      "lost PATCH reply observes once and cannot send again through composed persistence",
+      "transport denies foreign endpoint and provider credentials on stored-file GET",
+      "wrong account composition is rejected before any store/network read",
+      "installed route stays blocked without loading any supplied service or reading ambient credentials",
+      "real partial-quote adapter permits explicitly acknowledged estimate, unknown final cost stays null",
+      "specific estimate acknowledgement cannot be omitted or false",
+      "estimate policy product retains exact-order and once-only authority",
+      "estimate policy shipping retains exact-order and once-only authority",
+      "estimate policy file retains exact-order and once-only authority",
+      "estimate policy revision retains exact-order and once-only authority",
+      "estimate policy lost retains exact-order and once-only authority",
+      "quote policy cannot be selected by a caller against an unconfigured verified runtime",
+      "estimate cannot be relabelled guaranteed or have unknown taxes silently zeroed",
+      "server runtime OFF reads no credential binding and loads no services",
+      "estimate threshold is only a quote threshold and cannot be exceeded",
+      "server wrong account stops before loading database or storage sources",
+      "estimate policy refuses quantity2 children1 outside one test copy",
+      "estimate policy refuses quantity1 children2 outside one test copy"
+    ],
+    "liveRequests": 0,
+    "productionActivation": false,
+    "financialEvidence": "legacy complete totals synthetic; selected estimate adapter reads intercepted documented quote shape, unknown final charges remain null",
+    "persistence": "actual SDK and RPC adapter against intercepted in-memory contract; separate disposable SQL suite proves database semantics"
+  },
+  "application": {
+    "passed": true,
+    "checks": 11,
+    "cases": [
+      "unauthenticated and backend automation cannot issue an approval",
+      "installed route is blocked without a financial adapter, including with enabled environment flags",
+      "ordinary placeholder review -> exact human approval -> one code submission and no replay",
+      "an approval is required even when exact files and core checks pass",
+      "digest change cannot become an approved print",
+      "file change cannot become an approved print",
+      "revision change cannot become an approved print",
+      "price change cannot become an approved print",
+      "expired change cannot become an approved print",
+      "revocation after recorded approval is checked by the execution core",
+      "persisted approval column is the actual existing service-only SQL contract"
+    ],
+    "liveRequests": 0,
+    "providerAndFinancialEvidence": "synthetic only",
+    "productionSubmissionEnabled": false
+  },
+  "legacyCore": {
+    "passed": true,
+    "checks": 61,
+    "cases": [
+      {
+        "name": "website one owned send and replay",
+        "passed": true
+      },
+      {
+        "name": "amazon-single one owned send and replay",
+        "passed": true
+      },
+      {
+        "name": "amazon-siblings one owned send and replay",
+        "passed": true
+      },
+      {
+        "name": "canonical nested quantity two is released with aggregate costs",
+        "passed": true
+      },
+      {
+        "name": "OFF before all store/provider access",
+        "passed": true
+      },
+      {
+        "name": "missing enablement defaults OFF",
+        "passed": true
+      },
+      {
+        "name": "missing-total blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "wrong-account-evidence blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "wrong-quote blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "bad-arithmetic blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "over-cap blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "tax-change blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "currency blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "stale-evidence blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "quote-evidence-digest blocks before mutation",
+        "passed": true
+      },
+      {
+        "name": "approval changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "recipient changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "quantity changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "artifact changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "member changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "expired changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "packet changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "account changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "claim changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "tier changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "edition changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "book changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "version changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "frozen-product changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "root changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "busy changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "stage changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "nested-quantity changes block before mutation",
+        "passed": true
+      },
+      {
+        "name": "missing exact provider service blocks release and reconciliation",
+        "passed": true
+      },
+      {
+        "name": "changed approved snapshot cannot redefine recovery destination",
+        "passed": true
+      },
+      {
+        "name": "approval time window cannot change under an old packet",
+        "passed": true
+      },
+      {
+        "name": "approval packet is specific to permit identity",
+        "passed": true
+      },
+      {
+        "name": "provider root identity change blocks conversion and observation",
+        "passed": true
+      },
+      {
+        "name": "approval-revoked consumed and held",
+        "passed": true
+      },
+      {
+        "name": "file-after-authorization consumed and held",
+        "passed": true
+      },
+      {
+        "name": "off-after-authorization consumed and held",
+        "passed": true
+      },
+      {
+        "name": "authorize-false consumed and held",
+        "passed": true
+      },
+      {
+        "name": "authorize-unknown consumed and held",
+        "passed": true
+      },
+      {
+        "name": "root-after-authorization consumed and held",
+        "passed": true
+      },
+      {
+        "name": "reference-after-authorization consumed and held",
+        "passed": true
+      },
+      {
+        "name": "lost never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "redirect never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "rejected never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "readback never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "timeout never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "provider-file-after-send never repeats mutation",
+        "passed": true
+      },
+      {
+        "name": "hung initial control read is bounded before store access",
+        "passed": true
+      },
+      {
+        "name": "standalone preparation and observation ports are deadline bounded",
+        "passed": true
+      },
+      {
+        "name": "lost persistence does not allow resend",
+        "passed": true
+      },
+      {
+        "name": "parallel execution has one owner",
+        "passed": true
+      },
+      {
+        "name": "sibling stored-byte swap stops release",
+        "passed": true
+      },
+      {
+        "name": "sibling original URL echo still requires exact member scope",
+        "passed": true
+      },
+      {
+        "name": "recovery requires a bijective sibling membership even on original URL echo",
+        "passed": true
+      },
+      {
+        "name": "separate permit IDs share a consumed provider-root fence",
+        "passed": true
+      },
+      {
+        "name": "read-only reconciliation after expiry never resends",
+        "passed": true
+      },
+      {
+        "name": "externally converted draft cannot be sent again",
+        "passed": true
+      }
+    ],
+    "liveRequests": 0,
+    "hostedControlsAccessed": false,
+    "providerMutations": "simulated only",
+    "store": "in-memory CAS in this suite; persistence evidence is supplied by the separate disposable SQL suite",
+    "payableEvidence": "synthetic complete totals only; current real partial quotes remain blocked",
+    "pdfs": "35-page labelled geometry fixtures; prior connected assembly proof remains separate",
+    "productionEntryPoint": false
+  },
+  "disposablePostgres": {
+    "suite": "ordinary-release-disposable-postgres",
+    "postgres": "17.11 (Homebrew)",
+    "checks": [
+      "idempotent additive migration, populated legacy orders/submissions unchanged, empty OFF gate before lookup",
+      "anonymous/authenticated denied; RLS on; service RPCs invoker rights",
+      "website W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+      "Amazon W4 real SQL store/core path, one intercepted PATCH, replay blocked",
+      "Amazon siblings W4.1 real SQL store/core path, one intercepted PATCH, replay blocked",
+      "canonical nested quantity two accepted by SQL and release review",
+      "canonical object/string nested JSON-null quantities default to one",
+      "two concurrent workers, same permit: one durable owner and one PATCH",
+      "two independently approved permits for same provider root: one PATCH across approvals",
+      "independent roots progress concurrently",
+      "missing payable date, binding fingerprint, taxes or total rejected atomically",
+      "current name, approval and shipping revocations roll back send authorization/root consumption",
+      "OFF revocation, immutable packet, NULL/infinite/overlong direct-DML leases rejected",
+      "lost acquire acknowledgement: held, expired preparation fenced; new approval can send once",
+      "lost durable-send acknowledgement consumes permit; OFF read-only draft observation never retries",
+      "crashed sender fenced, active sender protected, expired OFF observer records conversion without PATCH",
+      "provider accepted but readback lost: durable unknown then read-only recovery, no second send",
+      "lost finish acknowledgement preserves committed closure across retries",
+      "version3 acknowledged estimate, real SQL ownership/concurrency/closure, one intercepted PATCH and no replay",
+      "SQL refuses fabricated final costs, omitted disclosures, cap claims and invalid quoted-subtotal arithmetic",
+      "changed live-shaped product estimate cannot reuse persisted version3 approval",
+      "version3 SQL send guard preserves current buyer approval and atomic root fencing",
+      "version3 uncertain acceptance reconciles read-only with local gate OFF and no second PATCH",
+      "final local gate OFF, no notification intents, legacy rows intact"
+    ],
+    "passed": 24,
+    "provider": "intercepted only",
+    "hostedDatabase": false,
+    "liveOrdersRead": 0,
+    "liveOrdersWritten": 0,
+    "normalControlsChanged": false,
+    "finalLocalGate": false
+  },
+  "automatedCheckCount": 129,
+  "independentAdditionalProbes": [
+    "subtotal1718 above threshold1717 refused",
+    "quantity2 refused",
+    "two siblings refused"
+  ],
+  "qaReviewer": "/root/estimate094_qa",
+  "rolloutReviewer": "/root/estimate094_rollout_review",
+  "independentQa": "scoped PASS",
+  "releaseCheckpoint": "CHECKPOINT CLEAR; not final release readiness",
+  "types": {
+    "baseline": 359,
+    "current": 359,
+    "changedFileDiagnostics": 0,
+    "wholeApplicationGreen": false
+  },
+  "runtime": "installed ARM64 Node24.5.0, bundled CA, clean environment, real network denied by tests",
+  "postgresStartup": "initial clean-env startup failed; own startup log proved missing valid locale; LC_ALL=C resolved; exact disposable cluster stopped/removed by test",
+  "migrationGeneration": "installed Supabase CLI migration new in isolated unlinked temporary directory; generated 20261030035034 filename retained in database/",
+  "hostedDatabaseRequests": 0,
+  "providerCalls": 0,
+  "privateCredentialReads": 0,
+  "paymentPrintingMessages": 0,
+  "sourceSnapshotSha256": "7784480aedaaf27d7c7d3c81d6116f2d96c767192b6fc70e1f8f3408bc60ecbe"
+}

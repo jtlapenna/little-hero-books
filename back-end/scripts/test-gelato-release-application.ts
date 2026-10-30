@@ -20,7 +20,8 @@ async function main() {
     const check = async (name: string, run: () => Promise<void>) => { await run(); cases.push(name); };
     async function setup() {
       const fixture = await createOrdinaryReleaseFixture();
-      const registered = new Map<string, { permit: unknown; actor: string }>();
+      const registered = new Map<string, { permit: unknown; actor: string; packet:unknown }>();
+      fixture.d.approvedPacket=async id=>registered.get(id)?.packet;
       let registrations = 0;
       const handler = createOrdinaryReleaseHttpHandler({ authenticate: async () => identity, runtime: async () => ({ kind: 'ready', application: {
         release: fixture.d, approvers: new Set([identity.actor]),
@@ -28,7 +29,7 @@ async function main() {
           assert.equal(ordinaryReleaseDigest(input.packet), input.permit.packetSha256);
           assert.equal(input.actor, identity.actor); assert.match(input.approvalEvidenceSha256, /^[a-f0-9]{64}$/);
           if (registered.size) throw Error('Duplicate approval root');
-          registrations++; registered.set(input.permit.id, { permit: structuredClone(input.permit), actor: input.actor }); return input.permit.id;
+          registrations++; registered.set(input.permit.id, { permit: structuredClone(input.permit), packet:structuredClone(input.packet), actor: input.actor }); return input.permit.id;
         },
         approved: async id => registered.get(id) ?? null,
       } }) });
@@ -49,7 +50,7 @@ async function main() {
       const handler = createOrdinaryReleaseHttpHandler({ authenticate: async () => identity, runtime: ordinaryReleaseApplicationRuntime });
       const response = await handler(post({ action: 'review', submissionId: '11111111-1111-4111-8111-111111111111', maximumTotalCents: '2000' }));
       assert.equal(response.status, 409); const result = await response.json(); assert.equal(result.canSubmit, false);
-      assert(result.blockers.includes('payable_price_policy_decision_required')); assert.equal(result.providerMutationAttempted, false);
+      assert(result.blockers.includes('estimate_policy_requires_reviewed_publication_and_activation')); assert.equal(result.providerMutationAttempted, false);
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
       delete process.env.GELATO_ORDINARY_RELEASE_ENABLED;
       const source = await readFile('src/app/api/admin/gelato-release/route.ts', 'utf8');
@@ -61,7 +62,7 @@ async function main() {
       assert.equal(review.status, 200, await review.clone().text()); const result = await review.json();
       assert.equal(result.state, 'review_required'); assert.equal(result.canSubmit, false); assert.equal(s.stats().patches, 0); assert.equal(s.registrations(), 0);
       Object.assign(s.permit, result.permit);
-      const approval = await s.handler(post({ action: 'approve', permit: result.permit, approvedPacketSha256: result.packetSha256, approveExactOrder: true }));
+      const approval = await s.handler(post({ action: 'approve', permit: result.permit, reviewedPacket:result.packet, approvedPacketSha256: result.packetSha256, approveExactOrder: true }));
       assert.equal(approval.status, 200, await approval.clone().text()); assert.equal((await approval.json()).state, 'approved');
       assert.equal(s.registrations(), 1); assert.equal(s.stats().patches, 0);
       const execute = { action: 'execute', permitId: result.permit.id, approvedPacketSha256: result.packetSha256 };
@@ -81,14 +82,14 @@ async function main() {
         if (change === 'revision') s.f.rows.values().next().value!.customer_approval_status = 'revision_requested';
         if (change === 'price') s.setPayable({ ...s.fullPayable, totalCents: '1' });
         if (change === 'expired') s.setTime(new Date('2026-10-17T12:00:00Z'));
-        const response = await s.handler(post({ action: 'approve', permit: s.permit,
+        const response = await s.handler(post({ action: 'approve', permit: s.permit, reviewedPacket:s.packet,
           approvedPacketSha256: change === 'digest' ? '0'.repeat(64) : s.permit.packetSha256, approveExactOrder: true }));
         assert.equal(response.status, 409); assert.equal(s.registrations(), 0); assert.equal(s.stats().patches, 0); s.assertClean();
       });
     }
     await check('revocation after recorded approval is checked by the execution core', async () => {
       const s = await setup();
-      assert.equal((await s.handler(post({ action: 'approve', permit: s.permit, approvedPacketSha256: s.permit.packetSha256, approveExactOrder: true }))).status, 200);
+      assert.equal((await s.handler(post({ action: 'approve', permit: s.permit, reviewedPacket:s.packet, approvedPacketSha256: s.permit.packetSha256, approveExactOrder: true }))).status, 200);
       s.f.rows.values().next().value!.customer_approval_status = 'revision_requested';
       const result = await (await s.handler(post({ action: 'execute', permitId: s.permit.id, approvedPacketSha256: s.permit.packetSha256 }))).json();
       assert.equal(result.state, 'preflight_failed'); assert.equal(s.stats().patches, 0);
@@ -97,9 +98,9 @@ async function main() {
       const s = await setup(); let reads = 0;
       const database = { from: (table: string) => { assert.equal(table, 'gelato_ordinary_release_permits'); return {
         select: (columns: string) => { assert.equal(columns, 'permit,approval_actor'); return {
-          eq: (column: string, id: string) => { assert.equal(column, 'id'); assert.equal(id, s.permit.id); return {
+          eq: (column: string, id: string) => { assert.equal(column, 'id'); assert.equal(id, s.permit.id); return { abortSignal:()=>({
             maybeSingle: async () => { reads++; return { data: { permit: s.permit, approval_actor: identity.actor }, error: null }; },
-          }; },
+          }) }; },
         }; },
       }; } };
       const runtime = composeOrdinaryReleaseRuntime(database as never, s.d, new Set([identity.actor]));

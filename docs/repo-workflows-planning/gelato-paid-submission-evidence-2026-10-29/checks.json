@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-30T03:42:57.234159+00:00",
+  "service": {
+    "passed": true,
+    "checks": 19
+  },
+  "application": {
+    "passed": true,
+    "checks": 11
+  },
+  "core": {
+    "passed": true,
+    "checks": 61
+  },
+  "engineeringConversionRegression": "passed after credential-free helper extraction",
+  "independentReviewer": "/root/paid_connection093_qa",
+  "independentVerdict": "scoped PASS",
+  "typecheck": {
+    "wholeApplicationGreen": false,
+    "currentDiagnostics": 359,
+    "documentedPriorDiagnostics": 359,
+    "changedFileDiagnostics": 0
+  },
+  "diffCheck": "passed",
+  "liveRequests": 0,
+  "credentialReads": 0,
+  "providerRequests": 0,
+  "paymentPrintMessages": 0,
+  "sqlProof": "Actual SDK/RPC adapter against intercepted in-memory contract; existing deployed version2 SQL unchanged; no new disposable/hosted SQL proof",
+  "financialEvidence": "synthetic complete totals; no real payable resolver installed",
+  "commandPrefix": "env -i PATH=/Users/johncapogna/.nvm/versions/node/v24.5.0/bin:/usr/bin:/bin /Users/johncapogna/.nvm/versions/node/v24.5.0/bin/node --use-bundled-ca --import tsx",
+  "scripts": [
+    "scripts/test-gelato-release-service.ts",
+    "scripts/test-gelato-release-application.ts",
+    "scripts/test-gelato-ordinary-release.ts",
+    "scripts/test-gelato-engineering-conversion.ts"
+  ],
+  "sourceSnapshotSha256": "e8c9ea1853b80ccb42aabcba1aad8a32e2d4f9cf0d651db4abeaffa4fe0b9dc1"
+}

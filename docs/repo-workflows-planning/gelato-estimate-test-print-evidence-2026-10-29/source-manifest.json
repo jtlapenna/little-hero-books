@@ -1,0 +1,95 @@
+{
+  "schema": "lhl.disclosed-estimate-source@1",
+  "at": "2026-10-30T04:01:06.273204+00:00",
+  "worktree": "/Users/johncapogna/.codex/worktrees/gelato-first-book-integration/little-hero-books",
+  "branch": "codex/gelato-estimate-test-print",
+  "base": "98e50d913a622e8fb18b06b9f3f67413f1418490",
+  "baseFetch": "not attempted in local-only phase; required before publication",
+  "sourceSnapshotSha256": "7784480aedaaf27d7c7d3c81d6116f2d96c767192b6fc70e1f8f3408bc60ecbe",
+  "files": [
+    {
+      "path": ".github/workflows/check-gelato-ordinary-release.yml",
+      "sha256": "425ccad7e0ebcbe4a158da2afe9ff78defe402b4fe6e37f7f58d0efccf915225",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/package.json",
+      "sha256": "f8500c9a9e5a20ecfb5e228345545c809c53655e300197c90400bf88f514b6a5",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+      "sha256": "4c411578bd59f54a7c89edb6e4588331ac72ce4d689a9f2a0bd344f5e3f58f8c",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-ordinary-release-store.ts",
+      "sha256": "ec9ba9e7760bdea44d9beb00a1b3325f6db1b6145604ca07a561be4003f7ff0d",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-release-application.ts",
+      "sha256": "f595e02f3e3cd308dfb3ca744daa1a4455811372e1335efcf49d704f65450c54",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-release-service.ts",
+      "sha256": "06b9245bd05cd5d7eaccfd626453e20dd2ad7a193481ea80f6d23bf406ad26f9",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-artifact-bytes.ts",
+      "sha256": "59887f72733b274ce1c80c58454a9fba9534dc71d762247761c42bad622381a5",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-engineering-conversion-runtime.ts",
+      "sha256": "95cb5b15a75c94c54d283229d1893031295555387492a42c0da4c3e6d597fab4",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-application.ts",
+      "sha256": "9186740969da0847b5dfb3bc4b16bb394c1aaf7f4112d6bec5c11bf471898afa",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
+      "sha256": "8970d096de5c0c5abf62ed24b8e0c9a46c5e463b7da9383fa4bc3a8a67fb1639",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-runtime.ts",
+      "sha256": "e0cb64b92567a2a9d99821e7f9a29d8b716ae71bb8df0ed843f4db40ad7d9b5e",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-server.ts",
+      "sha256": "4d755178b531ec92d4085c59ad447a89ced6019e6c82df751739d75f146c1182",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-service.ts",
+      "sha256": "cc45dd6e15f2dbe8fab8d0aac594fb1b0a249a9b075e63d7edc04b5aefb5c864",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-ordinary-release-store.ts",
+      "sha256": "a1a107ff9dd36197cdfb49bc12b0e80cd6fe7f0858e0591a10f65680df9cf660",
+      "mode": "0o644"
+    },
+    {
+      "path": "back-end/src/lib/books/gelato-release-estimate.ts",
+      "sha256": "976543943cae3f15e0f6fcebbfbf1543304fcc3fc8610b099915bd6f7c5aeb74",
+      "mode": "0o644"
+    },
+    {
+      "path": "database/20261030035034_gelato_disclosed_estimate_release.sql",
+      "sha256": "1da5538bb88e7d071bb56a0d9114a81d378d49c322eb35bb28d824c5eff03411",
+      "mode": "0o644"
+    }
+  ],
+  "published": false,
+  "deployed": false,
+  "activation": false,
+  "historicalMigrationChanged": false
+}
