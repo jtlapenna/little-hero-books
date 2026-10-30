@@ -119,17 +119,19 @@ async function main() {
     assert.equal(emptyMachineRoute.status, 401, 'whitespace-only configured secrets must not grant route access');
     process.env.BACKEND_API_TOKEN = machine;
 
-    // Inventory and execute every existing direct handler; denied auth must not touch business transport.
-    const routes: string[] = [];
+    // Inventory direct and delegated handlers; denied auth must not touch business transport.
+    const delegatedRoutes = new Set([join(process.cwd(), 'src/app/api/admin/w3-calibration/route.ts')]);
+    const routes = new Set<string>();
     function walk(dir: string) {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name);
         if (entry.isDirectory()) walk(path);
-        else if (entry.name === 'route.ts' && readFileSync(path, 'utf8').includes('requireAdminAuth(request)')) routes.push(path);
+        else if (entry.name === 'route.ts' && (delegatedRoutes.has(path) || readFileSync(path, 'utf8').includes('requireAdminAuth(request)'))) routes.add(path);
       }
     }
     walk(join(process.cwd(), 'src/app/api'));
-    assert.equal(routes.length, 18);
+    for (const path of delegatedRoutes) assert.ok(routes.has(path), `Delegated protected route must be inventoried: ${path}`);
+    assert.equal(routes.size, 18);
     let handlers = 0;
     for (const path of routes) {
       const module = await import(path);
