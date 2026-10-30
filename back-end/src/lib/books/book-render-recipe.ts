@@ -1,7 +1,6 @@
-import { BookAssetKeySchema, type BookPageLayer } from './book-render-contract';
+import { BOOK_COPY_TOKENS, BookAssetKeySchema, type BookPageLayer } from './book-render-contract';
 import { BookRenderSnapshotSchema, type BookConfig, type BookPageConfig, type BookRenderSnapshot } from './types';
 
-const TOKENS = new Set(['child name', 'hometown', 'animal guide', 'animal clue', 'animal clues', 'object pronoun', 'subject pronoun', 'possessive pronoun', 'dedication message']);
 export function pagePoseNumbers(page: Pick<BookPageConfig, 'poseNumber' | 'layers'>): number[] {
   return [...new Set([...(page.poseNumber == null ? [] : [page.poseNumber]), ...(page.layers ?? []).filter(l => l.kind === 'pose').map(l => l.poseNumber)])];
 }
@@ -38,7 +37,7 @@ export function validateBookRenderRecipe(config: BookConfig, formatId: string): 
   key(config.assets.fonts.primary, 'primary font');
   if (!Object.values(recipe.poses).some(pose => pose.poseNumber === 0)) key(`${config.assets.poses.basePath}/pose00.png`, 'implicit pose zero reference');
   const checkText = (text: string) => {
-    for (const token of text.match(/\[[^\]]+\]/g) ?? []) if (!TOKENS.has(token.slice(1,-1).toLowerCase())) throw new Error(`Unknown copy token ${token}`);
+    for (const token of text.match(/\[[^\]]+\]/g) ?? []) if (!BOOK_COPY_TOKENS.has(token.slice(1,-1).toLowerCase())) throw new Error(`Unknown copy token ${token}`);
   };
   const checkLayers = (layers: BookPageLayer[]) => {
     const ids = new Set<string>();

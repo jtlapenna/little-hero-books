@@ -196,6 +196,15 @@ export const BookConfigSchema = z.object({
   status: z.enum(['draft', 'active', 'archived']),
   version: z.number().int().positive(),
   defaultFormatId: z.string().min(1),
+  intake: z.object({
+    titleTemplate: z.string().trim().min(1).max(1000).optional(),
+    bookType: z.string().trim().min(1).max(100).optional(),
+    characterProfile: z.literal('storybook-child@v1').optional(),
+    customization: z.object({
+      childNameMaxLength: z.number().int().min(1).max(200).optional(),
+      dedicationMaxLength: z.number().int().min(1).max(10000).optional(),
+    }).strict().optional(),
+  }).strict().optional(),
   formats: z.record(z.string(), BookFormatConfigSchema),
   assets: z.object({
     assetRoot: z.string().min(1),

@@ -3,6 +3,8 @@ import innerVoiceV1Json from './configs/book-finding-our-inner-voice/v1.json';
 import innerVoiceV2Json from './configs/book-finding-our-inner-voice/v2.json';
 import book2ExampleV1Json from './configs/book-2-example/v1.json';
 import { BookConfig, BookConfigSchema, BookFormatConfig } from '@/lib/books/types';
+import { assertBookConfigSemantics } from './book-config-semantics';
+import { validateBookRenderRecipe } from './book-render-recipe';
 
 const BUNDLED_BOOK_CONFIGS = [
   bookMvpSimpleAdventureV1Json,
@@ -18,6 +20,8 @@ function buildBundledConfigMap(): BundledConfigMap {
 
   for (const rawConfig of BUNDLED_BOOK_CONFIGS) {
     const config = BookConfigSchema.parse(rawConfig);
+    assertBookConfigSemantics(config);
+    for (const formatId of Object.keys(config.formats)) validateBookRenderRecipe(config, formatId);
     const versions = byBook.get(config.bookId) ?? new Map<number, BookConfig>();
     versions.set(config.version, config);
     byBook.set(config.bookId, versions);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export const BOOK_COPY_TOKENS = new Set(['child name', 'hometown', 'animal guide', 'animal clue', 'animal clues', 'object pronoun', 'subject pronoun', 'possessive pronoun', 'dedication message']);
 
 export const BookAssetKeySchema = z.string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9_./-]*$/).refine(
   (key) => !key.split('/').includes('..') && !key.includes('//'), 'Asset keys must be relative R2 keys',
