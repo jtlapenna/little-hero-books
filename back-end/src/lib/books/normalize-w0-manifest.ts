@@ -251,5 +251,10 @@ export function normalizeW0Manifest(
     return normalizeV3Manifest(validateRunManifest(manifest), options);
   }
 
+  if ((manifest.schema !== undefined && manifest.schema !== null && typeof manifest.schema !== 'string') ||
+      (schema !== null && schema !== 'lhb.run-manifest@v2.0' && schema !== 'lhb.run-manifest@v2.1')) {
+    throw new Error('Unsupported W0 manifest schema');
+  }
+
   return normalizeLegacyManifest(manifest, options);
 }

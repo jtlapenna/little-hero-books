@@ -1,3 +1,4 @@
+import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
 import { downloadManifest } from '@/lib/r2-service';
 import { extractManifestKey } from '@/lib/order-paths';
 import { hasLegacyPoseProvenance } from './order-pose-context';
@@ -332,7 +333,7 @@ export function buildW3Manifest(input: JsonRecord, options: W3ManifestOptions = 
 
   const selectedPageLabels = frozen ? selectW3Pages(pagePlan, parseW3PageSelection(input.testModePages)).map(page => page.label) : undefined;
   const fullConfiguredOutput = frozen ? pagePlan.every(page => Boolean(pages[page.label])) && pagePlan.length === pagePreviewImages.length && Boolean(coverImageKey) : true;
-  const configuredReady = frozen ? frozen.bookConfig.status === 'active' && !frozen.testOnly && input.testOnly !== true && options.intake?.bookSpecs.testMode !== true && input.testMode !== true && toRecord(input.bookSpecs).testMode !== true && fullConfiguredOutput && selectedPageLabels?.length === pagePlan.length : true;
+  const configuredReady = frozen ? !requiresBookLayoutReview(frozen.bookConfig.rendering.recipe?.schema) && frozen.bookConfig.status === 'active' && !frozen.testOnly && input.testOnly !== true && options.intake?.bookSpecs.testMode !== true && input.testMode !== true && toRecord(input.bookSpecs).testMode !== true && fullConfiguredOutput && selectedPageLabels?.length === pagePlan.length : true;
   const nowIso = new Date().toISOString();
   const manifest = {
     schema: 'lhb.run-manifest@v2.0',

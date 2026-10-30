@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BookCharacterPlacementEntrySchema, bookPlacementOverrideSchema } from './book-placement-schema';
 import { BookPageLayerSchema, BookRenderRecipeSchema } from './book-render-contract';
 
 export const BookPageTypeSchema = z.enum([
@@ -20,34 +21,24 @@ export const MeasurementPixelsSchema = z.object({
   h: z.number().int().positive(),
 });
 
-export const BookCharacterPlacementEntrySchema = z.object({
-  left: z.number(),
-  top: z.number(),
-  width: z.number().positive(),
-  rotateDeg: z.number().optional(),
-  zIndex: z.number().int().positive().optional(),
-  anchorXPercent: z.number().optional(),
-  anchorYPercent: z.number().optional(),
-});
+export { BookCharacterPlacementEntrySchema } from './book-placement-schema';
 
-export const BookCharacterPlacementConfigSchema = z.object({
-  defaultByStoryPage: z
-    .record(z.string(), BookCharacterPlacementEntrySchema)
-    .default({}),
-  overridesByFormat: z
-    .record(
-      z.string(),
-      z.record(z.string(), BookCharacterPlacementEntrySchema).default({}),
-    )
-    .default({}),
-});
+function characterPlacementConfigSchema<Entry extends z.ZodTypeAny>(entry: Entry) {
+  return z.object({
+    defaultByStoryPage: z.record(z.string(), entry).default({}),
+    overridesByFormat: z.record(z.string(), z.record(z.string(), entry).default({})).default({}),
+  });
+}
+function singlePlacementConfigSchema<Entry extends z.ZodTypeAny>(entry: Entry) {
+  return z.object({ default: entry.nullable().default(null), overridesByFormat: z.record(z.string(), entry).default({}) });
+}
+export const BookCharacterPlacementConfigSchema = characterPlacementConfigSchema(BookCharacterPlacementEntrySchema);
+export const BookSinglePlacementConfigSchema = singlePlacementConfigSchema(BookCharacterPlacementEntrySchema);
 
-export const BookSinglePlacementConfigSchema = z.object({
-  default: BookCharacterPlacementEntrySchema.nullable().default(null),
-  overridesByFormat: z
-    .record(z.string(), BookCharacterPlacementEntrySchema)
-    .default({}),
-});
+// Structural config shape. The rendering boundary applies the recipe-specific validator.
+const ConfigPlacementEntrySchema = BookCharacterPlacementEntrySchema.extend({ zIndex: z.number().int().optional() });
+const ConfigPlacementMapSchema = characterPlacementConfigSchema(ConfigPlacementEntrySchema);
+const ConfigSinglePlacementSchema = singlePlacementConfigSchema(ConfigPlacementEntrySchema);
 
 export const BookPageConfigSchema = z.object({
   layers: z.array(BookPageLayerSchema).optional(),
@@ -196,6 +187,15 @@ export const BookConfigSchema = z.object({
   status: z.enum(['draft', 'active', 'archived']),
   version: z.number().int().positive(),
   defaultFormatId: z.string().min(1),
+  intake: z.object({
+    titleTemplate: z.string().trim().min(1).max(1000).optional(),
+    bookType: z.string().trim().min(1).max(100).optional(),
+    characterProfile: z.literal('storybook-child@v1').optional(),
+    customization: z.object({
+      childNameMaxLength: z.number().int().min(1).max(200).optional(),
+      dedicationMaxLength: z.number().int().min(1).max(10000).optional(),
+    }).strict().optional(),
+  }).strict().optional(),
   formats: z.record(z.string(), BookFormatConfigSchema),
   assets: z.object({
     assetRoot: z.string().min(1),
@@ -230,18 +230,38 @@ export const BookConfigSchema = z.object({
     html: z.object({
       useImageBackgrounds: z.boolean(),
     }),
-    characterPlacement: BookCharacterPlacementConfigSchema.default({
+    characterPlacement: ConfigPlacementMapSchema.default({
       defaultByStoryPage: {},
       overridesByFormat: {},
     }),
-    animalPlacement: BookCharacterPlacementConfigSchema.default({
+    animalPlacement: ConfigPlacementMapSchema.default({
       defaultByStoryPage: {},
       overridesByFormat: {},
     }),
-    coverCharacterPlacement: BookSinglePlacementConfigSchema.default({
+    coverCharacterPlacement: ConfigSinglePlacementSchema.default({
       default: null,
       overridesByFormat: {},
     }),
+  }).superRefine((rendering, context) => {
+    const schema = bookPlacementOverrideSchema(rendering.recipe?.schema);
+    const validate = (entry: unknown, path: string[]) => {
+      const parsed = schema.safeParse(entry);
+      if (!parsed.success) for (const issue of parsed.error.issues) {
+        context.addIssue({ ...issue, path: [...path, ...issue.path] });
+      }
+    };
+    for (const [name, placements] of [
+      ['characterPlacement', rendering.characterPlacement], ['animalPlacement', rendering.animalPlacement],
+    ] as const) {
+      for (const [page, entry] of Object.entries(placements.defaultByStoryPage)) validate(entry, [name, 'defaultByStoryPage', page]);
+      for (const [format, entries] of Object.entries(placements.overridesByFormat)) {
+        for (const [page, entry] of Object.entries(entries)) validate(entry, [name, 'overridesByFormat', format, page]);
+      }
+    }
+    if (rendering.coverCharacterPlacement.default !== null) validate(rendering.coverCharacterPlacement.default, ['coverCharacterPlacement', 'default']);
+    for (const [format, entry] of Object.entries(rendering.coverCharacterPlacement.overridesByFormat)) {
+      validate(entry, ['coverCharacterPlacement', 'overridesByFormat', format]);
+    }
   }),
   qa: BookQaConfigSchema,
   logistics: z.record(z.string(), z.unknown()).default({}),

@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { loadBundledBookConfig, type LoadBundledBookConfigOptions } from '@/lib/books/load-book-config';
 import { BookConfig, BookConfigSchema } from '@/lib/books/types';
 import { supabase } from '@/lib/supabase-client';
+import { assertBookConfigSemantics } from './book-config-semantics';
+import { validateBookRenderRecipe } from './book-render-recipe';
 
 export type BookConfigRuntimeSource = 'bundled' | 'published' | 'published-first';
 
@@ -174,6 +176,8 @@ export function parsePublishedBookConfigRow(
   let config: BookConfig;
   try {
     config = BookConfigSchema.parse(parsedRawConfig);
+    assertBookConfigSemantics(config);
+    for (const formatId of Object.keys(config.formats)) validateBookRenderRecipe(config, formatId);
   } catch (error) {
     throw new PublishedBookConfigError(
       'invalid-row',
@@ -376,6 +380,9 @@ export async function publishBookConfig(
   config: BookConfig,
   options: PublishBookConfigOptions = {},
 ): Promise<PublishedBookConfigRecord> {
+  const validatedConfig = BookConfigSchema.parse(config);
+  assertBookConfigSemantics(validatedConfig);
+  for (const formatId of Object.keys(validatedConfig.formats)) validateBookRenderRecipe(validatedConfig, formatId);
   const bookConfigsTable = () => supabase.from('book_configs');
 
   try {

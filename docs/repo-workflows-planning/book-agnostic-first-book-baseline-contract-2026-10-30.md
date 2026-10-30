@@ -1,0 +1,11 @@
+# First-book baseline contract
+
+This checkpoint freezes the first-book behavior at eb98d231 before shared rendering changes. It preserves first-bookv1 JSON and the legacy renderer. The new exporter uses the actual bundled W0 builder, W3 manifest assembly, preview planner and PDFMonkey request builder with controlled synthetic transports. It creates no hosted document, asset, message or print order.
+
+The packet covers eight guides in each edition,15standard pages,17Amazon pages and both edition covers. Cases include short, wide and long names, names ending in s, supported pronouns, supplied/missing hometown and empty/multiline dedication. It records full HTML, request bodies, copy, assets, calibrated config placements, geometry and preview/final template IDs. Source, template and local asset inventories bind the exact producer bytes.
+
+Call this a HEAD behavioral baseline. Raw HTML does not establish visual parity. Legacy appearance also depends on interior PNG template CSS, edition-specific cover CSS, the measured fit script, calibration and fonts. Saved template snapshots are repository evidence; their current hosted equivalence is unverified. Filename matches identify local asset candidates, not proof that their bytes match published keys. Missing title artwork, font aliases or pose/image bytes stay explicit gaps. No artwork substitutions or provider fetches are authorized by this packet.
+
+The pre-work review found that current configured recipes need shared anchor/origin/scaling, typography/fit, bounded cover stack/frame, guide trail and conditional-copy capabilities. Runtime phase003b owns their reviewed design and implementation. Phase003c retains immutable first-bookv2 registration, actual producer selection and every original page/cover/visual parity check. This checkpoint does not claim that first-book orders already use the new renderer or that hosted output passed. Publication/activation remains held.
+
+Existing historical proofs and internal-output writers remain unchanged. The reviewed successor requires an explicit UUID-validated external destination, runs under the shared foreground proof lock with scrubbed environment and OS IP denial, and labels every synthetic boundary. The owned phased runtime records actual output, verification and review results.

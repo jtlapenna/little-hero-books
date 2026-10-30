@@ -1,5 +1,5 @@
+import { bookPlacementOverrideSchema } from './book-placement-override';
 import {
-  BookCharacterPlacementEntrySchema,
   type BookCharacterPlacementEntry,
   type BookConfig,
 } from '@/lib/books/types';
@@ -31,17 +31,18 @@ function normalizeStoryPageKey(value: string): number | null {
   return parsed;
 }
 
-function cloneEntry(entry: BookCharacterPlacementEntry): BookCharacterPlacementEntry {
+function cloneEntry(entry: BookCharacterPlacementEntry, preserveAnchors = false): BookCharacterPlacementEntry {
   return {
     left: entry.left,
     top: entry.top,
     width: entry.width,
     rotateDeg: entry.rotateDeg,
     zIndex: entry.zIndex,
+    ...(preserveAnchors ? { anchorXPercent: entry.anchorXPercent, anchorYPercent: entry.anchorYPercent } : {}),
   };
 }
 
-export function parseCharacterPlacementOverride(value: unknown): BookCharacterPlacementMap {
+export function parseCharacterPlacementOverride(value: unknown, renderingSchema?: string): BookCharacterPlacementMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
   }
@@ -53,12 +54,15 @@ export function parseCharacterPlacementOverride(value: unknown): BookCharacterPl
       continue;
     }
 
-    const parsed = BookCharacterPlacementEntrySchema.safeParse(rawEntry);
+    const v3 = renderingSchema === 'lhb.book-render@v3';
+    const schema = bookPlacementOverrideSchema(renderingSchema);
+    const parsed = schema.safeParse(rawEntry);
+    if (v3 && !parsed.success) throw new Error('Invalid configured placement override');
     if (!parsed.success) {
       continue;
     }
 
-    overrides[storyPageNumber] = cloneEntry(parsed.data);
+    overrides[storyPageNumber] = cloneEntry(parsed.data, v3);
   }
 
   return overrides;
@@ -70,13 +74,14 @@ export function resolveBookCharacterPlacementMap(
 ): BookCharacterPlacementMap {
   const defaults = parseCharacterPlacementOverride(
     config.rendering.characterPlacement.defaultByStoryPage,
+    config.rendering.recipe?.schema,
   );
   const formatOverrides =
     (formatId && config.rendering.characterPlacement.overridesByFormat[formatId]) || {};
 
   return {
     ...defaults,
-    ...parseCharacterPlacementOverride(formatOverrides),
+    ...parseCharacterPlacementOverride(formatOverrides, config.rendering.recipe?.schema),
   };
 }
 

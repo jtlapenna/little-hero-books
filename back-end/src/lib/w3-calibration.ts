@@ -1,3 +1,5 @@
+import { mergeDefinedPlacementEntry, mergeDefinedPlacementMap } from '@/lib/books/book-placement-override';
+import { bookPlacementOverrideSchema } from '@/lib/books/book-placement-override';
 import { resolveConfiguredLayerPlacement } from '@/lib/books/configured-book-rendering';
 import type { BookPageLayer } from '@/lib/books/book-render-contract';
 import { pagePoseNumbers, resolveRecipePoseReference } from '@/lib/books/book-render-recipe';
@@ -77,6 +79,7 @@ export interface W3CalibrationPageOption {
   fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
   editableLayerPlacement?: BookPageLayer['placement'];
   editableLayerIndex?: number;
+  renderingSchema?: string;
   characterUrl: string | null;
   animalUrl: string | null;
   editableAssetUrl: string | null;
@@ -126,6 +129,7 @@ export interface W3CalibrationResponse {
   fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
   editableLayerPlacement?: BookPageLayer['placement'];
   editableLayerIndex?: number;
+  renderingSchema?: string;
     editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
@@ -817,6 +821,7 @@ function buildCoverPreviewDocument(
 
 function clonePlacementEntry(
   entry: BookCharacterPlacementEntry,
+  preserveAnchors = false,
 ): BookCharacterPlacementEntry {
   return {
     left: entry.left,
@@ -824,16 +829,18 @@ function clonePlacementEntry(
     width: entry.width,
     rotateDeg: entry.rotateDeg,
     zIndex: entry.zIndex,
+    ...(preserveAnchors ? { anchorXPercent: entry.anchorXPercent, anchorYPercent: entry.anchorYPercent } : {}),
   };
 }
 
 function clonePlacementMap(
   value: BookCharacterPlacementMap | BookAnimalPlacementMap,
+  preserveAnchors = false,
 ): Record<string, BookCharacterPlacementEntry> {
   return Object.fromEntries(
     Object.entries(value).map(([storyPageNumber, entry]) => [
       storyPageNumber,
-      clonePlacementEntry(entry),
+      clonePlacementEntry(entry, preserveAnchors),
     ]),
   );
 }
@@ -972,13 +979,38 @@ function buildPageOptions(
     const slug = String(toRecord(previewPlan.animalImages).slug || specs.animalGuide);
     const url = (key: string) => `${previewPlan.backendUrl}/api/assets/${key}`;
     const poseUrl = (number: number) => poseAssetMode === 'reference-standin' ? url(resolveRecipePoseReference(config, number)!) : assemblyInput.processedImages.find(image => image.poseNumber === number)?.publicUrl ?? (number === 0 ? url(buildBgRemovedPoseAssetKey(assemblyInput.characterHash, 0, config.bookId)) : null);
-    const fixedLayers = (layers: BookPageLayer[], editableId: string) => layers.map((layer, index) => ({ ...layer, index, placement: resolveConfiguredLayerPlacement(layer, index) })).filter(layer => layer.id !== editableId).map(layer => ({ id: layer.id, index: layer.index, placement: layer.placement, imageUrl: layer.kind === 'pose' ? poseUrl(layer.poseNumber)! : layer.kind === 'overlay' ? url(config.assets.overlays[layer.assetSlot]) : url(recipe.animals[slug][layer.role]) }));
-    const anchored = (placement: BookCharacterPlacementEntry) => ({ ...placement, anchorXPercent: 0, anchorYPercent: 0 });
+    const v3 = recipe.schema === 'lhb.book-render@v3';
+    const resolve = (layer: BookPageLayer, index: number, override?: BookCharacterPlacementEntry | null) =>
+      resolveConfiguredLayerPlacement(layer, index, override, recipe.schema);
+    const fixedLayers = (layers: BookPageLayer[], editableId: string, storyPage: number | null, cover = false) => layers
+      .map((layer, index) => {
+        const override = !v3 ? undefined : layer.kind === 'pose' && index === layers.findIndex(item => item.kind === 'pose')
+          ? cover ? currentCoverPlacement : storyPage === null ? undefined : currentPlacementMap[storyPage]
+          : layer.kind === 'animal' && storyPage !== null && index === layers.findIndex(item => item.kind === 'animal')
+            ? currentAnimalPlacementMap[storyPage] : undefined;
+        return { ...layer, index, placement: resolve(layer, index, override) };
+      })
+      .filter(layer => layer.id !== editableId)
+      .map(layer => ({ id: layer.id, index: layer.index, placement: layer.placement,
+        imageUrl: layer.kind === 'pose' ? poseUrl(layer.poseNumber)! : layer.kind === 'overlay'
+          ? url(config.assets.overlays[layer.assetSlot]) : url(recipe.animals[slug][layer.role]) }));
+    const author = (placement: BookPageLayer['placement']) => v3
+      ? { ...placement, ...(placement.layout ? { anchorXPercent: placement.layout.anchorXPercent ?? 0, anchorYPercent: placement.layout.anchorYPercent ?? 0 } : {}) }
+      : { ...placement, anchorXPercent: 0, anchorYPercent: 0 };
+    const version = v3 ? { renderingSchema: recipe.schema } : {};
     const result: W3CalibrationPageOption[] = [];
     const cover = recipe.covers[formatId], coverPose = cover.layers.find(layer => layer.kind === 'pose');
     if (coverPose?.kind === 'pose') {
-      const imageUrl = poseUrl(coverPose.poseNumber);
-      if (imageUrl) result.push({ pageLabel: 'cover', pageNumber: 0, storyPageNumber: 0, poseNumber: coverPose.poseNumber, editableAssetType: 'cover-character', backgroundUrl: url(config.assets.backgrounds[cover.backgroundSlot]), overlayUrls: [], fixedLayers: fixedLayers(cover.layers, coverPose.id), editableLayerIndex: cover.layers.indexOf(coverPose), editableLayerPlacement: resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose)), characterUrl: imageUrl, animalUrl: null, editableAssetUrl: imageUrl, currentPlacement: anchored(resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose), currentCoverPlacement)), legacyPlacement: anchored(resolveConfiguredLayerPlacement(coverPose, cover.layers.indexOf(coverPose))), viewport: { width: config.rendering.preview.coverPx.w, height: config.rendering.preview.coverPx.h } });
+      const imageUrl = poseUrl(coverPose.poseNumber), index = cover.layers.indexOf(coverPose);
+      if (imageUrl) result.push({ pageLabel: 'cover', pageNumber: 0, storyPageNumber: 0,
+        poseNumber: coverPose.poseNumber, editableAssetType: 'cover-character',
+        backgroundUrl: url(config.assets.backgrounds[cover.backgroundSlot]), overlayUrls: [],
+        fixedLayers: fixedLayers(cover.layers, coverPose.id, null, true), editableLayerIndex: index,
+        editableLayerPlacement: resolve(coverPose, index), ...version,
+        characterUrl: imageUrl, animalUrl: null, editableAssetUrl: imageUrl,
+        currentPlacement: author(resolve(coverPose, index, currentCoverPlacement)),
+        legacyPlacement: author(resolve(coverPose, index, v3 ? legacyCoverPlacement : undefined)),
+        viewport: { width: config.rendering.preview.coverPx.w, height: config.rendering.preview.coverPx.h } });
     }
     for (const item of previewPlan.pagePreviewItems) {
       const page = config.formats[formatId].interior.pageSequence.find(entry => entry.label === item.pageLabel);
@@ -986,9 +1018,18 @@ function buildPageOptions(
       const primary = page.layers?.find(layer => layer.kind === 'pose'), animal = page.layers?.find(layer => layer.kind === 'animal');
       const characterUrl = primary?.kind === 'pose' ? poseUrl(primary.poseNumber) : null;
       const animalUrl = animal?.kind === 'animal' ? url(recipe.animals[slug][animal.role]) : null;
-      const editableAssetUrl = characterUrl ?? animalUrl; if (!editableAssetUrl) continue;
-      const isCharacter = Boolean(characterUrl), editable = isCharacter ? primary! : animal!, editableIndex = (page.layers ?? []).indexOf(editable), placement = resolveConfiguredLayerPlacement(editable, editableIndex);
-      result.push({ pageLabel: page.label, pageNumber: page.index, storyPageNumber: page.storyPageNumber, poseNumber: primary?.kind === 'pose' ? primary.poseNumber : null, editableAssetType: isCharacter ? 'character' : 'animal', backgroundUrl: page.backgroundSlot ? url(config.assets.backgrounds[page.backgroundSlot]) : null, overlayUrls: [], fixedLayers: fixedLayers(page.layers ?? [], isCharacter ? primary!.id : animal!.id), editableLayerIndex: editableIndex, editableLayerPlacement: placement, characterUrl, animalUrl, editableAssetUrl, currentPlacement: anchored(resolveConfiguredLayerPlacement(editable, editableIndex, isCharacter ? currentPlacementMap[page.storyPageNumber] : currentAnimalPlacementMap[page.storyPageNumber])), legacyPlacement: anchored(placement), viewport: { width: config.rendering.preview.interiorPx.w, height: config.rendering.preview.interiorPx.h } });
+      const editableAssetUrl = characterUrl ?? animalUrl;
+      if (!editableAssetUrl) continue;
+      const isCharacter = Boolean(characterUrl), editable = isCharacter ? primary! : animal!;
+      const index = (page.layers ?? []).indexOf(editable), placement = resolve(editable, index);
+      result.push({ pageLabel: page.label, pageNumber: page.index, storyPageNumber: page.storyPageNumber,
+        poseNumber: primary?.kind === 'pose' ? primary.poseNumber : null, editableAssetType: isCharacter ? 'character' : 'animal',
+        backgroundUrl: page.backgroundSlot ? url(config.assets.backgrounds[page.backgroundSlot]) : null, overlayUrls: [],
+        fixedLayers: fixedLayers(page.layers ?? [], editable.id, page.storyPageNumber), editableLayerIndex: index,
+        editableLayerPlacement: placement, ...version, characterUrl, animalUrl, editableAssetUrl,
+        currentPlacement: author(resolve(editable, index, isCharacter ? currentPlacementMap[page.storyPageNumber] : currentAnimalPlacementMap[page.storyPageNumber])),
+        legacyPlacement: author(v3 ? resolve(editable, index, isCharacter ? legacyPlacementMap[page.storyPageNumber] : legacyAnimalPlacementMap[page.storyPageNumber]) : placement),
+        viewport: { width: config.rendering.preview.interiorPx.w, height: config.rendering.preview.interiorPx.h } });
     }
     return result;
   }
@@ -1200,7 +1241,7 @@ function resolveSelectedPoseNumber(
 
 export async function buildW3CalibrationResponse(
   request: W3CalibrationRequest,
-  options: { buildAssemblyInput?: () => Promise<BuildW3AssemblyInputResult>; inspectPose?: typeof inspectPoseScaleAsset } = {},
+  options: { buildAssemblyInput?: () => Promise<BuildW3AssemblyInputResult>; inspectPose?: typeof inspectPoseScaleAsset; strictPlacementValidation?: boolean } = {},
 ): Promise<W3CalibrationResponse> {
   const adminBaseUrl = resolveCanonicalBackendBaseUrl(request.adminBaseUrl);
   const assemblyInput = options.buildAssemblyInput ? await options.buildAssemblyInput() :
@@ -1215,38 +1256,45 @@ export async function buildW3CalibrationResponse(
         );
 
   const config = assemblyInput.renderSnapshot?.bookConfig ?? loadBundledBookConfig({ bookId: assemblyInput.bookId });
+  if (options.strictPlacementValidation) {
+    const schema = bookPlacementOverrideSchema(config.rendering.recipe?.schema);
+    for (const overrides of [request.characterPlacementOverrideByStoryPage, request.animalPlacementOverrideByStoryPage]) {
+      for (const entry of Object.values(toRecord(overrides))) schema.parse(entry);
+    }
+    if (request.coverCharacterPlacementOverride != null) schema.parse(request.coverCharacterPlacementOverride);
+  }
   const placementOverride = parseCharacterPlacementOverride(
     request.characterPlacementOverrideByStoryPage,
+    config.rendering.recipe?.schema,
   );
   const animalPlacementOverride = parseAnimalPlacementOverride(
     request.animalPlacementOverrideByStoryPage,
+    config.rendering.recipe?.schema,
   );
   const coverCharacterPlacementOverride = parseCoverCharacterPlacementOverride(
     request.coverCharacterPlacementOverride,
+    config.rendering.recipe?.schema,
   );
-  const currentPlacementMap: BookCharacterPlacementMap = {
-    ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId),
-    ...placementOverride,
-  };
+  const configuredV3 = config.rendering.recipe?.schema === 'lhb.book-render@v3';
+  const currentPlacementMap: BookCharacterPlacementMap = configuredV3
+    ? mergeDefinedPlacementMap(resolveBookCharacterPlacementMap(config, assemblyInput.formatId), placementOverride)
+    : { ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId), ...placementOverride };
   const legacyPlacementMap = {
     ...resolveBookCharacterPlacementMap(config, assemblyInput.formatId),
-    ...getLegacyReferenceCharacterPlacement(assemblyInput.bookId),
+    ...(!configuredV3 ? getLegacyReferenceCharacterPlacement(assemblyInput.bookId) : {}),
   };
-  const currentAnimalPlacementMap: BookAnimalPlacementMap = {
-    ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
-    ...animalPlacementOverride,
-  };
+  const currentAnimalPlacementMap: BookAnimalPlacementMap = configuredV3
+    ? mergeDefinedPlacementMap(resolveBookAnimalPlacementMap(config, assemblyInput.formatId), animalPlacementOverride)
+    : { ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId), ...animalPlacementOverride };
   const legacyAnimalPlacementMap: BookAnimalPlacementMap = {
     ...resolveBookAnimalPlacementMap(config, assemblyInput.formatId),
-    ...getLegacyReferenceAnimalPlacement(assemblyInput.bookId),
+    ...(!configuredV3 ? getLegacyReferenceAnimalPlacement(assemblyInput.bookId) : {}),
   };
-  const currentCoverPlacement = mergeCoverCharacterPlacement(
+  const currentCoverPlacement = (configuredV3 ? mergeDefinedPlacementEntry : mergeCoverCharacterPlacement)(
     resolveBookCoverCharacterPlacement(config, assemblyInput.formatId),
     coverCharacterPlacementOverride,
   );
-  const legacyCoverPlacement = getLegacyReferenceCoverCharacterPlacement(
-    assemblyInput.bookId,
-  );
+  const legacyCoverPlacement = configuredV3 ? resolveBookCoverCharacterPlacement(config, assemblyInput.formatId) : getLegacyReferenceCoverCharacterPlacement(assemblyInput.bookId);
 
   const currentPreviewPlan = buildW3PreviewPlan(assemblyInput, {
     characterPlacementOverride: currentPlacementMap,
@@ -1411,6 +1459,7 @@ export async function buildW3CalibrationResponse(
           fixedLayers: selectedPageOption.fixedLayers,
           editableLayerPlacement: selectedPageOption.editableLayerPlacement,
           editableLayerIndex: selectedPageOption.editableLayerIndex,
+          ...(selectedPageOption.renderingSchema ? { renderingSchema: selectedPageOption.renderingSchema } : {}),
           editableAssetType: selectedPageOption.editableAssetType,
           editableAssetUrl: selectedPageOption.editableAssetUrl,
           characterUrl: selectedPageOption.characterUrl,
@@ -1422,8 +1471,8 @@ export async function buildW3CalibrationResponse(
       : null,
     selectedPose,
     exportHints: {
-      characterPlacementOverrideByStoryPage: clonePlacementMap(placementOverride),
-      animalPlacementOverrideByStoryPage: clonePlacementMap(animalPlacementOverride),
+      characterPlacementOverrideByStoryPage: clonePlacementMap(placementOverride, config.rendering.recipe?.schema === 'lhb.book-render@v3'),
+      animalPlacementOverrideByStoryPage: clonePlacementMap(animalPlacementOverride, config.rendering.recipe?.schema === 'lhb.book-render@v3'),
       coverCharacterPlacementOverride: coverCharacterPlacementOverride,
       poseAnchorSuggestionByPose,
     },

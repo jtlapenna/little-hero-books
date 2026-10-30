@@ -6,6 +6,7 @@ import { extractManifestKey } from '@/lib/order-paths';
 import { resolveW2APoseWorklistResponse } from '../resolve-pose-worklist/route';
 import { normalizeW0Manifest } from '@/lib/books/normalize-w0-manifest';
 import { reconcileFrozenW2AInput } from '@/lib/books/w2a-frozen-input';
+import { inspectWorkflowBookIdentity, assertWorkflowMatchesW0 } from '@/lib/books/workflow-book-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,8 @@ export async function buildValidatedW2ABootstrapManifest(
   if (new Set(selectedKeys).size > 1) {
     throw new Error('W2A bootstrap has conflicting frozen W0 manifest pointers');
   }
-  const key = selectedKeys[0];
+  const identity = inspectWorkflowBookIdentity(body);
+  const key = identity.manifestKey ?? selectedKeys[0];
   if (!key) {
     const legacy = buildW2ABootstrapManifest(body);
     if (legacy.bookId !== 'book-mvp-simple-adventure') {
@@ -53,7 +55,9 @@ export async function buildValidatedW2ABootstrapManifest(
   }
   const manifest = await (options.downloadOneManifest ?? downloadManifest)(key);
   if (!manifest) throw new Error('W2A bootstrap frozen W0 manifest is missing');
-  const canonicalBody = reconcileFrozenW2AInput(body, normalizeW0Manifest(manifest, { fallbackManifestKey: key }));
+  const normalized = normalizeW0Manifest(manifest, { fallbackManifestKey: key });
+  assertWorkflowMatchesW0(identity, normalized, manifest, key);
+  const canonicalBody = reconcileFrozenW2AInput(body, normalized);
   const built = buildW2ABootstrapManifest(canonicalBody);
   if (extractManifestKey(built.oneManifestUrl) !== key) {
     throw new Error('W2A bootstrap selected another W0 manifest');

@@ -67,6 +67,14 @@ jobs:
           node --import tsx scripts/test-w2a-pose-input.ts
           node --import tsx scripts/test-w2a-frozen-generation-input.ts
           node --import tsx scripts/test-publish-book-config-immutability.ts
+          node --import tsx scripts/test-book-config-semantics.ts
+          node --import tsx scripts/test-frozen-book-handoff.ts
+      - name: Verify shared v3 layout and calibration contracts
+        working-directory: back-end
+        run: |
+          node --import tsx scripts/test-book-layout-v3.ts
+          node --import tsx scripts/test-book-layout-calibration-v3.ts
+          node --import tsx scripts/test-book-layout-calibration-http.ts
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end

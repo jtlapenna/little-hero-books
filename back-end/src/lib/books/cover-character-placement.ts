@@ -1,5 +1,5 @@
+import { bookPlacementOverrideSchema } from './book-placement-override';
 import {
-  BookCharacterPlacementEntrySchema,
   type BookCharacterPlacementEntry,
   type BookConfig,
 } from '@/lib/books/types';
@@ -62,8 +62,12 @@ export function mergeCoverCharacterPlacement(
 
 export function parseCoverCharacterPlacementOverride(
   value: unknown,
+  renderingSchema?: string,
 ): BookCharacterPlacementEntry | null {
-  const parsed = BookCharacterPlacementEntrySchema.safeParse(value);
+  const v3 = renderingSchema === 'lhb.book-render@v3';
+  if (v3 && value == null) return null;
+  const parsed = bookPlacementOverrideSchema(renderingSchema).safeParse(value);
+  if (v3 && !parsed.success) throw new Error('Invalid configured cover placement override');
   if (!parsed.success) {
     return null;
   }
@@ -77,11 +81,13 @@ export function resolveBookCoverCharacterPlacement(
 ): BookCharacterPlacementEntry | null {
   const baseDefault = parseCoverCharacterPlacementOverride(
     config.rendering.coverCharacterPlacement.default,
+    config.rendering.recipe?.schema,
   );
   const formatOverride =
     formatId && config.rendering.coverCharacterPlacement.overridesByFormat[formatId]
       ? parseCoverCharacterPlacementOverride(
           config.rendering.coverCharacterPlacement.overridesByFormat[formatId],
+          config.rendering.recipe?.schema,
         )
       : null;
 

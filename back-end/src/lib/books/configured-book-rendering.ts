@@ -1,3 +1,11 @@
+import { mergeDefinedPlacementEntry, mergeDefinedPlacementMap } from './book-placement-override';
+import { resolveBookCharacterPlacementMap } from './character-placement';
+import { resolveBookAnimalPlacementMap } from './animal-placement';
+import { resolveBookCoverCharacterPlacement } from './cover-character-placement';
+import { resolveBookPronouns } from './book-pronouns';
+import { BookV3CopyBlockSchema } from './book-render-contract';
+import { bookPlacementCss, resolveBookPlacement, mergeBookPlacement, type BookCanvas } from './book-layout-geometry';
+import { renderBookV3Copy, renderBookV3Stacks, BOOK_V3_FIT_SCRIPT, bookV3FontCss } from './book-v3-copy';
 import { buildBgRemovedPoseAssetKey } from "@/lib/order-paths";
 import type {
   BookPageConfig,
@@ -47,17 +55,26 @@ export function resolveConfiguredLayerPlacement(
   layer: BookPageLayer,
   index: number,
   override?: BookCharacterPlacementEntry | null,
+  renderingSchema?: string,
 ): BookPageLayer["placement"] {
   const defined = Object.fromEntries(
     Object.entries(override ?? {}).filter(([, value]) => value !== undefined),
   );
+  if (renderingSchema === 'lhb.book-render@v3') {
+    const merged = mergeBookPlacement(layer.placement, override);
+    return BookLayerPlacementSchema.parse({ ...merged, zIndex: merged.zIndex ?? Math.min(1000, 10 + index) });
+  }
   return BookLayerPlacementSchema.parse({
     ...layer.placement,
     zIndex: layer.placement.zIndex ?? Math.min(1000, 10 + index),
     ...defined,
   });
 }
-function placementStyle(value: BookPageLayer["placement"]): string {
+function placementStyle(value: BookPageLayer["placement"], canvas?: BookCanvas): string {
+  if (value.layout) {
+    if (!canvas) throw new Error("Layout requires selected book canvas");
+    return bookPlacementCss(resolveBookPlacement(value, canvas));
+  }
   const transforms = [
     `rotate(${value.rotateDeg ?? 0}deg)`,
     ...(value.flipX ? [`translateX(${value.width}px)`, "scaleX(-1)"] : []),
@@ -78,6 +95,14 @@ export function renderConfiguredBook(
   const config = snapshot.bookConfig,
     recipe = config.rendering.recipe!,
     formatId = snapshot.formatId;
+  const v3 = recipe.schema === 'lhb.book-render@v3';
+  const interiorCanvas = config.rendering.preview.interiorPx;
+  const coverCanvas = config.rendering.preview.coverPx;
+  const effectiveOptions = v3 ? {
+    characterPlacementOverride: mergeDefinedPlacementMap(resolveBookCharacterPlacementMap(config, formatId), options.characterPlacementOverride),
+    animalPlacementOverride: mergeDefinedPlacementMap(resolveBookAnimalPlacementMap(config, formatId), options.animalPlacementOverride),
+    coverCharacterPlacementOverride: mergeDefinedPlacementEntry(resolveBookCoverCharacterPlacement(config, formatId), options.coverCharacterPlacementOverride),
+  } : options;
   if (
     config.status === "draft" &&
     input.testMode !== true &&
@@ -94,7 +119,7 @@ export function renderConfiguredBook(
   const name = text(specs.childName);
   if (!name) throw new Error("Configured book requires child name");
   const pronoun = text(specs.pronouns).toLowerCase();
-  const pronouns = ["she", "she/her"].includes(pronoun)
+  const pronouns = v3 ? resolveBookPronouns(specs.pronouns) : ["she", "she/her"].includes(pronoun)
     ? { subject: "she", object: "her", possessive: "her" }
     : ["he", "he/him"].includes(pronoun)
       ? { subject: "he", object: "him", possessive: "his" }
@@ -117,6 +142,8 @@ export function renderConfiguredBook(
     guide === "t-rex" ? "T-Rex" : guide[0].toUpperCase() + guide.slice(1);
   const tokens: Record<string, string> = {
     "child name": name,
+    ...(v3 ? { 'child name possessive': /s$/i.test(name) ? `${name}'` : `${name}'s`,
+      'hometown return': text(specs.hometown) ? `to ${text(specs.hometown)}` : 'back to their cozy town' } : {}),
     hometown: text(specs.hometown) || "a cozy town",
     "animal guide": guideName,
     "animal clue": clue,
@@ -163,11 +190,14 @@ export function renderConfiguredBook(
   };
   const overlays: JsonRecord[] = [],
     backgrounds: JsonRecord[] = [];
-  const css = `.lhb-config-page{position:relative;display:block;overflow:hidden;margin:0;padding:0;background:#fff;color:#fff4d7;font-family:LhbConfiguredBook,sans-serif;isolation:isolate}.lhb-config-page *{box-sizing:border-box}.lhb-config-page img{display:block;max-width:none;margin:0;padding:0;border:0}.lhb-config-page .lhb-copy{position:absolute;white-space:pre-line;overflow-wrap:anywhere;margin:0;font-weight:400}.lhb-config-page .lhb-layer{object-fit:contain}.lhb-config-page .lhb-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0}@font-face{font-family:LhbConfiguredBook;src:url('${assetUrl(config.assets.fonts.primary)}')}`;
-  const copyHtml = (copy: BookCopyBlock | undefined) =>
-    copy
-      ? `<div class="lhb-copy" style="${placementStyle(copy.placement)}font-size:${copy.fontSize}px;line-height:${copy.lineHeight};color:${copy.color};text-align:${copy.align};padding:${copy.padding}px;${copy.backgroundColor ? `background:${copy.backgroundColor};` : ""}">${escape(interpolate(copy.text))}</div>`
-      : "";
+  const css = `.lhb-config-page{position:relative;display:block;overflow:hidden;margin:0;padding:0;background:#fff;color:#fff4d7;font-family:LhbConfiguredBook,sans-serif;isolation:isolate}.lhb-config-page *{box-sizing:border-box}.lhb-config-page img{display:block;max-width:none;margin:0;padding:0;border:0}.lhb-config-page .lhb-copy{position:absolute;white-space:pre-line;overflow-wrap:anywhere;margin:0;font-weight:400}.lhb-config-page .lhb-layer{object-fit:contain}.lhb-config-page .lhb-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0}${v3 ? bookV3FontCss((recipe.schema === 'lhb.book-render@v3' ? recipe.fontRoles ?? ['primary'] : ['primary']).map(role => config.assets.fonts[role]), assetUrl) : `@font-face{font-family:LhbConfiguredBook;src:url('${assetUrl(config.assets.fonts.primary)}')}`}`;
+  const copyHtml = (copy: BookCopyBlock | undefined, canvas = interiorCanvas) => {
+    if (!copy) return '';
+    if (v3) return renderBookV3Copy(BookV3CopyBlockSchema.parse(copy), interpolate, canvas);
+    return `<div class="lhb-copy" style="${placementStyle(copy.placement)}font-size:${copy.fontSize}px;line-height:${copy.lineHeight};color:${copy.color};text-align:${copy.align};padding:${copy.padding}px;${copy.backgroundColor ? `background:${copy.backgroundColor};` : ""}">${escape(interpolate(copy.text))}</div>`;
+  };
+  const pageCopyHtml = (value: BookCopyBlock | BookCopyBlock[] | undefined) =>
+    (Array.isArray(value) ? value : value ? [value] : []).map(copy => copyHtml(copy)).join('');
   const layerHtml = (
     layers: BookPageLayer[],
     pageLabel: string,
@@ -178,7 +208,7 @@ export function renderConfiguredBook(
       firstAnimal = true;
     return layers
       .map((layer, index) => {
-        let placement = resolveConfiguredLayerPlacement(layer, index),
+        let placement = resolveConfiguredLayerPlacement(layer, index, undefined, recipe.schema),
           url: string;
         let editable = "";
         if (layer.kind === "pose") {
@@ -186,15 +216,16 @@ export function renderConfiguredBook(
           if (firstPose) {
             editable = ' data-editable-character="true"';
             const override = cover
-              ? options.coverCharacterPlacementOverride
+              ? effectiveOptions.coverCharacterPlacementOverride
               : storyPage == null
                 ? undefined
-                : options.characterPlacementOverride?.[storyPage];
+                : effectiveOptions.characterPlacementOverride?.[storyPage];
             if (override)
               placement = resolveConfiguredLayerPlacement(
                 layer,
                 index,
                 override,
+                recipe.schema,
               );
             firstPose = false;
           }
@@ -205,12 +236,13 @@ export function renderConfiguredBook(
           if (
             firstAnimal &&
             storyPage != null &&
-            options.animalPlacementOverride?.[storyPage]
+            effectiveOptions.animalPlacementOverride?.[storyPage]
           )
             placement = resolveConfiguredLayerPlacement(
               layer,
               index,
-              options.animalPlacementOverride[storyPage],
+              effectiveOptions.animalPlacementOverride[storyPage],
+              recipe.schema,
             );
           firstAnimal = false;
         }
@@ -221,7 +253,7 @@ export function renderConfiguredBook(
             kind: layer.kind,
             imagePath: url,
           });
-        return `<img class="lhb-layer" data-layer-id="${escape(layer.id)}" data-layer-kind="${layer.kind}"${editable} src="${escape(url)}" alt="" style="${placementStyle(placement)}" />`;
+        return `<img class="lhb-layer" data-layer-id="${escape(layer.id)}" data-layer-kind="${layer.kind}"${editable} src="${escape(url)}" alt="" style="${placementStyle(placement, cover ? coverCanvas : interiorCanvas)}" />`;
       })
       .join("");
   };
@@ -233,7 +265,7 @@ export function renderConfiguredBook(
     height: number,
     label: string,
   ) =>
-    `<style>${css}</style><div class="lhb-config-page" data-page-label="${escape(label)}" style="width:${width}px;height:${height}px">${backgroundKey ? `<img class="lhb-bg" alt="" src="${escape(assetUrl(backgroundKey))}" />` : ""}${layers}${copy}</div>`;
+    `<style>${css}</style><div class="lhb-config-page" data-page-label="${escape(label)}"${v3 ? ' data-lhb-v3-root="true"' : ''} style="width:${width}px;height:${height}px">${backgroundKey ? `<img class="lhb-bg" alt="" src="${escape(assetUrl(backgroundKey))}" />` : ""}${layers}${copy}</div>${v3 ? `<script>${BOOK_V3_FIT_SCRIPT}</script>` : ""}`;
   const pageBlocks = config.formats[formatId].interior.pageSequence.map(
     (configuredPage: BookPageConfig) => {
       const key = configuredPage.backgroundSlot
@@ -253,7 +285,7 @@ export function renderConfiguredBook(
           configuredPage.label,
           configuredPage.storyPageNumber,
         ),
-        copyHtml(recipe.copy[configuredPage.id]),
+        pageCopyHtml(recipe.copy[configuredPage.id]),
         config.rendering.preview.interiorPx.w,
         config.rendering.preview.interiorPx.h,
         configuredPage.label,
@@ -266,7 +298,7 @@ export function renderConfiguredBook(
   const coverHTML = page(
     coverKey,
     layerHtml(cover.layers, "cover", null, true),
-    cover.texts.map(copyHtml).join(""),
+    cover.texts.map(copy => copyHtml(copy, coverCanvas)).join("") + (recipe.schema === "lhb.book-render@v3" ? renderBookV3Stacks(recipe.covers[formatId].stacks, interpolate, coverCanvas) : ""),
     config.rendering.preview.coverPx.w,
     config.rendering.preview.coverPx.h,
     "cover",
@@ -293,10 +325,10 @@ export function renderConfiguredBook(
         imagePath,
       })),
     },
-    storyTexts: pageBlocks.map(({ page }) => ({
-      pageNumber: page.index,
-      text: interpolate(recipe.copy[page.id]?.text ?? ""),
-    })),
+    storyTexts: pageBlocks.map(({ page }) => {
+      const copy = recipe.copy[page.id];
+      return { pageNumber: page.index, text: (Array.isArray(copy) ? copy : copy ? [copy] : []).map(block => interpolate(block.text)).join('\n') };
+    }),
     pronounsResolved: pronouns,
     animalDisplayName: guideName,
     trailType: clues,

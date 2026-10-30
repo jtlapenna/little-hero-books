@@ -1,3 +1,4 @@
+import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
 import {
   buildAssetApiUrl,
   buildManifestKeyCandidates,
@@ -1387,6 +1388,12 @@ export async function buildW4PrintInput(
           fallbackManifestKey: loadedOneManifest.manifestKey,
         })
       : null;
+
+  const storedLayoutRecipe = toRecord(toRecord(toRecord(toRecord(toRecord(loadedThreeManifest.manifest).renderSnapshot).bookConfig).rendering).recipe);
+  if (requiresBookLayoutReview(normalizedOneManifest?.renderSnapshot?.bookConfig.rendering.recipe?.schema) ||
+      requiresBookLayoutReview(storedLayoutRecipe.schema)) {
+    throw new Error('Configured layout print preparation is not yet available');
+  }
 
   const expectedProvider = options.expectedProvider ?? 'lulu';
   if (expectedProvider === 'gelato') {

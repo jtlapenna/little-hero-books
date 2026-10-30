@@ -1,4 +1,5 @@
 import { resolveWorkflowBookConfig, type BookSnapshotFields, type WorkflowBookConfigOptions } from './book-snapshot';
+import { inspectWorkflowBookIdentity } from './workflow-book-identity';
 import { resolveRecipePoseReference } from './book-render-recipe';
 import { resolvePreviewCanonicalsForConfig } from '@/lib/preview-canonicals';
 import {
@@ -468,10 +469,11 @@ export async function buildW2APoseInput(
   input: JsonRecord,
   options: BuildW2APoseInputOptions = {},
 ): Promise<BuildW2APoseInputResult> {
+  const declaredIdentity = inspectWorkflowBookIdentity(input);
   const compatSnapshot = extractCompatSnapshot(input);
   const explicitOrderContext = toRecord(input.orderContext);
   const orderContext = mergeRecords(compatSnapshot, explicitOrderContext);
-  const characterSpecs = toRecord(
+  let characterSpecs = toRecord(
     pickFirstNonEmpty(
       input.characterSpecs,
       orderContext.characterSpecs,
@@ -489,7 +491,7 @@ export async function buildW2APoseInput(
     compatSnapshot.characterHash,
   );
 
-  const orderId = toTrimmedString(
+  const orderId = declaredIdentity.orderId ?? toTrimmedString(
     pickFirstNonEmpty(
       input.orderId,
       orderContext.orderId,
@@ -509,7 +511,7 @@ export async function buildW2APoseInput(
     throw new Error('W2A pose input requires orderId');
   }
 
-  const characterHash = toTrimmedString(
+  let characterHash = toTrimmedString(
     pickFirstNonEmpty(
       input.characterHash,
       orderContext.characterHash,
@@ -537,7 +539,7 @@ export async function buildW2APoseInput(
   }
 
   const pathLikes = resolvePathLikes(input, orderContext);
-  const resolvedBookId = toTrimmedString(
+  const resolvedBookId = declaredIdentity.bookId ?? toTrimmedString(
     pickFirstNonEmpty(input.bookId, orderContext.bookId),
   );
   const resolvedOrderPrefix = toTrimmedString(
@@ -552,7 +554,7 @@ export async function buildW2APoseInput(
   const configSource = normalizeConfigSource(
     pickFirstNonEmpty(input.configSource, orderContext.configSource, compatSnapshot.configSource),
   );
-  const configVersion = toInteger(
+  const configVersion = declaredIdentity.version ?? toInteger(
     pickFirstNonEmpty(
       input.configVersion,
       input.version,
@@ -560,9 +562,11 @@ export async function buildW2APoseInput(
       compatSnapshot.configVersion,
     ),
   );
-  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId: resolveFormatId(input, orderContext), version: configVersion ?? undefined, source: configSource }, options);
+  const formatId = declaredIdentity.formatId ?? resolveFormatId(input, orderContext);
+  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId, version: configVersion ?? undefined, source: configSource }, options);
   const config = frozenConfig.config;
-  const formatId = resolveFormatId(input, orderContext);
+  if (frozenConfig.canonicalInput?.characterSpecs) characterSpecs = toRecord(frozenConfig.canonicalInput.characterSpecs);
+  if (typeof frozenConfig.canonicalInput?.characterHash === 'string') characterHash = frozenConfig.canonicalInput.characterHash;
 
   const explicitBackendUrl = normalizeLikelyUrl(
     pickFirstNonEmpty(input.backendUrl, explicitOrderContext.backendUrl),
