@@ -38,11 +38,11 @@ async function main() {
   assert.ok(stored[1].renderSnapshot, 'Persisted recovery job must keep the W0 snapshot');
   config.rendering.recipe!.poses['custom-run'].referenceKey = `${config.bookId}/LATEST-WRONG.png`;
   let reloads = 0;
-  const generated = await buildW2APoseInput({ ...stored[1], characterHash: 'fixturehash', characterSpecs: { childName: 'Ada', skinTone: 'medium' }, retryAttempt: 1 }, { loadConfig: async () => { reloads++; return config; } });
+  const generated = await buildW2APoseInput({ ...stored[1], characterHash: 'fixturehash', characterSpecs: w0.input.characterSpecs, retryAttempt: 1 }, { loadConfig: async () => { reloads++; return config; } });
   assert.equal(reloads, 0, 'Recovered configured job must not reload mutable config');
   assert.equal(generated.poseRefKey, `${config.bookId}/characters/references/custom-run.png`);
   assert.ok(generated.uploadKey.endsWith('pose13_r1.png'));
-  const base = await buildW2ABaseInput({ orderId, bookId: config.bookId, formatId: 'standard', oneManifestUrl: oneKey, characterHash: 'fixturehash', characterSpecs: { childName: 'Ada', hairStyle: 'side-part', skinTone: 'medium' } }, { loadConfig: async () => { throw new Error('Mutable config loaded'); }, loadManifest: async () => w0 });
+  const base = await buildW2ABaseInput({ orderId, bookId: config.bookId, formatId: 'standard', oneManifestUrl: oneKey, characterHash: 'fixturehash', characterSpecs: w0.input.characterSpecs }, { loadConfig: async () => { throw new Error('Mutable config loaded'); }, loadManifest: async () => w0 });
   assert.equal(base.configVersion, 1);
   const context = await readOrderPoseContext({ bookId: config.bookId, orderPrefix: prefix }, async () => w0);
   assert.ok(context.allowed.includes(13)); assert.ok(!context.allowed.includes(99));

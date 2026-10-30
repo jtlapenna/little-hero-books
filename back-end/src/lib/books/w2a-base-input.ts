@@ -1,4 +1,5 @@
 import { resolveWorkflowBookConfig, type BookSnapshotFields, type WorkflowBookConfigOptions } from './book-snapshot';
+import { inspectWorkflowBookIdentity } from './workflow-book-identity';
 import { resolvePreviewCanonicalsForConfig } from '@/lib/preview-canonicals';
 import {
   buildAssetApiUrl,
@@ -453,10 +454,11 @@ export async function buildW2ABaseInput(
   input: JsonRecord,
   options: BuildW2ABaseInputOptions = {},
 ): Promise<BuildW2ABaseInputResult> {
+  const declaredIdentity = inspectWorkflowBookIdentity(input);
   const compatSnapshot = extractCompatSnapshot(input);
   const explicitOrderContext = toRecord(input.orderContext);
   const orderContext = mergeRecords(compatSnapshot, explicitOrderContext);
-  const characterSpecs = toRecord(
+  let characterSpecs = toRecord(
     pickFirstNonEmpty(
       input.characterSpecs,
       input.character_specs,
@@ -467,7 +469,7 @@ export async function buildW2ABaseInput(
     ),
   );
 
-  const orderId = toTrimmedString(
+  const orderId = declaredIdentity.orderId ?? toTrimmedString(
     pickFirstNonEmpty(
       input.orderId,
       orderContext.orderId,
@@ -482,9 +484,9 @@ export async function buildW2ABaseInput(
     throw new Error('W2A base input requires orderId');
   }
 
-  const characterHash = resolveCharacterHash(input, orderContext, compatSnapshot);
+  let characterHash = resolveCharacterHash(input, orderContext, compatSnapshot);
   const pathLikes = resolvePathLikes(input, orderContext);
-  const explicitBookId = toTrimmedString(
+  const explicitBookId = declaredIdentity.bookId ?? toTrimmedString(
     pickFirstNonEmpty(input.bookId, orderContext.bookId, compatSnapshot.bookId),
   );
   const explicitOrderPrefix = toTrimmedString(
@@ -499,14 +501,16 @@ export async function buildW2ABaseInput(
   const configSource = normalizeConfigSource(
     pickFirstNonEmpty(input.configSource, orderContext.configSource, compatSnapshot.configSource),
   );
-  const configVersion = toInteger(
+  const configVersion = declaredIdentity.version ?? toInteger(
     pickFirstNonEmpty(input.configVersion, input.version, orderContext.configVersion),
   );
-  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId: resolveFormatId(input, orderContext), version: configVersion ?? undefined, source: configSource }, options);
+  const formatId = declaredIdentity.formatId ?? resolveFormatId(input, orderContext);
+  const frozenConfig = await resolveWorkflowBookConfig({ ...input, _compatSnapshot: compatSnapshot }, { bookId, formatId, version: configVersion ?? undefined, source: configSource }, options);
   const config = frozenConfig.config;
+  if (frozenConfig.canonicalInput?.characterSpecs) characterSpecs = toRecord(frozenConfig.canonicalInput.characterSpecs);
+  if (typeof frozenConfig.canonicalInput?.characterHash === 'string') characterHash = frozenConfig.canonicalInput.characterHash;
 
   const previewResolved = resolvePreviewCanonicalsForConfig(characterSpecs, config);
-  const formatId = resolveFormatId(input, orderContext);
   const backendUrl =
     normalizeLikelyUrl(pickFirstNonEmpty(input.backendUrl, orderContext.backendUrl)) ??
     resolveCanonicalBackendBaseUrl(options.defaultBackendUrl);

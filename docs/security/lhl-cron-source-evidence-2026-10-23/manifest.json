@@ -2,7 +2,7 @@
   "schema": "lhl.cron-source-overlay@1",
   "parent": "docs/repo-workflows-planning/gelato-admission-settlement-evidence-2026-10-23",
   "parentManifestSha256": "04e43536f0b9d2bb50e5bd9eab81732b6c536507abf7a863538208bca02b9320",
-  "sourceSnapshotSha256": "3bab6f81dc5ba12a3525d2625097fd966b8a858f9ec39e57370bb6e6ea6bef24",
+  "sourceSnapshotSha256": "4a45d64ce7861a1b14cbf95542ab57dbaf125a11845a421a90284fcab2198e87",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
@@ -21,7 +21,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "d5ad99248d2cf0a1a5396f8e51747f8813cfec3493b390e5c8862b804b491b8a"
+      "sha256": "d58afbb7be39b9681905be5ef6d50e661f80925a0f0bdae51a2da8803744db89"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -431,12 +431,12 @@
     {
       "path": "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts",
       "kind": "source",
-      "sha256": "af3939e664ce24ff8310a5bd0668141bc153366fb81a390acd0f22e2c274936c"
+      "sha256": "77c856aa4e967a9b675268a8118e13f6a3f85828fe893bbf489009824a05ad01"
     },
     {
       "path": "back-end/src/app/api/internal/w2a/resolve-pose-worklist/route.ts",
       "kind": "source",
-      "sha256": "bd5686f3c950d1e85a882aa9e0f0cd3433ca95fad43f9f2851ef0634acea888d"
+      "sha256": "70e0fb1145b82077a50e46f366c2c3fba6a7c2f5e5f1b8eb7b64f72715d1aee4"
     },
     {
       "path": "back-end/src/app/api/internal/w4/engineering-automation/route.ts",
@@ -466,7 +466,7 @@
     {
       "path": "back-end/src/lib/books/build-run-manifest.ts",
       "kind": "source",
-      "sha256": "2e51ba4a722bdcbeea08564d3d2c7c0fb2a10a0b1ac0d256a4742acc4dbd758f"
+      "sha256": "618d4bbc83bfa6d196f9b928a21324272c0c119594ef82388a12af339bd4367c"
     },
     {
       "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json",
@@ -561,7 +561,7 @@
     {
       "path": "back-end/src/lib/books/normalize-w0-manifest.ts",
       "kind": "source",
-      "sha256": "4af154a362519e702b3c9dfbcec577a035e6ad13503b2760a23877b7bec6db98"
+      "sha256": "ea74d441263d8fee107efe52269a95fcd8c2546e57b217b1ea0d0ab767483dad"
     },
     {
       "path": "back-end/src/lib/books/print-routing-claim-runtime.ts",
@@ -586,7 +586,7 @@
     {
       "path": "back-end/src/lib/books/w2a-frozen-input.ts",
       "kind": "source",
-      "sha256": "c171b9fa2db7e1e47e21b038a1e6efaa2efa8fbb11a27c68d4757b2e39fcc26e"
+      "sha256": "0202b9aeaa656c23f604ee45476e72b05b6a9eb13b34bc30c7c98a194484a839"
     },
     {
       "path": "back-end/src/lib/books/w2a-manifest.ts",
@@ -764,7 +764,7 @@
       "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
     }
   ],
-  "previousCurrentManifestArchive": "docs/security/lhl-cron-source-evidence-2026-10-23/history/manifest-before-book-config-2026-10-30.json",
-  "previousCurrentManifestSha256": "c854c2071d8bd96c6545380aea590d813f3fb4215554ee6a8eca829c4029a16d",
-  "currentBindingReason": "Reviewed phase002 shared-config validation and its CI regression; refresh three current-source bindings only, preserving historical parent evidence and all false execution-authority fields"
+  "previousCurrentManifestArchive": "docs/security/lhl-cron-source-evidence-2026-10-23/history/manifest-before-frozen-handoff-2026-10-30.json",
+  "previousCurrentManifestSha256": "1f41ec0ae14e1fa4e91710e81f61b24aa2edaeeee6f5d77cf91f55599803a01d",
+  "currentBindingReason": "Reviewed shared frozen-book identity, schema and intake policy; refresh only six protected source bindings, retaining historical evidence and false authority fields"
 }

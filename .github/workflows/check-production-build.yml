@@ -68,6 +68,7 @@ jobs:
           node --import tsx scripts/test-w2a-frozen-generation-input.ts
           node --import tsx scripts/test-publish-book-config-immutability.ts
           node --import tsx scripts/test-book-config-semantics.ts
+          node --import tsx scripts/test-frozen-book-handoff.ts
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end

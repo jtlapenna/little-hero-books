@@ -1,5 +1,6 @@
 import { BOOK_COPY_TOKENS, BookAssetKeySchema, type BookPageLayer } from './book-render-contract';
 import { BookRenderSnapshotSchema, type BookConfig, type BookPageConfig, type BookRenderSnapshot } from './types';
+import { assertBookConfigSemantics } from './book-config-semantics';
 
 export function pagePoseNumbers(page: Pick<BookPageConfig, 'poseNumber' | 'layers'>): number[] {
   return [...new Set([...(page.poseNumber == null ? [] : [page.poseNumber]), ...(page.layers ?? []).filter(l => l.kind === 'pose').map(l => l.poseNumber)])];
@@ -74,6 +75,7 @@ export function validateBookRenderRecipe(config: BookConfig, formatId: string): 
 export function validateRenderSnapshot(value: unknown, identity?: { bookId?: string | null; formatId?: string | null; version?: number | null }): BookRenderSnapshot {
   const snapshot = BookRenderSnapshotSchema.parse(value);
   const config = snapshot.bookConfig;
+  assertBookConfigSemantics(config);
   if (!config.rendering.recipe) throw new Error('Render snapshot has no recipe');
   if ((identity?.bookId && identity.bookId !== config.bookId) || (identity?.formatId && identity.formatId !== snapshot.formatId) || (identity?.version != null && identity.version !== config.version)) throw new Error('Render snapshot identity mismatch');
   validateBookRenderRecipe(config, snapshot.formatId);
