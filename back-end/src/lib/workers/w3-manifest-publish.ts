@@ -1,3 +1,4 @@
+import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
 import { invalidateBookReview } from '@/lib/book-review-invalidation';
 import { resolveW3ManifestOptions } from '@/lib/books/w3-manifest';
 import { buildW3Manifest, type BuildW3ManifestResult } from '@/lib/books';
@@ -119,6 +120,8 @@ export async function publishW3Manifest(
   options: PublishW3ManifestOptions = {},
 ): Promise<PublishW3ManifestResult> {
   const built = buildW3Manifest(input, await resolveW3ManifestOptions(input, options.loadManifestImpl));
+  const layoutRecipe = toRecord(toRecord(toRecord(toRecord(built.manifest.renderSnapshot).bookConfig).rendering).recipe);
+  if (requiresBookLayoutReview(layoutRecipe.schema)) throw new Error('Configured layout publication is not yet available');
   const backendUrl =
     firstString(input.backendUrl, (built as JsonRecord).backendUrl) ??
     resolveCanonicalBackendBaseUrl();
