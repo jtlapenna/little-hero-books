@@ -1,0 +1,141 @@
+{
+  "schema": "lhb.phased-plan-package@v1",
+  "parentPlan": "../book-agnostic-repo-centric-implementation-plan-2026-10-29.md",
+  "purpose": "Planning input only, not status.json or an initialized run",
+  "executionAuthorized": true,
+  "runInitialized": false,
+  "schedulingAuthorized": true,
+  "commitPolicy": "phase-scoped commits after QA and release-safety",
+  "stockNoCommitAdapterVerified": false,
+  "phases": [
+    {
+      "id": "001-baseline-and-ownership",
+      "title": "Preserve work and reconcile John's baseline",
+      "file": "001-baseline-and-ownership.md",
+      "dependsOn": [],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": false,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 0"
+    },
+    {
+      "id": "002-shared-config-contract",
+      "title": "Define the shared configuration contract",
+      "file": "002-shared-config-contract.md",
+      "dependsOn": [
+        "001-baseline-and-ownership"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": false,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 1: schema and capabilities"
+    },
+    {
+      "id": "003-first-book-parity",
+      "title": "Move new first-book orders onto configured rendering",
+      "file": "003-first-book-parity.md",
+      "dependsOn": [
+        "002-shared-config-contract"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": true,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 1: first-book parity"
+    },
+    {
+      "id": "004-amazon-selection",
+      "title": "Select and freeze the correct book at upload",
+      "file": "004-amazon-selection.md",
+      "dependsOn": [
+        "003-first-book-parity"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": true,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 2"
+    },
+    {
+      "id": "005-configured-generation",
+      "title": "Drive generation, QA and upload from configured poses",
+      "file": "005-configured-generation.md",
+      "dependsOn": [
+        "004-amazon-selection"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": false,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 3: W2A"
+    },
+    {
+      "id": "006-paths-and-completions",
+      "title": "Preserve book identity through routing and background removal",
+      "file": "006-paths-and-completions.md",
+      "dependsOn": [
+        "005-configured-generation"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": false,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 3: queue, W2B, callbacks and W4.1"
+    },
+    {
+      "id": "007-shared-review-rendering",
+      "title": "Complete shared flexible rendering and review publication",
+      "file": "007-shared-review-rendering.md",
+      "dependsOn": [
+        "006-paths-and-completions"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": true,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 4: W3 and review intent"
+    },
+    {
+      "id": "008-pdf-geometry-and-templates",
+      "title": "Make PDF geometry and template bindings config-driven",
+      "file": "008-pdf-geometry-and-templates.md",
+      "dependsOn": [
+        "007-shared-review-rendering"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": true,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 4: PDF worker and PDFMonkey templates"
+    },
+    {
+      "id": "009-three-book-proof",
+      "title": "Prove future-book onboarding uses configuration alone",
+      "file": "009-three-book-proof.md",
+      "dependsOn": [
+        "008-pdf-geometry-and-templates"
+      ],
+      "status": "planned",
+      "risk": "high",
+      "visualQa": true,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoint 5"
+    },
+    {
+      "id": "010-local-finalize-and-pilot-packet",
+      "title": "Finalize local evidence and prepare the external pilot",
+      "file": "010-local-finalize-and-pilot-packet.md",
+      "dependsOn": [
+        "009-three-book-proof"
+      ],
+      "status": "planned",
+      "risk": "medium",
+      "visualQa": false,
+      "requiresAdditionalPhaseApproval": false,
+      "designSource": "Checkpoints 6 and local finish criteria"
+    }
+  ],
+  "authorityDocument": "../book-agnostic-execution-authority-2026-10-30.md"
+}

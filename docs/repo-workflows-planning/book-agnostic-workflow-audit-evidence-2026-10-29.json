@@ -1,0 +1,781 @@
+{
+  "schema": "lhb.book-agnostic-source-audit@v1",
+  "timestamp": "2026-10-30T05:26:37.447138+00:00",
+  "worktree": "/Users/jeff/.codex/worktrees/090a/little-hero-books",
+  "head": "f7efbb3308df1111568890ed6de9ae5c7c38fe74",
+  "scope": "Current local source including existing uncommitted book changes; no hosted-state claim",
+  "checks": "JSON parsing, source trace and saved-graph reachability only; no runtime or provider test",
+  "stagedPaths": [],
+  "bookAutomationStatus": "PAUSED",
+  "files": [
+    {
+      "path": "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
+      "sha256": "50aedd0bd135e87ceecb5f89f3ed00a30f619db47d91d79c064e06c3ecb22cdc"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w0/build-manifest/route.ts",
+      "sha256": "3972b0ca032ce5ad48941953b1e90b6b0722ab4fec90e77a17edc09110f30742"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2a/resolve-pose-worklist/route.ts",
+      "sha256": "bd5686f3c950d1e85a882aa9e0f0cd3433ca95fad43f9f2851ef0634acea888d"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w4/render-print-document/route.ts",
+      "sha256": "8f07a34aa2128466dbaf48e6d3a580148f14b52ead344b16e4bef050da51e87e"
+    },
+    {
+      "path": "back-end/src/app/api/normalize-pose-scale/route.ts",
+      "sha256": "f1c81dee67bba356ba2f4032337c93d393ad5df255472b705f71fbb8c485792c"
+    },
+    {
+      "path": "back-end/src/lib/books/book-render-contract.ts",
+      "sha256": "b26fd91b702a427ee2bf6fdcb376ae7a6ae741d54c42cf236643d13ede0c9c85"
+    },
+    {
+      "path": "back-end/src/lib/books/book-render-recipe.ts",
+      "sha256": "415e432ceb63dd7dcf8225b5bfbd578f56229e2011497ef8f7c980bef3159fc9"
+    },
+    {
+      "path": "back-end/src/lib/books/book-snapshot.ts",
+      "sha256": "8c752275e412724138f5275917a3b57f712be09afb622877bf3586f1d05dde3e"
+    },
+    {
+      "path": "back-end/src/lib/books/build-run-manifest.ts",
+      "sha256": "2e51ba4a722bdcbeea08564d3d2c7c0fb2a10a0b1ac0d256a4742acc4dbd758f"
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-2-example/v1.json",
+      "sha256": "4e78fb42e552202b1d1bb1590d5a0378de9bd9338579c57a93c6754e1f48b311"
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v1.json",
+      "sha256": "17b2d420786412f48fb9756b6e4ebf9fc5d8fe2a7ea6e3a8ff3af089fc7392dc"
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json",
+      "sha256": "dec968a10ee94a0292341044171efb00607efbf5c2b8060cdd91e5e49728f6db"
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json",
+      "sha256": "ad85f9288679e083643539189d6caeee6528c5cbfb675390d41e21a958ad1531"
+    },
+    {
+      "path": "back-end/src/lib/books/configured-book-rendering.ts",
+      "sha256": "ff53d14db98375ec891b7bd0318306bd25e059321ce2df7634f7220b82b58e16"
+    },
+    {
+      "path": "back-end/src/lib/books/load-book-config.ts",
+      "sha256": "650aa955c6ff9fb71e75371bc2c4113804f212245cdbb0feed0c44486be3e81a"
+    },
+    {
+      "path": "back-end/src/lib/books/resolve-page-plan.ts",
+      "sha256": "f2fee111006d8eb295846131cc60a59d873206b36233855f55b2b2044e6d5bcb"
+    },
+    {
+      "path": "back-end/src/lib/books/review-page-plan.ts",
+      "sha256": "d20311995c30d6bcb5dbe84e8c35b0eee3d4282d72199201c8d3ebf08fffd54e"
+    },
+    {
+      "path": "back-end/src/lib/books/runtime-book-config.ts",
+      "sha256": "04f5b53b7d9252b7a63919796bb2d9fc983f50e2aa3451c17e1004ca21c01923"
+    },
+    {
+      "path": "back-end/src/lib/books/types.ts",
+      "sha256": "30ac70e6b6fa32cf85b37def4ccbcf12f207e9250de9c72d16052cbcb671b397"
+    },
+    {
+      "path": "back-end/src/lib/books/w2a-base-input.ts",
+      "sha256": "8346d17c6c0cb00450124f8d51b609e9553d2f82e7ecb2c2f2f616627c3567e0"
+    },
+    {
+      "path": "back-end/src/lib/books/w2a-frozen-input.ts",
+      "sha256": "c171b9fa2db7e1e47e21b038a1e6efaa2efa8fbb11a27c68d4757b2e39fcc26e"
+    },
+    {
+      "path": "back-end/src/lib/books/w2a-pose-input.ts",
+      "sha256": "69a7437abbcb3af24784542666bc47e50f5ef28e157e6086f7486e0692e91f9c"
+    },
+    {
+      "path": "back-end/src/lib/books/w2b-pose-input.ts",
+      "sha256": "153c9db578d3f57a756845aefa064c002deeef9aa26f624064d5ed5219aa9a5b"
+    },
+    {
+      "path": "back-end/src/lib/books/w2b-worklist.ts",
+      "sha256": "f677ad66af699be4fee2428b0f97eac6c46b63dbbc24e1694eeedb8a74b78f20"
+    },
+    {
+      "path": "back-end/src/lib/books/w3-assembly-input.ts",
+      "sha256": "12cc5288505ba04f49fd9ba2126c4c6f491cd060942f650141b593a760502246"
+    },
+    {
+      "path": "back-end/src/lib/books/w3-manifest.ts",
+      "sha256": "579fb5b1447a0b66691fe9cdca7ba1cd583fd134c731dfb101b3e0ebc4e30ac3"
+    },
+    {
+      "path": "back-end/src/lib/books/w3-preview-plan.ts",
+      "sha256": "4f4523bde1adbcd7efce65af6db9000f1a10de582966b0b61cc9bc7710b7efd4"
+    },
+    {
+      "path": "back-end/src/lib/books/w4-print-input.ts",
+      "sha256": "e702011d73b8c9b07caddc75c806a279ca525f894e7513bb4e758f2eab379c2b"
+    },
+    {
+      "path": "back-end/src/lib/preview-canonicals.ts",
+      "sha256": "bc7c3ebb32aabf1f81bc3190f13298a8eba91a87e16b8d0e07a7ae168f53ea80"
+    },
+    {
+      "path": "back-end/src/lib/sibling-order-helpers.ts",
+      "sha256": "f6af8e2db4a0947dd5052423a8c679372a97ddfe25c1cce06b2de758fb960dd9"
+    },
+    {
+      "path": "back-end/src/lib/w0-manifest-builder.ts",
+      "sha256": "1b73a30ab3d310fa55639e917dbc7d1792376bde61e1089c0090a308f19115e6"
+    },
+    {
+      "path": "back-end/src/lib/w0-manifest-request.ts",
+      "sha256": "1bc278dd51b0d88ec070f2caaa7a53dfbae049e61dba12a8f4c990ed59913997"
+    },
+    {
+      "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
+      "sha256": "f27258a6452767eb2b4e2249fb4913fc847693440878fe2b60a0c4b2dfa3d33b"
+    },
+    {
+      "path": "back-end/src/lib/workers/w4-print-worker.ts",
+      "sha256": "c04e357f08b000215d30bacdc33f2a1efa3d32dfb9aff07c742b1a08b2262078"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/README.md",
+      "sha256": "4d97d866ad09cf301081642472d3de984c6a68dd6d9dcbbda77c4ecb4aa62d38"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json",
+      "sha256": "6a7bfcfc6cabe9095e4e196c271b0aa47bf0d3a74ffd3fbbd858e1af43085f17"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+      "sha256": "908e137665094a36b763262e9315643dd6b99957db257f9bd131924307e6d2e0"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
+      "sha256": "d7a5594b8479b227f5087abf13829504f0801c40adfec1375f0489b215b32d6f"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
+      "sha256": "4816e7ac86166055a7e45ee26336588ec6b473d7f0049f4d0e02acb0e9bdd932"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
+      "sha256": "923fe0ff62ef944cabec11fc83b1e2293322447060cb7e38f1d2b8983b8d5fc5"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json",
+      "sha256": "c4769dba9233aef77846535bceccae2929e465e1dd075e6bb62e1dabeeae1a28"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-main-orchestrator.repo-centric.json",
+      "sha256": "d62577023403103ab99745a2a38ac50aea69a28614015a91596b2e973a94a00d"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
+      "sha256": "c8902f60b8f08ad80c10371d7d103c99d88f94e06c7dc0c0f2ec35ca705e7de8"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
+      "sha256": "811ddda70e6d229fa20a51881959c61cb1a6cc440e322d6bb8f831263ed8d35a"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json",
+      "sha256": "43540ddaee8d1ff4cdcc31ae49e1bd8bd6fe76ac7e6b429575389e12bd22d706"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w0-Order_Intake_Validation.json",
+      "sha256": "ffd439e92579fe7f7e5facbc0e8ec8b3eea226d4ec887b67686d0daf1c60fd80"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w1.1-Queue_Manager_and_Router.json",
+      "sha256": "d4975a1fdf08a1dd94290b2ef57990fde9ed29036c4d5d086b3f093aa5bd8d6f"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-Orchestrator.json",
+      "sha256": "48722b3337b8f951e4be328f4abaa273d0f694f81275dfa7e471b78832f7c069"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW0-Base_Character_Generation.json",
+      "sha256": "cde6c75da2e9b0db2407e6df672f7684124d662ede1e3bb36de7dd890101f3b1"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW1-Pose_Generation.json",
+      "sha256": "23e028672d436fce0ae2245eed2424df1a6ecc796e9b49ef908339f3192fae8f"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW2-Pose_and_Style_QA.json",
+      "sha256": "35e7a032a444c3634bf03adb1b8762c84b7d7484cab755878e42e540fc9604ca"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW3-Upload.json",
+      "sha256": "8738a15f5c6e1b79c368771489787fe7692946872dd7999e5cc49b238897bc8d"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2B-main-orchestrator.json",
+      "sha256": "debcdf4712df6580e9d2ac368038745811594fc1c3085be2dfe74ec84295d789"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2B-sw1-single-pose.json",
+      "sha256": "c523ed280145c2cb6c9fe15b27e9a60cac0daf740f73709ee2d9fdaeccf467e9"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w3-Book-Assembly.json",
+      "sha256": "d44ec1607a737a24b24dc521cea9a897302153efb53638c7c17ac3b98b7895a7"
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4-PRODUCTION-Print_Fulfillment.json",
+      "sha256": "11454f13eaa440d1761724c3dae20a688f44dea26bdcd47b54222a303913b9dc"
+    },
+    {
+      "path": "docs/repo-workflows-planning/repo-centric-workflow-ownership-audit.md",
+      "sha256": "c307bc1ff3a766cea88abd91219e74e149121139aa96beef9e48e750370d623d"
+    }
+  ],
+  "configs": [
+    {
+      "path": "back-end/src/lib/books/configs/book-2-example/v1.json",
+      "bookId": "book-2-example",
+      "version": 1,
+      "status": "draft",
+      "renderingSchema": null,
+      "namedPoseNumbers": [],
+      "formats": {
+        "standard": {
+          "pages": 15,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        },
+        "amazon": {
+          "pages": 17,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        }
+      }
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v1.json",
+      "bookId": "book-finding-our-inner-voice",
+      "version": 1,
+      "status": "draft",
+      "renderingSchema": "lhb.book-render@v1",
+      "namedPoseNumbers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "formats": {
+        "standard": {
+          "pages": 32,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        },
+        "amazon": {
+          "pages": 32,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        }
+      }
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-finding-our-inner-voice/v2.json",
+      "bookId": "book-finding-our-inner-voice",
+      "version": 2,
+      "status": "draft",
+      "renderingSchema": "lhb.book-render@v1",
+      "namedPoseNumbers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "formats": {
+        "standard": {
+          "pages": 32,
+          "trimIn": {
+            "w": 7.874015748,
+            "h": 7.874015748
+          },
+          "bleedIn": {
+            "w": 8.11023622,
+            "h": 8.11023622
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 16.103543307,
+              "h": 8.11023622
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        },
+        "amazon": {
+          "pages": 32,
+          "trimIn": {
+            "w": 7.874015748,
+            "h": 7.874015748
+          },
+          "bleedIn": {
+            "w": 8.11023622,
+            "h": 8.11023622
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 16.103543307,
+              "h": 8.11023622
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        }
+      }
+    },
+    {
+      "path": "back-end/src/lib/books/configs/book-mvp-simple-adventure/v1.json",
+      "bookId": "book-mvp-simple-adventure",
+      "version": 1,
+      "status": "active",
+      "renderingSchema": null,
+      "namedPoseNumbers": [],
+      "formats": {
+        "standard": {
+          "pages": 15,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        },
+        "amazon": {
+          "pages": 17,
+          "trimIn": {
+            "w": 8.5,
+            "h": 8.5
+          },
+          "bleedIn": {
+            "w": 8.75,
+            "h": 8.75
+          },
+          "cover": {
+            "spreadSizeIn": {
+              "w": 17.25,
+              "h": 8.75
+            }
+          },
+          "templates": {
+            "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172",
+            "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75"
+          }
+        }
+      }
+    }
+  ],
+  "workflowGraphs": [
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w0-Order_Intake_Validation.repo-centric.json",
+      "track": "repo",
+      "id": "9E0oVs46bMoiyRIP",
+      "versionId": "bd89d9ad-8fd4-4ef9-a89b-5cfac9c5f64c",
+      "roots": [
+        "Webhook"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Prepare Build 1 Manifest Body",
+          "graphReachable": true,
+          "disabled": false
+        },
+        {
+          "name": "Build 1\u2011manifest.json",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+      "track": "repo",
+      "id": "TDwc85g03FqPf9D6",
+      "versionId": "f02b5fe6-82a3-44a3-9f05-9bb9bdb077f3",
+      "roots": [
+        "Webhook Trigger"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Prep Workflow 4 Orders",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
+      "track": "repo",
+      "id": "HduzTWm0ekmrvwrn",
+      "versionId": "757751fc-9623-48c1-92d9-f01a269877ff",
+      "roots": [
+        "Webhook (Router)"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Expand to N Poses",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
+      "track": "repo",
+      "id": "S5apnAgeuitSIO5Z",
+      "versionId": "57d6c25d-0860-46bc-9edd-81d1021fb006",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
+      "track": "repo",
+      "id": "kGob5aDJ6e5WRPh7",
+      "versionId": "5fd14d1d-cf9d-4dff-852a-74669b4268c3",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json",
+      "track": "repo",
+      "id": "oKsq2x0gARt43k5U",
+      "versionId": "1db12635-89ef-4475-ae9d-d0de63bc7311",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-main-orchestrator.repo-centric.json",
+      "track": "repo",
+      "id": "KhMxEgo57Deo1QWu",
+      "versionId": "e37de772-f5be-42e6-a024-225b71d0066e",
+      "roots": [
+        "Webhook Trigger"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
+      "track": "repo",
+      "id": "4fxha79xAEaYEBYb",
+      "versionId": "a0a2cdd3-1ee0-4cd7-a704-cf5ff2f41523",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
+      "track": "repo",
+      "id": "D4rQ0zJG8JlKhZqq",
+      "versionId": "ab017e51-5676-4dd5-b899-22a035177b94",
+      "roots": [
+        "Webhook Trigger (Book Assembly)1"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Generate Complete HTML (Amazon)",
+          "graphReachable": true,
+          "disabled": false
+        },
+        {
+          "name": "preview-html",
+          "graphReachable": false,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-PRODUCTION-Print_Fulfillment.repo-centric.json",
+      "track": "repo",
+      "id": "m4qIN9PCgifUcYih",
+      "versionId": "1537858c-69eb-4813-8e57-99dc7cf3df45",
+      "roots": [
+        "Webhook (W4 Intake)"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Generate Cover PDF with PDFMonkey",
+          "graphReachable": true,
+          "disabled": false
+        },
+        {
+          "name": "Generate PDF with PDFMonkey1",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w0-Order_Intake_Validation.json",
+      "track": "sibling",
+      "id": "Of0D9GEpoOYvYMTX",
+      "versionId": "40f2a626-d58b-4369-9e2f-00e4a6d5eb88",
+      "roots": [
+        "Webhook"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Build 1\u2011manifest.json",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w1.1-Queue_Manager_and_Router.json",
+      "track": "sibling",
+      "id": "TDwc85g03FqPf9D6",
+      "versionId": "4cc016cf-ed45-405a-abb5-e8e723b24b1e",
+      "roots": [
+        "Webhook Trigger"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Prep Workflow 4 Orders",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-Orchestrator.json",
+      "track": "sibling",
+      "id": "K0ZUTaBtTnV17yOh",
+      "versionId": "dc667bab-cf5a-4913-93e0-af0acc832ec0",
+      "roots": [
+        "Webhook (Router)"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Expand to N Poses",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW0-Base_Character_Generation.json",
+      "track": "sibling",
+      "id": "KhB78G1R2T0mIUmx",
+      "versionId": "97278112-1d91-43c5-a9d7-0914364b410e",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW1-Pose_Generation.json",
+      "track": "sibling",
+      "id": "kVlSZ0gu0DDewGsj",
+      "versionId": "5249a385-4612-4309-b992-5395aa8c9ebb",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW2-Pose_and_Style_QA.json",
+      "track": "sibling",
+      "id": "HMXLhoiMQvy8hhNV",
+      "versionId": "ff2caa9c-c404-4f7a-bd80-2f689833587f",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2A-SW3-Upload.json",
+      "track": "sibling",
+      "id": "oKsq2x0gARt43k5U",
+      "versionId": "fe013c77-e0b7-4fc9-9b6d-d6fda4266adb",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2B-main-orchestrator.json",
+      "track": "sibling",
+      "id": "KIaUCcwWJamYxTS8",
+      "versionId": "34654d2c-5fa0-4e7c-91cf-14280e9ff33c",
+      "roots": [
+        "Webhook Trigger"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w2B-sw1-single-pose.json",
+      "track": "sibling",
+      "id": "G2sOg2lFKVvXN8AC",
+      "versionId": "1bec1e9c-f1e9-45a7-a34d-273275e301a5",
+      "roots": [
+        "When Executed by Another Workflow"
+      ],
+      "selectedNodes": []
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w3-Book-Assembly.json",
+      "track": "sibling",
+      "id": "uBwj1PO5bi0sMENq",
+      "versionId": "d47a8f82-ef6c-4c0b-b9dc-4e4135567045",
+      "roots": [
+        "Webhook Trigger (Book Assembly)1"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Generate Complete HTML (Amazon)",
+          "graphReachable": true,
+          "disabled": false
+        },
+        {
+          "name": "preview-html",
+          "graphReachable": false,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "path": "docs/n8n-workflow-files/sibling-orders/sibling-order-n8n-workflows/SIBLING - w4-PRODUCTION-Print_Fulfillment.json",
+      "track": "sibling",
+      "id": "8wN0nnutNsnryLmr",
+      "versionId": "eccf33f0-89c9-459b-b56f-211903f0998c",
+      "roots": [
+        "Webhook (W4 Intake)"
+      ],
+      "selectedNodes": [
+        {
+          "name": "Generate Cover PDF with PDFMonkey",
+          "graphReachable": true,
+          "disabled": false
+        },
+        {
+          "name": "Generate PDF with PDFMonkey1",
+          "graphReachable": true,
+          "disabled": false
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Conditional branches not evaluated",
+    "Deployed definitions and environment not read",
+    "Provider requests and template contents not verified",
+    "Published main not integrated into local mixed checkout"
+  ]
+}

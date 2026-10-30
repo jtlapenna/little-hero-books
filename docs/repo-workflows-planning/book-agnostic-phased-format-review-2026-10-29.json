@@ -1,0 +1,97 @@
+{
+  "schema": "lhb.phased-plan-format-review@v1",
+  "timestamp": "2026-10-30T05:48:45.618807+00:00",
+  "verdict": "FORMAT_READY_PREPARATION_ONLY",
+  "content": [
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-implementation-plan-2026-10-29.md",
+      "sha256": "bf92192d14fdbb65060272ea8ec4d3504d64719c6e57c03edd3b6a114b20ac17"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-phased-format-review-2026-10-29.md",
+      "sha256": "9ce29af08e8974f3e476ba85247731dc78b5ada6533c81ef747fd4951e118c41"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/001-baseline-and-ownership.md",
+      "sha256": "1c13f5143faf4c86188e4937e555858c8a51ac458faf170211990e5c7804206a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/002-shared-config-contract.md",
+      "sha256": "b5ee5abd92ec536d360ba40104b91681dfb35d2419f4f7bff353aedca9e168d8"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/003-first-book-parity.md",
+      "sha256": "37e12d200e02c93085a0564338dd8bf96d78925b6f24841d9690d18b3e9950d7"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/004-amazon-selection.md",
+      "sha256": "0d632cb2fc118c8a43c00a1252e8b0132b9323cd96e4260a4b8694cfeae8cd3a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/005-configured-generation.md",
+      "sha256": "02204205772b9a9bf5877c35d0e8eed353c8f07c33c44dbe51d8bbd82c0eaa67"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/006-paths-and-completions.md",
+      "sha256": "bdbbfba15320b5a24a45543278dfc0e6e6aee7531eef417e2370a8bba8890a8f"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/007-shared-review-rendering.md",
+      "sha256": "9fffed302214cad95d22eb82ec69cc96f69f15f4fea89ef224f59dd3ee1baa41"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/008-pdf-geometry-and-templates.md",
+      "sha256": "3961dbfc8b13a3ef09bc81e30b0d6b044b18f2448a82e3d44b791b02a5c2729d"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/009-three-book-proof.md",
+      "sha256": "b8ee585d4a7460a1322a61eafb5d6081788a18f171d31627295b6f7dc1a6375a"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/010-local-finalize-and-pilot-packet.md",
+      "sha256": "cdc70f74f73cc03a315353d80ea46e92c7d6f4af1e8aab1c2a74d18819113402"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/README.md",
+      "sha256": "161c378a34fcfc8d445212d94b4abcfad61f31bd71cad7526c1832504cf8143c"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/guardrails.md",
+      "sha256": "3472edac2b6b26b4627e1ad5d684f22000b069904cd83ebbd29f4db4d6fee563"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/phase-manifest.json",
+      "sha256": "9cf7743370f531361b4738483cc077af1727b66a3739478bdf0ee8944a1450ac"
+    },
+    {
+      "path": "docs/repo-workflows-planning/book-agnostic-repo-centric-phases-2026-10-29/resume-prompt.md",
+      "sha256": "be259a92f1664ec993d6a78eb60a7373fca8d82a04f6a680410d4fdde96775a4"
+    }
+  ],
+  "freshReviewer": "book_agnostic_phased_format_review",
+  "candidates": {
+    "confirmed": [],
+    "rejected": [],
+    "unresolved": []
+  },
+  "skeptic": "Not needed: zero candidates",
+  "checks": {
+    "phaseCount": 10,
+    "phaseStatus": "all planned",
+    "requiredSections": "pass",
+    "metadataAndDependencies": "pass",
+    "tasksPerPhase": "1..5",
+    "pathsAndScripts": "pass",
+    "bookAutomationStatus": "PAUSED",
+    "indexEmpty": true,
+    "runtimeInitialized": false
+  },
+  "limits": [
+    "No implementation or runtime/provider evidence",
+    "Native unattended no-commit runner not verified",
+    "Existing implementation-scope receipt historical after conversion"
+  ],
+  "executionStarted": false,
+  "schedulingAuthorized": false,
+  "commitPolicy": "disabled"
+}
