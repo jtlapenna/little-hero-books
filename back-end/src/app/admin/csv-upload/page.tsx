@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertTriangle, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -17,13 +17,38 @@ interface UploadResult {
     matched_orders: string[];
     created_orders: string[];
     pending_orders: string[];
+    w0_triggered?: string[];
+    w0_skipped?: Array<{ orderId: string; reason: string }>;
     errors: Array<{
       row: number;
       orderId: string | null;
       error: string;
     }>;
   };
+  selection?: { bookId: string; formatId: string; configVersion: number; title: string };
   timestamp: string;
+}
+
+function isUploadResult(value: unknown): value is UploadResult {
+  const record = (item: unknown): item is Record<string, unknown> =>
+    item !== null && typeof item === 'object' && !Array.isArray(item);
+  const count = (item: unknown) => typeof item === 'number' && Number.isSafeInteger(item) && item >= 0;
+  const strings = (item: unknown): item is string[] =>
+    Array.isArray(item) && item.every(entry => typeof entry === 'string');
+  if (!record(value) || value.success !== true || !record(value.summary) || !record(value.details)) return false;
+  const summary = value.summary, details = value.details;
+  if (!['total_rows', 'matched', 'created', 'pending', 'errors'].every(key => count(summary[key]))) return false;
+  if (!strings(details.matched_orders) || !strings(details.created_orders) || !strings(details.pending_orders)) return false;
+  if (!Array.isArray(details.errors) || !details.errors.every(item => record(item) && count(item.row) &&
+      (item.orderId === null || typeof item.orderId === 'string') && typeof item.error === 'string')) return false;
+  if (details.w0_triggered !== undefined && !strings(details.w0_triggered)) return false;
+  if (details.w0_skipped !== undefined && (!Array.isArray(details.w0_skipped) ||
+      !details.w0_skipped.every(item => record(item) && typeof item.orderId === 'string' && typeof item.reason === 'string'))) return false;
+  if (typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp))) return false;
+  if (value.selection !== undefined && (!record(value.selection) || typeof value.selection.bookId !== 'string' ||
+      typeof value.selection.formatId !== 'string' || !Number.isSafeInteger(value.selection.configVersion) ||
+      typeof value.selection.title !== 'string' || value.selection.title.trim().length === 0)) return false;
+  return true;
 }
 
 export default function CsvUploadPage() {
@@ -31,9 +56,27 @@ export default function CsvUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryable, setRetryable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bookId, setBookId] = useState('book-mvp-simple-adventure');
+  const [submission, setSubmission] = useState<{ fileName: string; bookId: string } | null>(null);
+  const inFlight = useRef<number | null>(null);
+  const sequence = useRef(0);
+  const bookTitle = bookId === 'book-finding-our-inner-voice' ? 'Finding Our Inner Voice' : 'Adventure Compass';
+  const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const browseButton = useRef<HTMLButtonElement>(null);
+  const resetFocusRequested = useRef(false);
+  useEffect(() => {
+    if (result) resultsHeading.current?.focus();
+    else if (resetFocusRequested.current && file === null) {
+      browseButton.current?.focus();
+      resetFocusRequested.current = false;
+    }
+  }, [file, result]);
 
   const handleFileSelect = (selectedFile: File) => {
+    if (inFlight.current !== null) return;
+    setRetryable(false);
     // Validate file type
     const fileName = selectedFile.name.toLowerCase();
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
@@ -66,7 +109,7 @@ export default function CsvUploadPage() {
   };
 
   const handleBrowseClick = () => {
-    fileInputRef.current?.click();
+    if (inFlight.current === null) fileInputRef.current?.click();
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,7 +120,11 @@ export default function CsvUploadPage() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || inFlight.current !== null) return;
+    const requestNumber = ++sequence.current;
+    inFlight.current = requestNumber;
+    const submitted = { fileName: file.name, bookId };
+    setSubmission(submitted);
 
     console.log('[CSV Upload UI] Starting upload...');
     console.log('[CSV Upload UI] File:', file.name, file.size, 'bytes');
@@ -89,6 +136,10 @@ export default function CsvUploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (submitted.bookId === 'book-finding-our-inner-voice') {
+        formData.append('bookId', submitted.bookId);
+        formData.append('formatId', 'amazon');
+      }
       console.log('[CSV Upload UI] FormData created, sending request to /api/admin/amazon-orders/upload-csv');
 
       const response = await fetch('/api/admin/amazon-orders/upload-csv', {
@@ -105,21 +156,42 @@ export default function CsvUploadPage() {
         throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       console.log('[CSV Upload UI] Success response:', data);
-      setResult(data);
+      if (!isUploadResult(data)) {
+        throw new Error('The server returned an incomplete upload result. Keep the file and try again.');
+      }
+      if (submitted.bookId === 'book-finding-our-inner-voice' &&
+          (!data.selection || data.selection.bookId !== submitted.bookId || data.selection.formatId !== 'amazon' ||
+           !Number.isSafeInteger(data.selection.configVersion) || data.selection.configVersion < 2)) {
+        throw new Error('The server did not confirm the selected book. Keep the file and try again.');
+      }
+      if (submitted.bookId !== 'book-finding-our-inner-voice' && data.selection) {
+        throw new Error('The server returned a different book selection. Keep the file and try again.');
+      }
+      if (inFlight.current === requestNumber) setResult(data);
     } catch (err: any) {
       console.error('[CSV Upload UI] Exception during upload:', err);
       console.error('[CSV Upload UI] Error message:', err.message);
       console.error('[CSV Upload UI] Error stack:', err.stack);
-      setError(err.message || 'Failed to upload CSV file');
+      if (inFlight.current === requestNumber) {
+        setError(err.message || 'Failed to upload CSV file');
+        setRetryable(true);
+      }
     } finally {
-      setUploading(false);
+      if (inFlight.current === requestNumber) {
+        inFlight.current = null;
+        setUploading(false);
+      }
       console.log('[CSV Upload UI] Upload finished');
     }
   };
 
   const handleReset = () => {
+    if (inFlight.current !== null) return;
+    resetFocusRequested.current = true;
+    setSubmission(null);
+    setRetryable(false);
     setFile(null);
     setResult(null);
     setError(null);
@@ -130,7 +202,7 @@ export default function CsvUploadPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 [overflow-wrap:anywhere]">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -148,10 +220,29 @@ export default function CsvUploadPage() {
           </div>
         </div>
 
+        <p role="status" aria-live="polite" className="sr-only">
+          {uploading ? `Uploading ${submission?.fileName ?? 'file'}` : result
+            ? `CSV intake finished. ${result.summary.errors} row errors; ${result.details.w0_skipped?.length ?? 0} workflow handoffs skipped.` : ''}
+        </p>
+
         {/* Upload Area */}
         {!result && (
           <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+            <div className="mb-5">
+              <label htmlFor="csv-book" className="block text-sm font-medium text-gray-900">Book in this file</label>
+              <select id="csv-book" value={bookId} disabled={uploading}
+                onChange={event => { if (inFlight.current === null) { setBookId(event.target.value); setError(null); setRetryable(false); } }}
+                className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:opacity-60">
+                <option value="book-mvp-simple-adventure">Adventure Compass</option>
+                <option value="book-finding-our-inner-voice">Finding Our Inner Voice</option>
+              </select>
+              <p className="mt-2 text-sm text-gray-600">Upload one book at a time. Include every item and quantity for each Amazon order. Orders containing different books need separate item setup; splitting their rows into files is not supported.</p>
+              {bookId === 'book-finding-our-inner-voice' && (
+                <p className="mt-2 text-sm text-gray-600">Each item needs an order-item-id or customization link. New orders need a working customization link containing the child's name and age.</p>
+              )}
+            </div>
             <div
+              aria-disabled={uploading}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
@@ -167,12 +258,14 @@ export default function CsvUploadPage() {
                   </div>
                   <div>
                     <p className="text-lg font-medium text-gray-900">{file.name}</p>
+                    <p className="text-sm text-gray-700">{bookTitle}</p>
                     <p className="text-sm text-gray-500 mt-1">
                       {(file.size / 1024).toFixed(2)} KB
                     </p>
                   </div>
                   <button
                     onClick={handleReset}
+                    disabled={uploading}
                     className="inline-flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
                   >
                     <X className="h-4 w-4 mr-1" />
@@ -193,7 +286,9 @@ export default function CsvUploadPage() {
                     </p>
                   </div>
                   <button
+                    ref={browseButton}
                     onClick={handleBrowseClick}
+                    disabled={uploading}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                   >
                     <Upload className="h-4 w-4 mr-2" />
@@ -202,6 +297,7 @@ export default function CsvUploadPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
+                    disabled={uploading}
                     accept=".csv,.txt"
                     onChange={handleFileInputChange}
                     className="hidden"
@@ -211,10 +307,10 @@ export default function CsvUploadPage() {
             </div>
 
             {error && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
+              <div role="alert" className="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex">
-                  <AlertTriangle className="h-5 w-5 text-red-400 mr-3" />
-                  <div>
+                  <AlertTriangle className="h-5 w-5 text-red-400 mr-3 shrink-0" />
+                  <div className="min-w-0">
                     <h3 className="text-sm font-medium text-red-800">Upload Error</h3>
                     <p className="mt-1 text-sm text-red-700">{error}</p>
                   </div>
@@ -222,7 +318,7 @@ export default function CsvUploadPage() {
               </div>
             )}
 
-            {file && !error && (
+            {file && (!error || retryable) && (
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={handleUpload}
@@ -237,7 +333,7 @@ export default function CsvUploadPage() {
                   ) : (
                     <>
                       <Upload className="h-5 w-5 mr-2" />
-                      Upload CSV
+                      {retryable ? 'Retry upload' : 'Upload CSV'}
                     </>
                   )}
                 </button>
@@ -251,16 +347,21 @@ export default function CsvUploadPage() {
           <div className="space-y-6">
             {/* Summary Card */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Upload Results</h2>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <h2 ref={resultsHeading} tabIndex={-1} className="text-xl font-semibold text-gray-900">Upload Results</h2>
                 <button
                   onClick={handleReset}
-                  className="text-sm text-gray-600 hover:text-gray-900"
+                  disabled={uploading}
+                  className="text-sm text-gray-600 hover:text-gray-900 shrink-0"
                 >
                   Upload Another File
                 </button>
               </div>
 
+              <p className="mb-4 text-sm text-gray-700">
+                {submission?.fileName} · {result.selection?.title ?? 'Adventure Compass'}
+                {result.selection ? ` · Amazon · v${result.selection.configVersion}` : ''}
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="text-sm text-gray-600">Total Rows</div>
@@ -299,11 +400,21 @@ export default function CsvUploadPage() {
               </div>
             </div>
 
+            <section className="bg-white rounded-lg shadow-md p-6" aria-label="Workflow handoff">
+              <h3 className="text-lg font-semibold text-gray-900">Workflow handoff</h3>
+              <p className="mt-2 text-sm text-gray-700">{result.details.w0_triggered?.length ?? 0} accepted; {result.details.w0_skipped?.length ?? 0} skipped. Saving a row does not complete book generation.</p>
+              {(result.details.w0_skipped?.length ?? 0) > 0 && (
+                <ul className="mt-3 space-y-2 text-sm text-red-700">
+                  {result.details.w0_skipped!.map((item, index) => <li key={`${item.orderId}-${index}`}>{item.orderId}: {item.reason}</li>)}
+                </ul>
+              )}
+            </section>
+
             {/* Created Orders */}
             {result.details.created_orders && result.details.created_orders.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center mb-4">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2 shrink-0" />
                   <h3 className="text-lg font-semibold text-gray-900">
                     Created Orders ({result.details.created_orders.length})
                   </h3>
@@ -313,11 +424,11 @@ export default function CsvUploadPage() {
                     Successfully created the following orders from CSV data:
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {result.details.created_orders.map((orderId) => (
+                    {result.details.created_orders.filter(orderId => typeof orderId === 'string' && orderId.trim()).map((orderId) => (
                       <Link
                         key={orderId}
-                        href={`/orders/${orderId}`}
-                        className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200"
+                        href={`/orders/${encodeURIComponent(orderId)}`}
+                        className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200 max-w-full min-w-0"
                       >
                         {orderId}
                       </Link>
@@ -331,7 +442,7 @@ export default function CsvUploadPage() {
             {result.details.matched_orders.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center mb-4">
-                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2 shrink-0" />
                   <h3 className="text-lg font-semibold text-gray-900">
                     Matched Orders ({result.details.matched_orders.length})
                   </h3>
@@ -341,11 +452,11 @@ export default function CsvUploadPage() {
                     Successfully updated the following orders with customer data:
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {result.details.matched_orders.map((orderId) => (
+                    {result.details.matched_orders.filter(orderId => typeof orderId === 'string' && orderId.trim()).map((orderId) => (
                       <Link
                         key={orderId}
-                        href={`/orders/${orderId}`}
-                        className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200"
+                        href={`/orders/${encodeURIComponent(orderId)}`}
+                        className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200 max-w-full min-w-0"
                       >
                         {orderId}
                       </Link>
@@ -359,7 +470,7 @@ export default function CsvUploadPage() {
             {result.details.pending_orders.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center mb-4">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 shrink-0" />
                   <h3 className="text-lg font-semibold text-gray-900">
                     Pending Orders ({result.details.pending_orders.length})
                   </h3>
@@ -372,7 +483,7 @@ export default function CsvUploadPage() {
                     {result.details.pending_orders.map((orderId) => (
                       <span
                         key={orderId}
-                        className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm"
+                        className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm max-w-full min-w-0"
                       >
                         {orderId}
                       </span>
@@ -386,7 +497,7 @@ export default function CsvUploadPage() {
             {result.details.errors.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center mb-4">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+                  <AlertTriangle className="h-5 w-5 text-red-600 mr-2 shrink-0" />
                   <h3 className="text-lg font-semibold text-gray-900">
                     Errors ({result.details.errors.length})
                   </h3>
@@ -418,18 +529,16 @@ export default function CsvUploadPage() {
             )}
 
             {/* Success Message */}
-            {result.summary.errors === 0 && result.summary.pending === 0 && (
+            {result.summary.errors === 0 && result.summary.pending === 0 && (result.details.w0_skipped?.length ?? 0) === 0 && (
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <div className="flex">
                   <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
                   <div>
-                    <h3 className="text-sm font-medium text-green-800">Upload Complete</h3>
+                    <h3 className="text-sm font-medium text-green-800">CSV intake saved</h3>
                     <p className="mt-1 text-sm text-green-700">
-                      {result.summary.created > 0 && result.summary.matched > 0
-                        ? `All orders were successfully processed: ${result.summary.created} created, ${result.summary.matched} updated.`
-                        : result.summary.created > 0
-                        ? `All orders were successfully created from CSV data.`
-                        : `All orders were successfully matched and updated.`}
+                      {result.summary.created + result.summary.matched > 0
+                        ? `${result.summary.created} rows created; ${result.summary.matched} updated. Generation continues separately.`
+                        : 'No order rows found in this file.'}
                     </p>
                   </div>
                 </div>

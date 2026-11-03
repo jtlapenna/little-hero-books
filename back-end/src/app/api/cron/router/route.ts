@@ -379,7 +379,7 @@ export async function GET(request: NextRequest) {
     const w0RetriggerStart = Date.now();
     const { data: stuckPendingW0 } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,platform,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
+      .select('id,"orderId",amazon_order_id,platform,marketplace_id,book_specs,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
       .eq('execution_status', 'pending_w0')
       .is('next_workflow', null)
       .is('one_manifest_url', null)
@@ -391,15 +391,19 @@ export async function GET(request: NextRequest) {
     } = splitCronExcludedOrders(stuckPendingW0 || []);
     logExcludedTestOrders('pending_w0_retrigger', excludedStuckPendingW0);
     if (eligibleStuckPendingW0.length > 0) {
-      const { buildD2CW0Payload } = await import('@/lib/w0-payload');
+      const { buildPendingW0Payload } = await import('@/lib/w0-payload');
       const { triggerW0 } = await import('@/lib/sibling-order-helpers');
       for (const o of eligibleStuckPendingW0) {
         const orderData = o as Record<string, unknown>;
         const oid = orderData.orderId ?? orderData.order_id ?? orderData.id;
         console.log(`[Cron Router] [${executionId}] Re-triggering W0 for stuck order ${oid}`);
-        const payload = buildD2CW0Payload(orderData);
-        const res = await triggerW0(payload);
-        if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
+        try {
+          const payload = buildPendingW0Payload(orderData);
+          const res = await triggerW0(payload);
+          if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
+        } catch (error) {
+          console.error(`[Cron Router] [${executionId}] W0 re-trigger held for ${oid}:`, error instanceof Error ? error.message : 'Invalid stored intake');
+        }
       }
     }
     const w0RetriggerMs = Date.now() - w0RetriggerStart;

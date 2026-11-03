@@ -28,6 +28,71 @@ function trimToString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+const INNER_VOICE_CHECKOUT_BOOK_ID = 'book-finding-our-inner-voice';
+type CheckoutSelectionIssue = { path: string; message: string };
+
+function inspectInnerVoiceCheckoutSelection(
+  rawBody: unknown,
+  productInfo: Record<string, unknown>,
+  selectedBookId: string,
+  selectedFormatId: string,
+): { productInfo: Record<string, unknown>; callerVersion: number | undefined; issues: CheckoutSelectionIssue[] } {
+  const record = (value: unknown): Record<string, unknown> | null =>
+    value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const own = (value: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(value, key);
+  const raw = record(rawBody) ?? {};
+  const accepted = record(raw.product_info) ?? {};
+  const unsupported = [
+    { path: '', value: raw },
+    ...['productInfo', 'bookSpecs', 'book_specs'].map(path => ({ path, value: record(raw[path]) })),
+  ];
+  const rawIntent = [accepted, ...unsupported.map(source => source.value).filter((value): value is Record<string, unknown> => value !== null)]
+    .some(source => ['bookId', 'book_id'].some(key => own(source, key) && trimToString(source[key]) === INNER_VOICE_CHECKOUT_BOOK_ID));
+  if (selectedBookId !== INNER_VOICE_CHECKOUT_BOOK_ID && !rawIntent) {
+    return { productInfo, callerVersion: undefined, issues: [] };
+  }
+  const issues: CheckoutSelectionIssue[] = [];
+  const normalized = { ...productInfo };
+  const fields = ['bookId', 'book_id', 'formatId', 'format_id', 'configVersion', 'config_version'];
+  for (const source of unsupported) {
+    if (!source.value) continue;
+    for (const field of fields) {
+      if (own(source.value, field)) issues.push({
+        path: source.path ? `${source.path}.${field}` : field,
+        message: 'Put book selection fields in product_info.',
+      });
+    }
+  }
+  const stringAliases = (keys: string[], selected: string, issuePath: string) => {
+    const values: string[] = [];
+    for (const key of keys) {
+      if (!own(accepted, key)) continue;
+      const value = trimToString(accepted[key]);
+      if (value === null) {
+        issues.push({ path: issuePath, message: 'Enter a nonempty book selection.' });
+      } else {
+        values.push(value);
+        normalized[key] = selected;
+      }
+    }
+    if (new Set(values).size > 1) issues.push({ path: issuePath, message: 'Book selections conflict.' });
+  };
+  stringAliases(['bookId', 'book_id'], selectedBookId, 'product_info.bookId');
+  stringAliases(['formatId', 'format_id'], selectedFormatId, 'product_info.formatId');
+  const versions: number[] = [];
+  for (const key of ['configVersion', 'config_version']) {
+    if (!own(accepted, key)) continue;
+    const value = accepted[key];
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+      issues.push({ path: 'product_info.configVersion', message: 'Enter a positive whole book version.' });
+    } else {
+      versions.push(value);
+    }
+  }
+  if (new Set(versions).size > 1) issues.push({ path: 'product_info.configVersion', message: 'Book versions conflict.' });
+  return { productInfo: normalized, callerVersion: versions[0], issues };
+}
+
 /**
  * Infer clothing style from pronouns (matches Amazon order logic).
  * Default: t-shirt and shorts for neutral/masculine pronouns, dress for feminine.
@@ -199,14 +264,7 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    if (parsed.shipping_address.country !== 'US') {
-      return NextResponse.json(
-        { error: 'Validation failed', fields: [{ path: 'shipping_address.country', message: 'Phase 0 supports US only' }] },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const requestedProductInfo = (parsed.product_info ?? {}) as Record<string, unknown>;
+    let requestedProductInfo = (parsed.product_info ?? {}) as Record<string, unknown>;
     const requestedBookId =
       trimToString(requestedProductInfo.bookId) ??
       trimToString(requestedProductInfo.book_id) ??
@@ -215,9 +273,22 @@ export async function POST(request: NextRequest) {
       trimToString(requestedProductInfo.formatId) ??
       trimToString(requestedProductInfo.format_id) ??
       D2C_DEFAULT_FORMAT_ID;
+    const selection = inspectInnerVoiceCheckoutSelection(body, requestedProductInfo, requestedBookId, requestedFormatId);
+    if (selection.issues.length) {
+      return NextResponse.json({ error: 'Validation failed', fields: selection.issues }, { status: 400, headers: corsHeaders });
+    }
+    requestedProductInfo = selection.productInfo;
+
+    if (parsed.shipping_address.country !== 'US') {
+      return NextResponse.json(
+        { error: 'Validation failed', fields: [{ path: 'shipping_address.country', message: 'Phase 0 supports US only' }] },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     let innerVoicePageCount: number | null = null;
     let innerVoiceConfigVersion: number | null = null;
-    if (requestedBookId === 'book-finding-our-inner-voice') {
+    if (requestedBookId === INNER_VOICE_CHECKOUT_BOOK_ID) {
       const entries = parsed.books ?? (parsed.character_specs ? [{ character_specs: parsed.character_specs }] : []);
       const fields = entries.flatMap((entry, index) => {
         const name = (entry.character_specs.childName ?? entry.character_specs.name ?? '').trim();
@@ -238,6 +309,9 @@ export async function POST(request: NextRequest) {
         const format = published.config.formats[requestedFormatId];
         if (!format || !format.channels.includes('d2c')) {
           return NextResponse.json({ error: 'This book format is not available for checkout.' }, { status: 409, headers: corsHeaders });
+        }
+        if (selection.callerVersion !== undefined && selection.callerVersion !== published.config.version) {
+          return NextResponse.json({ error: 'The selected book version has changed. Refresh and try again.' }, { status: 409, headers: corsHeaders });
         }
         innerVoicePageCount = format.interior.expectedPageCount;
         innerVoiceConfigVersion = published.config.version;

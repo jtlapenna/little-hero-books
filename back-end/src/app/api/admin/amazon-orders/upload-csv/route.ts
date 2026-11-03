@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import Papa from 'papaparse';
 import {
   validateCsvHeaders,
+  findColumnIndex,
   extractAmazonOrderId,
   extractOrderItemId,
   buildShippingAddress,
@@ -13,7 +14,7 @@ import {
   extractPurchaseDate,
   buildLineItemFromRow,
 } from '@/lib/csv-upload-helpers';
-import { updateOrderInSupabase, getOrderFromSupabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
 import {
@@ -24,6 +25,8 @@ import {
   triggerW0,
 } from '@/lib/sibling-order-helpers';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { resolveCsvBookSelection, CsvBookSelectionError, csvBookSpecs, readCsvRootRows, reconcileCsvRoot,
+  resolveCsvOriginalContext, updateExactCsvRow, csvRowDeclaresInnerVoice, type CsvUnitDescriptor } from '@/lib/csv-book-selection';
 import { ADMIN_BODY_LIMITS, readBoundedRequestFormData, RequestBodyError } from '@/lib/request-body';
 
 export const dynamic = 'force-dynamic';
@@ -170,6 +173,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const selection = await resolveCsvBookSelection(formData);
+    const selectedBookId = selection?.bookId ?? AMAZON_CSV_BOOK_ID;
+    const selectedFormatId = selection?.formatId ?? AMAZON_CSV_FORMAT_ID;
+
     // Process rows: group by amazon-order-id, then create ONE order per row
     // (primary for first row, sibling for subsequent rows in same group)
     const dataRows = rows.slice(1);
@@ -192,6 +199,7 @@ export async function POST(request: NextRequest) {
     const w0Skipped: Array<{ orderId: string; reason: string }> = [];
 
     // Group rows by order-id to extract shared shipping/customer data
+    const invalidRoots = new Set<string>();
     const orderIdToRows = new Map<string, { row: unknown; rowNumber: number }[]>();
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -204,6 +212,7 @@ export async function POST(request: NextRequest) {
       }
       const shippingAddress = buildShippingAddress(row as string[], headers);
       if (!shippingAddress) {
+        invalidRoots.add(amazonOrderId);
         errors.push({ row: rowNumber, orderId: amazonOrderId, error: 'Missing required shipping address fields' });
         summary.errors++;
         continue;
@@ -223,6 +232,21 @@ export async function POST(request: NextRequest) {
       const customerName = extractCustomerName(firstRow, headers);
       const customerEmail = extractCustomerEmail(firstRow, headers);
       const purchaseDate = extractPurchaseDate(firstRow, headers);
+
+      if (selection) {
+        const quantityColumn = findColumnIndex(headers, ['quantity-purchased', 'quantity_purchased', 'quantity']);
+        const invalidQuantity = group.some(({ row }) => {
+          if (quantityColumn === null) return false;
+          const raw = String((row as string[])[quantityColumn] ?? '').trim();
+          return !/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw));
+        });
+        if (invalidRoots.has(amazonOrderId) || invalidQuantity) {
+          errors.push({ row: group[0].rowNumber, orderId: amazonOrderId,
+            error: 'Amazon root has invalid rows or quantities. Upload its complete corrected group.' });
+          summary.errors++;
+          continue;
+        }
+      }
 
       // Download customization per row (each row may be a different child)
       const rowSpecs: Array<{
@@ -303,6 +327,29 @@ export async function POST(request: NextRequest) {
 
       // Process each row as its own order
       const totalUnits = rowSpecs.length;
+      const units: CsvUnitDescriptor[] = rowSpecs.map((item, index) => {
+        const suffixBase = (item.orderItemId?.trim() || item.customizedUrlHash || String(index + 1)).trim();
+        const suffix = item.unitCount > 1 ? `${suffixBase}-unit-${item.unitIndex}` : suffixBase;
+        return { orderId: totalUnits > 1 ? buildSiblingOrderId(amazonOrderId, suffix) : amazonOrderId,
+          lineItem: item.lineItem, unitIndex: item.unitIndex, unitCount: item.unitCount,
+          itemKey: item.orderItemId ? `item:${item.orderItemId}` : item.customizedUrlHash ? `custom:${item.customizedUrlHash}` : null };
+      });
+      let exactRows = new Map<string, Record<string, unknown>>();
+      const originals = new Map<string, { specs: Record<string, unknown>; hash: string }>();
+      try {
+        const members = await readCsvRootRows(supabase, amazonOrderId, units);
+        exactRows = reconcileCsvRoot(members, amazonOrderId, units, selection);
+        if (selection) for (let index = 0; index < units.length; index++) {
+          const unit = units[index];
+          originals.set(unit.orderId, await resolveCsvOriginalContext(selection, unit,
+            exactRows.get(unit.orderId), rowSpecs[index].characterSpecs, amazonOrderId, totalUnits));
+        }
+      } catch (error) {
+        errors.push({ row: group[0].rowNumber, orderId: amazonOrderId,
+          error: error instanceof Error ? error.message : String(error) });
+        summary.errors++;
+        continue;
+      }
       for (let idx = 0; idx < rowSpecs.length; idx++) {
         const {
           rowNumber,
@@ -310,24 +357,24 @@ export async function POST(request: NextRequest) {
           unitIndex,
           unitCount,
           lineItem,
-          characterSpecs,
+          characterSpecs: parsedCharacterSpecs,
           customizationFailure,
           customizedUrlHash,
         } = rowSpecs[idx];
         const isMultiUnitOrder = totalUnits > 1;
         const isSibling = isMultiUnitOrder;
-        // Purpose: single-book orders keep the Amazon order id; multi-item/quantity orders get stable per-book ids.
-        const suffixBase = (orderItemId?.trim() || customizedUrlHash || String(idx + 1)).trim();
-        const suffix = unitCount > 1 ? `${suffixBase}-unit-${unitIndex}` : suffixBase;
-        const effectiveOrderId = isMultiUnitOrder
-          ? buildSiblingOrderId(amazonOrderId, suffix)
-          : amazonOrderId;
+        const effectiveOrderId = units[idx].orderId;
+        const original = originals.get(effectiveOrderId);
+        const characterSpecs = selection ? original!.specs : parsedCharacterSpecs;
 
         try {
           // Purpose: existence check by per-book identity (orderId), not amazon_order_id.
-          const existing = await getOrderFromSupabase(effectiveOrderId).catch(() => null);
+          const existing = selection ? exactRows.get(effectiveOrderId) : await getOrderFromSupabase(effectiveOrderId);
           if (existing) {
             const existingRecord = existing as Record<string, unknown>;
+            if (!selection && csvRowDeclaresInnerVoice(existingRecord)) {
+              throw new CsvBookSelectionError('This Amazon root contains Inner Voice; use its complete selected-book intake');
+            }
             // Update existing order with latest shipping/specs
             const updates: Record<string, unknown> = {
               shipping_address: shippingAddress,
@@ -339,7 +386,7 @@ export async function POST(request: NextRequest) {
             };
             if (characterSpecs) {
               updates.character_specs = characterSpecs;
-              updates.character_hash = calculateSiblingCharacterHash(characterSpecs);
+              updates.character_hash = selection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
             }
             if (existingRecord.review_stages) updates.review_stages = existingRecord.review_stages;
             updates.product_info = {
@@ -347,13 +394,13 @@ export async function POST(request: NextRequest) {
               _created_via_csv: true,
               _csv_sibling_index: idx,
               _customized_url_hash: customizedUrlHash,
-              bookId: AMAZON_CSV_BOOK_ID,
-              book_id: AMAZON_CSV_BOOK_ID,
-              formatId: AMAZON_CSV_FORMAT_ID,
-              format_id: AMAZON_CSV_FORMAT_ID,
-              bookSpecs: {
-                bookId: AMAZON_CSV_BOOK_ID,
-                formatId: AMAZON_CSV_FORMAT_ID,
+              bookId: selectedBookId,
+              book_id: selectedBookId,
+              formatId: selectedFormatId,
+              format_id: selectedFormatId,
+              bookSpecs: selection ? csvBookSpecs(selection) : {
+                bookId: selectedBookId,
+                formatId: selectedFormatId,
                 title: `${(characterSpecs?.childName as string) ?? 'Child'} and the Adventure Compass`,
                 totalPages: 16,
                 format: '8.5x8.5_softcover',
@@ -367,8 +414,17 @@ export async function POST(request: NextRequest) {
               ...(isSibling ? { _sibling_order: true, _parent_amazon_order_id: amazonOrderId, _order_item_id: orderItemId ?? null } : {}),
             };
 
+            if (selection) {
+              updates.book_specs = csvBookSpecs(selection);
+              updates.dedication_text = characterSpecs!.dedication ?? null;
+              const info = updates.product_info as Record<string, unknown>;
+              info.configVersion = selection.configVersion;
+              info.book_specs = csvBookSpecs(selection);
+              delete info._customization_missing;
+              delete info._retry_on_next_cron;
+            }
             try {
-              await updateOrderInSupabase(effectiveOrderId, updates);
+              await updateExactCsvRow(supabase, existingRecord, effectiveOrderId, updates, !!selection);
               matchedOrders.push(effectiveOrderId);
               summary.matched++;
             } catch (ue: unknown) {
@@ -389,7 +445,7 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
-            const characterHash = calculateSiblingCharacterHash(characterSpecs);
+            const characterHash = selection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
             const orderRow = buildSiblingOrderRow({
               orderId: effectiveOrderId,
               parentOrderId: amazonOrderId,
@@ -403,8 +459,9 @@ export async function POST(request: NextRequest) {
               purchaseDate,
               orderItemId,
               isSibling,
-              bookId: AMAZON_CSV_BOOK_ID,
-              formatId: AMAZON_CSV_FORMAT_ID,
+              bookId: selectedBookId,
+              formatId: selectedFormatId,
+              ...(selection ? { selection } : {}),
               lineItem,
               lineItems: sourceLineItems,
               unitIndex,
@@ -455,7 +512,7 @@ export async function POST(request: NextRequest) {
           // Trigger W0 for this order
           if (!characterSpecs && !existing) continue; // already errored above
 
-          const specsForW0 = characterSpecs ?? (await (async () => {
+          const specsForW0 = (selection ? original!.specs : characterSpecs) ?? (await (async () => {
             const q1 = await supabase.from('orders').select('character_specs').eq('orderId', effectiveOrderId).maybeSingle();
             if (q1.error?.code !== '42703' && q1.error) throw q1.error;
             const q2 = q1.error?.code === '42703'
@@ -473,7 +530,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          const charHash = calculateSiblingCharacterHash(specsForW0);
+          const charHash = selection ? original!.hash : calculateSiblingCharacterHash(specsForW0);
           const payload = buildW0Payload({
             orderId: effectiveOrderId,
             amazonOrderId,
@@ -484,10 +541,11 @@ export async function POST(request: NextRequest) {
             shippingAddress,
             characterSpecs: specsForW0,
             characterHash: charHash,
-            bookId: AMAZON_CSV_BOOK_ID,
-            formatId: AMAZON_CSV_FORMAT_ID,
+            bookId: selectedBookId,
+            formatId: selectedFormatId,
+            ...(selection ? { selection } : {}),
             lineItem,
-            lineItems: [lineItem],
+            lineItems: selection ? sourceLineItems : [lineItem],
             unitIndex,
             unitCount,
           });
@@ -518,6 +576,8 @@ export async function POST(request: NextRequest) {
         w0_triggered: w0Triggered,
         w0_skipped: w0Skipped,
       },
+      ...(selection ? { selection: { bookId: selection.bookId, formatId: selection.formatId,
+        configVersion: selection.configVersion, title: selection.title } } : {}),
       timestamp: new Date().toISOString(),
       request_id: requestId,
     };
@@ -528,7 +588,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(response);
   } catch (error: unknown) {
-    if (error instanceof RequestBodyError) {
+    if (error instanceof RequestBodyError || error instanceof CsvBookSelectionError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error(`[CSV Upload] [${requestId}] ====== ERROR ======`);

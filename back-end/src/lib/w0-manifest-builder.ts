@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import {
   buildW0RunManifest,
   buildW0RunManifestRuntime,
@@ -163,18 +164,76 @@ function normalizeBookSpecs(
   };
 }
 
+function normalizeUnitContext(sources: Record<string, unknown>[]): Record<string, unknown> {
+  const read = (aliases: string[]): unknown => {
+    const values = sources.flatMap(source => aliases.filter(key => Object.hasOwn(source, key) && source[key] !== undefined).map(key => source[key]));
+    if (values.some(value => !isDeepStrictEqual(value, values[0]))) throw new Error('Conflicting W0 unit context');
+    return values[0];
+  };
+  const lineItem = read(['line_item', 'lineItem']), items = read(['line_items', 'items', 'lineItems']);
+  const unitIndex = read(['_quantity_unit_index', 'unitIndex']), unitCount = read(['_quantity_unit_count', 'unitCount']);
+  const identityDeclarations = sources.flatMap(source => ['_order_item_id', 'order_item_id', '_customized_url_hash'].map(key => source[key])).filter(value => value != null && value !== '');
+  const declaredItems = items !== undefined && !(Array.isArray(items) && items.length === 0);
+  if (lineItem === undefined && unitIndex === undefined && unitCount === undefined && !declaredItems && !identityDeclarations.length) return {};
+  if (!isRecord(lineItem) || !Array.isArray(items) || !items.length || !items.every(isRecord) ||
+      typeof unitIndex !== 'number' || !Number.isSafeInteger(unitIndex) || unitIndex < 1 ||
+      typeof unitCount !== 'number' || !Number.isSafeInteger(unitCount) || unitCount < unitIndex) throw new Error('Invalid W0 unit context');
+  const itemId = (item: Record<string, unknown>): string | null => {
+    if (item.order_item_id == null || item.order_item_id === '') return null;
+    if (typeof item.order_item_id !== 'string' || item.order_item_id !== item.order_item_id.trim()) throw new Error('Invalid W0 source item identity');
+    return item.order_item_id;
+  };
+  const urlHash = (item: Record<string, unknown>): string | null => {
+    const value = item.customization_url;
+    if (value == null || value === '') return null;
+    if (typeof value !== 'string') throw new Error('Invalid W0 customization identity');
+    let key = value;
+    try { const url = new URL(value); key = `${url.origin}${url.pathname}`; } catch { /* Match the existing CSV source-key fallback. */ }
+    return createHash('sha256').update(key).digest('hex').slice(0, 12);
+  };
+  const selectedId = itemId(lineItem), selectedHash = urlHash(lineItem);
+  if (!selectedId && !selectedHash) throw new Error('Missing W0 source item identity');
+  const matches = items.filter(item => selectedId ? itemId(item) === selectedId : !itemId(item) && urlHash(item) === selectedHash);
+  if (matches.length !== 1) throw new Error('Ambiguous W0 source item identity');
+  const source = matches[0];
+  if (source.quantity !== unitCount || (lineItem.quantity !== undefined && lineItem.quantity !== 1) ||
+      (lineItem.source_quantity !== undefined && lineItem.source_quantity !== unitCount) ||
+      (lineItem.quantity_unit_index !== undefined && lineItem.quantity_unit_index !== unitIndex) ||
+      !isDeepStrictEqual(source.sku, lineItem.sku) || !isDeepStrictEqual(source.product_name, lineItem.product_name) ||
+      urlHash(source) !== selectedHash) throw new Error('Conflicting W0 source item partition');
+  for (const value of sources.flatMap(source => ['_order_item_id', 'order_item_id'].map(key => source[key])).filter(value => value != null && value !== '')) {
+    if (value !== selectedId) throw new Error('Conflicting W0 source item identity');
+  }
+  for (const value of sources.map(source => source._customized_url_hash).filter(value => value != null)) {
+    if (value !== selectedHash) throw new Error('Conflicting W0 customization identity');
+  }
+  return { line_item: { ...lineItem }, line_items: items.map(item => ({ ...item })),
+    _quantity_unit_index: unitIndex, _quantity_unit_count: unitCount,
+    _order_item_id: selectedId, _customized_url_hash: selectedHash };
+}
+
+function normalizedUnitContextSources(input: NormalizedW0WorkflowInput): Record<string, unknown>[] {
+  const normalized = { ...input } as unknown as Record<string, unknown>;
+  const raw = toObject(input._raw) ?? {};
+  // The exported normalizer supplies an empty list when the original body has no top-level items.
+  if (isRecord(input._raw) && Array.isArray(normalized.items) && normalized.items.length === 0 &&
+      !Object.hasOwn(raw, 'items') && !Object.hasOwn(raw, 'lineItems')) delete normalized.items;
+  return [normalized, raw, toObject(input.orderDetails) ?? {}, toObject(input.order_details) ?? {},
+    toObject(raw.orderDetails) ?? {}, toObject(raw.order_details) ?? {}];
+}
+
 function normalizeOrderDetails(
   productInfo: Record<string, unknown>,
   shippingAddress: Record<string, unknown>,
+  preserveUnitContext = false,
 ): Record<string, unknown> {
   const orderDetails =
     toObject(productInfo.orderDetails) ?? toObject(productInfo.order_details) ?? {};
 
-  return {
-    ...orderDetails,
-    quantity: toPositiveInt(productInfo.quantity) ?? 1,
-    shippingAddress,
-  };
+  const unitContext = preserveUnitContext ? normalizeUnitContext([productInfo, orderDetails]) : {};
+  const quantity = toPositiveInt(productInfo.quantity) ?? 1;
+  if (Object.keys(unitContext).length && quantity !== 1) throw new Error('W0 physical book quantity must be one');
+  return { ...orderDetails, ...unitContext, quantity, shippingAddress };
 }
 
 function normalizePlatform(order: OrderRecord): Platform {
@@ -531,7 +590,7 @@ export function buildOrderIntakeManifestFromOrder(
   );
   const characterSpecs = normalizeCharacterSpecs(order);
   const shippingAddress = normalizeShippingAddress(order, productInfo);
-  const orderDetails = normalizeOrderDetails(productInfo, shippingAddress);
+  const orderDetails = normalizeOrderDetails(productInfo, shippingAddress, schemaVersion === 'v3' && bookId !== 'book-mvp-simple-adventure');
   const manifestKey = `${bookId}/orders/${orderId}/manifests/1-manifest.json`;
   const dedicationText = toStringValue(order.dedication_text) ?? null;
   const amazonOrderId = toStringValue(order.amazon_order_id) ?? null;
@@ -588,7 +647,7 @@ export async function buildOrderIntakeManifestFromOrderRuntime(
   const selection = normalizeManifestSelection(order, options);
   const characterSpecs = normalizeCharacterSpecs(order);
   const shippingAddress = normalizeShippingAddress(order, selection.productInfo);
-  const orderDetails = normalizeOrderDetails(selection.productInfo, shippingAddress);
+  const orderDetails = normalizeOrderDetails(selection.productInfo, shippingAddress, schemaVersion === 'v3' && selection.bookId !== 'book-mvp-simple-adventure');
   const manifestKey = `${selection.bookId}/orders/${orderId}/manifests/1-manifest.json`;
   const dedicationText = toStringValue(order.dedication_text) ?? null;
   const amazonOrderId = toStringValue(order.amazon_order_id) ?? null;
@@ -640,6 +699,11 @@ export async function buildOrderIntakeManifestFromNormalizedInputRuntime(
   options: BuildOrderIntakeManifestOptions = {},
 ): Promise<BuildOrderIntakeManifestResult> {
   const order = buildOrderRecordFromNormalizedInput(input);
+  const selection = normalizeManifestSelection(order, options);
+  if (resolveW0ManifestSchemaVersion(options.schemaVersion) === 'v3' && selection.bookId !== 'book-mvp-simple-adventure') {
+    const unitContext = normalizeUnitContext(normalizedUnitContextSources(input));
+    order.product_info = { ...normalizeProductInfo(order), ...unitContext };
+  }
   const orderId = toStringValue(order.orderId);
 
   if (!orderId) {
@@ -674,6 +738,12 @@ export function buildW0OrderUpsertPayload({
     toObject(manifestInput.orderDetails) ??
     toObject(manifestOrder.orderDetails) ??
     {};
+  if (manifestRecord.schema === 'lhb.run-manifest@v3' && bookConfigRef.bookId !== 'book-mvp-simple-adventure') {
+    const frozenContext = normalizeUnitContext([orderDetails]);
+    const requestedContext = normalizeUnitContext(normalizedUnitContextSources(normalizedInput));
+    if (Object.keys(requestedContext).length && !isDeepStrictEqual(requestedContext, frozenContext)) throw new Error('Frozen W0 unit context mismatch');
+    if (Object.keys(frozenContext).length && orderDetails.quantity !== 1) throw new Error('W0 physical book quantity must be one');
+  }
   const shippingAddress =
     toObject(orderDetails.shippingAddress) ??
     toObject(orderDetails.shipping_address) ??
