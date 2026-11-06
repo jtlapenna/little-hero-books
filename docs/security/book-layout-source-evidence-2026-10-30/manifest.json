@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "4326dc19a8f9df3cb0ccc0a6006104a7444ffb227a92a4e07971de4f924dd124",
+  "sourceSnapshotSha256": "71db3d4802bee62d617f6651dc019787709dc6657a1eec26533e22d09664f76b",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -76,7 +76,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "bd2c5e5850c4f09d73e81c5637862da9e988574a945aa49a9aebb69c2b90c5f8"
+      "sha256": "0276f6aad212a013130ea21860c7404b2a8d02f6d91151d06465aac40c55be74"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -96,7 +96,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "ca6d993b8ddad6d9e19d9e2bcbf3e89990e34c997500dd9151ea76608ab786b1"
+      "sha256": "4681fbad290c9259658784853b245e60fb2c5c0736152c3e5e887204c97bef13"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -781,7 +781,7 @@
     {
       "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
       "kind": "source",
-      "sha256": "4317b1dcbbe5832cdc9acd6ea05d9ba68b4605b9522846a6ee35e4435b113ca2"
+      "sha256": "c80a657652d6a1b1c76c4e5529450fc5013c95cea55c7cca0a750220476a79b6"
     },
     {
       "path": "back-end/tsconfig.gelato-admission-settlement.json",
