@@ -31,7 +31,7 @@ export interface PublishW3ManifestOptions {
   putObjectImpl?: PutObjectImpl;
   now?: Date;
   loadManifestImpl?: (key: string) => Promise<unknown | null>;
-  /** Approval entries for the recipe-level release gate (default: bundled file). Used from Phase 006 on. */
+  /** Approval entries for the recipe-level release gate (default: bundled file). Gates readyForBook for flow recipes. */
   flowApprovals?: readonly unknown[];
 }
 
@@ -122,7 +122,7 @@ export async function publishW3Manifest(
   input: PublishW3ManifestInput,
   options: PublishW3ManifestOptions = {},
 ): Promise<PublishW3ManifestResult> {
-  const built = buildW3Manifest(input, await resolveW3ManifestOptions(input, options.loadManifestImpl));
+  const built = buildW3Manifest(input, { ...(await resolveW3ManifestOptions(input, options.loadManifestImpl)), flowApprovals: options.flowApprovals });
   const frozenConfig = toRecord(toRecord(built.manifest.renderSnapshot).bookConfig);
   const recipe = toRecord(toRecord(frozenConfig.rendering).recipe);
   if (recipe.schema === 'lhb.book-render@v2' && !flowPublicationAllowed({ bookId: String(frozenConfig.bookId ?? ''), status: frozenConfig.status as 'draft' | 'active' })) {

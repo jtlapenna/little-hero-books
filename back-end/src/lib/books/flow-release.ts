@@ -77,6 +77,33 @@ export function flowReleaseApprovalsProblems(approvals: unknown): string[] {
   return approvals.flatMap((entry, index) => flowReleaseApprovalEntryProblems(entry).map((problem) => `entry ${index}: ${problem}`));
 }
 
+/** The matching unrevoked entry (same rules as `hasRecordedFlowReleaseApproval`), or null. */
+export function findFlowReleaseApproval(
+  config: BookConfig,
+  formatId: string,
+  approvals: readonly unknown[] = BUNDLED_APPROVALS,
+): FlowReleaseApprovalEntry | null {
+  if (!flowPublicationAllowed(config)) return null;
+  if (config.rendering.recipe?.schema !== FLOW_RECIPE_SCHEMA) return null;
+  if (!Array.isArray(approvals)) return null;
+  const checksum = computeBookConfigChecksum(config);
+  const match = approvals.find((entry) =>
+    isRecord(entry)
+    && flowReleaseApprovalEntryProblems(entry).length === 0
+    && entry.revokedAt === undefined
+    && entry.bookId === config.bookId
+    && entry.version === config.version
+    && entry.formatId === formatId
+    && entry.recipeSchema === FLOW_RECIPE_SCHEMA
+    && entry.configChecksum === checksum);
+  return (match as FlowReleaseApprovalEntry | undefined) ?? null;
+}
+
+/** sha256 of the approvals list as supplied (audit stamp for print inputs). */
+export function flowReleaseApprovalsSha256(approvals: readonly unknown[] = BUNDLED_APPROVALS): string {
+  return sha256Hex(JSON.stringify(approvals));
+}
+
 /**
  * True only for an unrevoked, well-formed entry matching bookId, version, format, flow recipe and the
  * exact config checksum, for an allow-listed, active config. Anything else fails closed.
@@ -86,17 +113,5 @@ export function hasRecordedFlowReleaseApproval(
   formatId: string,
   approvals: readonly unknown[] = BUNDLED_APPROVALS,
 ): boolean {
-  if (!flowPublicationAllowed(config)) return false;
-  if (config.rendering.recipe?.schema !== FLOW_RECIPE_SCHEMA) return false;
-  if (!Array.isArray(approvals)) return false;
-  const checksum = computeBookConfigChecksum(config);
-  return approvals.some((entry) =>
-    isRecord(entry)
-    && flowReleaseApprovalEntryProblems(entry).length === 0
-    && entry.revokedAt === undefined
-    && entry.bookId === config.bookId
-    && entry.version === config.version
-    && entry.formatId === formatId
-    && entry.recipeSchema === FLOW_RECIPE_SCHEMA
-    && entry.configChecksum === checksum);
+  return findFlowReleaseApproval(config, formatId, approvals) !== null;
 }

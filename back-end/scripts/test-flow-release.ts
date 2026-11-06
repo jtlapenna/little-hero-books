@@ -218,7 +218,7 @@ async function main() {
     assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, approvalQuote: 'no prefix', approvalReceiptSha256: sha256Hex('no prefix') }]), false);
   });
 
-  await check('injected approvals do not change publication (still held until Phase 006 readiness gate)', async () => {
+  await check('injected approvals do not change whether publication happens (readiness is covered by test-flow-release-print.ts)', async () => {
     const { input } = await publishInput(config, 'standard', 'FLOWREL-INJECT');
     const effects: Effects = { puts: [], patches: [], invalidated: 0 };
     await publishW3Manifest(input, {

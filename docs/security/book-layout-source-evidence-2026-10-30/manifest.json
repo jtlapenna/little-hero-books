@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "71db3d4802bee62d617f6651dc019787709dc6657a1eec26533e22d09664f76b",
+  "sourceSnapshotSha256": "b60dd7e9e73839ae82b11cc43d051a0fe2882e6d2e44cd19d9593240599cba11",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -76,7 +76,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "0276f6aad212a013130ea21860c7404b2a8d02f6d91151d06465aac40c55be74"
+      "sha256": "90883ad9e327b68cb805c0b90090add597a0ce91bce3c0329dabfa249acb921d"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -96,7 +96,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "4681fbad290c9259658784853b245e60fb2c5c0736152c3e5e887204c97bef13"
+      "sha256": "e400ac2fde77e057f3560c7b19660617984bece7898bbd5e492717221f8e8efd"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -741,12 +741,12 @@
     {
       "path": "back-end/src/lib/books/w3-manifest.ts",
       "kind": "source",
-      "sha256": "b6162df74d79b815e477cc41ef4ce18b99832db757c374e7dad83ef1d3c325fa"
+      "sha256": "85b01e4c4fa7f626fb7d1b20406f064e4bc157e7ee33f8fb0ed5b4b53412de5e"
     },
     {
       "path": "back-end/src/lib/books/w4-print-input.ts",
       "kind": "source",
-      "sha256": "964745345ac00ecce96ee785f3bec861dd1e2ef26ad62695a688c9dd3ab6af9e"
+      "sha256": "811fa3700d14b05e6f211e0eff769063a3da906e9ccd403125a09e44a3518d30"
     },
     {
       "path": "back-end/src/lib/printer-file-grants.ts",
@@ -781,7 +781,7 @@
     {
       "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
       "kind": "source",
-      "sha256": "c80a657652d6a1b1c76c4e5529450fc5013c95cea55c7cca0a750220476a79b6"
+      "sha256": "ca20504506d12417a78337355c3b79bbea91a2ccdbc15ca9ea3db4c247753552"
     },
     {
       "path": "back-end/tsconfig.gelato-admission-settlement.json",
