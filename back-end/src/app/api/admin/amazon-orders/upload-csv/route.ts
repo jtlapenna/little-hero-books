@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import { isDeepStrictEqual } from 'node:util';
 import Papa from 'papaparse';
+import { OVERNIGHT_TEST_FORM_FIELD, OVERNIGHT_TEST_MARKER } from '@/lib/messaging/test-order-guard';
 import {
   validateCsvHeaders,
   findColumnIndex,
@@ -81,6 +82,9 @@ export async function POST(request: NextRequest) {
     console.log(`[CSV Upload] [${requestId}] Parsing form data...`);
     const formData = await readBoundedRequestFormData(request, MAX_CSV_REQUEST_BYTES);
     const file = formData.get('file');
+    // Explicit opt-in (default off): only the exact string 'true' marks created/updated orders as overnight
+    // test orders, which suppresses every customer/buyer message for them (see lib/messaging/test-order-guard).
+    const overnightTest = formData.get(OVERNIGHT_TEST_FORM_FIELD) === 'true';
     console.log(`[CSV Upload] [${requestId}] File received: ${file && typeof file !== 'string' ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
 
     if (!file || typeof file === 'string') {
@@ -497,6 +501,7 @@ export async function POST(request: NextRequest) {
               line_items: unitSourceItems,
               _quantity_unit_index: unitIndex,
               _quantity_unit_count: unitCount,
+              ...(overnightTest ? { [OVERNIGHT_TEST_MARKER]: true } : {}),
               ...(isSibling ? { _sibling_order: true, _parent_amazon_order_id: amazonOrderId, _order_item_id: orderItemId ?? null } : {}),
             };
 
@@ -564,6 +569,7 @@ export async function POST(request: NextRequest) {
               _customized_url_hash: customizedUrlHash,
               line_item: lineItem,
               line_items: unitSourceItems,
+              ...(overnightTest ? { [OVERNIGHT_TEST_MARKER]: true } : {}),
             };
 
             if (unitSelection) {

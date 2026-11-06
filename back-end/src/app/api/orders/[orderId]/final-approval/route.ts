@@ -12,6 +12,7 @@ import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
+import { isOvernightTestOrder, OVERNIGHT_TEST_SKIP_MESSAGE, OVERNIGHT_TEST_SKIP_REASON } from '@/lib/messaging/test-order-guard';
 import { resolveAmazonSpApiEnv } from '@/lib/amazon-sp-api';
 
 interface FinalApprovalPayload {
@@ -259,6 +260,8 @@ async function handleFinalApproval(
     reason?: string;
     response?: unknown;
     channel?: 'email' | 'amazon_message';
+    skipped?: boolean;
+    skipReason?: string;
     logRecorded?: boolean;
     logError?: string;
   } = {
@@ -269,6 +272,11 @@ async function handleFinalApproval(
   // D2C: send preview link by email
   if (payload.notifyCustomer === false) {
     notificationResult.reason = 'Customer notification withheld by operator.';
+  } else if (isOvernightTestOrder(orderRecord)) {
+    // Marked overnight test order: skip (not an error, nothing sent or logged as sent).
+    notificationResult.skipped = true;
+    notificationResult.skipReason = OVERNIGHT_TEST_SKIP_REASON;
+    console.warn('[Final Approval] ' + OVERNIGHT_TEST_SKIP_MESSAGE, { orderId });
   } else if (platform === 'd2c') {
     if (!orderRecord.customer_email?.trim()) {
       notificationResult.reason = 'D2C order missing customer_email.';

@@ -110,6 +110,8 @@ jobs:
           node --import tsx scripts/test-configured-w3-boundaries.ts
           node --import tsx scripts/test-flow-release.ts
           node --import tsx scripts/test-flow-release-print.ts
+          node --import tsx scripts/test-message-safety-guard.ts
+          node --import tsx scripts/test-message-safety-guard-persistence.ts
           node --import tsx scripts/test-w3-whole-worklist.ts
           node --import tsx scripts/test-w3-legacy-identity.ts
           node --import tsx scripts/test-w3-assembly-input.ts

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
+import { sendLuluPollShipmentNotices } from '@/lib/notifications/lulu-poll-notifications';
 import {
   getPerBookOrderId,
   getRootOrderId,
@@ -273,31 +274,9 @@ export async function GET(request: NextRequest) {
               if (ue) { luluPollSummary.errors++; continue; }
               luluPollSummary.updated++;
 
-              // Confirm shipment for Amazon orders
-              if ((o.platform ?? 'amazon') !== 'd2c' && o.amazon_order_id) {
-                const orderId = o.amazon_order_id;
-                const { data: already } = await supabase.from('notification_logs').select('id').eq('order_id', String(orderId)).eq('notification_type', 'amazon_confirm_shipment').eq('status', 'sent').maybeSingle();
-                if (!already) {
-                  const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
-                  const r = await confirmAmazonShipment({ amazonOrderId: String(orderId), order: o, trackingNumber: tn, carrier: cr, trackingUrl: tu });
-                  await supabase.from('notification_logs').insert({ order_id: String(orderId), notification_type: 'amazon_confirm_shipment', status: r.success ? 'sent' : 'failed', recipient: String(orderId), error_message: r.error ?? null, sent_at: r.success ? nowIso : null });
-                  if (r.success) luluPollSummary.confirmed++;
-                }
-              }
-
-              if (name === 'SHIPPED' && (o.platform ?? 'amazon') === 'd2c' && o.customer_email?.trim()) {
-                const orderIdForLog = o.orderId ?? String(o.id);
-                const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
-                const childName = o.character_specs?.childName ?? o.character_specs?.child_name ?? undefined;
-                await sendD2CShippedEmail({
-                  to: o.customer_email.trim(),
-                  childName,
-                  trackingUrl: tu ?? undefined,
-                  trackingNumber: tn ?? undefined,
-                  carrier: cr ?? undefined,
-                  orderId: String(orderIdForLog),
-                });
-              }
+              // Customer/buyer notices (skipped for marked overnight test orders inside the helper).
+              const notices = await sendLuluPollShipmentNotices({ supabase, order: o, statusName: String(name), trackingNumber: tn, trackingUrl: tu, carrier: cr, nowIso });
+              if (notices.confirmed) luluPollSummary.confirmed++;
             } catch (pollErr: any) {
               luluPollSummary.errors++;
               console.warn(`[Cron Router] [${executionId}] Lulu poll error for ${o.lulu_job_id}:`, pollErr?.message);

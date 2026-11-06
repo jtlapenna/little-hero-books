@@ -1,6 +1,7 @@
 import { getSupabaseServerConfig } from './supabase-server-config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { assertPrintAssignmentCompatible, FROZEN_PRINT_FIELDS } from '@/lib/books/print-assignment';
+import { preserveOvernightTestMarker } from '@/lib/messaging/test-order-guard';
 
 let supabaseClient: SupabaseClient | null = null;
 
@@ -368,6 +369,10 @@ export async function upsertOrderByPerBookId(
   if (typeof existingId === 'number') {
     const existingRecord = (byOrderId.data as Record<string, unknown> | null)
       ?? (byOrderIdSnake?.data as Record<string, unknown> | null);
+    // A W0/intake rewrite of product_info must not drop an explicit overnight-test marker.
+    if (existingRecord && Object.hasOwn(normalizedPayload, 'product_info')) {
+      normalizedPayload.product_info = preserveOvernightTestMarker(existingRecord, normalizedPayload.product_info);
+    }
     if (existingRecord) {
       try {
         assertPrintAssignmentCompatible(existingRecord, normalizedPayload);

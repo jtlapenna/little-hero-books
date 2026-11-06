@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { lookupOvernightTestOrder, OVERNIGHT_TEST_SKIP_MESSAGE } from '@/lib/messaging/test-order-guard';
 import { buildEmailHtml, buildStepsList, buildParagraph, buildEmphasis, buildSiblingItemRows } from './email-templates';
 
 export type D2CReminderType =
@@ -49,6 +50,8 @@ export interface D2CEmailResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  /** True when a marked overnight test order suppressed the send (not a failure). */
+  skipped?: boolean;
 }
 
 const DEFAULT_FROM = 'Little Hero Labs <notifications@littleherolabs.com>';
@@ -92,6 +95,13 @@ async function logNotification(params: {
     sent_at: params.status === 'sent' ? now : null,
     created_at: now,
   });
+}
+
+/** Backstop: a marked overnight test order never reaches Resend from any caller. */
+async function suppressedForOvernightTestOrder(orderId?: string): Promise<D2CEmailResult | null> {
+  if (!orderId || !(await lookupOvernightTestOrder(supabase, { orderId }))) return null;
+  console.warn('[D2C Email] Skipped: overnight test order', { orderId });
+  return { success: false, skipped: true, error: OVERNIGHT_TEST_SKIP_MESSAGE };
 }
 
 async function sendViaResendHttp(params: {
@@ -150,6 +160,8 @@ export async function sendD2CImmutableEmail(params: {
 export async function sendD2COrderConfirmationEmail(
   params: SendD2COrderConfirmationEmailParams
 ): Promise<D2CEmailResult> {
+  const overnightSkip = await suppressedForOvernightTestOrder(params.orderId);
+  if (overnightSkip) return overnightSkip;
   if (!isD2CEmailEnabled()) {
     console.warn('[D2C Email] Order confirmation skipped: D2C_EMAIL_ENABLED is not true (in dev set D2C_EMAIL_ENABLED=true)');
     if (params.orderId) {
@@ -261,6 +273,8 @@ export async function sendD2COrderConfirmationEmail(
 export async function sendD2CSiblingOrderConfirmationEmail(
   params: SendD2CSiblingOrderConfirmationEmailParams
 ): Promise<D2CEmailResult> {
+  const overnightSkip = await suppressedForOvernightTestOrder(params.orderId);
+  if (overnightSkip) return overnightSkip;
   if (!isD2CEmailEnabled()) {
     console.warn('[D2C Email] Sibling order confirmation skipped: D2C_EMAIL_ENABLED is not true');
     if (params.orderId) {
@@ -466,6 +480,8 @@ function buildPreviewBodyHtml(params: {
 export async function sendD2CPreviewEmail(
   params: SendD2CPreviewEmailParams
 ): Promise<D2CEmailResult> {
+  const overnightSkip = await suppressedForOvernightTestOrder(params.orderId);
+  if (overnightSkip) return overnightSkip;
   if (!isD2CEmailEnabled()) {
     return { success: false, error: 'D2C email notifications are disabled' };
   }
@@ -543,6 +559,8 @@ export interface SendD2CPrintSubmittedEmailParams {
 export async function sendD2CPrintSubmittedEmail(
   params: SendD2CPrintSubmittedEmailParams
 ): Promise<D2CEmailResult> {
+  const overnightSkip = await suppressedForOvernightTestOrder(params.orderId);
+  if (overnightSkip) return overnightSkip;
   if (!isD2CEmailEnabled()) {
     return { success: false, error: 'D2C email notifications are disabled' };
   }
@@ -612,6 +630,8 @@ export async function sendD2CPrintSubmittedEmail(
 export async function sendD2CShippedEmail(
   params: SendD2CShippedEmailParams
 ): Promise<D2CEmailResult> {
+  const overnightSkip = await suppressedForOvernightTestOrder(params.orderId);
+  if (overnightSkip) return overnightSkip;
   if (!isD2CEmailEnabled()) {
     return { success: false, error: 'D2C email notifications are disabled' };
   }

@@ -3,6 +3,7 @@ import { GelatoSavedSnapshotSchema } from './gelato-submission';
 import { gelatoNotificationTarget, isGelatoEngineeringOrderKey } from './gelato-notification-target';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
+import { anyOvernightTestOrder } from '@/lib/messaging/test-order-guard';
 import { buildEmailHtml, buildParagraph } from '@/lib/notifications/email-templates';
 import type { GelatoSubmissionContext } from './gelato-submission-store';
 import type { buildGelatoLifecycleResults } from './gelato-lifecycle';
@@ -37,7 +38,7 @@ export function buildGelatoNotificationIntents(context: GelatoSubmissionContext,
   // independently checks persisted identities if an older producer queues an intent.
   if (isGelatoEngineeringOrderKey(context.submission.root_order_id) ||
       context.members.some(member => isGelatoEngineeringOrderKey(member.child_order_key)) ||
-      rows.some(row => isGelatoEngineeringOrderKey(row.orderId) || isGelatoEngineeringOrderKey(row.root_order_id) ||
+      anyOvernightTestOrder(rows) || rows.some(row => isGelatoEngineeringOrderKey(row.orderId) || isGelatoEngineeringOrderKey(row.root_order_id) ||
         isGelatoEngineeringOrderKey(row.amazon_order_id) || object(row.book_specs).testMode === true)) {
     return { intents: [] as GelatoNotificationIntent[], holds: [] as Array<{childOrderId:number;reason:string}> };
   }

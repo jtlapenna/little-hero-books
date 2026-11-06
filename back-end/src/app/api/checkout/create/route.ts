@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PUBLIC_BODY_LIMITS, readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 import { z } from 'zod';
+import { stripOvernightTestMarker } from '@/lib/messaging/test-order-guard';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase-client';
 import { withIdempotency } from '@/lib/idempotency';
@@ -277,7 +278,7 @@ export async function POST(request: NextRequest) {
     if (selection.issues.length) {
       return NextResponse.json({ error: 'Validation failed', fields: selection.issues }, { status: 400, headers: corsHeaders });
     }
-    requestedProductInfo = selection.productInfo;
+    requestedProductInfo = stripOvernightTestMarker(selection.productInfo);
 
     if (parsed.shipping_address.country !== 'US') {
       return NextResponse.json(

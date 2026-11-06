@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
+import { isOvernightTestOrder, OVERNIGHT_TEST_SKIP_REASON } from '@/lib/messaging/test-order-guard';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +57,14 @@ export async function POST(request: NextRequest) {
           error: `Order ${payload.orderId} not found`
         },
         { status: 404, headers: corsHeaders }
+      );
+    }
+
+    // Marked overnight test order: never message the customer/buyer (skip, not an error).
+    if (isOvernightTestOrder(order)) {
+      return NextResponse.json(
+        { success: true, skipped: true, skipReason: OVERNIGHT_TEST_SKIP_REASON, reminderType: payload.reminderType },
+        { status: 200, headers: corsHeaders }
       );
     }
 

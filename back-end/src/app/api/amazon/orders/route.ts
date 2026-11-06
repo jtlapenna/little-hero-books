@@ -1,3 +1,4 @@
+import { preserveOvernightTestMarker } from '@/lib/messaging/test-order-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -282,7 +283,7 @@ async function postAmazonOrder(request: NextRequest) {
       if (original) {
         const updates: Row = { shipping_address: clean.shipping_address, customer_name: clean.customer_name,
           customer_email: clean.customer_email, character_specs: clean.character_specs, character_hash: clean.character_hash,
-          dedication_text: clean.dedication_text, book_specs: clean.book_specs, product_info: clean.product_info,
+          dedication_text: clean.dedication_text, book_specs: clean.book_specs, product_info: preserveOvernightTestMarker(original, clean.product_info),
           root_order_id: rootId, amazon_order_id: rootId, updated_at: clean.updated_at };
         await updateExactCsvRow(supabase, original, unit.orderId, updates, true);
         expected.set(unit.orderId, { ...original, ...updates });

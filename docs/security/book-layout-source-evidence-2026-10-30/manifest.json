@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "b60dd7e9e73839ae82b11cc43d051a0fe2882e6d2e44cd19d9593240599cba11",
+  "sourceSnapshotSha256": "3990bc8b133e3e0adff7c63e4a1242a54feabe3b7cd82427dde8d81b4b8b1ed8",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -76,7 +76,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "90883ad9e327b68cb805c0b90090add597a0ce91bce3c0329dabfa249acb921d"
+      "sha256": "08ea9b05055308532cd1fb0d0153990b498f007ff3085d70e6df3084289c4f88"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -96,7 +96,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "e400ac2fde77e057f3560c7b19660617984bece7898bbd5e492717221f8e8efd"
+      "sha256": "20243954396f934fcda9a1a2f04d46eda6725b02514d5f2b04a997c2d28e712e"
     },
     {
       "path": "back-end/scripts/compare-gelato-draft-preparation-types.mjs",
@@ -496,7 +496,7 @@
     {
       "path": "back-end/src/app/api/checkout/create/route.ts",
       "kind": "source",
-      "sha256": "97c950900b6c7073aa6e295d837d73bd06d0c4e7821a8ea1faa7ace80aa15546"
+      "sha256": "f9464b57a4568778c7996eb7939ec05cb1f7c5078ce8ee3bf98a2a39ee13caf6"
     },
     {
       "path": "back-end/src/app/api/cron/amazon-orders/route.ts",
@@ -506,7 +506,7 @@
     {
       "path": "back-end/src/app/api/cron/router/route.ts",
       "kind": "source",
-      "sha256": "ceabbd3fff567ce6ed6f2a02e5b277631112c7d158978a0156d0d79f5160200e"
+      "sha256": "0a493299c1d8b6abb75d6387f28559451dd8ef78b14d0f0e689b3415bc28f9e5"
     },
     {
       "path": "back-end/src/app/api/internal/w0/build-manifest/route.ts",

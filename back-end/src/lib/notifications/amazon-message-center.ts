@@ -2,6 +2,8 @@ import { createCipheriv, createHash, randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
+import { lookupOvernightTestOrder, OVERNIGHT_TEST_SKIP_MESSAGE } from '@/lib/messaging/test-order-guard';
+import { supabase } from '@/lib/supabase-client';
 import { buildApprovalPageHtml } from '@/lib/approval-page-html';
 import {
   type AmazonSpApiConfig,
@@ -74,14 +76,26 @@ export interface AmazonMessagingResponse {
   retryable?: boolean;
   details?: unknown;
   apiCallDetails?: any;
+  /** True when a marked overnight test order suppressed the send (not a failure). */
+  skipped?: boolean;
 }
 
 // Use AmazonSpApiError under a local alias for existing catch blocks
 const AmazonMessagingError = AmazonSpApiError;
 
+/** Backstop: a marked overnight test order (or any order under the same Amazon root) never gets a buyer message. */
+async function amazonSuppressedForOvernightTestOrder(amazonOrderId: string): Promise<boolean> {
+  if (!(await lookupOvernightTestOrder(supabase, { amazonOrderId }))) return false;
+  console.warn('[Amazon Messaging] Skipped: overnight test order', { amazonOrderId });
+  return true;
+}
+
 export async function sendAmazonPreviewMessage(
   params: SendPreviewMessageParams
 ): Promise<AmazonMessagingResponse> {
+  if (await amazonSuppressedForOvernightTestOrder(params.amazonOrderId)) {
+    return { success: false, skipped: true, error: OVERNIGHT_TEST_SKIP_MESSAGE };
+  }
   const configResult = getAmazonMessagingConfig();
 
   if (!configResult.ok) {
@@ -523,6 +537,7 @@ export interface SendAmazonShippedMessageResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  skipped?: boolean;
 }
 
 /**
@@ -539,11 +554,15 @@ export interface SendAmazonPrintSubmittedMessageResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  skipped?: boolean;
 }
 
 export async function sendAmazonPrintSubmittedMessage(
   params: SendAmazonPrintSubmittedMessageParams
 ): Promise<SendAmazonPrintSubmittedMessageResult> {
+  if (await amazonSuppressedForOvernightTestOrder(params.amazonOrderId)) {
+    return { success: false, skipped: true, error: OVERNIGHT_TEST_SKIP_MESSAGE };
+  }
   const configResult = getAmazonMessagingConfig();
   if (!configResult.ok) {
     return { success: false, error: configResult.error };
@@ -582,6 +601,9 @@ export async function sendAmazonPrintSubmittedMessage(
 export async function sendAmazonShippedMessage(
   params: SendAmazonShippedMessageParams
 ): Promise<SendAmazonShippedMessageResult> {
+  if (await amazonSuppressedForOvernightTestOrder(params.amazonOrderId)) {
+    return { success: false, skipped: true, error: OVERNIGHT_TEST_SKIP_MESSAGE };
+  }
   const configResult = getAmazonMessagingConfig();
   if (!configResult.ok) {
     return { success: false, error: configResult.error };
