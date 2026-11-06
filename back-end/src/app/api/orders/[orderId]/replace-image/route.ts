@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BookReviewStage, invalidateBookReview } from '@/lib/book-review-invalidation';
+import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
 import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
@@ -290,7 +291,10 @@ export async function POST(
     }
 
     // Hold the exact order before the first asset/manifest mutation; old links cannot approve the replacement.
-    await invalidateBookReview(orderId, BookReviewStage.parse(stage));
+    // A trusted n8n W2A publish (machine Bearer, pose stage) is the running 2A stage itself; every other caller is a
+    // human edit and is refused while the order is owned by a workflow (see book-review-invalidation ownsStage).
+    const invalidationSource = stage === 'preBria' && verifyBearerAuth(request).ok ? 'pose-generation' : 'manual';
+    await invalidateBookReview(orderId, BookReviewStage.parse(stage), undefined, invalidationSource);
 
     const poseNumber = poseNumberStr ? parseInt(poseNumberStr, 10) : null;
     const pageNumber = pageNumberStr ? parseInt(pageNumberStr, 10) : null;

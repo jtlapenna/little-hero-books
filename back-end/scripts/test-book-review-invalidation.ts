@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { bookReviewInvalidation, invalidateBookReview } from '../src/lib/book-review-invalidation';
 import { buildOrderListItem } from '../src/lib/status-display';
 import { shouldShowInReviewPoses, shouldShowInReviewBackgrounds, shouldShowInReviewPages } from '../src/lib/review-page-filters';
@@ -45,6 +47,9 @@ async function main() {
     compareAndSet: async () => false, revokeLinks: async () => { throw Error('Must not continue after lost CAS'); } }), /Book changed/); checks++;
   await assert.rejects(() => invalidateBookReview(row.orderId, 'preBria', { load: async () => row,
     compareAndSet: async () => true, revokeLinks: async () => { throw Error('Retirement failed'); } }), /Retirement failed/); checks++;
+  const replaceRoute = readFileSync(path.resolve(process.cwd(), 'src/app/api/orders/[orderId]/replace-image/route.ts'), 'utf8');
+  check('replace-image treats only a machine-Bearer preBria publish as the running 2A stage', replaceRoute.includes("stage === 'preBria' && verifyBearerAuth(request).ok ? 'pose-generation' : 'manual'") &&
+    replaceRoute.includes('invalidateBookReview(orderId, BookReviewStage.parse(stage), undefined, invalidationSource)'));
   check('one existing correction policy represented consistently', customerRevisionsRemaining(0) === 1 && customerRevisionsRemaining(1) === 0 && customerRevisionsRemaining(2) === 0);
   check('malformed revision count fails closed', customerRevisionsRemaining(-1) === 0 && customerRevisionsRemaining('1') === 0);
   // Exercise the real reset caller as well as the primitive: it previously overwrote the in-review hold.
