@@ -375,6 +375,44 @@ async function testW2AReplayReusePath() {
     !missingArtifactEvents.some((event) => event.eventType === 'replay-reused'),
     'W2A replay fallback should not emit a replay-reused event when the stored artifact is missing',
   );
+
+  // Configured recipe orders: a repeated request stays on hold, but an orchestrator retry after a QA rejection
+  // (higher retryAttempt than the recorded job input) may generate the pose again.
+  const configuredBase = {
+    orderId: 'W2A-TOP-PROD-20260325143935',
+    rootOrderId: 'W2A-TOP-PROD-20260325143935',
+    amazonOrderId: 'W2A-TOP-PROD-20260325143935',
+    bookId: 'book-mvp-simple-adventure',
+    poseNumber: 0,
+    publicR2Url: 'https://pub.example.r2.dev',
+    workflowJobId: 62,
+    poseIdentityContract: 'configured-recipe@v1',
+  };
+  const configuredRepository = {
+    enqueueWorkflowJob: async () => null,
+    getWorkflowJobById: async (id: number) => (id === 62 ? succeededJob : null),
+    getWorkflowJobByIdempotencyKey: async () => succeededJob,
+    claimWorkflowJob: async () => null,
+    incrementWorkflowJobAttemptCount: async () => null,
+    createWorkflowJobAttempt: async () => null,
+    markWorkflowJobRunning: async () => null,
+    appendWorkflowJobEvent: async () => null,
+  };
+  let configuredHold: unknown = null;
+  try {
+    await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt: 0 } as never, { replayArtifactExists: async () => true }, configuredRepository as never);
+  } catch (error) { configuredHold = error; }
+  assert(
+    configuredHold instanceof Error && /replay is on hold/i.test(configuredHold.message),
+    'Configured W2A replay must stay on hold for a repeated request',
+  );
+  const configuredRetry = await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt: 1 } as never, { replayArtifactExists: async () => true }, configuredRepository as never);
+  assertEqual(configuredRetry.workflowReplay, null, 'Configured W2A retry after a QA rejection must not replay a stored pose');
+  let tooManyRetries: unknown = null;
+  try {
+    await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt: 4 } as never, { replayArtifactExists: async () => true }, configuredRepository as never);
+  } catch (error) { tooManyRetries = error; }
+  assert(tooManyRetries instanceof Error && /replay is on hold/i.test(tooManyRetries.message), 'Configured W2A retries beyond the bound must stay on hold');
 }
 
 async function testWorkflowJobEventRoute() {

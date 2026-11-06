@@ -413,14 +413,24 @@ async function resolveJobForW2APose(
   return created;
 }
 
+const MAX_CONFIGURED_POSE_RETRIES = 3;
+
 export async function claimAndStartW2APoseJob(
   input: W2APoseWorkItemLike,
   options: ClaimW2APoseJobOptions = {},
   repository: W2APoseJobRepository = defaultRepository,
 ): Promise<W2APoseWorkflowFields> {
   const job = await resolveJobForW2APose(input, repository);
-  const replayCandidate = buildW2APoseWorkflowReplay(job);
-  if (job.status === 'succeeded' && input.poseIdentityContract === 'configured-recipe@v1') {
+  // An orchestrator retry after a QA rejection carries a higher retryAttempt than the recorded job input. Nothing was
+  // stored for the rejected pose, so a configured order may generate it again instead of replaying or holding.
+  const priorSnapshot = job.normalized_input_snapshot && typeof job.normalized_input_snapshot === 'object'
+    ? job.normalized_input_snapshot as JsonRecord : {};
+  const requestedRetry = toInteger(input.retryAttempt) ?? 0;
+  // Bounded like the orchestrator (maxPoseRetries = 3): a larger value stays on hold instead of paying for more images.
+  const configuredRetry = input.poseIdentityContract === 'configured-recipe@v1' &&
+    requestedRetry > (toInteger(priorSnapshot.retryAttempt) ?? 0) && requestedRetry <= MAX_CONFIGURED_POSE_RETRIES;
+  const replayCandidate = configuredRetry ? null : buildW2APoseWorkflowReplay(job);
+  if (job.status === 'succeeded' && input.poseIdentityContract === 'configured-recipe@v1' && !configuredRetry) {
     throw new Error('Configured W2A replay is on hold until a verified generation receipt is available');
   }
   const replay = replayCandidate
