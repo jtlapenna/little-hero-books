@@ -120,6 +120,10 @@ jobs:
           python3 tools/inner-voice-placement-editor/test_migrate_flow.py
           python3 tools/inner-voice-placement-editor/test_export_flow_candidate.py
           python3 tools/inner-voice-placement-editor/test_legacy_metadata.py
+          # Ubuntu 24.04 restricts unprivileged user namespaces, so headless Chrome needs --no-sandbox on the runner.
+          printf '#!/bin/sh\nexec /usr/bin/google-chrome --no-sandbox --disable-dev-shm-usage "$@"\n' > "$RUNNER_TEMP/chrome-ci"
+          chmod +x "$RUNNER_TEMP/chrome-ci"
+          export CHROME_PATH="$RUNNER_TEMP/chrome-ci"
           node tools/inner-voice-placement-editor/test_flow_browser.mjs
           node tools/inner-voice-placement-editor/test_proof_inspector.mjs
       - name: Build actual Next, OpenNext and Pages package (no font fixture)

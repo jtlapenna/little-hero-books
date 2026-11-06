@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "82a7fa258fc2f879be91c3cb833244ddc7a1bac746520cb16bc6f572786167a2",
+  "sourceSnapshotSha256": "9f59c6619741fcd7d676f69f829ae23cd93e1c0d1db95102098a8cc9b2f09488",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -75,7 +75,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "afcb9fbe256742cc37f38cba250405476f8e6ba0ce70bf80c67a41732fa0be12"
+      "sha256": "bd2c5e5850c4f09d73e81c5637862da9e988574a945aa49a9aebb69c2b90c5f8"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
