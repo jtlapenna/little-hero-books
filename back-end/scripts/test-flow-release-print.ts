@@ -115,7 +115,7 @@ async function main() {
   let networkAttempts = 0;
   globalThis.fetch = async () => { networkAttempts++; throw new Error('Offline test forbids network'); };
   assert.deepEqual([...BUNDLED_APPROVALS], [], 'bundled approvals stay empty');
-  assert.equal(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }).status, 'draft', 'bundled v3 is untouched');
+  assert.equal(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }).status, 'active', 'bundled v3 is active; no approval entry exists');
   const config = activeV3();
   const pngs = { interior: solidPng(2625, 2625), cover: solidPng(5203, 2625) };
 
@@ -232,7 +232,7 @@ async function main() {
   });
 
   await check('(c) draft config with a valid-looking entry is rejected everywhere', async () => {
-    const draft = BookConfigSchema.parse(JSON.parse(JSON.stringify(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }))));
+    const draft = BookConfigSchema.parse({ ...JSON.parse(JSON.stringify(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }))), status: 'draft' }); // draft in memory only
     assert.equal(draft.status, 'draft');
     const approvals = [entryFor(draft, 'standard')];
     const p = await prepare(draft, 'standard', 'FLOWPRINT-DRAFT', true);

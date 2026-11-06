@@ -2,8 +2,8 @@
   "schema": "lhb.inner-voice-config-v3-manifest@v1",
   "bookId": "book-finding-our-inner-voice",
   "version": 3,
-  "status": "draft",
-  "note": "Bundled draft config. Not active: activation is a separate decision. Recipe is render@v2 and layout review is absent, so print stays blocked.",
+  "status": "active",
+  "note": "Bundled config, status active (r3 plus one status line). Selection still requires a published active database row. Recipe is render@v2 and layout review is absent, so print stays blocked until a recorded flow-release approval exists.",
   "inputs": {
     "r3": {
       "relativePath": "output/inner-voice-long-name-candidate-2026-10-29-r3/authoring-draft.json",
@@ -14,8 +14,8 @@
       "externalProofDir": "inner-voice-external-proof-2026-10-29-r1"
     }
   },
-  "v3JsonSha256": "8dc06d4b76cf10fc1610383abafb47fab006a07cce714ef039b5f7bdc08344af",
-  "runtimeChecksum": "100e8aee96b03fb981a152c4bc07bcf5b528a22a839eb7dd8fea1fe6717d1060",
+  "v3JsonSha256": "3514215239afeedd876a65142deaabf7db749d08cbd2b1cdbf91fbbdf78d92f9",
+  "runtimeChecksum": "8429257be1e2b634dcc33c2a7bbc871d90ca43a4be54bdff4cdb40ba1b2af89e",
   "assetKeyCount": 118,
   "assetKeys": [
     "book-finding-our-inner-voice/v1/animals/cat-clues.png",

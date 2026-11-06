@@ -21,7 +21,7 @@ import { buildW3PreviewPlan } from '../src/lib/books/w3-preview-plan';
 import { LocalProofAssetMapSchema } from './helpers/inner-voice-local-assets';
 import { artifactResolver, resolveExternalProofOutput, writeExternalProof } from './helpers/external-proof-output';
 import { POSE_LEDGER_SHA256, PROOF_DIR, RETAINED_RECORD_SHA256 } from './prepare-inner-voice-v3-assets';
-import { R3_SHA256, V3_FILE } from './build-inner-voice-config-v3';
+import { V3_ACTIVE_SHA256, V3_FILE } from './build-inner-voice-config-v3';
 
 const roles = Object.keys(RETAINED_RECORD_SHA256);
 const need = (data: Buffer, expected: string, name: string) => assert.equal(sha256(data), expected, `${name} hash mismatch`);
@@ -34,13 +34,13 @@ export async function run(argv: string[]) {
   const output = binding.output;
   const assetDir = resolve(values['asset-dir']);
   const config = loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 3 });
-  const configBytes = readFileSync(V3_FILE); need(configBytes, R3_SHA256, 'Bundled v3.json');
-  assert.equal(config.status, 'draft');
+  const configBytes = readFileSync(V3_FILE); need(configBytes, V3_ACTIVE_SHA256, 'Bundled v3.json');
+  assert.equal(config.status, 'active');
   for (const f of ['standard', 'amazon']) validateBookRenderRecipe(config, f);
   const mapBytes = readFileSync(resolve(assetDir, 'local-asset-map.json'));
   const map = LocalProofAssetMapSchema.parse(JSON.parse(mapBytes.toString('utf8')));
   const assetManifest = JSON.parse(readFileSync(resolve(assetDir, 'manifest.json'), 'utf8'));
-  assert.equal(assetManifest.configSha256, R3_SHA256);
+  assert.equal(assetManifest.configSha256, V3_ACTIVE_SHA256);
   const flowManifestBytes = readFileSync(resolve(PROOF_DIR, 'flow-export-manifest.json')); need(flowManifestBytes, FLOW_MANIFEST_SHA256, 'Flow manifest');
   const ledgerBytes = readFileSync(resolve(PROOF_DIR, 'source-pose-ledger.json')); need(ledgerBytes, POSE_LEDGER_SHA256, 'Pose ledger');
   const records: Record<string, any> = {}, recordBytes: Record<string, Buffer> = {};

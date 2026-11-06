@@ -8,7 +8,7 @@ import {
   parsePublishedBookConfigRow,
   verifyBundledBookConfigIntegrity,
 } from '@/lib/books';
-import { run as runV3ConfigBuild, V3_FILE, R3_SHA256 } from './build-inner-voice-config-v3';
+import { run as runV3ConfigBuild, V3_FILE, V3_ACTIVE_SHA256 } from './build-inner-voice-config-v3';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
@@ -32,11 +32,11 @@ async function main(): Promise<void> {
   assert(loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 1 }).formats.standard.print.provider === 'lulu', 'Explicit Inner Voice v1 selection must remain Lulu');
   assert(loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 2 }).formats.standard.print.provider === 'gelato', 'Explicit Inner Voice v2 selection must be Gelato');
 
-  // Version 3: the reviewed October 29 long-name candidate r3, bundled as an unpublished draft.
+  // Version 3: the reviewed October 29 long-name candidate r3, bundled with status active (r3 plus one status line); selection still needs a published active row.
   const innerVoiceV3 = loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 3 });
-  assert(innerVoiceV3.version === 3 && innerVoiceV3.status === 'draft', 'Inner Voice v3 must be a bundled draft, never active');
+  assert(innerVoiceV3.version === 3 && innerVoiceV3.status === 'active', 'Inner Voice v3 must be bundled active');
   assert(innerVoiceV3.rendering.recipe?.schema === 'lhb.book-render@v2', 'Inner Voice v3 must carry the render@v2 recipe');
-  assert(createHash('sha256').update(readFileSync(V3_FILE)).digest('hex') === R3_SHA256, 'Inner Voice v3.json must stay byte-identical to the reviewed r3 candidate');
+  assert(createHash('sha256').update(readFileSync(V3_FILE)).digest('hex') === V3_ACTIVE_SHA256, 'Inner Voice v3.json must stay byte-identical to the reviewed r3 candidate plus the one status line');
   assert(computeBookConfigChecksum(innerVoiceV3) === JSON.parse(readFileSync(V3_FILE.replace(/v3\.json$/, 'v3.manifest.json'), 'utf8')).runtimeChecksum, 'Inner Voice v3 runtime checksum must match its manifest');
   runV3ConfigBuild(['--check']);
   for (const [formatId, format] of Object.entries(innerVoiceV3.formats)) {

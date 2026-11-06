@@ -82,7 +82,7 @@ async function main() {
     assert.deepEqual([...FLOW_PUBLICATION_ALLOWLIST], [BOOK_ID]);
     assert.deepEqual([...BUNDLED_APPROVALS], []);
     assert.deepEqual(flowReleaseApprovalsProblems(BUNDLED_APPROVALS), []);
-    assert.equal(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }).status, 'draft', 'bundled v3 file is untouched');
+    assert.equal(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }).status, 'active', 'bundled v3 is active (r3 plus one status line); no approval entry exists');
   });
 
   await check('flowPublicationAllowed needs allow-list AND active', () => {
@@ -155,7 +155,7 @@ async function main() {
   });
 
   await check('allow-listed but DRAFT config still throws, names the book, zero effects', async () => {
-    const draft = BookConfigSchema.parse(JSON.parse(JSON.stringify(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }))));
+    const draft = BookConfigSchema.parse({ ...JSON.parse(JSON.stringify(loadBundledBookConfig({ bookId: BOOK_ID, version: 3 }))), status: 'draft' }); // draft in memory only
     assert.equal(draft.status, 'draft');
     const { input } = await publishInput(draft, 'standard', 'FLOWREL-DRAFT', {}, true);
     const effects: Effects = { puts: [], patches: [], invalidated: 0 };

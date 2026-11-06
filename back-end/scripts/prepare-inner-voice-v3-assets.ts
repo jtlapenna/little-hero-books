@@ -16,7 +16,7 @@ import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import { calculateCharacterHash } from '../src/lib/character-hash';
 import { LocalProofAssetMapSchema, configuredLocalAssetUses } from './helpers/inner-voice-local-assets';
 import { resolveArtifactRoot, resolveExternalProofOutput, writeExternalProof } from './helpers/external-proof-output';
-import { ALLOWED_MISSING_KEYS, ASSET_MAP_SHA256, DEFAULT_ASSET_MAP, DEFAULT_R3, R3_SHA256, V3_FILE } from './build-inner-voice-config-v3';
+import { ALLOWED_MISSING_KEYS, ASSET_MAP_SHA256, DEFAULT_ASSET_MAP, DEFAULT_R3, R3_SHA256, V3_ACTIVE_SHA256, V3_FILE, r3ToV3ActiveBytes } from './build-inner-voice-config-v3';
 
 export const POSE_LEDGER_SHA256 = '6bd07a1d40cd2372ef9b6777a5e04f848ef8d379c29cb817f0d72d4cd923d445';
 export const RETAINED_RECORD_SHA256: Record<string, string> = {
@@ -36,8 +36,9 @@ export function main(argv: string[]) {
   globalThis.fetch = async () => { throw new Error('Offline: network forbidden'); };
   try {
     const r3 = readFileSync(DEFAULT_R3); need(r3, R3_SHA256, 'r3');
-    assert.ok(readFileSync(V3_FILE).equals(r3), 'Bundled v3.json differs from r3');
-    const config = BookConfigSchema.parse(JSON.parse(r3.toString('utf8')));
+    const v3Bytes = readFileSync(V3_FILE); need(v3Bytes, V3_ACTIVE_SHA256, 'Bundled v3.json');
+    assert.ok(v3Bytes.equals(r3ToV3ActiveBytes(r3)), 'Bundled v3.json differs from r3 modulo the status line');
+    const config = BookConfigSchema.parse(JSON.parse(v3Bytes.toString('utf8')));
     for (const f of Object.keys(config.formats)) validateBookRenderRecipe(config, f);
     const mapBytes = readFileSync(DEFAULT_ASSET_MAP); need(mapBytes, ASSET_MAP_SHA256, 'source-asset-map');
     const map = LocalProofAssetMapSchema.parse(JSON.parse(mapBytes.toString('utf8')));
@@ -89,7 +90,7 @@ export function main(argv: string[]) {
       const staticKeys = [...sources].filter(([, s]) => s.kind === 'static').map(([k]) => k);
       const manifest = {
         schema: 'lhb.inner-voice-v3-assets@v1', status: 'local review copy; not uploaded, not approved',
-        bookId: config.bookId, configVersion: 3, configSha256: R3_SHA256, sourceAssetMapSha256: ASSET_MAP_SHA256, poseLedgerSha256: POSE_LEDGER_SHA256, recordSha256: RETAINED_RECORD_SHA256,
+        bookId: config.bookId, configVersion: 3, configSha256: V3_ACTIVE_SHA256, sourceAssetMapSha256: ASSET_MAP_SHA256, poseLedgerSha256: POSE_LEDGER_SHA256, recordSha256: RETAINED_RECORD_SHA256,
         counts: { mappedKeys: staticKeys.length, poseKeys: sources.size - staticKeys.length, totalKeys: sources.size, distinctFiles: extBySha.size,
           v3DeclaredKeys: v3Keys.size, v3DeclaredAndMapped: [...v3Keys].filter(k => sources.has(k)).length, mappedButNotUsedByV3: staticKeys.filter(k => !v3Keys.has(k)).length },
         mappedButNotUsedByV3: staticKeys.filter(k => !v3Keys.has(k)).sort(),
