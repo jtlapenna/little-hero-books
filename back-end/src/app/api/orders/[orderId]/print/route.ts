@@ -15,6 +15,7 @@ import {
   describeSiblingPrintSubmissionBlockers,
   getPerBookOrderId,
   getRootOrderId,
+  isSiblingChildOrder,
   getShippingAddressMissingFields,
   readCompleteOrderGroup,
   assertExactOrderLookup,
@@ -485,6 +486,13 @@ async function sendToPrint(
       }
       assertConfirmedTargets(siblingMembers.map(getPerBookOrderId));
       await Promise.all(siblingMembers.map((member) => resolvePrintProviderForOrder(member)));
+
+      // A sibling child must never print alone: keep the original group guard (a lone stored row means the group is incomplete).
+      if (isSiblingChildOrder(currentOrder) && siblingMembers.length < 2) {
+        throw createValidationError(
+          `Sibling order ${currentPerBookOrderId} must be sent to print as a group, but only ${siblingMembers.length} sibling row${siblingMembers.length === 1 ? '' : 's'} were found for root order ${currentRootOrderId}.`,
+        );
+      }
 
       if (siblingMembers.length > 1) {
         const providerBlocker = getPrintGroupProviderBlocker(siblingMembers);
