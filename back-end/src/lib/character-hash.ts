@@ -3,7 +3,7 @@
  * Same algorithm as Amazon cron: sort characterSpecs keys, include orderId, MD5 first 16 chars.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 /**
  * Calculate character hash from character specs and order ID.

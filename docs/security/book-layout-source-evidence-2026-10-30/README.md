@@ -1,6 +1,6 @@
 # Book layout source overlay
 
-This overlay binds the phase 003b book layout and calibration candidate. It retains all 147 source paths from the committed cron overlay and adds 21 layout, calibration, test and fixture paths. Six inherited hashes change: the production-build workflow, W3 manifest, W4 print input, canonical book types and the two workflows that select this verifier. Other inherited hashes remain unchanged.
+This overlay binds the phase 003b book layout and calibration candidate. It retains all 147 source paths from the committed cron overlay and adds 21 layout, calibration, test and fixture paths. Twenty-seven inherited hashes change: the production-build workflow, W3 manifest, W4 print input, canonical book types and the two workflows that select this verifier, plus 21 paths rebound on 2026-11-06 for the CI repair round (export-secrets workflow, back-end package manifest, Gelato helpers and tests, W0 payload and manifest builder, checkout and cron routes). The previous manifest is kept in `history/manifest-before-ci-fix-rebind-2026-11-06.json`. Other inherited hashes remain unchanged.
 
 The manifest uses the reviewed clean candidate. It excludes unrelated changes in the working tree. The QA fix successor adds a shared placement schema and records the canonical types rebind; earlier candidate manifests and proof receipts remain frozen.
 

@@ -1,6 +1,7 @@
 import bookMvpSimpleAdventureV1Json from './configs/book-mvp-simple-adventure/v1.json';
 import innerVoiceV1Json from './configs/book-finding-our-inner-voice/v1.json';
 import innerVoiceV2Json from './configs/book-finding-our-inner-voice/v2.json';
+import innerVoiceV3Json from './configs/book-finding-our-inner-voice/v3.json';
 import book2ExampleV1Json from './configs/book-2-example/v1.json';
 import { BookConfig, BookConfigSchema, BookFormatConfig } from '@/lib/books/types';
 import { assertBookConfigSemantics } from './book-config-semantics';
@@ -11,6 +12,7 @@ const BUNDLED_BOOK_CONFIGS = [
   book2ExampleV1Json,
   innerVoiceV1Json,
   innerVoiceV2Json,
+  innerVoiceV3Json,
 ] as const;
 
 type BundledConfigMap = Map<string, Map<number, BookConfig>>;

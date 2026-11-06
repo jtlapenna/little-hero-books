@@ -3,7 +3,7 @@
  * Used by CSV upload, create-sibling API, and D2C multi-book checkout.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 import { assertCsvHelperSelection, csvBookSpecs, type CsvBookSelection } from './csv-book-selection';
 
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';

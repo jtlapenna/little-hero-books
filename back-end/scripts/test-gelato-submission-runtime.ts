@@ -223,6 +223,10 @@ async function scenario(mode: 'single' | 'siblings') {
   const threeKey = `${bookId}/orders/${ids[0]}/manifests/3-manifest.json`;
   const three = manifests.get(threeKey) as { summary: Record<string, unknown> };
   manifests.set(threeKey, { ...three, summary: { ...three.summary, readyForBook: false } });
+  await assert.rejects(quoteGelatoSubmission(identity, dependencies), /saved summary\.readyForBook is false/);
+  assert.equal(quoteCalls, 1); assert.equal(transitions, 1);
+  const { readyForBook: _omitted, ...summaryWithoutReady } = three.summary;
+  manifests.set(threeKey, { ...three, summary: summaryWithoutReady });
   await assert.rejects(quoteGelatoSubmission(identity, dependencies), /original W3 source/);
   assert.equal(quoteCalls, 1); assert.equal(transitions, 1);
 }

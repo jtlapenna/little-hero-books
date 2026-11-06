@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const chrome = process.env.CHROME_PATH || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome'].find(existsSync);
+const chrome = process.env.CHROME_PATH || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
 if (!chrome) throw new Error('A headless Chrome executable is required');
 const temp = mkdtempSync(join(tmpdir(), 'lhb-editor-flow-'));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -58,9 +58,13 @@ try {
   const origin = `http://127.0.0.1:${port}`;
   await until(async () => (await fetch(origin)).ok);
   const browserPort = await freePort();
-  browser = spawn(chrome, ['--headless', '--disable-gpu', '--disable-extensions', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${join(temp, 'chrome')}`, `--remote-debugging-port=${browserPort}`, 'about:blank'], { stdio: 'ignore' });
+  const ciFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
+  let chromeStderr = '';
+  browser = spawn(chrome, ['--headless', '--disable-gpu', '--disable-extensions', '--no-first-run', '--no-default-browser-check', ...ciFlags, `--user-data-dir=${join(temp, 'chrome')}`, `--remote-debugging-port=${browserPort}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  browser.stderr.on('data', chunk => { chromeStderr = (chromeStderr + chunk).slice(-4000); });
   const base = `http://127.0.0.1:${browserPort}`;
-  await until(async () => (await fetch(`${base}/json/version`)).ok);
+  try { await until(async () => (await fetch(`${base}/json/version`)).ok); }
+  catch (error) { throw new Error(`${error?.message ?? error}\nChrome stderr:\n${chromeStderr || '(none)'}`); }
   const target = await (await fetch(`${base}/json/new?${encodeURIComponent(origin)}`, { method: 'PUT' })).json();
   socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });

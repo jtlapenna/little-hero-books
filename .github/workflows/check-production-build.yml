@@ -95,6 +95,8 @@ jobs:
         run: |
           npm run test:inner-voice-final-art
           npm run test:inner-voice-local-assets
+          npm run check:inner-voice-config-v3
+          npm run test:book-config-integrity
           npm run test:inner-voice-workflow-e2e
           npm run test:inner-voice-pose-chain
           npm run test:configured-pose
