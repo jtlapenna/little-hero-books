@@ -162,7 +162,9 @@
     "test:inner-voice-final-art": "node --import tsx scripts/test-inner-voice-final-art.ts && node --import tsx scripts/test-immutable-asset-upload.ts && node --import tsx scripts/test-inner-voice-proof-export.ts",
     "test:book-flow-contract": "node --import tsx scripts/test-book-flow-contract.ts",
     "test:inner-voice-workflow-e2e": "node --import tsx scripts/test-inner-voice-workflow-e2e.ts",
-    "test:inner-voice-local-assets": "node --import tsx scripts/test-inner-voice-local-assets.ts"
+    "test:inner-voice-local-assets": "node --import tsx scripts/test-inner-voice-local-assets.ts",
+    "test:inner-voice-pose-chain": "node --import tsx scripts/test-inner-voice-pose-chain.ts",
+    "test:configured-pose": "node --import tsx scripts/test-configured-pose-pipeline.ts && node --import tsx scripts/test-configured-pose-boundaries.ts && node --import tsx scripts/test-configured-pose-revisions.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
