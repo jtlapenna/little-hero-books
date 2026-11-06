@@ -424,3 +424,48 @@ export function validateCsvHeaders(headers: string[]): {
     missing
   };
 }
+
+/** Validate headers before deriving per-item declaration identities. */
+export function assertCsvItemSelectionHeaders(headers: string[]): void {
+  const normalized = headers.map(normalizeColumnName);
+  if (normalized.some(value => !value) || new Set(normalized).size !== normalized.length) {
+    throw new Error('Mixed CSV has empty or duplicate normalized headers');
+  }
+  const groups = [
+    ['amazon-order-id', 'amazon_order_id', 'amazonOrderId', 'order-id', 'order_id', 'orderId'],
+    ['order-item-id', 'order_item_id', 'orderItemId'],
+    ['customized-url', 'customized_url', 'customization-url', 'customization_url', 'customizedUrl'],
+    ['quantity-purchased', 'quantity_purchased', 'quantity'],
+  ];
+  for (const aliases of groups) {
+    const names = new Set(aliases.map(normalizeColumnName));
+    if (normalized.filter(name => names.has(name)).length > 1) throw new Error('Mixed CSV has competing source identity or quantity columns');
+  }
+  const required = validateCsvHeaders(headers);
+  if (!required.valid) throw new Error('Mixed CSV is missing required columns');
+}
+
+/** Use the same URL identity before Node and browser SHA-256 hashing. */
+export function canonicalCsvCustomizationIdentity(value: string): string {
+  try { const url = new URL(value); return `${url.origin}${url.pathname}`; }
+  catch { return value; }
+}
+
+export function readCsvItemSelectionRows(headers: string[], rows: string[][]): Array<{
+  rootOrderId: string; rowNumber: number; lineItem: Record<string, unknown>;
+}> {
+  assertCsvItemSelectionHeaders(headers);
+  if (!rows.length || rows.length > 2000) throw new Error('Mixed CSV source item count is unsupported');
+  const quantityColumn = findColumnIndex(headers, ['quantity-purchased', 'quantity_purchased', 'quantity']);
+  return rows.map((row, index) => {
+    if (row.length !== headers.length) throw new Error(`CSV row ${index + 2} has an inconsistent column count`);
+    const rootOrderId = extractAmazonOrderId(row, headers);
+    const lineItem = buildLineItemFromRow(row, headers);
+    if (!rootOrderId || (!lineItem.order_item_id && !lineItem.customization_url)) throw new Error(`CSV row ${index + 2} needs a root and source item identity`);
+    const raw = quantityColumn === null ? '1' : String(row[quantityColumn] ?? '').trim();
+    if (!/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw))) throw new Error(`CSV row ${index + 2} has invalid quantity`);
+    lineItem.quantity = Number(raw);
+    return { rootOrderId, rowNumber: index + 2, lineItem };
+  });
+}
+

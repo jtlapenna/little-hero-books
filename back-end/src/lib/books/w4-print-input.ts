@@ -1,3 +1,6 @@
+import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
+import { findFlowReleaseApproval, flowReleaseApprovalsSha256, hasRecordedFlowReleaseApproval } from '@/lib/books/flow-release';
+import { isDeepStrictEqual } from 'node:util';
 import {
   buildAssetApiUrl,
   buildManifestKeyCandidates,
@@ -11,7 +14,7 @@ import {
   normalizeW0Manifest,
   type NormalizedW0Manifest,
 } from '@/lib/books/normalize-w0-manifest';
-import type { BookPageConfig, BookPrintConfig } from '@/lib/books/types';
+import type { BookConfig, BookPageConfig, BookPrintConfig } from '@/lib/books/types';
 import { BookPageConfigSchema } from '@/lib/books/types';
 import { validateRunManifest } from './validate-run-manifest';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
@@ -92,6 +95,8 @@ export interface BuildW4PrintInputOptions {
   loadOrder?: LoadOrderForW4;
   defaultBackendUrl?: string;
   expectedProvider?: 'lulu' | 'gelato';
+  /** Recipe-level flow release approvals (default: bundled file). Rechecked here, so revocation blocks published manifests. */
+  flowApprovals?: readonly unknown[];
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -1387,6 +1392,29 @@ export async function buildW4PrintInput(
           fallbackManifestKey: loadedOneManifest.manifestKey,
         })
       : null;
+  if (normalizedOneManifest?.renderSnapshot &&
+      !isDeepStrictEqual(normalizedOneManifest.renderSnapshot, loadedThreeManifest.manifest.renderSnapshot)) {
+    throw new Error('W4 print input rejected because the frozen render snapshot does not match W0');
+  }
+  const storedW3Config = toRecord(toRecord(loadedThreeManifest.manifest.renderSnapshot).bookConfig);
+  const storedW3Recipe = toRecord(toRecord(storedW3Config.rendering).recipe);
+  const w0FlowConfig = normalizedOneManifest?.renderSnapshot?.bookConfig;
+  if ((w0FlowConfig?.rendering.recipe?.schema === 'lhb.book-render@v2' || storedW3Recipe.schema === 'lhb.book-render@v2') &&
+      !(w0FlowConfig !== undefined &&
+        hasRecordedFlowReleaseApproval(w0FlowConfig, String(normalizedOneManifest?.renderSnapshot?.formatId ?? ''), options.flowApprovals) &&
+        hasRecordedFlowReleaseApproval(storedW3Config as unknown as BookConfig, String(toRecord(loadedThreeManifest.manifest.renderSnapshot).formatId ?? ''), options.flowApprovals))) {
+    throw new Error('W4 print input rejected because flow layout fit is not yet verified');
+  }
+  const configuredW3 = loadedThreeManifest.manifest.renderSnapshot !== undefined;
+  if (configuredW3 && !normalizedOneManifest?.renderSnapshot) {
+    throw new Error('W4 print input rejected because configured W3 requires a frozen W0 snapshot');
+  }
+
+  const storedLayoutRecipe = toRecord(toRecord(toRecord(toRecord(toRecord(loadedThreeManifest.manifest).renderSnapshot).bookConfig).rendering).recipe);
+  if (requiresBookLayoutReview(normalizedOneManifest?.renderSnapshot?.bookConfig.rendering.recipe?.schema) ||
+      requiresBookLayoutReview(storedLayoutRecipe.schema)) {
+    throw new Error('Configured layout print preparation is not yet available');
+  }
 
   const expectedProvider = options.expectedProvider ?? 'lulu';
   if (expectedProvider === 'gelato') {
@@ -1426,7 +1454,10 @@ export async function buildW4PrintInput(
   const manifest3Key = buildManifestKeyFromOrderPrefix(orderPrefix, '3');
   const manifest4Key = buildManifestKeyFromOrderPrefix(orderPrefix, '4');
   const oneManifestKey = loadedOneManifest.manifestKey ?? oneManifestKeyFallback;
-  const manifestPayload = frozenGelato ? loadedThreeManifest.manifest : buildManifestPayload(sourcePayload, loadedThreeManifest.manifest);
+  if (pickJsonRecord(loadedThreeManifest.manifest.summary).readyForBook === false) {
+    throw new Error('W4 print input rejected because saved summary.readyForBook is false');
+  }
+  const manifestPayload = frozenGelato || configuredW3 ? loadedThreeManifest.manifest : buildManifestPayload(sourcePayload, loadedThreeManifest.manifest);
   if (frozenGelato && pickJsonRecord(manifestPayload.summary).readyForBook !== true) {
     throw new Error('Gelato original W3 source is not ready for book assembly');
   }
@@ -1526,8 +1557,12 @@ export async function buildW4PrintInput(
     assertLuluPrintOwnershipForOrder(identity.orderId, orderRecord);
   }
 
+  const flowApproval = w0FlowConfig?.rendering.recipe?.schema === 'lhb.book-render@v2'
+    ? findFlowReleaseApproval(w0FlowConfig, String(normalizedOneManifest?.renderSnapshot?.formatId ?? ''), options.flowApprovals)
+    : null;
   return {
     ...manifestPayload,
+    ...(flowApproval ? { flowReleaseApproval: { approvalId: flowApproval.approvalReceiptSha256, formatId: flowApproval.formatId, configChecksum: flowApproval.configChecksum, approvalsFileSha256: flowReleaseApprovalsSha256(options.flowApprovals) } } : {}),
     CONFIG: config,
     ...(expectedProvider === 'gelato' && normalizedOneManifest?.print
       ? { providerPrintConfig: normalizedOneManifest.print }

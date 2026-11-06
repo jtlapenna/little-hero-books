@@ -2,6 +2,8 @@ import { loadBundledBookConfig } from '@/lib/books/load-book-config';
 import { canFallbackToBundled } from '@/lib/books/runtime-book-config';
 import { validateRenderSnapshot } from '@/lib/books/book-render-recipe';
 import { reconcileFrozenW2AInput } from '@/lib/books/w2a-frozen-input';
+import { requiresConfiguredW0Snapshot, isHistoricalNonRecipeConfig } from '@/lib/books/book-legacy-compatibility';
+import { inspectWorkflowBookIdentity, assertWorkflowMatchesW0, assertWorkflowConfigSelection } from '@/lib/books/workflow-book-identity';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyBearerAuth } from "@/lib/auth";
 import { downloadManifest } from "@/lib/r2-service";
@@ -165,8 +167,9 @@ export async function resolveW2APoseWorklistResponse(
     ) => Promise<W2APoseWorkItemLike[]>;
   } = {},
 ): Promise<ResolveW2APoseWorklistResponsePayload> {
+  const declaredIdentity = inspectWorkflowBookIdentity(body);
   const orderContext = isRecord(body.orderContext) ? body.orderContext : {};
-  const orderId =
+  const orderId = declaredIdentity.orderId ??
     toTrimmedString(body.orderId) ?? toTrimmedString(orderContext.orderId);
   const rootOrderId =
     toTrimmedString(body.rootOrderId) ??
@@ -188,7 +191,7 @@ export async function resolveW2APoseWorklistResponse(
     true,
   );
   const manifestHints = resolveManifestHints(body);
-  const explicitOneManifestKey = manifestHints
+  const explicitOneManifestKey = declaredIdentity.manifestKey ?? manifestHints
     .map((value) => extractManifestKey(value))
     .find((value): value is string => Boolean(value));
 
@@ -209,6 +212,7 @@ export async function resolveW2APoseWorklistResponse(
       oneManifestSnapshot = normalizeW0Manifest(manifest, {
         fallbackManifestKey: oneManifestKey,
       });
+      assertWorkflowMatchesW0(declaredIdentity, oneManifestSnapshot, manifest, oneManifestKey);
       if (orderId && oneManifestSnapshot.orderId !== orderId) {
         throw new Error('Frozen W0 manifest order identity does not match W2A request');
       }
@@ -225,7 +229,7 @@ export async function resolveW2APoseWorklistResponse(
 
   const configSource =
     parseConfigSource(body.configSource) ?? "published-first";
-  const configVersion =
+  const configVersion = declaredIdentity.version ??
     toPositiveInt(body.configVersion) ??
     toPositiveInt(body.version) ??
     undefined;
@@ -255,9 +259,7 @@ export async function resolveW2APoseWorklistResponse(
         }
       }
     }
-    if (oneManifestSnapshot.schema === 'lhb.run-manifest@v3' &&
-        (oneManifestSnapshot.provider === 'gelato' ||
-          oneManifestSnapshot.bookId === 'book-finding-our-inner-voice') &&
+    if (requiresConfiguredW0Snapshot(oneManifestSnapshot) &&
         !oneManifestSnapshot.renderSnapshot) {
       throw new Error('Configured W0 manifest requires its frozen render snapshot');
     }
@@ -266,12 +268,13 @@ export async function resolveW2APoseWorklistResponse(
   const inferredBookIdFromHints = inferBookIdFromPathLikes(...resolveManifestHints(body));
   const resolvedBookId =
     oneManifestSnapshot?.bookId ??
+    declaredIdentity.bookId ??
     toTrimmedString(body.bookId) ??
     toTrimmedString(orderContext.bookId) ??
     inferredBookIdFromHints ??
     "unknown-book";
   const resolvedFormatId =
-    oneManifestSnapshot?.formatId ?? resolveFormatId(body);
+    oneManifestSnapshot?.formatId ?? declaredIdentity.formatId ?? resolveFormatId(body);
 
   let renderSnapshot = oneManifestSnapshot?.renderSnapshot;
   if (renderSnapshot) {
@@ -294,15 +297,15 @@ export async function resolveW2APoseWorklistResponse(
     pageLabels = reviewContext.pageLabels;
     expectedPageCount = reviewContext.expectedPageCount;
   } else {
-    let configuredRecipe = false;
+    if (declaredIdentity.snapshots.length && !oneManifestSnapshot) throw new Error('Configured order requires its frozen W0 snapshot');
     try {
       const config = await (options.loadBookConfig ?? loadRuntimeBookConfig)({
         bookId: resolvedBookId,
         version: configVersion,
         source: configSource,
       });
-      configuredRecipe = !!config.rendering.recipe;
-      if (configuredRecipe && orderId) throw new Error('Configured order requires its frozen W0 snapshot');
+      assertWorkflowConfigSelection(config, { bookId: resolvedBookId, formatId: resolvedFormatId, version: configVersion });
+      if (orderId && !isHistoricalNonRecipeConfig(config, resolvedFormatId)) throw new Error('Configured order requires its frozen W0 snapshot');
       const resolvedPlan = resolvePagePlan(config, resolvedFormatId);
       renderSnapshot = resolvedPlan.renderSnapshot;
       pagePlanSource = "runtime-config";
@@ -310,9 +313,10 @@ export async function resolveW2APoseWorklistResponse(
       pageLabels = resolvedPlan.pageLabels;
       expectedPageCount = resolvedPlan.expectedPageCount;
     } catch (error) {
-      if (configuredRecipe || !canFallbackToBundled(error)) throw error;
-      const legacyConfig = loadBundledBookConfig({ bookId: resolvedBookId });
-      if (legacyConfig.rendering.recipe) throw error;
+      if (!canFallbackToBundled(error)) throw error;
+      const legacyConfig = loadBundledBookConfig({ bookId: resolvedBookId, version: configVersion });
+      assertWorkflowConfigSelection(legacyConfig, { bookId: resolvedBookId, formatId: resolvedFormatId, version: configVersion });
+      if (!isHistoricalNonRecipeConfig(legacyConfig, resolvedFormatId)) throw error;
       const fallbackContext = resolveReviewPageContext({
         snapshot: null,
         bookId: resolvedBookId,

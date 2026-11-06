@@ -45,6 +45,8 @@ export interface W2APoseWorkflowReplay {
 }
 
 export interface W2APoseWorkItemLike extends BookSnapshotFields {
+  poseIdentityContract?: 'configured-recipe@v1' | 'legacy@v1';
+  characterHash?: string | null;
   orderId: string;
   rootOrderId?: string | null;
   amazonOrderId?: string | null;
@@ -189,6 +191,7 @@ function buildQueuedSnapshot(input: W2APoseWorkItemLike): JsonRecord {
     bookId: input.bookId,
     formatId: toTrimmedString(input.formatId) ?? null,
     ...(input.renderSnapshot ? { renderSnapshot: input.renderSnapshot, configVersion: input.configVersion } : {}),
+    ...(input.poseIdentityContract ? { poseIdentityContract: input.poseIdentityContract, characterHash: input.characterHash ?? null } : {}),
     poseNumber: input.poseNumber,
     currentPoseNumber: toInteger(input.currentPoseNumber) ?? input.poseNumber,
     index: toInteger(input.index) ?? null,
@@ -417,6 +420,9 @@ export async function claimAndStartW2APoseJob(
 ): Promise<W2APoseWorkflowFields> {
   const job = await resolveJobForW2APose(input, repository);
   const replayCandidate = buildW2APoseWorkflowReplay(job);
+  if (job.status === 'succeeded' && input.poseIdentityContract === 'configured-recipe@v1') {
+    throw new Error('Configured W2A replay is on hold until a verified generation receipt is available');
+  }
   const replay = replayCandidate
     ? await resolveW2APoseWorkflowReplay(job, {
         replayArtifactExists: options.replayArtifactExists,

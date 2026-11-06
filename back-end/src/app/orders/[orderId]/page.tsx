@@ -180,6 +180,12 @@ type FinalApprovalApiResponse = {
   };
 } & Record<string, unknown>;
 
+function isPrintWorkflowQueued(order: Order): boolean {
+  const workflow = order.currentWorkflow || order.nextWorkflow;
+  return ['4', '4.1', '4-aggregate'].includes(String(workflow || '')) &&
+    ['ready_for_processing', 'processing'].includes(String(order.executionStatus || ''));
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -202,6 +208,15 @@ export default function OrderDetailPage() {
   const [finalApprovalLoading, setFinalApprovalLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [manualPrintLoading, setManualPrintLoading] = useState(false);
+  const [printActionPending, setPrintActionPending] = useState(false);
+  const [printOutcomeOrderId, setPrintOutcomeOrderId] = useState<string | null>(null);
+  const [printFeedback, setPrintFeedback] = useState<{ kind: 'status' | 'error'; message: string } | null>(null);
+  const [printRefreshWarning, setPrintRefreshWarning] = useState<string | null>(null);
+  const printOutcomeOrderRef = useRef<string | null>(null);
+  const currentRouteOrderRef = useRef(params.orderId as string);
+  currentRouteOrderRef.current = params.orderId as string;
+  const orderReadSequenceRef = useRef(0);
+  const detailActiveRef = useRef(false);
   const [creatingManifest, setCreatingManifest] = useState(false);
   const [creating2aManifest, setCreating2aManifest] = useState(false);
   const [creating2bManifest, setCreating2bManifest] = useState(false);
@@ -238,7 +253,10 @@ export default function OrderDetailPage() {
     : null;
 
   // Fetch order data from API
-  const fetchOrder = async (orderId: string) => {
+  const fetchOrder = useCallback(async (orderId: string) => {
+    if (!detailActiveRef.current || currentRouteOrderRef.current !== orderId) return undefined;
+    const sequence = ++orderReadSequenceRef.current;
+    const isCurrentRead = () => detailActiveRef.current && currentRouteOrderRef.current === orderId && orderReadSequenceRef.current === sequence;
     try {
       // Add cache-busting to ensure we get fresh data after manifest deletions
       const response = await fetch(`/api/orders/${orderId}?t=${Date.now()}`, {
@@ -256,11 +274,12 @@ export default function OrderDetailPage() {
         data = { raw: responseText };
       }
 
+      if (!isCurrentRead()) return undefined;
       if (!response.ok) {
         let errorMessage = 'Failed to fetch order';
         try {
           const errorJson = typeof data === 'object' ? data : JSON.parse(responseText);
-          errorMessage = errorJson.error || errorJson.message || errorMessage;
+          errorMessage = extractApiErrorMessage(errorJson, errorMessage);
         } catch {
           errorMessage = responseText || errorMessage;
         }
@@ -269,6 +288,7 @@ export default function OrderDetailPage() {
       }
       setOrder(data);
       setLoadError(null);
+      setPrintRefreshWarning(null);
       
       // Initialize flagCounts from order.flags if available (for immediate UI update)
       if (data.flags) {
@@ -282,6 +302,7 @@ export default function OrderDetailPage() {
       setLoading(false);
       return data;
     } catch (error) {
+      if (!isCurrentRead()) return undefined;
       console.error('Error fetching order:', error);
       setOrder(null);
       setLoadError(
@@ -292,7 +313,7 @@ export default function OrderDetailPage() {
       setLoading(false);
       return null;
     }
-  };
+  }, []);
 
   // Callback to update order state and sync flagCounts
   const handleOrderUpdate = useCallback((updates: Partial<Order>) => {
@@ -330,14 +351,25 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     const orderId = params.orderId as string;
+    detailActiveRef.current = true;
     if (orderId) {
+      setLoading(true);
+      setOrder(null);
+      setPrintFeedback(null);
+      setPrintRefreshWarning(null);
+      setPrintOutcomeOrderId(null);
+      printOutcomeOrderRef.current = null;
       setFinalApprovalResult(null);
       setFinalApprovalError(null);
       setFinalApprovalLoading(false);
       setLoadError(null);
       fetchOrder(orderId);
     }
-  }, [params.orderId]);
+    return () => {
+      detailActiveRef.current = false;
+      orderReadSequenceRef.current += 1;
+    };
+  }, [params.orderId, fetchOrder]);
 
   // Refresh handler for PostBriaStage
   const handleRefreshOrder = async () => {
@@ -355,27 +387,114 @@ export default function OrderDetailPage() {
       if (!order) {
         throw new Error('Order is not loaded');
       }
+      if (!detailActiveRef.current || currentRouteOrderRef.current !== order.orderId || printRequestInProgressRef.current ||
+          printOutcomeOrderRef.current === order.orderId || isPrintWorkflowQueued(order)) {
+        throw new DOMException('Print request is already pending or accepted.', 'AbortError');
+      }
       if (order.printProvider === 'gelato' && order.printSubmissionId) throw new Error('Inspect the existing Gelato submission before creating another draft');
 
-      const response = await fetch(`/api/orders/${order.orderId}/print`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ source, ...(reprint || {}) })
-      });
-
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
-        console.error('[SendToPrint] Error response:', errorBody);
-        throw new Error(extractApiErrorMessage(errorBody, `Failed to trigger print workflow: ${response.status} ${response.statusText}`));
+      const isDelivered = String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+      const members = order.siblingOrders ?? [];
+      if (!isDelivered && (!members.length || order.totalSiblings !== members.length ||
+          !members.some(member => member.orderId === order.orderId) ||
+          new Set(members.map(member => member.orderId)).size !== members.length)) {
+        throw new Error('Order group could not be verified. Reload the order before sending it to print.');
       }
+      const siblingCount = members.length;
+      const groupedSiblingPrint = !isDelivered && siblingCount > 1;
+      const confirmed = window.confirm(
+        order.printProvider === 'gelato'
+          ? groupedSiblingPrint
+            ? `Create held Gelato drafts for all ${siblingCount} books? Printing will not start.`
+            : 'Create a held Gelato draft for review? Printing will not start.'
+          : groupedSiblingPrint
+            ? `Send all ${siblingCount} books to print now? This will queue the full group together and further changes may not be possible.`
+            : 'Send this order to print now? This will start production and further changes may not be possible.'
+      );
+      if (!confirmed) throw new DOMException('Print request canceled.', 'AbortError');
 
-      const result = await response.json().catch(() => null);
-      return result;
+
+      const actionOrderId = order.orderId;
+      const expectedOrderIds = isDelivered ? [actionOrderId] : members.map(member => member.orderId);
+      const isCurrentOrder = () => detailActiveRef.current && currentRouteOrderRef.current === actionOrderId;
+      printRequestInProgressRef.current = true;
+      setPrintActionPending(true);
+      setPrintFeedback(null);
+      setPrintRefreshWarning(null);
+      let responseReceived = false;
+      try {
+        const response = await fetch(`/api/orders/${actionOrderId}/print`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source, ...(reprint || {}), expected_order_ids: expectedOrderIds }),
+        });
+        responseReceived = true;
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message = extractApiErrorMessage(result, `Failed to trigger print workflow: ${response.status} ${response.statusText}`);
+          if (response.status >= 500) {
+            printOutcomeOrderRef.current = actionOrderId;
+            if (isCurrentOrder()) setPrintOutcomeOrderId(actionOrderId);
+          }
+          if (isCurrentOrder()) {
+            const refreshed = (response.status === 400 || response.status === 409 || response.status >= 500)
+              ? await fetchOrder(actionOrderId) : undefined;
+            if (isCurrentOrder()) {
+              setPrintRefreshWarning(refreshed === null ? 'Order status could not be refreshed. Retry refreshing this order.' : null);
+              setPrintFeedback({
+                kind: 'error',
+                message: response.status >= 500
+                  ? `${message} The print outcome is unknown. Review Print Status before sending again.`
+                  : message,
+              });
+            }
+          }
+          if (!isCurrentOrder()) throw new DOMException('Order changed during print request.', 'AbortError');
+          throw new Error(response.status >= 500 ? 'The print outcome is unknown. Review Print Status before sending again.' : message);
+        }
+        const queuedIds = result?.queuedOrderIds;
+        const verifiedResponse = result && typeof result === 'object' && !Array.isArray(result) && result.success === true &&
+          typeof result.message === 'string' && result.message.trim().length > 0 && result.orderId === actionOrderId &&
+          result.next_workflow === '4' && result.execution_status === 'ready_for_processing' &&
+          Array.isArray(queuedIds) && queuedIds.length === expectedOrderIds.length &&
+          queuedIds.every((id: unknown) => typeof id === 'string' && expectedOrderIds.includes(id)) &&
+          new Set(queuedIds).size === expectedOrderIds.length;
+        if (!verifiedResponse) {
+          printOutcomeOrderRef.current = actionOrderId;
+          if (isCurrentOrder()) {
+            setPrintOutcomeOrderId(actionOrderId);
+            await fetchOrder(actionOrderId);
+            if (isCurrentOrder()) setPrintFeedback({ kind: 'error', message: 'Print response could not be verified. Review Print Status before sending again.' });
+          }
+          if (!isCurrentOrder()) throw new DOMException('Order changed during print request.', 'AbortError');
+          throw new Error('Print response could not be verified. Review Print Status before sending again.');
+        }
+        printOutcomeOrderRef.current = actionOrderId;
+        if (isCurrentOrder()) setPrintOutcomeOrderId(actionOrderId);
+        const refreshed = isCurrentOrder() ? await fetchOrder(actionOrderId) : undefined;
+        if (!isCurrentOrder()) throw new DOMException('Order changed during print request.', 'AbortError');
+        const message = typeof result?.message === 'string' && result.message ? result.message : 'Print request returned success.';
+        setPrintFeedback({ kind: 'status', message });
+        setPrintRefreshWarning(refreshed === null ? 'Order status could not be refreshed. Retry refreshing this order.' : null);
+        return result;
+      } catch (error) {
+        if (!responseReceived) {
+          printOutcomeOrderRef.current = actionOrderId;
+          if (isCurrentOrder()) {
+            setPrintOutcomeOrderId(actionOrderId);
+            await fetchOrder(actionOrderId);
+            if (isCurrentOrder()) setPrintFeedback({ kind: 'error', message: 'The print outcome is unknown. Review Print Status before sending again.' });
+          }
+          if (!isCurrentOrder()) throw new DOMException('Order changed during print request.', 'AbortError');
+          throw new Error('The print outcome is unknown. Review Print Status before sending again.');
+        }
+        throw error;
+      } finally {
+        printRequestInProgressRef.current = false;
+        setPrintActionPending(false);
+      }
     },
-    [order]
+    [order, fetchOrder]
   );
 
   // Handler for refreshing Lulu status
@@ -492,6 +611,19 @@ export default function OrderDetailPage() {
       return () => clearInterval(interval);
   }, [params.orderId, manifestOrderPrefix]); // Only depend on order identity/root, not the entire order object
 
+  const printActionDisabled = printActionPending || printOutcomeOrderId === order?.orderId || Boolean(order && isPrintWorkflowQueued(order));
+  const printFeedbackBanner = printFeedback ? (
+    <div role={printFeedback.kind === 'error' ? 'alert' : 'status'} className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-gray-900">
+      <p>{printFeedback.message}</p>
+      {printRefreshWarning && <p>{printRefreshWarning}</p>}
+      {order && printOutcomeOrderId === order.orderId && (
+        <button type="button" onClick={() => setActiveStage('lulu' as unknown as ReviewStage)} className="mt-2 rounded border border-blue-300 bg-white px-3 py-2 text-blue-700">
+          View Print Status
+        </button>
+      )}
+    </div>
+  ) : null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -514,6 +646,7 @@ export default function OrderDetailPage() {
               <p className="mt-2 text-sm text-gray-700">
                 {loadError ?? 'Unable to load real order data. Please refresh or check the backend/API.'}
               </p>
+              {printFeedbackBanner}
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={handleRefreshOrder}
@@ -726,23 +859,7 @@ export default function OrderDetailPage() {
       return;
     }
 
-    const siblingCount = order.totalSiblings ?? order.siblingOrders?.length ?? 0;
-    const groupedSiblingPrint =
-      siblingCount > 1 &&
-      order.rootOrderId &&
-      order.rootOrderId !== order.orderId &&
-      String(order.lifecycle_status || '').toLowerCase() !== 'recently_delivered';
-    const confirmed = window.confirm(
-      order.printProvider === 'gelato' ? 'Create a held Gelato draft for review? Printing will not start.' : groupedSiblingPrint
-        ? `Send all ${siblingCount} sibling books to print now? This will queue the full group together and further changes may not be possible.`
-        : 'Send this order to print now? This will start production and further changes may not be possible.'
-    );
-    if (!confirmed) {
-      return;
-    }
-
     try {
-      printRequestInProgressRef.current = true;
       setManualPrintLoading(true);
       const isReprint = String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered';
       let reprint_reason: string | undefined;
@@ -759,14 +876,12 @@ export default function OrderDetailPage() {
           'Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).'
       );
     } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       console.error('Error sending order to print:', error);
       alert(error?.message || 'Failed to send order to print. Please try again.');
     } finally {
       setManualPrintLoading(false);
-      // Reset after a short delay to prevent rapid re-clicks
-      setTimeout(() => {
-        printRequestInProgressRef.current = false;
-      }, 1000);
+
     }
   };
 
@@ -1091,10 +1206,7 @@ export default function OrderDetailPage() {
 
   const siblingOrders = order?.siblingOrders ?? [];
   const totalSiblingCount = order?.totalSiblings ?? siblingOrders.length;
-  const showSiblingBanner = !!(
-    order &&
-    (order.isSibling || (order.rootOrderId && order.rootOrderId !== order.orderId))
-  );
+  const showSiblingBanner = !!order && totalSiblingCount > 1;
   const hasSiblingManifestMismatch =
     siblingOrders.length > 1 &&
     siblingOrders.some((sibling) => !!sibling.manifest2aUrl) &&
@@ -1113,6 +1225,7 @@ export default function OrderDetailPage() {
             Back to Orders
           </button>
 
+          {printFeedbackBanner}
           {showSiblingBanner && order && (
             <SiblingGroupPanel
               rootOrderId={order.rootOrderId}
@@ -1195,10 +1308,10 @@ export default function OrderDetailPage() {
               <button
                 type="button"
                 onClick={() => order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId) ? (() => { setActiveStage('lulu' as unknown as ReviewStage); requestAnimationFrame(() => activeStageTab.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })); })() : handleManualSendToPrint()}
-                disabled={manualPrintLoading}
+                disabled={manualPrintLoading || printActionPending || (!(order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId)) && printActionDisabled)}
                 className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
               >
-                {manualPrintLoading ? (
+                {manualPrintLoading || printActionPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Sending...
@@ -2017,6 +2130,8 @@ export default function OrderDetailPage() {
                   finalApprovalError={finalApprovalError}
                   finalApprovalLoading={finalApprovalLoading}
                   onSendToPrint={() => handleSendToPrint('post-pdf-stage')}
+                  printActionDisabled={printActionDisabled}
+                  printActionPending={printActionPending}
                   onViewPrintStatus={() => setActiveStage('lulu' as unknown as ReviewStage)}
                 />
               )}

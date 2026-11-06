@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+import nodeAssert from 'node:assert/strict';
 import { buildW0RunManifest } from '@/lib/books';
 import {
   buildManifestKeyFromOrderPrefix,
@@ -194,6 +195,18 @@ async function main(): Promise<void> {
       loadOrder: amazonLoadOrder,
     },
   );
+
+  for (const summary of [{ readyForBook: true }, {}]) {
+    await nodeAssert.rejects(() => buildW4PrintInput({
+      orderId: siblingOrderId, rootOrderId: amazonOrderId, amazonOrderId,
+      workflow: '4', manifest3Key: siblingThreeManifestKey, backendUrl, body: { summary },
+    }, {
+      loadManifest: async key => key === siblingThreeManifestKey
+        ? { ...siblingThreeManifest, summary: { readyForBook: false } }
+        : amazonLoadManifest(key),
+      loadOrder: amazonLoadOrder,
+    }), /readyForBook|not ready/i, 'Caller cannot override the saved W3 readiness hold');
+  }
 
   assert(
     amazonBuilt.orderId === siblingOrderId &&

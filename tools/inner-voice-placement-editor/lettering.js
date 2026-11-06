@@ -1,7 +1,8 @@
 'use strict';
 const Lettering = (() => {
-  let data, draft, selected, preview, ready = false, mode = 'text';
+  let data, draft, selected, preview, flowRuntime, ready = false, mode = 'text';
   let dirty = false, blocked = false, saving = false, hasSaved = false, timer, cacheKey, editVersion = 0;
+  let runSelectionKey = '', runIndex = 0;
   let pending = Promise.resolve(), pointer = null, lastError = '';
   const measure = document.createElement('canvas').getContext('2d');
   const normalize = text => text.replace(/\s+/g, ' ').trim();
@@ -12,29 +13,59 @@ const Lettering = (() => {
   const page = n => draft.pages[n - 1];
   const block = () => page(current).blocks.find(b => b.id === selected);
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const guides = ['cat','dog','owl','lion','tiger','penguin','t-rex','unicorn'];
+  const flowTokens = new Set(['child name','hometown','animal guide','animal clue','animal clues','object pronoun','subject pronoun','possessive pronoun','dedication message']);
+  function flowWords(flow) {
+    if (!flow || Object.keys(flow).join() !== 'paragraphs' || !Array.isArray(flow.paragraphs) || !flow.paragraphs.length || flow.paragraphs.length > 100) throw Error('Flow paragraphs are invalid.');
+    return flow.paragraphs.map(p => {
+      if (!p || Object.keys(p).join() !== 'runs' || !Array.isArray(p.runs) || !p.runs.length || p.runs.length > 100) throw Error('Flow runs are invalid.');
+      if (p.runs.some((run,index,runs)=>{if(!run?.atomicPhrase)return false;let before=index-1;while(before>=0&&typeof runs[before]?.text==='string'&&!runs[before].text.trim())before--;if(before>=0&&typeof runs[before]?.text==='string'&&/^[\s\p{P}]+$/u.test(runs[before].text.replace(/\[[^\]]+\]/g,'X'))&&runs.slice(before,index).some(item=>item?.keepWithNext!==true))return true;let after=index+1;while(after<runs.length&&typeof runs[after]?.text==='string'&&!runs[after].text.trim())after++;return after<runs.length&&typeof runs[after]?.text==='string'&&/^[\s\p{P}]+$/u.test(runs[after].text.replace(/\[[^\]]+\]/g,'X'))&&runs.slice(index,after).some(item=>item?.keepWithNext!==true)})) throw Error('Adjacent punctuation must stay with an atomic phrase.');
+      return p.runs.map((run,index) => {
+        if (!run || Object.keys(run).some(k=>!['text','style','keepWithNext','atomicPhrase'].includes(k)) || typeof run.text !== 'string' || !run.text || run.text.length > 8000) throw Error('Flow run is invalid.');
+        if ('atomicPhrase' in run && run.atomicPhrase !== true) throw Error('Atomic phrase marker is invalid.');
+        if ('keepWithNext' in run && (typeof run.keepWithNext !== 'boolean' || index === p.runs.length - 1)) throw Error('Flow grouping is invalid.');
+        if (/[\r\n]/.test(run.text) || /[\[\]]/.test(run.text.replace(/\[[^\[\]]+\]/g,'')) || [...run.text.matchAll(/\[([^\[\]]+)\]/g)].some(match=>!flowTokens.has(match[1].toLowerCase()))) throw Error('Flow token is invalid.');
+        if (run.atomicPhrase && (run.text.length>256 || /\p{Surrogate}/u.test(run.text) || /[\r\n\v\f\u0085\u2028\u2029]/.test(run.text) || [...run.text.matchAll(/\[([^\[\]]+)\]/g)].some(match=>!['animal guide','animal clue','animal clues'].includes(match[1].toLowerCase())))) throw Error('Atomic phrase is invalid.');
+        if ('style' in run) {
+          const style = run.style;
+          if (!style || typeof style !== 'object' || Array.isArray(style) || Object.keys(style).some(k=>!['color','sizeRatio','rotateDeg'].includes(k))) throw Error('Flow style is invalid.');
+          if ('color' in style && (typeof style.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(style.color))) throw Error('Flow color is invalid.');
+          for (const [key,min,max] of [['sizeRatio',.5,2],['rotateDeg',-15,15]]) if (key in style && (typeof style[key] !== 'number' || !Number.isFinite(style[key]) || style[key]<min || style[key]>max)) throw Error('Flow style is invalid.');
+          if (!run.atomicPhrase && style.rotateDeg && /[\s\[\]]/.test(run.text)) throw Error('Rotated emphasis must be one literal word.');
+        }
+        return [run.text, 'keepWithNext' in run, run.keepWithNext ?? null, 'atomicPhrase' in run, run.atomicPhrase ?? null];
+      });
+    });
+  }
 
-  function resolveText(text) {
+  function tokenValues() {
     const forms = {'she/her':['she','her','her'],'he/him':['he','him','his'],'they/them':['they','them','their']}[preview.pronouns];
-    const fields = {'child name':preview.childName,'subject pronoun':forms[0],'object pronoun':forms[1],'possessive pronoun':forms[2]};
+    const guide = preview.animalGuide || 'owl';
+    const {name:guideName,clue,clues} = flowRuntime.resolveGuideTokens(guide);
+    return {'child name':preview.childName,'subject pronoun':forms[0],'object pronoun':forms[1],'possessive pronoun':forms[2], 'animal guide':guideName, 'animal clue':clue, 'animal clues':clues, hometown:preview.hometown || 'a cozy town', 'dedication message':preview.dedicationMessage || ''};
+  }
+  function resolveText(text) {
+    const fields = tokenValues();
     return text.replace(/\[([^\]]+)\]/g, (match,key) => fields[normalize(key).toLowerCase()] ?? match);
   }
 
   function previewChanged() {
     preview.childName = $('previewName').value.trim() || data.previewPersonalization.childName;
     preview.pronouns = $('previewPronouns').value;
+    preview.animalGuide = $('previewGuide').value;
     try { localStorage.setItem(cacheKey+'-preview', JSON.stringify(preview)); } catch {}
     draw(); controls(); updateRail();
   }
 
   function fresh() {
-    return {schema:'lhb.lettering-review@v1', bookId:data.bookId,
+    return {schema:data.stateSchema || 'lhb.lettering-review@v1', bookId:data.bookId,
       baselineFingerprint:data.baselineFingerprint, layoutFingerprint:data.layoutFingerprint,
       revision:0, savedAt:new Date().toISOString(), pages:data.pages.map(p => ({
         page:p.page, pageId:p.pageId, reviewed:false, notes:'', blocks:copy(p.blocks)}))};
   }
 
   function validate(candidate) {
-    for (const [key, expected] of Object.entries({schema:'lhb.lettering-review@v1',
+    for (const [key, expected] of Object.entries({schema:data.stateSchema || 'lhb.lettering-review@v1',
       bookId:data.bookId, baselineFingerprint:data.baselineFingerprint, layoutFingerprint:data.layoutFingerprint})) {
       if (candidate?.[key] !== expected) throw Error('Lettering belongs to a different book or text draft.');
     }
@@ -45,8 +76,9 @@ const Lettering = (() => {
     for (let i = 0; i < data.pages.length; i++) {
       const p = candidate.pages[i], base = data.pages[i], ids = new Set();
       if (!p || p.page !== base.page || p.pageId !== base.pageId || typeof p.reviewed !== 'boolean' || typeof p.notes !== 'string' || p.notes.length > 4000 || !Array.isArray(p.blocks) || p.blocks.length > 60) throw Error('Lettering page data is incomplete.');
+      const v2 = result.schema === 'lhb.lettering-review@v2';
       for (const b of p.blocks) {
-        if (!b || typeof b.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.id) || ids.has(b.id) || typeof b.text !== 'string' || !b.text.trim() || b.text.length > 8000) throw Error('A text block is invalid.');
+        if (!b || typeof b.id !== 'string' || !(v2 ? /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/ : /^[A-Za-z0-9_-]{1,64}$/).test(b.id) || ids.has(b.id) || typeof b.text !== 'string' || !b.text.trim() || b.text.length > 8000) throw Error('A text block is invalid.');
         if (!completeFields(b.text)) throw Error('Keep each bracketed personalization field in one text block.');
         ids.add(b.id);
         for (const [key, min, max] of [['left',-data.units,data.units*2],['top',-data.units,data.units*2],['width',data.units*.05,data.units],['size',8,72],['leading',8,120],['rotation',-45,45]]) {
@@ -55,14 +87,22 @@ const Lettering = (() => {
         if (!['left','center','right'].includes(b.align) || typeof b.edge !== 'boolean' || typeof b.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(b.color)) throw Error('Text styling is invalid.');
       }
       if (normalize(p.blocks.map(b => b.text).join(' ')) !== normalize(base.blocks.map(b => b.text).join(' '))) throw Error('Story words changed. Only line breaks and spacing can change here.');
+      const expectedFlows = Object.fromEntries(base.blocks.filter(b=>b.flow).map(b=>[b.id,flowWords(b.flow)]));
+      const actualFlows = Object.fromEntries(p.blocks.filter(b=>b.flow).map(b=>[b.id,flowWords(b.flow)]));
+      if (v2 && signature(expectedFlows)!==signature(actualFlows)) throw Error('Flow runs belong to another text draft.');
+      if (v2 && p.blocks.some(b=>b.flow && (typeof b.height!=='number' || !Number.isFinite(b.height) || b.height<=0 || b.height>data.units*2))) throw Error('Flow height is invalid.');
+      if (v2 && p.blocks.some(b=>b.flow && (typeof (b.padding===undefined?0:b.padding)!=='number' || !Number.isFinite(b.padding===undefined?0:b.padding) || (b.padding===undefined?0:b.padding)<0 || (b.padding===undefined?0:b.padding)>256))) throw Error('Flow inside margin is invalid.');
+      if (v2 && p.blocks.some(b=>b.flow && 2*(b.padding===undefined?0:b.padding)>=Math.min(b.width,b.height))) throw Error('Flow inside margin leaves no text area.');
+      if (v2 && p.blocks.some(b=>b.flow && b.text!==b.flow.paragraphs.map(p=>p.runs.map(r=>r.text).join('')).join('\n'))) throw Error('Flow text does not match its runs.');
+      if (v2 && p.blocks.some(b=>b.flow && /<(?:\/?[a-z]|!|\?)[^>]*>/i.test(b.text))) throw Error('Flow text cannot contain markup.');
       result.pages[i] = {page:p.page,pageId:p.pageId,reviewed:p.reviewed,notes:p.notes,
-        blocks:p.blocks.map(b=>Object.fromEntries(['id','text','left','top','width','size','leading','color','align','rotation','edge'].map(key=>[key,b[key]])))};
+        blocks:p.blocks.map(b=>({...Object.fromEntries(['id','text','left','top','width','size','leading','color','align','rotation','edge'].map(key=>[key,b[key]])), ...(v2 && b.flow ? {height:b.height,padding:b.padding??0,flow:copy(b.flow)} : {})}))};
     }
     return result;
   }
 
   function cache() {
-    try { localStorage.setItem(cacheKey, JSON.stringify({draft, dirty})); }
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({draft, dirty})); }
     catch { warning('Browser storage is unavailable. Download adjustments before closing.'); }
   }
 
@@ -125,7 +165,7 @@ const Lettering = (() => {
         }
       } catch (error) {
         lastError = error.message;
-        warning(blocked ? 'A newer lettering draft is saved. Download adjustments before loading the saved version.' : error.message + ' Your browser copy is kept. Download a backup.', blocked);
+        warning(blocked ? 'A newer lettering draft is saved. Download adjustments before loading the saved version.' : error.message + ' This tab holds the unsaved copy. Download a backup before closing.', blocked);
       } finally {
         saving = false; cache(); status();
         if (dirty && !blocked && !lastError) { clearTimeout(timer); timer = setTimeout(save, 100); }
@@ -136,6 +176,7 @@ const Lettering = (() => {
 
   function linesFor(b) {
     const size = b.size * factor();
+    if (b.flow) return {lines:[],orphan:false,size,leading:b.leading*factor(),height:b.height};
     measure.font = `${size}px HandBook`;
     measure.fontKerning = 'none';
     const lines = [];
@@ -165,11 +206,12 @@ const Lettering = (() => {
 
   function groups(n) {
     return page(n).blocks.map(b => {
-      const m = linesFor(b), active = n === current && selected === b.id, offset = m.size*.8;
+      const m = linesFor(b), active = n === current && selected === b.id, offset = b.flow ? 0 : m.size*.8;
       const soft = data.pages[n-1].contrastStyle === 'soft-shadow';
       const x = b.align === 'center' ? b.width/2 : b.align === 'right' ? b.width : 0;
       const anchor = b.align === 'center' ? 'middle' : b.align === 'right' ? 'end' : 'start';
-      return `<g class="text-block${active?' selected':''}" data-text-block="${b.id}" data-text-page="${n}" role="button" tabindex="${mode==='text'?0:-1}" aria-label="Text: ${escapeHTML(normalize(resolveText(b.text)).slice(0,65))}. Arrow keys move." transform="translate(${b.left} ${b.top+offset}) rotate(${b.rotation})"><rect class="text-hit" x="-12" y="${-offset-12}" width="${b.width+24}" height="${m.height+24}"/><text fill="${b.color}" font-family="HandBook" font-kerning="none" font-size="${m.size}" text-anchor="${anchor}" ${b.edge && soft ? `filter="url(#lettering-shadow-${n})"` : b.edge?'paint-order="stroke" stroke="#17324a" stroke-opacity=".6" stroke-width="2.315" stroke-linejoin="round"':''}>${m.lines.map((line,i)=>`<tspan x="${x}" y="${i*m.leading}">${escapeHTML(line)||' '}</tspan>`).join('')}</text><rect class="text-frame" x="-12" y="${-offset-12}" width="${b.width+24}" height="${m.height+24}"/><g class="text-width-handle" data-text-width="true" role="button" tabindex="-1" aria-label="Drag to change text width" transform="translate(${b.width} ${m.height/2-offset})"><rect class="width-handle-target"/><rect class="width-handle-mark"/></g></g>`;
+      const content = b.flow ? `<foreignObject x="0" y="${-offset}" width="${b.width}" height="${b.height}" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" class="lhb-copy lhb-flow lhb-editor-flow" style="width:100%;height:100%;box-sizing:border-box;padding:${b.padding??0}px;font-family:HandBook;font-size:${m.size}px;line-height:${b.leading/b.size};color:${b.color};text-align:${b.align};${b.edge && soft?'text-shadow:0 3px 7px rgba(16,36,60,.75);':b.edge?'-webkit-text-stroke:2.315px rgba(23,50,74,.6);paint-order:stroke fill;':''}">${flowRuntime.renderFlowContent(b.flow,tokenValues())}</div></foreignObject>` : `<text fill="${b.color}" font-family="HandBook" font-kerning="none" font-size="${m.size}" text-anchor="${anchor}" ${b.edge && soft ? `filter="url(#lettering-shadow-${n})"` : b.edge?'paint-order="stroke" stroke="#17324a" stroke-opacity=".6" stroke-width="2.315" stroke-linejoin="round"':''}>${m.lines.map((line,i)=>`<tspan x="${x}" y="${i*m.leading}">${escapeHTML(line)||' '}</tspan>`).join('')}</text>`;
+      return `<g class="text-block${active?' selected':''}" data-text-block="${b.id}" data-text-page="${n}" role="button" tabindex="${mode==='text'?0:-1}" aria-label="Text: ${escapeHTML(normalize(resolveText(b.text)).slice(0,65))}. Arrow keys move." transform="translate(${b.left} ${b.top+offset}) rotate(${b.rotation})"><rect class="text-hit" x="-12" y="${-offset-12}" width="${b.width+24}" height="${m.height+24}"/>${content}<rect class="text-frame" x="-12" y="${-offset-12}" width="${b.width+24}" height="${m.height+24}"/><g class="text-width-handle" data-text-width="true" role="button" tabindex="-1" aria-label="Drag to change text width" transform="translate(${b.width} ${m.height/2-offset})"><rect class="width-handle-target"/><rect class="width-handle-mark"/></g></g>`;
     }).join('');
   }
 
@@ -203,11 +245,26 @@ const Lettering = (() => {
     const b = block();
     $('textOrphanWarning').hidden = !b || !linesFor(b).orphan;
     if (!b) { $('textBoundsWarning').hidden = true; return; }
-    const group = document.querySelector(`[data-text-page="${current}"][data-text-block="${selected}"] text`);
+    const group = document.querySelector(`[data-text-page="${current}"][data-text-block="${selected}"] ${b.flow?'.lhb-editor-flow':'text'}`);
     const art = group?.closest('.artboard');
     if (!art) return;
     const box = group.getBoundingClientRect(), frame = art.getBoundingClientRect(), inset = frame.width*.03;
-    $('textBoundsWarning').hidden = !(box.left < frame.left+inset || box.top < frame.top+inset || box.right > frame.right-inset || box.bottom > frame.bottom-inset);
+    let overflow = false;
+    if (b.flow) {
+      const owner = group.closest('[data-text-block]'), transform = owner.getAttribute('transform');
+      try {
+        if (b.rotation) owner.setAttribute('transform',`translate(${b.left} ${b.top})`);
+        const local = group.getBoundingClientRect();
+        overflow = group.scrollHeight>group.clientHeight || group.scrollWidth>group.clientWidth || [...group.querySelectorAll('span')].flatMap(span=>[...span.getClientRects()]).some(ink=>ink.left<local.left||ink.right>local.right||ink.top<local.top||ink.bottom>local.bottom);
+      } finally { owner.setAttribute('transform',transform); }
+    }
+    const overlap = [...art.querySelectorAll(`[data-text-page="${current}"][data-text-block]`)].some(item => {
+      if (item.dataset.textBlock === selected) return false;
+      const other = item.querySelector(b.flow ? 'text,.lhb-editor-flow' : '.lhb-editor-flow')?.getBoundingClientRect();
+      return other && box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top;
+    });
+    $('textBoundsWarning').textContent = overflow ? 'Text does not fit in this group. Adjust its size, width or height.' : overlap ? 'This text region overlaps another text block. Move or resize it before review.' : 'Text is close to the edge or outside this page. Move it inward or reduce its size or width.';
+    $('textBoundsWarning').hidden = !(box.left < frame.left+inset || box.top < frame.top+inset || box.right > frame.right-inset || box.bottom > frame.bottom-inset || overflow || overlap);
   }
 
   function draw() {
@@ -245,12 +302,35 @@ const Lettering = (() => {
     const content = $('textContent');
     if (document.activeElement !== content || content.dataset.block !== b.id) content.value = b.text;
     content.dataset.block = b.id;
+    content.disabled = !!b.flow;
+    $('flowHeight').hidden = !b.flow;
+    $('flowHeightLabel').hidden = !b.flow;
+    if (b.flow) $('flowHeight').value = Number((b.height/data.units*100).toFixed(2));
+    $('flowPadding').hidden = !b.flow; $('flowPaddingLabel').hidden = !b.flow;
+    if (b.flow) { $('flowPadding').max = 256/data.units*100; $('flowPadding').value = Number(((b.padding??0)/data.units*100).toFixed(2)); }
+    $('flowStyleControls').hidden = !b.flow;
+    if (b.flow) {
+      const key = `${current}:${b.id}`;
+      if (key !== runSelectionKey) { runSelectionKey = key; runIndex = 0; }
+      const runs = b.flow.paragraphs.flatMap(p=>p.runs);
+      runIndex = Math.max(0, Math.min(runIndex, runs.length - 1));
+      $('flowRunSelect').innerHTML = runs.map((r,i)=>`<option value="${i}">${escapeHTML(normalize(resolveText(r.text)) || 'Space')}</option>`).join('');
+      $('flowRunSelect').value = String(runIndex);
+      const run = runs[runIndex], style = run.style || {};
+      $('flowRunSize').value = (style.sizeRatio ?? 1) * 100;
+      $('flowRunRotation').value = style.rotateDeg ?? 0;
+      $('flowRunRotation').disabled = !run.atomicPhrase && /[\s\[\]]/.test(run.text);
+      $('flowRunColor').value = style.color || b.color;
+    }
+    $('textHelp').textContent = b.flow ? 'This sentence wraps as one group. Move or resize the group to adjust its layout.' : 'Enter adds a line break. Width controls automatic wrapping. Story words stay fixed. Keep personalization fields in brackets.';
+    $('splitTextBtn').disabled = !!b.flow;
     for (const [id,value] of [['textSize',b.size],['textWidth',b.width/data.units*100],['textLeft',b.left/data.units*100],['textTop',b.top/data.units*100],['textLeading',b.leading],['textRotation',b.rotation]]) $(id).value = Number(value.toFixed(2));
     if (document.activeElement !== $('previewName')) $('previewName').value = preview.childName;
     $('previewPronouns').value = preview.pronouns;
+    $('previewGuide').value = preview.animalGuide;
     $('textEdgeLabel').textContent = data.pages[current-1].contrastStyle === 'soft-shadow' ? 'Soft text shadow' : 'Fine contrast edge';
     $('textAlign').value = b.align; $('textColor').value = b.color; $('textEdge').checked = b.edge;
-    $('joinTextBtn').disabled = blocks.indexOf(b) === blocks.length-1;
+    $('joinTextBtn').disabled = !!b.flow || !!blocks[blocks.indexOf(b)+1]?.flow || blocks.indexOf(b) === blocks.length-1;
   }
 
   function select(n, id) {
@@ -258,7 +338,14 @@ const Lettering = (() => {
     else { selected = id; controls(); draw(); }
   }
 
-  function update(patch) {
+  function canUpdate(patch) {
+    const currentBlock = block();
+    if (currentBlock?.flow && 2*(patch.padding ?? currentBlock.padding ?? 0) >= Math.min(patch.width ?? currentBlock.width,patch.height ?? currentBlock.height)) { announce('The inside margin must leave room for text.'); controls(); return false; }
+    return true;
+  }
+  function update(patch, record = false) {
+    if (!canUpdate(patch)) return;
+    if (record) pushHistory();
     Object.assign(block(), patch); changed(); draw(); controls();
   }
 
@@ -272,6 +359,40 @@ const Lettering = (() => {
     $('previewName').oninput = previewChanged;
     $('previewName').onchange = previewChanged;
     $('previewPronouns').onchange = previewChanged;
+    $('previewGuide').onchange = previewChanged;
+    $('flowHeight').onchange = event => {
+      const value = Number(event.target.value), b = block();
+      if (!b?.flow || !event.target.value.trim() || !Number.isFinite(value)) { controls(); return; }
+      update({height:clamp(value,.1,200)*data.units/100}, true);
+    };
+    $('flowPadding').onchange = event => {
+      const value = Number(event.target.value), b = block();
+      if (!b?.flow || !event.target.value.trim() || !Number.isFinite(value)) { controls(); return; }
+      update({padding:clamp(value*data.units/100,0,256)}, true);
+    };
+    $('flowRunSelect').onchange = event => { runIndex = Number(event.target.value); controls(); };
+    for (const [id, key, min, max, divisor] of [['flowRunSize','sizeRatio',50,200,100],['flowRunRotation','rotateDeg',-15,15,1]]) {
+      $(id).onchange = event => {
+        const value = Number(event.target.value), b = block();
+        if (!b?.flow || !event.target.value.trim() || !Number.isFinite(value)) { controls(); return; }
+        const run = b.flow.paragraphs.flatMap(p=>p.runs)[runIndex];
+        if (key === 'rotateDeg' && !run.atomicPhrase && /[\s\[\]]/.test(run.text)) { controls(); return; }
+        pushHistory(); run.style = {...run.style, [key]:clamp(value,min,max)/divisor}; changed(); draw(); controls();
+      };
+    }
+    $('flowRunColor').onchange = event => {
+      const b = block(); if (!b?.flow || !/^#[0-9a-fA-F]{6}$/.test(event.target.value)) return;
+      pushHistory(); const run = b.flow.paragraphs.flatMap(p=>p.runs)[runIndex];
+      run.style = {...run.style, color:event.target.value}; changed(); draw(); controls();
+    };
+    $('flowRunReset').onclick = () => {
+      const b = block(); if (!b?.flow) return;
+      const run = b.flow.paragraphs.flatMap(p=>p.runs)[runIndex];
+      const original = data.pages[current-1].blocks.find(item=>item.id===b.id)?.flow?.paragraphs.flatMap(p=>p.runs)[runIndex];
+      if (!original) return;
+      pushHistory(); if (original.style) run.style = copy(original.style); else delete run.style;
+      changed(); draw(); controls();
+    };
     $('textModeBtn').onclick = () => changeMode('text');
     $('figureModeBtn').onclick = () => changeMode('figures');
     $('textBlockSelect').onchange = event => select(current,event.target.value);
@@ -291,10 +412,9 @@ const Lettering = (() => {
       $(id).onchange = event => {
         const value = Number(event.target.value);
         if (!event.target.value.trim() || !Number.isFinite(value)) { controls(); return; }
-        pushHistory();
         const next = clamp(value,min,max)*(percent ? data.units/100 : 1), patch = {[key]:next};
         if (key === 'size') patch.leading = clamp(block().leading/block().size*next,8,120);
-        update(patch);
+        update(patch, true);
       };
     }
     for (const [id,key] of [['textAlign','align'],['textColor','color'],['textEdge','edge']]) {
@@ -332,15 +452,16 @@ const Lettering = (() => {
     });
     document.addEventListener('pointermove', event => {
       if (!pointer) return;
-      if (!pointer.recorded) {
-        if (Math.hypot(event.clientX-pointer.x,event.clientY-pointer.y)<2) return;
-        pushHistory(); pointer.recorded = true;
-      }
+      if (!pointer.recorded && Math.hypot(event.clientX-pointer.x,event.clientY-pointer.y)<2) return;
       const dx = (event.clientX-pointer.x)*pointer.scale, dy = (event.clientY-pointer.y)*pointer.scale, b = pointer.initial;
+      let patch;
       if (pointer.resize) {
         const angle = b.rotation*Math.PI/180;
-        update({width:clamp(b.width+dx*Math.cos(angle)+dy*Math.sin(angle),data.units*.05,data.units)});
-      } else update({left:clamp(b.left+dx,-data.units,data.units*2),top:clamp(b.top+dy,-data.units,data.units*2)});
+        patch = {width:clamp(b.width+dx*Math.cos(angle)+dy*Math.sin(angle),data.units*.05,data.units)};
+      } else patch = {left:clamp(b.left+dx,-data.units,data.units*2),top:clamp(b.top+dy,-data.units,data.units*2)};
+      if (!canUpdate(patch)) return;
+      if (!pointer.recorded) { pushHistory(); pointer.recorded = true; }
+      update(patch);
     });
     for (const name of ['pointerup','pointercancel']) document.addEventListener(name,()=>pointer=null);
     $('spread').addEventListener('focusin', event => {
@@ -376,6 +497,10 @@ const Lettering = (() => {
     const response = await fetch('/lettering-data.json');
     if (!response.ok) throw Error('Could not load text layouts.');
     data = await response.json();
+    flowRuntime = await import('/flow-layout.mjs');
+    if (data.stateSchema === 'lhb.lettering-review@v2') {
+      const style = document.createElement('style'); style.textContent = flowRuntime.FLOW_COPY_CSS; document.head.append(style);
+    }
     if (data.baselineFingerprint !== placementSeed.baselineFingerprint) throw Error('Text and artwork drafts do not match.');
     const font = new FontFace('HandBook',`url(/asset/${data.font})`);
     await font.load(); document.fonts.add(font);
@@ -383,15 +508,23 @@ const Lettering = (() => {
     if (!saved.ok) throw Error('Could not read saved lettering. Download your backup before trying again.');
     const value = await saved.json();
     hasSaved = !!value;
-    draft = value ? validate(value) : fresh();
+    try { draft = validate(value || fresh()); }
+    catch (error) { error.savedLetteringBackup = !!value; throw error; }
     cacheKey = 'lhb-lettering-'+data.layoutFingerprint;
     preview = {...(data.previewPersonalization || {childName:'Alexandra',pronouns:'they/them'})};
+    $('previewGuide').hidden = data.stateSchema !== 'lhb.lettering-review@v2';
+    document.querySelector('label[for="previewGuide"]').hidden = $('previewGuide').hidden;
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey+'-preview') || 'null');
-      if (cached && typeof cached.childName === 'string' && cached.childName.trim() && cached.childName.length <= 60 && ['she/her','he/him','they/them'].includes(cached.pronouns)) preview = cached;
+      if (cached && typeof cached.childName === 'string' && cached.childName.trim() && cached.childName.length <= 60 && ['she/her','he/him','they/them'].includes(cached.pronouns)) {
+        preview.childName = cached.childName;
+        preview.pronouns = cached.pronouns;
+        if (guides.includes(cached.animalGuide)) preview.animalGuide = cached.animalGuide;
+      }
     } catch {}
+    if (!guides.includes(preview.animalGuide)) preview.animalGuide = 'owl';
     let browser = null;
-    try { browser = JSON.parse(localStorage.getItem(cacheKey)||'null'); } catch {}
+    try { browser = JSON.parse(sessionStorage.getItem(cacheKey)||localStorage.getItem(cacheKey)||'null'); } catch {}
     if (browser?.dirty) {
       try {
         const candidate = validate(browser.draft);
@@ -410,7 +543,7 @@ const Lettering = (() => {
     if (dirty && !blocked) setTimeout(save,500);
   }
 
-  return {boot,svg,controls,fitHandles,save,validate,
+  return {boot,svg,controls,fitHandles,save,validate,validateFlow:flowWords,
     deactivate:()=>{ready=false;clearTimeout(timer);},
     get mode(){return mode;}, get ready(){return ready;}, page,
     snapshot:()=>copy(draft.pages), payload:()=>({...copy(draft),fontFamily:data.fontName,previewPersonalization:copy(preview),

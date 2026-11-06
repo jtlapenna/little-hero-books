@@ -68,11 +68,11 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | DisplayStatus)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+            className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 sm:w-auto"
             aria-label="Filter by status"
           >
             <option value="all">All Status</option>
@@ -86,7 +86,7 @@ export function OrdersTable({ orders, onOrderClick, onArchiveOrder }: OrdersTabl
           <select
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+            className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 sm:w-auto"
             aria-label="Filter by platform"
           >
             <option value="all">All Platforms</option>

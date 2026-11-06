@@ -26,6 +26,7 @@ import {
   getAmazonOrderIdForMessaging,
 } from '@/lib/notifications/amazon-message-center';
 import { sendD2CPrintSubmittedEmail } from '@/lib/notifications/d2c-email';
+import { anyOvernightTestOrder, OVERNIGHT_TEST_SKIP_REASON } from '@/lib/messaging/test-order-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,7 @@ type PrintSubmittedResult = {
   channel?: string;
   messageId?: string;
   skipped?: boolean;
+  skipReason?: string;
   error?: string;
   nonProduction?: boolean;
   submitMode?: string | null;
@@ -93,6 +95,7 @@ type PrintSubmittedOrder = {
   orderId?: string | null;
   amazon_order_id?: string | null;
   platform?: string | null;
+  product_info?: unknown;
   customer_email?: string | null;
   character_specs?: {
     childName?: string | null;
@@ -334,6 +337,7 @@ export async function handlePrintSubmitted(
     }
   }
 
+  const overnightTestGroup = anyOvernightTestOrder(resolved);
   for (const [index, orderId] of orderIds.entries()) {
     const order = resolved[index];
     if (nonProduction) {
@@ -350,6 +354,13 @@ export async function handlePrintSubmitted(
         nonProduction: true,
         submitMode,
       });
+      continue;
+    }
+
+    // A marked overnight test order (or a group containing one: the buyer is shared) never gets a
+    // print-submitted message. Completion above is already persisted; only the message is skipped.
+    if (overnightTestGroup) {
+      results.push({ orderId, success: true, skipped: true, skipReason: OVERNIGHT_TEST_SKIP_REASON, submitMode });
       continue;
     }
 
@@ -428,6 +439,7 @@ export async function handlePrintSubmitted(
         channel: r.channel,
         messageId: r.messageId,
         skipped: r.skipped,
+        skipReason: r.skipReason,
         nonProduction: r.nonProduction,
         submitMode: r.submitMode ?? null,
       },

@@ -15,10 +15,12 @@ import {
   describeSiblingPrintSubmissionBlockers,
   getPerBookOrderId,
   getRootOrderId,
-  getShippingAddressMissingFields,
-  getSiblingChildMembers,
-  hasWorkflow3Complete,
   isSiblingChildOrder,
+  getShippingAddressMissingFields,
+  readCompleteOrderGroup,
+  assertExactOrderLookup,
+  assertNoArchivedOrderGroupMembers,
+  hasWorkflow3Complete,
 } from '@/lib/sibling-print-policy';
 
 type OrderRowLike = Record<string, unknown>;
@@ -424,12 +426,12 @@ async function sendToPrint(
 
   console.log(`[POST /api/orders/[orderId]/print] Queueing order ${orderId} for 4 workflow via router`);
 
-  const { getOrderFromSupabase, listOrdersByAmazonRootId, updateOrderInSupabase } = await import(
+  const { getOrderFromSupabase, updateOrderInSupabase } = await import(
     '@/lib/supabase-client'
   );
 
   try {
-    let body: { source?: string; reprint_reason?: string; reprint_note?: string } = {};
+    let body: { source?: string; reprint_reason?: string; reprint_note?: string; expected_order_ids?: unknown } = {};
     try {
       body = await request.json();
     } catch {
@@ -441,6 +443,20 @@ async function sendToPrint(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
 
+    const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+    try { assertExactOrderLookup(orderId, currentOrder, !isReprint); }
+    catch { throw createValidationError('Order lookup did not match the requested book or group'); }
+    const assertConfirmedTargets = (ids: string[]) => {
+      if (body.expected_order_ids === undefined) return;
+      const expected = body.expected_order_ids;
+      if (!Array.isArray(expected) || expected.length !== ids.length ||
+          expected.some(id => typeof id !== 'string' || !id || id !== id.trim()) ||
+          new Set(expected).size !== expected.length ||
+          [...expected].sort().some((id, index) => id !== [...ids].sort()[index])) {
+        throw createValidationError('Order group changed since confirmation. Reload and confirm the current books; no orders were queued');
+      }
+    };
+
     const currentProvider = await resolvePrintProviderForOrder(currentOrder);
     if (currentProvider === 'gelato' && hasExistingGelatoSubmission({ ...currentOrder, print_provider: 'gelato' })) {
       throw createValidationError('Existing Gelato submission must be inspected or recovered before another print request');
@@ -451,8 +467,7 @@ async function sendToPrint(
     }
 
     const currentPerBookOrderId = getPerBookOrderId(currentOrder) || orderId;
-    const currentRootOrderId = getRootOrderId(currentOrder);
-    const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+    const currentRootOrderId = getRootOrderId(currentOrder) || currentPerBookOrderId;
 
     let orderTargets = [
       {
@@ -461,87 +476,72 @@ async function sendToPrint(
       },
     ];
 
-    if (!isReprint && isSiblingChildOrder(currentOrder)) {
-      const siblingRows = (await listOrdersByAmazonRootId(currentRootOrderId)) as OrderRowLike[];
-      if (siblingRows.length >= 200) {
-        throw createValidationError('Sibling group exceeds the safe lookup limit; no orders were queued');
+    if (!isReprint) {
+      let siblingMembers: OrderRowLike[];
+      try {
+        siblingMembers = await readCompleteOrderGroup(supabase, currentOrder);
+        await assertNoArchivedOrderGroupMembers(supabase, currentRootOrderId, currentPerBookOrderId);
+      } catch (error) {
+        throw createValidationError(error instanceof Error ? error.message : 'Order group could not be verified; no orders were queued');
       }
-      const siblingMembers = getSiblingChildMembers(siblingRows, currentRootOrderId);
+      assertConfirmedTargets(siblingMembers.map(getPerBookOrderId));
       await Promise.all(siblingMembers.map((member) => resolvePrintProviderForOrder(member)));
 
-      if (siblingMembers.length < 2) {
+      // A sibling child must never print alone: keep the original group guard (a lone stored row means the group is incomplete).
+      if (isSiblingChildOrder(currentOrder) && siblingMembers.length < 2) {
         throw createValidationError(
           `Sibling order ${currentPerBookOrderId} must be sent to print as a group, but only ${siblingMembers.length} sibling row${siblingMembers.length === 1 ? '' : 's'} were found for root order ${currentRootOrderId}.`,
         );
       }
-      if (!siblingMembers.some((member) => getPerBookOrderId(member) === currentPerBookOrderId)) {
-        throw createValidationError('Current order is missing from the resolved sibling group; no orders were queued');
-      }
 
-      const providerBlocker = getPrintGroupProviderBlocker(siblingMembers);
-      if (providerBlocker) throw createValidationError(providerBlocker);
+      if (siblingMembers.length > 1) {
+        const providerBlocker = getPrintGroupProviderBlocker(siblingMembers);
+        if (providerBlocker) throw createValidationError(providerBlocker);
 
-      const [archivedByRoot, archivedByLegacyOrderId] = await Promise.all([
-        supabase.from('archived_orders').select('order_data').eq('order_data->>root_order_id', currentRootOrderId).limit(200),
-        supabase.from('archived_orders').select('order_data').eq('order_data->>amazon_order_id', currentRootOrderId).limit(200),
-      ]);
-      if (archivedByRoot.error || archivedByLegacyOrderId.error) {
-        throw createValidationError('Unable to verify archived sibling membership; no orders were queued');
-      }
-      const activeMemberIds = new Set(siblingMembers.map((member) => getPerBookOrderId(member)));
-      const archivedSiblingIds = [...(archivedByRoot.data ?? []), ...(archivedByLegacyOrderId.data ?? [])]
-        .map((row) => toRecord(row.order_data))
-        .filter((member): member is Record<string, unknown> => !!member)
-        .map(getPerBookOrderId)
-        .filter((memberOrderId) => memberOrderId && memberOrderId !== currentRootOrderId && !activeMemberIds.has(memberOrderId));
-      if (archivedSiblingIds.length > 0) {
-        throw createValidationError(
-          `Sibling group ${currentRootOrderId} includes archived order${archivedSiblingIds.length === 1 ? '' : 's'} (${archivedSiblingIds.join(', ')}); verify the complete group before queueing print.`,
-        );
-      }
+        await Promise.all(siblingMembers.map((member) => hydrateOrderShippingAddressForPrint(member)));
+        for (const member of siblingMembers) {
+          await validateOrderReadinessForPrint(member, getPerBookOrderId(member));
+        }
 
-      await Promise.all(siblingMembers.map((member) => hydrateOrderShippingAddressForPrint(member)));
-      for (const member of siblingMembers) {
-        await validateOrderReadinessForPrint(member, getPerBookOrderId(member));
-      }
+        const blockedMembers = siblingMembers
+          .map((member) => {
+            const memberOrderId = getPerBookOrderId(member);
+            const blockers = describeSiblingPrintSubmissionBlockers(member);
+            return memberOrderId && blockers.length > 0
+              ? { orderId: memberOrderId, blockers }
+              : null;
+          })
+          .filter((entry): entry is { orderId: string; blockers: string[] } => !!entry);
 
-      const blockedMembers = siblingMembers
-        .map((member) => {
-          const memberOrderId = getPerBookOrderId(member);
-          const blockers = describeSiblingPrintSubmissionBlockers(member);
-          return memberOrderId && blockers.length > 0
-            ? { orderId: memberOrderId, blockers }
-            : null;
-        })
-        .filter((entry): entry is { orderId: string; blockers: string[] } => !!entry);
-
-      if (blockedMembers.length > 0) {
-        const detail = blockedMembers
-          .map((member) => `${member.orderId}: ${member.blockers.join('; ')}`)
-          .join(' | ');
-        throw createValidationError(
-          `Sibling orders must be sent to print together. The group for root order ${currentRootOrderId} is not fully ready: ${detail}`,
-        );
-      }
-
-      orderTargets = siblingMembers.map((member) => {
-        const memberRowId = Number(member.id);
-        const memberOrderId = getPerBookOrderId(member);
-
-        if (!Number.isFinite(memberRowId) || !memberOrderId) {
-          throw new Error(
-            `Sibling order ${memberOrderId || '(unknown)'} is missing required identifiers; cannot queue group print safely`,
+        if (blockedMembers.length > 0) {
+          const detail = blockedMembers
+            .map((member) => `${member.orderId}: ${member.blockers.join('; ')}`)
+            .join(' | ');
+          throw createValidationError(
+            `Sibling orders must be sent to print together. The group for root order ${currentRootOrderId} is not fully ready: ${detail}`,
           );
         }
 
-        return {
-          orderRowId: memberRowId,
-          orderLookupId: memberOrderId,
-        };
-      });
+        orderTargets = siblingMembers.map((member) => {
+          const memberRowId = Number(member.id);
+          const memberOrderId = getPerBookOrderId(member);
+
+          if (!Number.isFinite(memberRowId) || !memberOrderId) {
+            throw new Error(
+              `Sibling order ${memberOrderId || '(unknown)'} is missing required identifiers; cannot queue group print safely`,
+            );
+          }
+
+          return {
+            orderRowId: memberRowId,
+            orderLookupId: memberOrderId,
+          };
+        });
+      }
     }
 
     if (orderTargets.length === 1) {
+      assertConfirmedTargets([currentPerBookOrderId]);
       await validateOrderReadinessForPrint(currentOrder, currentPerBookOrderId);
     }
 

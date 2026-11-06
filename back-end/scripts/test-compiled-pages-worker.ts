@@ -18,7 +18,7 @@ async function main() {
   let outbound = 0, syntheticIdempotency = 0;
   let allowSyntheticIdempotency = false;
   let csvMode: string | undefined, csvArchive: Buffer, csvDownloads = 0, csvInserts = 0, csvUpdates = 0, csvTriggers = 0;
-  const storedCsvRow = { id: 1, orderId: 'TEST-COMPILED-ZIP', character_specs: { childName: 'Stored Synthetic Child', age: '5' }, product_info: {} };
+  const storedCsvRow = { id: 1, orderId: 'TEST-COMPILED-ZIP', updated_at: '2026-01-01T00:00:00.000Z', character_specs: { childName: 'Stored Synthetic Child', age: '5' }, product_info: {} };
   const packageRoot = resolve('.open-next/cloudflare');
   const temporary = await mkdtemp(join(tmpdir(), 'lhl-compiled-worker-'));
   try {
@@ -59,7 +59,7 @@ async function main() {
           let rows: unknown[];
           if (request.method === 'GET') rows = csvMode === 'rejected-existing' ? [storedCsvRow] : [];
           else if (request.method === 'POST') { csvInserts++;const inserted = await request.json() as { character_specs: { childName: string } };assert.equal(inserted.character_specs.childName, 'Synthetic Child');rows = [{ id: 2, ...inserted }]; }
-          else { assert.equal(request.method, 'PATCH');csvUpdates++;rows = [{ id: 1 }]; }
+          else { assert.equal(request.method, 'PATCH');assert.equal(url.searchParams.get('updated_at'), `eq.${storedCsvRow.updated_at}`);assert.equal(url.searchParams.get('id'), 'eq.1');csvUpdates++;rows = [{ id: 1 }]; }
           return new WorkerResponse(JSON.stringify(request.headers.get('accept')?.includes('vnd.pgrst.object') ? rows[0] ?? null : rows), { status: request.method === 'POST' ? 201 : 200, headers: { 'content-type': 'application/json' } });
         }
         if (csvMode && url.origin === 'https://compiled-worker-w0.example.test' && url.pathname === '/hook' && request.method === 'POST') {

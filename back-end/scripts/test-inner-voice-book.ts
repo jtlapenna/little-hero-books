@@ -16,7 +16,7 @@ async function main() {
  for(const formatId of ['standard','amazon'])for(const pronouns of ['she/her','he/him','they/them',undefined])for(const animalGuide of ['dog','cat','owl','lion','tiger','penguin','t-rex','unicorn']){
   const orderId=`TEST-INNER-VOICE-${formatId}-${animalGuide}`;
   const w0=buildW0RunManifestFromConfig(config,{orderId,platform:formatId==='amazon'?'amazon':'d2c',formatId,characterHash:'testhash',input:{bookSpecs:{testMode:true},characterSpecs:{childName:'Alexandra & Christopher',animalGuide,hometown:'Grass Valley',pronouns}}});
-  const twoB={characterHash:'testhash',order:{orderId,bookId:config.bookId},entries:Object.values(config.rendering.recipe!.poses).map(p=>({poseNumber:p.poseNumber,bgRemovedKey:p.referenceKey}))};
+  const twoB={characterHash:'testhash',order:{orderId,bookId:config.bookId},entries:Object.values(config.rendering.recipe!.poses).map(p=>({poseNumber:p.poseNumber,bgRemovedKey:buildBgRemovedPoseAssetKey('testhash',p.poseNumber,config.bookId)}))};
   const assembly=await buildW3AssemblyInput({orderId,bookId:config.bookId,formatId,testMode:true,testModePages:0},{loadManifest:async key=>key.endsWith('1-manifest.json')?w0:key.endsWith('2b-manifest.json')?twoB:null});
   const plan=buildW3PreviewPlan({...assembly});
   const objectPronoun=pronouns==='she/her'?'her':pronouns==='he/him'?'him':'them';
@@ -28,3 +28,4 @@ async function main() {
  console.log('Inner Voice draft,32-page editions,poses,8guides and readiness passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';

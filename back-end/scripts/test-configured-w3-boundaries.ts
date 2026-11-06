@@ -1,5 +1,9 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from "node:assert/strict";
-import { configuredBookFixture } from "./configured-book-fixture";
+import { configuredBookFixture, configuredBookRaw } from "./configured-book-fixture";
+import { BookConfigSchema } from "../src/lib/books/types";
+import { normalizeW0Manifest } from "../src/lib/books/normalize-w0-manifest";
+import { buildW4PrintInput } from "../src/lib/books/w4-print-input";
 import { buildW0RunManifestFromConfig } from "../src/lib/books/build-run-manifest";
 import { buildW3AssemblyInput } from "../src/lib/books/w3-assembly-input";
 import { buildW3Manifest } from "../src/lib/books/w3-manifest";
@@ -31,14 +35,14 @@ async function main() {
       characterSpecs: { childName: "Ada", animalGuide: "owl" },
     },
   });
-  const oneManifestKey = `${config.bookId}/orders/SOURCE-INTAKE/manifests/1-manifest.json`,
-    manifest2bKey = `${config.bookId}/orders/SOURCE/manifests/2b-manifest.json`;
+  const oneManifestKey = `${config.bookId}/orders/${orderId}/manifests/1-manifest.json`,
+    manifest2bKey = `${config.bookId}/orders/${orderId}/manifests/2b-manifest.json`;
   const twoB = {
     characterHash: "testhash",
     order: { orderId, bookId: config.bookId },
     entries: [13, 17, 18].map((poseNumber) => ({
       poseNumber,
-      bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png`,
+      bgRemovedKey: buildBgRemovedPoseAssetKey('testhash', poseNumber, config.bookId),
     })),
   };
   const loadManifest = async (key: string) =>
@@ -122,6 +126,35 @@ async function main() {
       }));
       assert.equal(effects, 0);
     }
+  });
+  await check("unfinished flow cannot publish or change an order", async () => {
+    const raw = configuredBookRaw();
+    raw.rendering.recipe.schema = 'lhb.book-render@v2';
+    raw.rendering.recipe.copy.title = { id: 'headline', text: '[Child Name] flies.',
+      placement: { left: 0, top: 0, width: 500, height: 200 }, fontSize: 50,
+      flow: { paragraphs: [{ runs: [{ text: '[Child Name] flies.' }] }] } };
+    const flowConfig = BookConfigSchema.parse(raw);
+    const flowW0 = buildW0RunManifestFromConfig(flowConfig, { orderId, platform: 'd2c', characterHash: 'testhash',
+      input: { characterSpecs: { childName: 'Ada', animalGuide: 'owl' } } });
+    const flowSnapshot = normalizeW0Manifest(JSON.parse(JSON.stringify(flowW0))).renderSnapshot;
+    const flowW3 = buildW3Manifest({ ...artifacts, renderSnapshot: flowSnapshot }).manifest;
+    const prefix = `${flowConfig.bookId}/orders/${orderId}`;
+    for (const savedW3 of [flowW3, { ...flowW3, summary: { readyForBook: true } }]) {
+      await assert.rejects(() => buildW4PrintInput({ orderId, bookId: flowConfig.bookId,
+        manifest3Key: `${prefix}/manifests/3-manifest.json`, body: { summary: { readyForBook: true } } }, {
+        loadManifest: async key => key.endsWith('/1-manifest.json') ? flowW0 : key.endsWith('/3-manifest.json') ? savedW3 : null,
+      }), /flow layout fit is not yet verified/i);
+    }
+    await assert.rejects(() => buildW4PrintInput({ orderId, bookId: flowConfig.bookId,
+      manifest3Key: `${prefix}/manifests/3-manifest.json` }, {
+      loadManifest: async key => key.endsWith('/3-manifest.json') ? { ...flowW3, summary: { readyForBook: true } } : null,
+    }), /flow layout fit is not yet verified/i, 'Missing W0 cannot hide a v2 W3 snapshot');
+    let effects = 0;
+    await assert.rejects(() => publishW3Manifest({ ...artifacts, renderSnapshot: flowSnapshot }, {
+      putObjectImpl: async () => { effects++; }, getOrderImpl: async () => { effects++; return null; },
+      updateOrderImpl: async () => { effects++; return true; },
+    }), /Flow publication is not yet available/);
+    assert.equal(effects, 0);
   });
   await check(
     "queued W3 retains explicit intake and frozen identity",

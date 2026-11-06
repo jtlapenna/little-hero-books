@@ -122,21 +122,21 @@ async function resolveJob(
   payload: z.infer<typeof PayloadSchema>,
   dependencies: WorkflowJobEventDependencies,
 ) {
-  if (typeof payload.jobId === 'number') {
-    const byId = await dependencies.getWorkflowJobById(payload.jobId);
-    if (byId) {
-      return byId;
-    }
+  const byId = typeof payload.jobId === 'number'
+    ? await dependencies.getWorkflowJobById(payload.jobId)
+    : null;
+  const byKey = payload.idempotencyKey
+    ? await dependencies.getWorkflowJobByIdempotencyKey(payload.idempotencyKey)
+    : null;
+  if ((payload.jobId !== undefined && !byId) || (payload.idempotencyKey && !byKey)) {
+    throw new Error('Workflow job not found');
   }
-
-  if (payload.idempotencyKey) {
-    const byKey = await dependencies.getWorkflowJobByIdempotencyKey(payload.idempotencyKey);
-    if (byKey) {
-      return byKey;
-    }
+  if (byId && byKey && byId.id !== byKey.id) {
+    throw new Error('Workflow job identifiers do not match');
   }
-
-  throw new Error('Workflow job not found');
+  const job = byId ?? byKey;
+  if (!job) throw new Error('Workflow job not found');
+  return job;
 }
 
 export async function recordWorkflowJobEventResponse(
@@ -149,6 +149,9 @@ export async function recordWorkflowJobEventResponse(
     typeof payload.attemptId === 'number'
       ? await dependencies.getWorkflowJobAttemptById(payload.attemptId)
       : null;
+  if (typeof payload.attemptId === 'number' && (!attempt || attempt.job_id !== job.id)) {
+    throw new Error('Workflow job attempt not found or does not belong to job');
+  }
   const context = toJsonRecord(payload.context);
   const eventPayload: JsonRecord = {
     ...(payload.payload ?? {}),

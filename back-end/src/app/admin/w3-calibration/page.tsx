@@ -1,6 +1,8 @@
 'use client';
 
-import type { BookPageLayer } from '@/lib/books/book-render-contract';
+import type { BookPageLayer, BookLayerPlacement } from '@/lib/books/book-render-contract';
+
+import { bookPlacementStyle, resolveBookPlacement, mergeBookPlacement, dragBookPlacement } from '@/lib/books/book-layout-geometry';
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -82,6 +84,7 @@ type CalibrationPageOption = {
   fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
   editableLayerPlacement?: BookPageLayer['placement'];
   editableLayerIndex?: number;
+  renderingSchema?: string;
   characterUrl: string | null;
   animalUrl: string | null;
   editableAssetUrl: string | null;
@@ -131,6 +134,7 @@ type CalibrationResponse = {
   fixedLayers?: Array<{ id: string; index: number; imageUrl: string; placement: BookPageLayer['placement'] }>;
   editableLayerPlacement?: BookPageLayer['placement'];
   editableLayerIndex?: number;
+  renderingSchema?: string;
     editableAssetType: 'character' | 'animal' | 'cover-character';
     editableAssetUrl: string | null;
     characterUrl: string | null;
@@ -232,17 +236,25 @@ function sortPlacementOverrides(
 }
 
 function buildPlacementStyle(
-  placement: (PlacementEntry & { height?: number; flipX?: boolean }) | null,
+  placement: (PlacementEntry & Pick<BookLayerPlacement, 'height' | 'flipX' | 'layout'>) | null,
   placementBase: { width: number; height: number },
   options: {
     opacity?: number;
     outline?: string;
     filter?: string;
     pointerEvents?: CSSProperties['pointerEvents'];
+    renderingSchema?: string;
   } = {},
 ): CSSProperties {
   if (!placement) {
     return { display: 'none' };
+  }
+
+  if (placement.layout || options.renderingSchema === 'lhb.book-render@v3') {
+    const canvas = { w: placementBase.width, h: placementBase.height };
+    const raw = placement.layout ? mergeBookPlacement(placement, placement) : placement;
+    return { ...bookPlacementStyle(resolveBookPlacement(raw, canvas), canvas), opacity: options.opacity,
+      outline: options.outline, filter: options.filter, pointerEvents: options.pointerEvents };
   }
 
   const anchorXPercent =
@@ -794,16 +806,18 @@ export default function W3CalibrationPage() {
       data.selectedPage?.viewport ?? data.viewport,
       Boolean(data.selectedPage?.editableLayerPlacement),
     );
-    const deltaX =
-      (event.clientX - dragState.startClientX) * (placementBase.width / rect.width);
-    const deltaY =
-      (event.clientY - dragState.startClientY) * (placementBase.height / rect.height);
-
-    const nextEntry = {
-      ...dragState.basePlacement,
-      left: clampNumber(dragState.startLeft + deltaX, 0, placementBase.width),
-      top: clampNumber(dragState.startTop + deltaY, 0, placementBase.height),
-    };
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const v3Layer = data.selectedPage?.renderingSchema === 'lhb.book-render@v3'
+      ? data.selectedPage.editableLayerPlacement : undefined;
+    const position = v3Layer
+      ? dragBookPlacement(mergeBookPlacement(v3Layer, dragState.basePlacement),
+          { w: placementBase.width, h: placementBase.height }, rect,
+          { x: event.clientX - dragState.startClientX, y: event.clientY - dragState.startClientY })
+      : {
+          left: clampNumber(dragState.startLeft + (event.clientX - dragState.startClientX) * placementBase.width / rect.width, 0, placementBase.width),
+          top: clampNumber(dragState.startTop + (event.clientY - dragState.startClientY) * placementBase.height / rect.height, 0, placementBase.height),
+        };
+    const nextEntry = { ...dragState.basePlacement, ...position };
     if (data.selectedPage?.editableAssetType === 'cover-character') {
       setCoverCharacterPlacementOverride(nextEntry);
       return;
@@ -879,12 +893,21 @@ export default function W3CalibrationPage() {
     selectedPageViewport,
     Boolean(selectedPage?.editableLayerPlacement),
   );
+  const selectedLayout = selectedPage?.editableLayerPlacement?.layout;
+  const placementMinWidth = selectedLayout?.units === 'percent' ? 0.01 : 1;
+  const placementUnits = selectedLayout?.units === 'percent' ? 'Values use percentages of the page.'
+    : selectedLayout?.referenceCanvas ? `Values use the ${selectedLayout.referenceCanvas.w} × ${selectedLayout.referenceCanvas.h} reference grid.`
+      : 'Values use page pixels.';
   const currentSelectionLabel =
     selectedStoryPageNumber === 0
       ? 'cover'
       : selectedStoryPageNumber !== null
         ? `story ${selectedStoryPageNumber}`
         : 'N/A';
+
+  const currentPageOption = data?.pages.find(page => page.storyPageNumber === selectedStoryPageNumber);
+  const currentSubjectLabel = currentPageOption?.editableAssetType === 'animal'
+    ? 'animal' : `pose ${currentPageOption?.poseNumber ?? 'N/A'}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -899,9 +922,8 @@ export default function W3CalibrationPage() {
               Tune page placement and pose anchors without rerunning workflows
             </h1>
             <p className="mt-2 max-w-4xl text-sm text-gray-600">
-              Intent: operators need one visual workspace for Book 1 calibration. This page loads real W3 scene data,
-              lets you drag the character against the background, compares the exact current render against the legacy
-              reference, and exports config snippets instead of guessing through full workflow reruns.
+              Load a source, adjust the selected subject, and compare the draft with its saved placement.
+              Copy the overrides when the placement is ready for the book config.
             </p>
           </div>
 
@@ -938,8 +960,8 @@ export default function W3CalibrationPage() {
           </div>
           <div className="grid gap-4 px-5 py-5 lg:grid-cols-[180px_1fr_auto]">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Source type</label>
-              <select
+              <label htmlFor="calibration-source-type" className="mb-2 block text-sm font-medium text-gray-700">Source type</label>
+              <select id="calibration-source-type"
                 value={sourceType}
                 onChange={(event) =>
                   setSourceType(event.target.value === 'order' ? 'order' : 'fixture')
@@ -954,8 +976,8 @@ export default function W3CalibrationPage() {
             <div>
               {sourceType === 'fixture' ? (
                 <>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Fixture</label>
-                  <select
+                  <label htmlFor="calibration-fixture" className="mb-2 block text-sm font-medium text-gray-700">Fixture</label>
+                  <select id="calibration-fixture"
                     value={fixtureId}
                     onChange={(event) => setFixtureId(event.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none focus:border-cyan-500"
@@ -969,8 +991,8 @@ export default function W3CalibrationPage() {
                 </>
               ) : (
                 <>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Order ID</label>
-                  <input
+                  <label htmlFor="calibration-order-id" className="mb-2 block text-sm font-medium text-gray-700">Order ID</label>
+                  <input id="calibration-order-id"
                     value={orderId}
                     onChange={(event) => setOrderId(event.target.value)}
                     placeholder="847ade56-323c-453c-9982-fcbb006f919c"
@@ -1030,9 +1052,7 @@ export default function W3CalibrationPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Current selection</div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
-                {selectedStoryPageNumber === 0
-                  ? 'cover / pose 00'
-                  : `${currentSelectionLabel} / pose ${selectedPoseNumber ?? 'N/A'}`}
+                {activeTab === 'anchors' ? `pose ${selectedPoseNumber ?? 'N/A'}` : `${currentSelectionLabel} / ${currentSubjectLabel}`}
               </div>
             </div>
           </div>
@@ -1042,7 +1062,7 @@ export default function W3CalibrationPage() {
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950 shadow-sm">
             Fixture replay is using shared reference-pose stand-ins instead of live generated assets. Story-page
             placement can still be directionally useful, but cover tuning is not production-safe in fixture mode. The
-            gray cover subject is only a stand-in. Use <span className="font-semibold">Source type = Live order</span>{' '}
+            cover subject is only a reference stand-in. Use <span className="font-semibold">Source type = Live order</span>{' '}
             before copying cover placement overrides.
           </div>
         )}
@@ -1074,8 +1094,8 @@ export default function W3CalibrationPage() {
 
         {!data ? (
           <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center text-sm text-gray-500 shadow-sm">
-            <RefreshCw className="mx-auto mb-3 h-5 w-5 animate-spin text-gray-400" />
-            Loading calibration workspace...
+            <RefreshCw className={`mx-auto mb-3 h-5 w-5 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading calibration workspace...' : 'Choose a source and select Load to try again.'}
           </div>
         ) : activeTab === 'placement' ? (
           <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
@@ -1127,13 +1147,13 @@ export default function W3CalibrationPage() {
                   <p className="mt-1 text-xs text-gray-500">
                     Editing {data?.selectedPage?.editableAssetType ?? 'subject'} placement for the selected story page.
                   </p>
+                  {selectedPage?.renderingSchema === 'lhb.book-render@v3' && <p className="mt-1 text-xs text-gray-500">{placementUnits}</p>}
                 </div>
                 <div className="space-y-3 p-4">
                   {isCoverFixtureApproximate && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
-                      This cover is showing the gray reference stand-in, not the live generated child. Do not save or
-                      copy cover placement from fixture mode. Switch the source to the live order and verify the feet
-                      land in the dark shadow below the sparkle before exporting.
+                      This cover uses a reference stand-in. Switch to the live order and check the generated child
+                      against the selected cover before copying placement overrides.
                     </div>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1142,6 +1162,7 @@ export default function W3CalibrationPage() {
                       <input
                         type="number"
                         value={selectedPagePlacement?.left ?? ''}
+                        step={selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'any' : undefined}
                         onChange={(event) =>
                           applyPlacementPatch({ left: Number(event.target.value) || 0 })
                         }
@@ -1153,6 +1174,7 @@ export default function W3CalibrationPage() {
                       <input
                         type="number"
                         value={selectedPagePlacement?.top ?? ''}
+                        step={selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'any' : undefined}
                         onChange={(event) =>
                           applyPlacementPatch({ top: Number(event.target.value) || 0 })
                         }
@@ -1164,9 +1186,10 @@ export default function W3CalibrationPage() {
                       <input
                         type="number"
                         value={selectedPagePlacement?.width ?? ''}
+                        step={selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'any' : undefined}
                         onChange={(event) =>
                           applyPlacementPatch({
-                            width: Math.max(1, Number(event.target.value) || 1),
+                            width: Math.max(placementMinWidth, Number(event.target.value) || placementMinWidth),
                           })
                         }
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm outline-none focus:border-cyan-500"
@@ -1191,7 +1214,7 @@ export default function W3CalibrationPage() {
                       className="inline-flex items-center rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800 hover:bg-violet-100"
                     >
                       <ArrowLeftRight className="mr-2 h-4 w-4" />
-                      Use legacy
+                      {selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'Use saved placement' : 'Use legacy'}
                     </button>
                     <button
                       onClick={handleResetCurrentPage}
@@ -1216,7 +1239,7 @@ export default function W3CalibrationPage() {
                       onChange={(event) => setShowLegacyGhost(event.target.checked)}
                       className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
                     />
-                    Show legacy ghost overlay
+                    {selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'Show saved placement' : 'Show legacy ghost overlay'}
                   </label>
                 </div>
               </div>
@@ -1285,7 +1308,7 @@ export default function W3CalibrationPage() {
                       <img
                         src={selectedPage.backgroundUrl}
                         alt=""
-                        className="absolute inset-0 h-full w-full object-cover"
+                        className={`absolute inset-0 h-full w-full ${selectedPage.renderingSchema === 'lhb.book-render@v3' ? 'object-fill' : 'object-cover'}`}
                       />
                       {selectedPage.overlayUrls.map((overlayUrl) => (
                         <img
@@ -1302,6 +1325,7 @@ export default function W3CalibrationPage() {
                           outline: '2px dashed rgba(139, 92, 246, 0.85)',
                           filter: 'grayscale(0.25)',
                           pointerEvents: 'none',
+                          renderingSchema: selectedPage.renderingSchema,
                         })}>
                           <img
                             src={selectedPage.editableAssetUrl}
@@ -1315,7 +1339,7 @@ export default function W3CalibrationPage() {
                       {[
                         ...(selectedPage.fixedLayers ?? []).map(layer => ({
                           index: layer.index,
-                          node: <div key={layer.id} data-config-layer={layer.id} style={buildPlacementStyle({ ...layer.placement, anchorXPercent: 0, anchorYPercent: 0 }, selectedPlacementBase, { pointerEvents: 'none' })}>
+                          node: <div key={layer.id} data-config-layer={layer.id} style={buildPlacementStyle({ ...layer.placement, ...(selectedPage.renderingSchema === 'lhb.book-render@v3' ? {} : { anchorXPercent: 0, anchorYPercent: 0 }) }, selectedPlacementBase, { pointerEvents: 'none', renderingSchema: selectedPage.renderingSchema })}>
                             <img src={layer.imageUrl} alt="" className={layer.placement.height ? 'block h-full w-full object-contain' : 'block h-auto w-full object-contain'} draggable={false} />
                           </div>,
                         })),
@@ -1323,6 +1347,7 @@ export default function W3CalibrationPage() {
                       <div key="editable" data-config-layer="editable"
                         style={buildPlacementStyle({ ...selectedPage.editableLayerPlacement, ...selectedPagePlacement }, selectedPlacementBase, {
                           outline: '2px solid rgba(8, 145, 178, 0.8)',
+                          renderingSchema: selectedPage.renderingSchema,
                         })}
                         onPointerDown={handlePlacementDragStart}
                       >
@@ -1384,22 +1409,22 @@ export default function W3CalibrationPage() {
 
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
                   <div className="border-b border-gray-200 px-4 py-3">
-                    <div className="text-sm font-semibold text-gray-900">Legacy reference render</div>
+                    <div className="text-sm font-semibold text-gray-900">{selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'Saved placement render' : 'Legacy reference render'}</div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Same current subject, legacy-tuned placement. Use this as the visual target for Book 1 parity.
+                      {selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'Compare the current subject with its saved placement.' : 'Same current subject, legacy-tuned placement. Use this as the visual target for Book 1 parity.'}
                     </div>
                   </div>
                   <div className="p-4">
                     {selectedPage?.legacySrcDoc ? (
                       <iframe
-                        title="Legacy reference render"
+                        title={selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'Saved placement render' : 'Legacy reference render'}
                         srcDoc={selectedPage.legacySrcDoc}
                         className="w-full rounded-2xl border border-gray-200 bg-white"
                         style={{ aspectRatio: `${selectedPageViewport.width} / ${selectedPageViewport.height}` }}
                       />
                     ) : (
                       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center text-sm text-gray-500">
-                        No legacy reference render available for this page.
+                        {selectedPage?.renderingSchema === 'lhb.book-render@v3' ? 'No saved placement render available for this page.' : 'No legacy reference render available for this page.'}
                       </div>
                     )}
                   </div>
@@ -1473,12 +1498,13 @@ export default function W3CalibrationPage() {
                     </button>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3">
                     <label className="text-sm text-gray-700">
-                      <div className="mb-1 font-medium">groundContactY</div>
+                      <div className="mb-1 font-medium">Ground contact Y</div>
                       <input
                         type="number"
                         step="0.0001"
+                        disabled={!selectedAnchorDraft}
                         value={selectedAnchorDraft?.groundContactY ?? ''}
                         onChange={(event) => {
                           if (!selectedPoseNumber || !selectedAnchorDraft) return;
@@ -1495,10 +1521,11 @@ export default function W3CalibrationPage() {
                       />
                     </label>
                     <label className="text-sm text-gray-700">
-                      <div className="mb-1 font-medium">groundContactCenterX</div>
+                      <div className="mb-1 font-medium">Ground center X</div>
                       <input
                         type="number"
                         step="0.0001"
+                        disabled={!selectedAnchorDraft}
                         value={selectedAnchorDraft?.groundContactCenterX ?? ''}
                         onChange={(event) => {
                           if (!selectedPoseNumber || !selectedAnchorDraft) return;
@@ -1515,10 +1542,11 @@ export default function W3CalibrationPage() {
                       />
                     </label>
                     <label className="text-sm text-gray-700">
-                      <div className="mb-1 font-medium">headToFeetSpan</div>
+                      <div className="mb-1 font-medium">Head to feet span</div>
                       <input
                         type="number"
                         step="0.0001"
+                        disabled={!selectedAnchorDraft}
                         value={selectedAnchorDraft?.headToFeetSpan ?? ''}
                         onChange={(event) => {
                           if (!selectedPoseNumber || !selectedAnchorDraft) return;
@@ -1538,6 +1566,7 @@ export default function W3CalibrationPage() {
 
                   <button
                     onClick={() => void handleCopyPoseAnchors()}
+                    disabled={Object.keys(anchorDrafts).length === 0}
                     className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     <Copy className="mr-2 h-4 w-4" />

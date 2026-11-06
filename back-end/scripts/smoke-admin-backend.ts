@@ -96,6 +96,7 @@ async function createSyntheticOrder(label: string, email: string): Promise<Synth
       hairStyle: 'bun',
       hairColor: 'brown',
       favoriteColor: 'pink',
+      favoriteAnimal: 'dog',
     },
     dedication: `Smoke test ${label}`,
     product_info: {

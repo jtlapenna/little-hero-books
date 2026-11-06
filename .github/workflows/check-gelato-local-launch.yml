@@ -48,5 +48,5 @@ jobs:
           python3 docs/repo-workflows-planning/controlled-pipeline-source-evidence-2026-10-22/verify.py
           python3 docs/repo-workflows-planning/controlled-character-handoff-evidence-2026-10-22/verify.py
           python3 docs/repo-workflows-planning/lhl-diagnostic-access-evidence-2026-10-23/verify.py
-          python3 docs/security/lhl-cron-source-evidence-2026-10-23/verify.py --source
-          python3 docs/security/lhl-cron-source-evidence-2026-10-23/test-verifier.py
+          python3 docs/security/book-layout-source-evidence-2026-10-30/verify.py --source
+          python3 docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py

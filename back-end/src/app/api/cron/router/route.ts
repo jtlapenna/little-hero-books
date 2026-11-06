@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
+import { sendLuluPollShipmentNotices } from '@/lib/notifications/lulu-poll-notifications';
 import {
   getPerBookOrderId,
   getRootOrderId,
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
         executionId: `${executionId}-amazon`,
         supabaseUrl,
         supabaseKey,
-        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest',
+        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || '',
         amazonClientId: process.env.AMZ_LWA_CLIENT_ID_PROD 
           || process.env.AMZ_APP_CLIENT_ID 
           || process.env.AMAZON_SP_API_CLIENT_ID,
@@ -273,31 +274,9 @@ export async function GET(request: NextRequest) {
               if (ue) { luluPollSummary.errors++; continue; }
               luluPollSummary.updated++;
 
-              // Confirm shipment for Amazon orders
-              if ((o.platform ?? 'amazon') !== 'd2c' && o.amazon_order_id) {
-                const orderId = o.amazon_order_id;
-                const { data: already } = await supabase.from('notification_logs').select('id').eq('order_id', String(orderId)).eq('notification_type', 'amazon_confirm_shipment').eq('status', 'sent').maybeSingle();
-                if (!already) {
-                  const { confirmAmazonShipment } = await import('@/lib/notifications/amazon-shipment');
-                  const r = await confirmAmazonShipment({ amazonOrderId: String(orderId), order: o, trackingNumber: tn, carrier: cr, trackingUrl: tu });
-                  await supabase.from('notification_logs').insert({ order_id: String(orderId), notification_type: 'amazon_confirm_shipment', status: r.success ? 'sent' : 'failed', recipient: String(orderId), error_message: r.error ?? null, sent_at: r.success ? nowIso : null });
-                  if (r.success) luluPollSummary.confirmed++;
-                }
-              }
-
-              if (name === 'SHIPPED' && (o.platform ?? 'amazon') === 'd2c' && o.customer_email?.trim()) {
-                const orderIdForLog = o.orderId ?? String(o.id);
-                const { sendD2CShippedEmail } = await import('@/lib/notifications/d2c-email');
-                const childName = o.character_specs?.childName ?? o.character_specs?.child_name ?? undefined;
-                await sendD2CShippedEmail({
-                  to: o.customer_email.trim(),
-                  childName,
-                  trackingUrl: tu ?? undefined,
-                  trackingNumber: tn ?? undefined,
-                  carrier: cr ?? undefined,
-                  orderId: String(orderIdForLog),
-                });
-              }
+              // Customer/buyer notices (skipped for marked overnight test orders inside the helper).
+              const notices = await sendLuluPollShipmentNotices({ supabase, order: o, statusName: String(name), trackingNumber: tn, trackingUrl: tu, carrier: cr, nowIso });
+              if (notices.confirmed) luluPollSummary.confirmed++;
             } catch (pollErr: any) {
               luluPollSummary.errors++;
               console.warn(`[Cron Router] [${executionId}] Lulu poll error for ${o.lulu_job_id}:`, pollErr?.message);
@@ -379,7 +358,7 @@ export async function GET(request: NextRequest) {
     const w0RetriggerStart = Date.now();
     const { data: stuckPendingW0 } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,platform,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
+      .select('id,"orderId",amazon_order_id,platform,marketplace_id,book_specs,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
       .eq('execution_status', 'pending_w0')
       .is('next_workflow', null)
       .is('one_manifest_url', null)
@@ -391,15 +370,43 @@ export async function GET(request: NextRequest) {
     } = splitCronExcludedOrders(stuckPendingW0 || []);
     logExcludedTestOrders('pending_w0_retrigger', excludedStuckPendingW0);
     if (eligibleStuckPendingW0.length > 0) {
-      const { buildD2CW0Payload } = await import('@/lib/w0-payload');
+      const { buildPendingW0Payload, buildSelectedAmazonPendingW0Payload } = await import('@/lib/w0-payload');
       const { triggerW0 } = await import('@/lib/sibling-order-helpers');
+      const { readCsvRootRows, assertCompleteCsvRootUnits, csvRowHasProgress, csvRootNeedsCompleteUnits } = await import('@/lib/csv-book-selection');
       for (const o of eligibleStuckPendingW0) {
         const orderData = o as Record<string, unknown>;
         const oid = orderData.orderId ?? orderData.order_id ?? orderData.id;
         console.log(`[Cron Router] [${executionId}] Re-triggering W0 for stuck order ${oid}`);
-        const payload = buildD2CW0Payload(orderData);
-        const res = await triggerW0(payload);
-        if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
+        try {
+          let payloadSource = orderData;
+          if (orderData.platform === 'amazon') {
+            const rootId = orderData.root_order_id ?? orderData.amazon_order_id ?? orderData.orderId ?? orderData.order_id;
+            if (typeof rootId !== 'string' || !rootId || rootId !== rootId.trim() ||
+                [orderData.root_order_id, orderData.amazon_order_id].some(value => value != null && value !== rootId) ||
+                typeof oid !== 'string') throw new Error('Invalid Amazon pending root identity');
+            const rootRows = await readCsvRootRows(supabase, rootId, [{ orderId: rootId }, { orderId: oid }]);
+            assertCompleteCsvRootUnits(rootRows, rootId);
+            const current = rootRows.filter(row => row.id === orderData.id &&
+              (row.orderId === oid || row.order_id === oid));
+            if (current.length !== 1) throw new Error('Missing or ambiguous Amazon pending member');
+            payloadSource = current[0];
+            if (current[0].execution_status !== 'pending_w0' || current[0].next_workflow != null) continue;
+            if (csvRootNeedsCompleteUnits(rootRows)) {
+              for (const member of rootRows) buildSelectedAmazonPendingW0Payload(member);
+            }
+            const progressRow = { ...current[0],
+              ...(Array.isArray(current[0].product_info) ? { product_info: undefined } : {}),
+              ...(Array.isArray(current[0].productInfo) ? { productInfo: undefined } : {}) };
+            if (csvRowHasProgress(progressRow)) continue;
+          }
+          const payload = orderData.platform === 'amazon'
+            ? buildSelectedAmazonPendingW0Payload(payloadSource) : buildPendingW0Payload(payloadSource);
+          if (!process.env.N8N_W0_WEBHOOK_URL) throw new Error('W0 webhook is not configured');
+          const res = await triggerW0(payload);
+          if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
+        } catch (error) {
+          console.error(`[Cron Router] [${executionId}] W0 re-trigger held for ${oid}:`, error instanceof Error ? error.message : 'Invalid stored intake');
+        }
       }
     }
     const w0RetriggerMs = Date.now() - w0RetriggerStart;

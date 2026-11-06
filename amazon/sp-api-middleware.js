@@ -184,25 +184,10 @@ function parseCharacterSpecs(customization) {
 /**
  * Normalize Amazon order data to internal payload format (W0-compatible)
  */
-function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, shippingAddress = null) {
-  // Extract customization from order items
-  const customization = {};
-  if (orderItems && orderItems.length > 0) {
-    const firstItem = orderItems[0];
-    const customInfo = 
-      firstItem?.BuyerCustomizedInfo?.CustomizedInfo ||
-      firstItem?.CustomizedInfo ||
-      firstItem?.BuyerInfo?.BuyerCustomizedInfo ||
-      {};
-    
-    Object.assign(customization, customInfo);
+function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, shippingAddress = null, itemsBuyerInfo = null, itemResponses = null) {
+  if (!amazonOrder || typeof amazonOrder !== 'object' || Array.isArray(amazonOrder) || !Array.isArray(orderItems)) {
+    throw new Error('Invalid Amazon normalization source');
   }
-
-  // Parse character specs (W0-compatible format)
-  const characterSpecs = parseCharacterSpecs(customization);
-  const dedication = characterSpecs.dedication || '';
-
-  // Normalize shipping address
   const normalizedShipping = shippingAddress ? {
     name: shippingAddress.Name,
     address: shippingAddress.AddressLine1 || '',
@@ -213,95 +198,113 @@ function normalizeOrderPayload(amazonOrder, orderItems = [], buyerInfo = null, s
     country: shippingAddress.CountryCode || 'US',
     phone: shippingAddress.Phone || '',
   } : null;
-
-  // Build normalized payload (matches W0's expected format)
-  return {
-    amazonOrderId: amazonOrder.AmazonOrderId,
-    orderId: amazonOrder.AmazonOrderId,
-    id: amazonOrder.AmazonOrderId,
-    amazonOrderId: amazonOrder.AmazonOrderId,
-    purchaseDate: amazonOrder.PurchaseDate,
-    orderDate: amazonOrder.PurchaseDate,
-    orderStatus: amazonOrder.OrderStatus,
-    status: 'pending_w0',
-    marketplaceId: amazonOrder.MarketplaceId || marketplaceId,
-    customerEmail: buyerInfo?.BuyerEmail || null,
-    buyer: buyerInfo ? {
-      email: buyerInfo.BuyerEmail,
-      name: buyerInfo.BuyerName,
-    } : null,
-    ShippingAddress: shippingAddress,
-    shippingAddress: normalizedShipping,
-    // W0-compatible fields
-    characterSpecs: characterSpecs,
-    character_specs: characterSpecs, // Supabase format
-    CharacterSpecs: characterSpecs, // Alternative format
-    bookSpecs: {
-      title: `${characterSpecs.childName} and the Adventure Compass`,
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'adventure',
-    },
-    orderDetails: {
-      quantity: parseInt(amazonOrder.NumberOfItemsShipped || amazonOrder.NumberOfItemsUnshipped || '1', 10),
-      shippingAddress: normalizedShipping,
-    },
-    dedication: dedication,
-    Dedication: dedication,
-    items: orderItems.map(item => ({
+  const items = Array.from(orderItems).map(item => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('Invalid Amazon source item');
+    const customization = item.BuyerCustomizedInfo?.CustomizedInfo || item.CustomizedInfo || item.BuyerInfo?.BuyerCustomizedInfo || {};
+    if (typeof customization !== 'object' || customization === null || Array.isArray(customization)) {
+      throw new Error('Invalid Amazon source customization');
+    }
+    return {
       orderItemId: item.OrderItemId,
       asin: item.ASIN,
       sku: item.SellerSKU,
       title: item.Title,
       quantity: item.QuantityOrdered,
       price: item.ItemPrice,
-      customizations: Object.entries(item.BuyerCustomizedInfo?.CustomizedInfo || item.CustomizedInfo || {}).map(([name, value]) => ({
-        name: name,
-        label: name,
-        type: 'text',
-        value: String(value),
+      customization,
+      customizations: Object.entries(customization).map(([name, value]) => ({
+        name, label: name, type: 'text', value: String(value),
       })),
+    };
+  });
+  const total = items.reduce((sum, item) => sum + (typeof item.quantity === 'number' ? item.quantity : NaN), 0);
+  const validTotal = items.length > 0 && items.every(item => Number.isSafeInteger(item.quantity) && item.quantity > 0 && item.quantity <= 200)
+    && Number.isSafeInteger(total) && total <= 200;
+  return {
+    amazonOrderId: amazonOrder.AmazonOrderId,
+    orderId: amazonOrder.AmazonOrderId,
+    id: amazonOrder.AmazonOrderId,
+    purchaseDate: amazonOrder.PurchaseDate,
+    orderDate: amazonOrder.PurchaseDate,
+    orderStatus: amazonOrder.OrderStatus,
+    status: 'pending_w0',
+    marketplaceId: amazonOrder.MarketplaceId,
+    customerEmail: buyerInfo?.BuyerEmail || null,
+    buyer: buyerInfo ? { email: buyerInfo.BuyerEmail, name: buyerInfo.BuyerName } : null,
+    ShippingAddress: shippingAddress,
+    shippingAddress: normalizedShipping,
+    orderDetails: { ...(validTotal ? { quantity: total } : {}), shippingAddress: normalizedShipping },
+    items,
+    lineItems: items.map(item => ({
+      orderItemId: item.orderItemId,
+      asin: item.asin,
+      sku: item.sku,
+      quantity: item.quantity,
+      customizationFields: Object.entries(item.customization).map(([name, value]) => ({ name, text: String(value) })),
     })),
-    lineItems: [{
-      customizationFields: Object.entries(customization).map(([name, value]) => ({
-        name: name,
-        text: String(value),
-      })),
-    }],
-    customization, // Raw customization for reference
-    // Raw data for reference
-    _raw: {
-      order: amazonOrder,
-      items: orderItems,
-      buyerInfo,
-      shippingAddress,
-    },
+    ...(items.length === 1 ? { customization: items[0].customization } : {}),
+    _raw: { order: amazonOrder, items: orderItems, itemsBuyerInfo, itemResponses, buyerInfo, shippingAddress },
   };
+}
+
+function normalizationForCaller(normalizedOrder) {
+  const { itemsBuyerInfo: _backendOnly, itemResponses: _backendResponses, ...originalRawFields } = normalizedOrder._raw;
+  return { ...normalizedOrder, _raw: originalRawFields };
+}
+
+// OrdersV0 uses OrderItems for both item endpoints. Preserve each complete response for backend checks.
+function readCompleteOrderItemResponse(response, orderId) {
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!object(response) || (response.errors !== undefined &&
+      (!Array.isArray(response.errors) || response.errors.length !== 0))) throw new Error('Incomplete Amazon item response');
+  const payload = response.payload;
+  if (!object(payload) || payload.AmazonOrderId !== orderId || !Array.isArray(payload.OrderItems) ||
+      !Array.from(payload.OrderItems).every(object) ||
+      (payload.NextToken !== undefined && (typeof payload.NextToken !== 'string' || payload.NextToken !== ''))) {
+    throw new Error('Incomplete Amazon item response');
+  }
+  return payload;
 }
 
 /**
  * POST normalized order to backend API
  * Idempotent: uses amazonOrderId as key
  */
+function backendSubmissionConfig() {
+  const token = process.env.BACKEND_API_TOKEN?.trim();
+  if (!token || /[\r\n]/.test(token)) throw new Error('Backend submission is not configured');
+  if (backendApiUrl !== backendApiUrl.trim()) throw new Error('Invalid backend intake destination');
+  const base = new URL(backendApiUrl);
+  const permitted = base.origin === 'https://admin.littleherolabs.com' || base.origin === 'http://localhost:3000';
+  if (!permitted || base.username || base.password || base.pathname !== '/' || base.search || base.hash) {
+    throw new Error('Invalid backend intake destination');
+  }
+  const destination = new URL('/api/amazon/orders', base);
+  if (destination.origin !== base.origin || destination.pathname !== '/api/amazon/orders') {
+    throw new Error('Invalid backend intake destination');
+  }
+  return { destination: destination.href, token };
+}
+
 async function postOrderToBackend(normalizedOrder) {
   try {
-    const response = await fetch(`${backendApiUrl}/api/amazon/orders`, {
+    const { destination, token } = backendSubmissionConfig();
+    const response = await fetch(destination, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(normalizedOrder),
+      redirect: 'error',
     });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Backend API failed (${response.status}): ${errorText}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('[Amazon Middleware] Failed to POST order to backend:', error.message);
-    throw error;
+    if (!response.ok || ![200, 201].includes(response.status)) throw new Error('Backend intake refused submission');
+    const acknowledgement = await response.json();
+    if (!acknowledgement || acknowledgement.success !== true) throw new Error('Invalid backend intake acknowledgement');
+    return { success: true };
+  } catch {
+    console.error('[Amazon Middleware] Backend submission failed');
+    throw new Error('Backend submission failed');
   }
 }
 
@@ -583,37 +586,15 @@ app.post('/orders/:orderId/process', async (req, res) => {
     );
     const order = orderResult.payload;
 
-    // 2. Get order items
-    let orderItems = [];
-    try {
-      const itemsResult = await makeSPAPIRequest(
-        'GET',
-        `/orders/v0/orders/${orderId}/orderItems`,
-        {},
-        null,
-        querySandbox === 'true'
-      );
-      orderItems = itemsResult.payload?.OrderItems || [];
-    } catch (error) {
-      console.warn(`[Amazon Middleware] Could not fetch order items: ${error.message}`);
-      // Continue without items
-    }
+    // 2. Retain complete item responses. A failed or paginated read cannot become an empty order.
+    const itemsResult = await makeSPAPIRequest('GET', `/orders/v0/orders/${orderId}/orderItems`, {}, null, querySandbox === 'true');
+    const itemPayload = readCompleteOrderItemResponse(itemsResult, orderId);
+    const orderItems = itemPayload.OrderItems;
 
-    // 3. Get order items buyer info (for customizations)
-    let itemsBuyerInfo = null;
-    try {
-      const itemsBuyerResult = await makeSPAPIRequest(
-        'GET',
-        `/orders/v0/orders/${orderId}/orderItems/buyerInfo`,
-        {},
-        null,
-        querySandbox === 'true'
-      );
-      itemsBuyerInfo = itemsBuyerResult.payload;
-    } catch (error) {
-      console.warn(`[Amazon Middleware] Could not fetch items buyer info: ${error.message}`);
-      // Continue without buyer info
-    }
+    // 3. Buyer customization ZIP pointers join by OrderItemId in backend intake.
+    const itemsBuyerResult = await makeSPAPIRequest('GET', `/orders/v0/orders/${orderId}/orderItems/buyerInfo`, {}, null, querySandbox === 'true');
+    const itemsBuyerInfo = readCompleteOrderItemResponse(itemsBuyerResult, orderId);
+    const itemResponses = { requestedOrderId: orderId, items: itemsResult, buyerInfo: itemsBuyerResult };
 
     // 4. Get order buyer info (PII)
     let buyerInfo = null;
@@ -649,7 +630,7 @@ app.post('/orders/:orderId/process', async (req, res) => {
     }
 
     // 6. Normalize order data
-    const normalizedOrder = normalizeOrderPayload(order, orderItems, buyerInfo, shippingAddress);
+    const normalizedOrder = normalizeOrderPayload(order, orderItems, buyerInfo, shippingAddress, itemsBuyerInfo, itemResponses);
 
     // 7. POST to backend API (idempotent)
     const backendResult = await postOrderToBackend(normalizedOrder);
@@ -657,15 +638,15 @@ app.post('/orders/:orderId/process', async (req, res) => {
     res.json({
       success: true,
       orderId,
-      normalized: normalizedOrder,
+      normalized: normalizationForCaller(normalizedOrder),
       backendResponse: backendResult,
       processedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error(`[Amazon Middleware] Error processing order ${req.params.orderId}:`, error.message);
+    console.error('[Amazon Middleware] Order processing failed');
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: 'Order processing failed',
       orderId: req.params.orderId,
       timestamp: new Date().toISOString(),
     });

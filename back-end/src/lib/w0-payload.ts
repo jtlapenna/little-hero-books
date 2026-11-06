@@ -1,3 +1,9 @@
+import { isDeepStrictEqual } from 'node:util';
+import { calculateCharacterHash } from './character-hash';
+import { calculateSiblingCharacterHash } from './sibling-order-helpers';
+import { assertCsvItemBookTuple, csvRowHasItemBookSelections, validateCsvItemBookRow } from './csv-book-selection';
+import { getPerBookOrderId, getRootOrderId } from './sibling-print-policy';
+
 /**
  * Build W0 webhook payload for D2C orders.
  * Shape matches Amazon path (n8n W0) but omits amazon_order_id and marketplaceId.
@@ -29,7 +35,7 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
   const formatId = trimToString(productInfo?.formatId) ?? trimToString(productInfo?.format_id);
   const configVersion = productInfo?.configVersion;
   const pinnedVersion = bookId === 'book-finding-our-inner-voice' && typeof configVersion === 'number' &&
-    Number.isSafeInteger(configVersion) && configVersion >= 2 ? configVersion : undefined;
+    Number.isSafeInteger(configVersion) && configVersion >= 1 ? configVersion : undefined;
 
   const bookSpecs = productInfo?.totalPages != null
     ? {
@@ -80,4 +86,151 @@ export function buildD2CW0Payload(order: Record<string, unknown>): Record<string
     characterHash: characterHash ?? '',
     character_hash: characterHash ?? '',
   };
+}
+
+
+/** Recover the persisted per-book intake without inferring platform from compatibility IDs. */
+export function buildPendingW0Payload(order: Record<string, unknown>): Record<string, unknown> {
+  const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
+  const platform = order.platform == null ? 'd2c' : order.platform;
+  if (platform !== 'd2c' && platform !== 'amazon') throw new Error('Unsupported pending W0 platform');
+  const orderId = getPerBookOrderId(order);
+  if ((!text(order.orderId) && !text(order.order_id)) || !orderId || (text(order.orderId) && text(order.order_id) && text(order.orderId) !== text(order.order_id))) throw new Error('Invalid pending W0 per-book identity');
+  const payload = buildD2CW0Payload(order);
+  payload.orderId = orderId; payload.id = orderId;
+  const rootOrderId = getRootOrderId(order);
+  if (rootOrderId) { payload.rootOrderId = rootOrderId; payload.root_order_id = rootOrderId; }
+  const rawInfo = order.product_info ?? order.productInfo;
+  const info = object(rawInfo) ? rawInfo : {};
+  const candidates = [order.book_specs, order.bookSpecs, info.book_specs, info.bookSpecs];
+  for (const candidate of candidates) if (candidate != null && !object(candidate)) throw new Error('Invalid pending W0 book specs');
+  const stored = candidates.filter((value): value is Record<string, unknown> => object(value) && Object.keys(value).length > 0);
+  if (stored.length) {
+    const specs = stored[0];
+    if (stored.some(value => !isDeepStrictEqual(value, specs))) throw new Error('Conflicting pending W0 book specs');
+    if (specs.channel != null && specs.channel !== platform) throw new Error('Conflicting pending W0 platform');
+    for (const [key, aliases] of [['bookId', ['bookId', 'book_id']], ['formatId', ['formatId', 'format_id']], ['configVersion', ['configVersion']]] as const) {
+      const value = specs[key];
+      if (value == null) continue;
+      if (key === 'configVersion' ? !(typeof value === 'number' && Number.isSafeInteger(value) && value >= 1) : !(typeof value === 'string' && value.length > 0 && value === value.trim())) throw new Error('Invalid pending W0 frozen selection');
+      for (const alias of aliases) if (info[alias] != null && info[alias] !== value) throw new Error('Conflicting pending W0 frozen selection');
+      for (const alias of aliases) payload[alias] = value;
+    }
+    for (const key of ['title', 'totalPages', 'format', 'bookType']) if (info[key] != null && specs[key] != null && info[key] !== specs[key]) throw new Error('Conflicting pending W0 book metadata');
+    payload.bookSpecs = { ...specs }; payload.book_specs = payload.bookSpecs;
+  }
+  if (payload.bookId != null && payload.bookId !== 'book-mvp-simple-adventure') {
+    if (!(text(payload.bookId) && text(payload.formatId) && typeof payload.configVersion === 'number' && Number.isSafeInteger(payload.configVersion) && payload.configVersion >= 1)) throw new Error('Incomplete pending W0 frozen selection');
+  }
+  const selectionSources = [info, ...stored];
+  const selectorAliases = {
+    bookId: ['bookId', 'book_id', 'project', 'print_book_id', 'printBookId'],
+    formatId: ['formatId', 'format_id', 'print_format_id', 'printFormatId'],
+    configVersion: ['configVersion', 'config_version', 'version', 'print_config_version', 'printConfigVersion'],
+  };
+  const configuredInnerVoice = payload.bookId === 'book-finding-our-inner-voice' ||
+    selectionSources.some(source => selectorAliases.bookId.some(alias => typeof source[alias] === 'string' && (source[alias] as string).trim() === 'book-finding-our-inner-voice'));
+  if (configuredInnerVoice) {
+    if (rawInfo != null && !object(rawInfo)) throw new Error('Invalid pending W0 product info');
+    for (const candidate of [order.bookSpecs, order.productInfo, info.book_specs, info.bookSpecs]) {
+      if (candidate !== undefined && !object(candidate)) throw new Error('Invalid pending W0 JSON book context');
+    }
+    if (payload.bookId !== 'book-finding-our-inner-voice') throw new Error('Conflicting pending W0 frozen selection');
+    for (const [key, aliases] of Object.entries(selectorAliases)) {
+      for (const source of selectionSources) {
+        for (const alias of aliases) {
+          if (Object.hasOwn(source, alias) && source[alias] !== undefined && source[alias] !== payload[key]) {
+            throw new Error('Conflicting pending W0 frozen selection');
+          }
+        }
+      }
+    }
+    const originalSpecs = order.character_specs ?? order.characterSpecs;
+    if (!object(originalSpecs) || Object.keys(originalSpecs).length === 0) throw new Error('Missing or invalid pending W0 original character specs');
+    for (const key of ['character_specs', 'characterSpecs']) {
+      if (Object.hasOwn(order, key) && !isDeepStrictEqual(order[key], originalSpecs)) throw new Error('Conflicting pending W0 original character specs');
+    }
+    const originalHash = order.character_hash ?? order.characterHash;
+    if (typeof originalHash !== 'string' || originalHash !== calculateCharacterHash(originalSpecs, orderId)) {
+      throw new Error('Invalid pending W0 original order-scoped character hash');
+    }
+    for (const key of ['character_hash', 'characterHash']) {
+      if (Object.hasOwn(order, key) && order[key] !== originalHash) throw new Error('Conflicting pending W0 original character hash');
+    }
+  }
+  if (csvRowHasItemBookSelections(order)) {
+    if (platform !== 'amazon' || !object(rawInfo)) throw new Error('Mixed pending W0 requires Amazon product context');
+    const tuple = { bookId: payload.bookId, formatId: payload.formatId, configVersion: payload.configVersion };
+    assertCsvItemBookTuple(tuple);
+    if (!validateCsvItemBookRow(order, tuple)) throw new Error('Missing mixed pending W0 canonical context');
+    const originalSpecs = order.character_specs;
+    if (!object(originalSpecs) || !Object.keys(originalSpecs).length) throw new Error('Missing mixed pending W0 original specs');
+    for (const key of ['character_specs', 'characterSpecs', 'CharacterSpecs']) {
+      if (Object.hasOwn(order, key) && !isDeepStrictEqual(order[key], originalSpecs)) throw new Error('Conflicting mixed pending W0 original specs');
+    }
+    const originalHash = order.character_hash;
+    const expectedHash = tuple.bookId === 'book-finding-our-inner-voice'
+      ? calculateCharacterHash(originalSpecs, orderId) : calculateSiblingCharacterHash(originalSpecs);
+    if (typeof originalHash !== 'string' || originalHash !== expectedHash ||
+        (Object.hasOwn(order, 'characterHash') && order.characterHash !== originalHash)) throw new Error('Invalid mixed pending W0 original hash');
+    if (order.dedication_text != null && order.dedication_text !== originalSpecs.dedication) throw new Error('Conflicting mixed pending W0 dedication');
+  }
+  if (info.line_items != null) {
+    if (!Array.isArray(info.line_items)) throw new Error('Invalid pending W0 line items');
+    payload.items = info.line_items;
+  }
+  if (info.line_item != null) {
+    if (!object(info.line_item)) throw new Error('Invalid pending W0 line item');
+    payload.lineItem = info.line_item; payload.line_item = info.line_item;
+  }
+  const unitIndex = info._quantity_unit_index, unitCount = info._quantity_unit_count;
+  if (unitIndex != null || unitCount != null) {
+    if (!(typeof unitIndex === 'number' && Number.isSafeInteger(unitIndex) && unitIndex >= 1 && typeof unitCount === 'number' && Number.isSafeInteger(unitCount) && unitCount >= unitIndex)) throw new Error('Invalid pending W0 quantity identity');
+    payload.unitIndex = unitIndex; payload.unitCount = unitCount;
+  }
+  if (platform === 'amazon') {
+    const marketplaceId = text(order.marketplace_id);
+    if (!rootOrderId || !marketplaceId || (text(order.root_order_id) && text(order.amazon_order_id) && text(order.root_order_id) !== text(order.amazon_order_id))) throw new Error('Missing or conflicting pending W0 Amazon identity');
+    payload.amazonOrderId = rootOrderId; payload.marketplaceId = marketplaceId;
+  }
+  return payload;
+}
+
+/** Automatic Amazon recovery requires a stored book assignment, never workflow defaults. */
+export function buildSelectedAmazonPendingW0Payload(order: Record<string, unknown>): Record<string, unknown> {
+  const payload = buildPendingW0Payload(order);
+  const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const info: Record<string, unknown> = object(order.product_info ?? order.productInfo) ? (order.product_info ?? order.productInfo) as Record<string, unknown> : {};
+  const tuple = { bookId: payload.bookId, formatId: payload.formatId, configVersion: payload.configVersion };
+  const stored = [order.book_specs, order.bookSpecs, info.book_specs, info.bookSpecs, info];
+  const explicit = stored.some(value => object(value) && ['bookId', 'formatId', 'configVersion'].every(key =>
+    Object.hasOwn(value, key) && value[key] === tuple[key as keyof typeof tuple]));
+  const hold = () => { throw new Error('Unclassified Amazon intake requires authenticated operator assignment'); };
+  if (order.platform !== 'amazon' || !explicit) hold();
+  try { assertCsvItemBookTuple(tuple); } catch { hold(); }
+  const aliases = {
+    bookId: ['bookId', 'book_id', 'project', 'print_book_id', 'printBookId'],
+    formatId: ['formatId', 'format_id', 'print_format_id', 'printFormatId'],
+    configVersion: ['configVersion', 'config_version', 'version', 'print_config_version', 'printConfigVersion'],
+  };
+  const nullable = new Set(['book_id', 'project', 'print_book_id', 'print_format_id', 'print_config_version']);
+  if (order.product_info !== undefined && order.productInfo !== undefined && !isDeepStrictEqual(order.product_info, order.productInfo)) {
+    throw new Error('Conflicting stored Amazon book assignment');
+  }
+  for (const source of [order, ...stored.filter(object)]) for (const [key, names] of Object.entries(aliases)) for (const name of names) {
+    if (Object.hasOwn(source, name) && source[name] !== undefined && !(source === order && nullable.has(name) && source[name] === null) &&
+        source[name] !== tuple[key as keyof typeof tuple]) throw new Error('Conflicting stored Amazon book assignment');
+  }
+  const specs = order.character_specs, hash = order.character_hash;
+  if (!object(specs) || !Object.keys(specs).length || typeof hash !== 'string' || !hash || hash !== hash.trim()) {
+    throw new Error('Missing original Amazon intake context');
+  }
+  for (const key of ['character_specs', 'characterSpecs', 'CharacterSpecs']) {
+    if (Object.hasOwn(order, key) && !isDeepStrictEqual(order[key], specs)) throw new Error('Conflicting original Amazon intake specs');
+  }
+  for (const key of ['character_hash', 'characterHash']) {
+    if (Object.hasOwn(order, key) && order[key] !== hash) throw new Error('Conflicting original Amazon intake hash');
+  }
+  return payload;
 }

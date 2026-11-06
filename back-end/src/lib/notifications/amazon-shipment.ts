@@ -12,6 +12,8 @@ import {
   resolveAmazonOrderId,
 } from '@/lib/amazon-sp-api';
 import { z } from 'zod';
+import { isOvernightTestOrder, lookupOvernightTestOrder, OVERNIGHT_TEST_SKIP_MESSAGE } from '@/lib/messaging/test-order-guard';
+import { supabase } from '@/lib/supabase-client';
 
 export const ExactAmazonPackageSchema = z.object({
   packageReferenceId: z.string().regex(/^[1-9]\d*$/), shipDate: z.string().datetime({ offset: true }),
@@ -102,9 +104,14 @@ export interface ConfirmShipmentParams {
 export interface ConfirmShipmentResult {
   success: boolean;
   error?: string;
+  skipped?: boolean;
 }
 
 export async function confirmAmazonShipment(params: ConfirmShipmentParams): Promise<ConfirmShipmentResult> {
+  // Backstop: shipment confirmation is buyer-visible on Amazon; never for a marked overnight test order.
+  if (isOvernightTestOrder(params.order) || await lookupOvernightTestOrder(supabase, { amazonOrderId: params.amazonOrderId })) {
+    return { success: false, skipped: true, error: OVERNIGHT_TEST_SKIP_MESSAGE };
+  }
   const cfgResult = getAmazonSpApiConfig();
   if (!cfgResult.ok) return { success: false, error: cfgResult.error };
   const config = cfgResult.config;

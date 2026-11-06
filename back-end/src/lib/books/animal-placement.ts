@@ -1,5 +1,5 @@
+import { bookPlacementOverrideSchema } from './book-placement-override';
 import {
-  BookCharacterPlacementEntrySchema,
   type BookCharacterPlacementEntry,
   type BookConfig,
 } from '@/lib/books/types';
@@ -20,17 +20,18 @@ function normalizeStoryPageKey(value: string): number | null {
   return parsed;
 }
 
-function cloneEntry(entry: BookCharacterPlacementEntry): BookCharacterPlacementEntry {
+function cloneEntry(entry: BookCharacterPlacementEntry, preserveAnchors = false): BookCharacterPlacementEntry {
   return {
     left: entry.left,
     top: entry.top,
     width: entry.width,
     rotateDeg: entry.rotateDeg,
     zIndex: entry.zIndex,
+    ...(preserveAnchors ? { anchorXPercent: entry.anchorXPercent, anchorYPercent: entry.anchorYPercent } : {}),
   };
 }
 
-export function parseAnimalPlacementOverride(value: unknown): BookAnimalPlacementMap {
+export function parseAnimalPlacementOverride(value: unknown, renderingSchema?: string): BookAnimalPlacementMap {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
@@ -42,12 +43,15 @@ export function parseAnimalPlacementOverride(value: unknown): BookAnimalPlacemen
       continue;
     }
 
-    const parsed = BookCharacterPlacementEntrySchema.safeParse(rawEntry);
+    const v3 = renderingSchema === 'lhb.book-render@v3';
+    const schema = bookPlacementOverrideSchema(renderingSchema);
+    const parsed = schema.safeParse(rawEntry);
+    if (v3 && !parsed.success) throw new Error('Invalid configured placement override');
     if (!parsed.success) {
       continue;
     }
 
-    overrides[storyPageNumber] = cloneEntry(parsed.data);
+    overrides[storyPageNumber] = cloneEntry(parsed.data, v3);
   }
 
   return overrides;
@@ -59,13 +63,14 @@ export function resolveBookAnimalPlacementMap(
 ): BookAnimalPlacementMap {
   const defaults = parseAnimalPlacementOverride(
     config.rendering.animalPlacement.defaultByStoryPage,
+    config.rendering.recipe?.schema,
   );
   const formatOverrides =
     (formatId && config.rendering.animalPlacement.overridesByFormat[formatId]) || {};
 
   return {
     ...defaults,
-    ...parseAnimalPlacementOverride(formatOverrides),
+    ...parseAnimalPlacementOverride(formatOverrides, config.rendering.recipe?.schema),
   };
 }
 

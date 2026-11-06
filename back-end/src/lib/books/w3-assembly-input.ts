@@ -1,3 +1,5 @@
+import { isHistoricalBookConfigRef, stableBookValue } from './book-legacy-compatibility';
+import { inspectWorkflowBookIdentity, assertWorkflowMatchesW0, workflowBookContexts } from './workflow-book-identity';
 import { parseW3PageSelection } from './w3-page-selection';
 import { validateRenderSnapshot, snapshotPoseReferenceKeys, pagePoseNumbers, coverPoseNumbers } from './book-render-recipe';
 import type { BookSnapshotFields } from './book-snapshot';
@@ -912,18 +914,206 @@ export async function buildW3AssemblyInput(
   );
   if (normalizedOneManifest?.renderSnapshot) validateRenderSnapshot(normalizedOneManifest.renderSnapshot, { bookId: bookState.bookId, formatId: bookState.formatId, version: toInteger(primary.configVersion ?? nested.configVersion ?? orderContext.configVersion) });
   if (!normalizedOneManifest?.renderSnapshot) {
-    let knownLegacy = false;
-    try { knownLegacy = !loadBundledBookConfig({ bookId: bookState.bookId }).rendering.recipe; } catch { /* Unregistered books require intake provenance. */ }
-    if (!knownLegacy && !normalizedOneManifest) throw new Error('Configured or unknown book requires its frozen W0 snapshot');
-    if (normalizedOneManifest) {
-      try {
-        if (loadBundledBookConfig({ bookId: bookState.bookId }).rendering.recipe) throw new Error('Configured W0 manifest has no render snapshot');
-      } catch (error) {
-        if (!(error instanceof Error) || !error.message.startsWith('Unknown bundled book config:')) throw error;
-      }
+    const declaredSelections = [inspectWorkflowBookIdentity(primary), inspectWorkflowBookIdentity(nested)];
+    if (declaredSelections.some(selection => selection.snapshots.length)) throw new Error('Configured W3 request requires its original frozen W0 manifest');
+    for (const selection of declaredSelections) {
+      if (selection.bookId && selection.bookId !== bookState.bookId) throw new Error('W3 requested book conflicts with selected W0');
+    }
+    const versions = [...declaredSelections.map(selection => selection.version), normalizedOneManifest?.configVersion]
+      .filter((value): value is number => value !== undefined);
+    if (new Set(versions).size > 1) throw new Error('Conflicting W3 configVersion identity');
+    let selected;
+    try { selected = loadBundledBookConfig({ bookId: bookState.bookId, version: versions[0] }); }
+    catch (error) {
+      if (error instanceof Error && error.message.startsWith('Unknown bundled book config:')) throw new Error('Configured or unknown book requires its frozen W0 snapshot');
+      throw error;
+    }
+    const selectedFormat = bookState.formatId ?? selected.defaultFormatId;
+    for (const selection of declaredSelections) if (selection.formatId && selection.formatId !== selectedFormat) throw new Error('W3 requested format conflicts with selected W0');
+    if (!selected.formats[selectedFormat]) throw new Error(`Unknown configured format ${selectedFormat}`);
+    if (selected.rendering.recipe || !isHistoricalBookConfigRef({ bookId: selected.bookId, version: selected.version, formatId: selectedFormat })) {
+      throw new Error('Configured or unknown book requires its frozen W0 snapshot');
     }
   }
   const renderSnapshot = normalizedOneManifest?.renderSnapshot;
+  if (renderSnapshot) {
+    const frozen = normalizedOneManifest!;
+    const frozenHash = frozen.characterHash;
+    if (!frozenHash) throw new Error('W3 configured rendering requires a frozen W0 character identity');
+    const declared = (value: unknown, expected: string, label: string) => {
+      if (value === undefined || value === null || value === '') return;
+      if (typeof value !== 'string' || !value.trim() || value.trim() !== expected) throw new Error(`W3 ${label} conflicts with frozen W0`);
+    };
+    const prefix = renderSnapshot.bookConfig.assets.generated.orderPrefix.replaceAll('{orderId}', frozen.orderId!);
+    const expectedW0Key = buildManifestKeyFromOrderPrefix(prefix, '1');
+    if (explicitOrderPrefix !== undefined && explicitOrderPrefix !== prefix) throw new Error('W3 order prefix conflicts with frozen W0');
+    if (loadedOneManifest.manifestKey !== expectedW0Key) throw new Error('W3 selected W0 manifest key conflicts with frozen W0');
+    if (loaded2B.manifestKey !== buildManifestKeyFromOrderPrefix(prefix, '2b')) throw new Error('W3 selected W2B manifest key conflicts with frozen W0');
+    for (const carrier of [primary, nested]) {
+      const selection = inspectWorkflowBookIdentity(carrier);
+      assertWorkflowMatchesW0({ ...selection, orderId: selection.orderId ?? explicitOrderId }, frozen,
+        loadedOneManifest.manifest, expectedW0Key, 'W3');
+      for (const context of workflowBookContexts(carrier)) {
+        for (const field of ['orderId', 'order_id']) declared(context[field], frozen.orderId!, 'child order identity');
+        for (const field of ['bookId', 'book_id']) declared(context[field], frozen.bookId!, 'book identity');
+        for (const field of ['formatId', 'format_id']) declared(context[field], frozen.formatId!, 'format identity');
+        for (const field of ['rootOrderId', 'root_order_id']) declared(context[field], frozen.rootOrderId!, 'root order identity');
+        for (const field of ['amazonOrderId', 'amazon_order_id']) {
+          if (context[field] !== undefined && context[field] !== null && context[field] !== '') declared(context[field], frozen.amazonOrderId ?? '', 'Amazon root identity');
+        }
+        for (const field of ['characterHash', 'character_hash']) declared(context[field], frozenHash, 'character identity');
+        for (const field of ['characterSpecs', 'character_specs']) {
+          const value = context[field];
+          if (value === undefined || value === null || value === '') continue;
+          if (!isRecord(value) || Object.keys(value).length && stableBookValue(value) !== stableBookValue(frozen.characterSpecs)) throw new Error('W3 character specs conflict with frozen W0');
+        }
+      }
+    }
+    declared(identity.characterHash, frozenHash, 'character identity');
+    const currentOrder = pickJsonRecord(loaded2B.manifest.order);
+    // Reused manifests may retain a source orderId only at the top level.
+    declared(currentOrder.orderId ?? loaded2B.manifest.orderId, frozen.orderId!, 'W2B child order identity');
+    for (const context of [loaded2B.manifest, currentOrder]) {
+      declared(context.characterHash, frozenHash, 'W2B character identity');
+      declared(context.bookId, frozen.bookId!, 'W2B book identity');
+      declared(context.formatId, frozen.formatId!, 'W2B format identity');
+      if (context.configVersion !== undefined && Number(context.configVersion) !== frozen.configVersion) throw new Error('W3 W2B configVersion conflicts with frozen W0');
+    }
+    const required = new Set([...bookState.requiredPoseNumbers,
+      ...renderSnapshot.bookConfig.formats[renderSnapshot.formatId].interior.pageSequence.flatMap(pagePoseNumbers),
+      ...coverPoseNumbers(renderSnapshot.bookConfig.rendering.recipe!.covers[renderSnapshot.formatId].layers)]);
+    const allowed = new Set([0, ...Object.values(renderSnapshot.bookConfig.rendering.recipe!.poses).map(pose => pose.poseNumber)]);
+    const seen = new Set<number>();
+    for (const entry of loaded2B.manifest.entries) {
+      const number = typeof entry.poseNumber === 'string' && /^\d+$/.test(entry.poseNumber.trim()) ? Number(entry.poseNumber.trim()) : entry.poseNumber;
+      if (typeof number !== 'number' || !Number.isSafeInteger(number) || !allowed.has(number) || seen.has(number)) throw new Error('W3 configured pose identity is invalid or duplicated');
+      seen.add(number);
+      declared(entry.characterHash, frozenHash, 'pose character identity');
+      if (required.has(number) && !toTrimmedString(entry.bgRemovedKey)) throw new Error(`W3 configured required pose ${number} has no background-removed asset`);
+      if (entry.bgRemovedKey !== undefined && entry.bgRemovedKey !== null && entry.bgRemovedKey !== '' && entry.bgRemovedKey !== buildBgRemovedPoseAssetKey(frozenHash, number, frozen.bookId!)) {
+        // Same fail-closed rejection; the message names which identity failed.
+        const otherPoseKey = [...allowed].some(candidate => candidate !== number && entry.bgRemovedKey === buildBgRemovedPoseAssetKey(frozenHash, candidate, frozen.bookId!));
+        throw new Error(otherPoseKey
+          ? 'W3 configured pose identity conflicts with manifest entry: background-removed key belongs to another pose'
+          : 'W3 configured pose key character identity is unverified or conflicts with frozen W0');
+      }
+      for (const value of [entry.approvedKey, entry.sourceApprovedKey]) {
+        const key = toTrimmedString(value);
+        if (key && (!key.startsWith(`${frozen.bookId}/order-generated-assets/characters/${frozenHash}/`) || key.split('/').some(part => part === '.' || part === '..'))) throw new Error('W3 configured source pose key conflicts with frozen W0');
+        const generated = key?.match(/\/poses\/pose(\d{2})(?:_r\d+|_TRY\d+)?\.png$/i);
+        const backgroundRemoved = key?.match(/\/characters_[^/]+_pose(\d{2})_nobg\.png$/);
+        if (generated && Number(generated[1]) !== number || backgroundRemoved && key !== buildBgRemovedPoseAssetKey(frozenHash, number, frozen.bookId!)) throw new Error('W3 configured source pose identity conflicts with manifest entry');
+      }
+    }
+    // Missing zero uses the existing canonical book/hash fallback; explicit entries remain checked above.
+    for (const number of required) if (number !== 0 && !seen.has(number)) throw new Error(`W3 configured required pose ${number} is missing from the manifest`);
+  }
+  if (!renderSnapshot) {
+    const manifestOrder = pickJsonRecord(loaded2B.manifest.order);
+    // A reused 2B manifest rewrites order.orderId, but may retain the source
+    // orderId at the top level. Do not confuse that with the current order.
+    const manifestOrderId = toTrimmedString(manifestOrder.orderId) ?? toTrimmedString(loaded2B.manifest.orderId);
+    const primaryOrderData = pickJsonRecord(primary.orderData);
+    const nestedOrderData = pickJsonRecord(nested.orderData);
+    for (const value of [explicitOrderId, primary.orderId, primary.order_id, nested.orderId, nested.order_id,
+      primaryOrderData.orderId, primaryOrderData.order_id, nestedOrderData.orderId, nestedOrderData.order_id,
+      orderContext.orderId, orderContext.order_id, normalizedOneManifest?.orderId, manifestOrderId]) {
+      const declared = toTrimmedString(value);
+      if (declared && declared !== identity.orderId) throw new Error('W3 legacy order identity conflicts with sibling manifest');
+    }
+    const expectedHash = normalizedOneManifest?.characterHash ?? identity.characterHash;
+    const rawW0 = pickJsonRecord(loadedOneManifest.manifest);
+    const rawW0Order = pickJsonRecord(rawW0.order);
+    for (const value of [identity.characterHash, primary.characterHash, nested.characterHash,
+      primaryOrderData.characterHash, nestedOrderData.characterHash, orderContext.characterHash,
+      loaded2B.manifest.characterHash, manifestOrder.characterHash, rawW0.characterHash, rawW0Order.characterHash]) {
+      const declared = toTrimmedString(value);
+      if (declared && declared !== expectedHash) throw new Error('W3 legacy character identity conflicts with W0');
+    }
+    for (const entry of loaded2B.manifest.entries) {
+      const entryHash = toTrimmedString(entry.characterHash);
+      if (entryHash && entryHash !== expectedHash) throw new Error('W3 legacy pose character identity conflicts with W0');
+      for (const value of [entry.bgRemovedKey, entry.approvedKey, entry.sourceApprovedKey]) {
+        const key = toTrimmedString(value);
+        const prefix = `${bookState.bookId}/order-generated-assets/characters/${expectedHash}/`;
+        if (key && (!key.startsWith(prefix) || key.length === prefix.length || key.split('/').some(part => part === '.' || part === '..'))) {
+          throw new Error('W3 legacy pose character identity conflicts with W0');
+        }
+      }
+    }
+  }
+  // Check every configured asset before normalization can write any of them.
+  // Repaired noncanonical keys need a separately verified ownership record.
+  if (renderSnapshot) {
+    const frozenHash = normalizedOneManifest?.characterHash;
+    if (!frozenHash) throw new Error('W3 configured rendering requires a frozen W0 character identity');
+    const recipe = renderSnapshot.bookConfig.rendering.recipe!;
+    const frozenPages = renderSnapshot.bookConfig.formats[renderSnapshot.formatId].interior.pageSequence;
+    const requiredPoses = new Set([
+      ...bookState.requiredPoseNumbers,
+      ...frozenPages.flatMap(pagePoseNumbers),
+      ...coverPoseNumbers(recipe.covers[renderSnapshot.formatId].layers),
+    ]);
+    const allowedPoses = new Set([
+      0,
+      ...requiredPoses,
+      ...Object.values(recipe.poses).map(pose => pose.poseNumber),
+    ]);
+    const manifestOrder = pickJsonRecord(loaded2B.manifest.order);
+    const primaryOrderData = pickJsonRecord(primary.orderData);
+    const nestedOrderData = pickJsonRecord(nested.orderData);
+    for (const value of [identity.characterHash, primary.characterHash, nested.characterHash,
+      primaryOrderData.characterHash, nestedOrderData.characterHash, orderContext.characterHash,
+      loaded2B.manifest.characterHash, manifestOrder.characterHash]) {
+      const declared = toTrimmedString(value);
+      if (declared && declared !== frozenHash) throw new Error('W3 character identity conflicts with frozen W0');
+    }
+    const seenPoseNumbers = new Set<number>();
+    for (const entry of loaded2B.manifest.entries) {
+      const rawPoseNumber = entry.poseNumber;
+      const entryPoseNumber = typeof rawPoseNumber === 'number' ? rawPoseNumber :
+        typeof rawPoseNumber === 'string' && /^\d+$/.test(rawPoseNumber.trim()) ? Number(rawPoseNumber.trim()) : NaN;
+      if (!Number.isInteger(entryPoseNumber) || !allowedPoses.has(entryPoseNumber)) {
+        throw new Error('Invalid or unknown W3 configured pose entry');
+      }
+      if (seenPoseNumbers.has(entryPoseNumber)) throw new Error('Duplicate W3 configured pose entry');
+      seenPoseNumbers.add(entryPoseNumber);
+      const entryCharacter = toTrimmedString(entry.characterHash);
+      if (entryCharacter && entryCharacter !== frozenHash) {
+        throw new Error('W3 pose character identity conflicts with frozen W0');
+      }
+      const bgRemovedKey = toTrimmedString(entry.bgRemovedKey);
+      if (requiredPoses.has(entryPoseNumber) && !bgRemovedKey) {
+        throw new Error(`W3 configured required pose ${entryPoseNumber} has no background-removed asset`);
+      }
+      if (bgRemovedKey && (entryPoseNumber === null || entryPoseNumber < 0 || entryPoseNumber > 99 ||
+          bgRemovedKey !== buildBgRemovedPoseAssetKey(frozenHash, entryPoseNumber, bookState.bookId))) {
+        throw new Error('W3 configured pose identity or character identity is unverified for background-removed key');
+      }
+      for (const value of [entry.bgRemovedKey, entry.approvedKey, entry.sourceApprovedKey]) {
+        const key = toTrimmedString(value);
+        const match = key?.match(/^([^/]+)\/order-generated-assets\/characters\/([^/]+)\//);
+        if (match && (match[1] !== bookState.bookId || match[2] !== frozenHash)) {
+          throw new Error('W3 pose character identity conflicts with frozen W0');
+        }
+        const poseFile = key?.match(/\/characters_[^/]+_pose(\d{2})_nobg\.png$/);
+        const poseNumber = toInteger(entry.poseNumber);
+        if (match && poseFile && (poseNumber !== Number(poseFile[1]) ||
+          key !== buildBgRemovedPoseAssetKey(frozenHash, poseNumber, bookState.bookId))) {
+          throw new Error('W3 pose identity conflicts with manifest entry');
+        }
+        const generatedPoseFile = key?.match(/\/poses\/pose(\d{2})(?:_r\d+|_TRY\d+)?\.png$/i);
+        if (match && generatedPoseFile && poseNumber !== Number(generatedPoseFile[1])) {
+          throw new Error('W3 generated pose identity conflicts with manifest entry');
+        }
+      }
+    }
+    for (const poseNumber of requiredPoses) {
+      if (poseNumber !== 0 && !seenPoseNumbers.has(poseNumber)) {
+        throw new Error(`W3 configured required pose ${poseNumber} is missing from the manifest`);
+      }
+    }
+  }
   const referenceKeys = renderSnapshot ? snapshotPoseReferenceKeys(renderSnapshot) : undefined;
   const usedZero = renderSnapshot ? [...bookState.pagePlan.flatMap(pagePoseNumbers), ...coverPoseNumbers(renderSnapshot.bookConfig.rendering.recipe!.covers[renderSnapshot.formatId].layers)].includes(0) : true;
   const orderPrefixResolved = resolveOrderPathContext(identity.orderId, {

@@ -8,6 +8,7 @@ import {
 import { buildW2ABaseInput } from '@/lib/books/w2a-base-input';
 import { buildW3AssemblyInput } from '@/lib/books/w3-assembly-input';
 import { resolvePagePlan } from '@/lib/books/resolve-page-plan';
+import { buildBgRemovedPoseAssetKey, buildGeneratedPoseAssetKey } from '@/lib/order-paths';
 import type { BookConfig, RunManifestV3 } from '@/lib/books/types';
 import { supabase } from '@/lib/supabase-client';
 
@@ -185,8 +186,8 @@ function buildRepresentative2BManifest(
     orderId,
     entries: requiredPoseNumbers.map((poseNumber) => ({
       poseNumber,
-      approvedKey: `${config.bookId}/integrity/${orderId}/poses/pose-${poseNumber}.png`,
-      bgRemovedKey: `${config.bookId}/integrity/${orderId}/poses/pose-${poseNumber}-bg.png`,
+      approvedKey: buildGeneratedPoseAssetKey('integrityhash001', poseNumber, config.bookId),
+      bgRemovedKey: buildBgRemovedPoseAssetKey('integrityhash001', poseNumber, config.bookId),
       briaStatus: 'completed',
     })),
   };

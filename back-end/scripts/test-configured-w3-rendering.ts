@@ -1,3 +1,4 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from "node:assert/strict";
 import { configuredBookFixture } from "./configured-book-fixture";
 import { buildW0RunManifestFromConfig } from "../src/lib/books/build-run-manifest";
@@ -55,7 +56,7 @@ async function main() {
       order: { orderId, bookId: config.bookId },
       entries: [13, 17, 18].map((poseNumber) => ({
         poseNumber,
-        bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png`,
+        bgRemovedKey: buildBgRemovedPoseAssetKey('testhash', poseNumber, config.bookId),
       })),
     };
     const assembly = await buildW3AssemblyInput(
@@ -86,17 +87,17 @@ async function main() {
       "Personalization must be escaped once",
     );
     assert.ok(
-      result.pages_html.includes("/generated/pose13.png"),
+      result.pages_html.includes(buildBgRemovedPoseAssetKey('testhash', 13, config.bookId)),
       "Configured slots above 12 must render",
     );
     assert.ok(
-      result.pages_html.includes("/generated/pose17.png"),
+      result.pages_html.includes(buildBgRemovedPoseAssetKey('testhash', 17, config.bookId)),
       "Secondary character layer must render",
     );
     assert.ok(result.pages_html.includes("/overlays/waiting.png"));
     assert.ok(result.pages_html.includes("/animals/owl/portrait.png"));
     assert.ok(
-      result.coverPreviewItem.coverHTML.includes("/generated/pose18.png"),
+      result.coverPreviewItem.coverHTML.includes(buildBgRemovedPoseAssetKey('testhash', 18, config.bookId)),
     );
     assert.deepEqual(
       result.pagePreviewItems.map((item) => item.pageNumber),

@@ -8,10 +8,11 @@ import { customerRevisionsRemaining } from '@/lib/customer-corrections';
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getActivePreviewToken } from '@/lib/preview-tokens';
-import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
-import { sendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
-import { updateOrderInSupabase } from '@/lib/supabase-client';
+import { getActivePreviewToken as realGetActivePreviewToken } from '@/lib/preview-tokens';
+import { sendAmazonPreviewMessage as realSendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
+import { sendD2CPreviewEmail as realSendD2CPreviewEmail } from '@/lib/notifications/d2c-email';
+import { updateOrderInSupabase as realUpdateOrderInSupabase } from '@/lib/supabase-client';
+import { isOvernightTestOrder, OVERNIGHT_TEST_SKIP_REASON } from '@/lib/messaging/test-order-guard';
 
 const REMINDER_HOURS_DAY_1 = 24;
 const REMINDER_HOURS_DAY_2 = 48;
@@ -42,10 +43,23 @@ function getChildName(row: any): string | undefined {
   return cs.childName ?? cs.child_name;
 }
 
+/** Injectable collaborators (defaults are the real ones); lets tests count send calls. */
+export interface PreviewReminderDependencies {
+  getActivePreviewToken: typeof realGetActivePreviewToken;
+  sendAmazonPreviewMessage: typeof realSendAmazonPreviewMessage;
+  sendD2CPreviewEmail: typeof realSendD2CPreviewEmail;
+  updateOrderInSupabase: typeof realUpdateOrderInSupabase;
+}
+
 export async function processPreviewReminders(
   supabase: SupabaseClient,
-  options?: { autoApprovalHours?: number }
+  options?: { autoApprovalHours?: number },
+  dependencies: Partial<PreviewReminderDependencies> = {}
 ): Promise<ProcessPreviewRemindersResult> {
+  const getActivePreviewToken = dependencies.getActivePreviewToken ?? realGetActivePreviewToken;
+  const sendAmazonPreviewMessage = dependencies.sendAmazonPreviewMessage ?? realSendAmazonPreviewMessage;
+  const sendD2CPreviewEmail = dependencies.sendD2CPreviewEmail ?? realSendD2CPreviewEmail;
+  const updateOrderInSupabase = dependencies.updateOrderInSupabase ?? realUpdateOrderInSupabase;
   const hoursFromEnv = parseInt(String(process.env.PREVIEW_AUTO_APPROVAL_HOURS || '72'), 10);
   const effectiveHours = Number.isFinite(options?.autoApprovalHours)
     ? options!.autoApprovalHours!
@@ -106,6 +120,14 @@ export async function processPreviewReminders(
     result.processed += 1;
     const requestedAt = row.customer_approval_requested_at;
     if (!requestedAt) continue;
+
+    // Marked overnight test orders never get a 24h/48h/72h message. Skip BEFORE any
+    // token/send/state write so preview_reminder_sent stays untouched and no retry is queued.
+    if (isOvernightTestOrder(row)) {
+      result.skipped += 1;
+      addSkipReason(OVERNIGHT_TEST_SKIP_REASON);
+      continue;
+    }
 
     // Purpose: never send reminders for already-approved orders (guards against stale rows or race conditions).
     const latest = await supabase

@@ -1,3 +1,4 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { configuredBookFixture } from './configured-book-fixture';
@@ -14,8 +15,9 @@ async function main() {
     catch (error) { failures.push(name); console.error(`FAIL ${name}: ${String(error)}`); }
   };
   const config = configuredBookFixture(), orderId = 'BOUNDARY-01';
-  const w0 = buildW0RunManifestFromConfig(config, { orderId, platform: 'd2c', formatId: 'standard', characterHash: 'fixturehash' });
-  const args = { orderId, bookId: config.bookId, formatId: 'standard', configVersion: 1, characterHash: 'fixturehash', poseNumber: 13, characterSpecs: { childName: 'Ada', hairStyle: 'side-part', skinTone: 'medium' } };
+  const characterSpecs = { childName: 'Ada', hairStyle: 'side-part', skinTone: 'medium' };
+  const w0 = buildW0RunManifestFromConfig(config, { orderId, platform: 'd2c', formatId: 'standard', characterHash: 'fixturehash', input: { characterSpecs } });
+  const args = { orderId, bookId: config.bookId, formatId: 'standard', configVersion: 1, characterHash: 'fixturehash', poseNumber: 13, characterSpecs };
   const frozen = w0.book.resolved.renderSnapshot!;
   const latest = configuredBookFixture(); latest.rendering.recipe!.poses['custom-run'].referenceKey = `${config.bookId}/LATEST-WRONG.png`;
   const wrappers = [(snapshot: object) => ({ orderData: snapshot }), (snapshot: object) => ({ ctx: snapshot }), (snapshot: object) => ({ __meta: { snapshot } }), (snapshot: object) => ({ __meta: { deriveQaPass: { snapshot } } })];
@@ -43,7 +45,7 @@ async function main() {
     for (const format of Object.values(empty.formats)) for (const page of format.interior.pageSequence) { page.layers = []; page.poseNumber = null; }
     for (const cover of Object.values(empty.rendering.recipe!.covers)) cover.layers = [];
     empty.qa.pose.requiredPoseNumbers = [];
-    const emptyW0 = buildW0RunManifestFromConfig(empty, { orderId, platform: 'd2c', formatId: 'standard' });
+    const emptyW0 = buildW0RunManifestFromConfig(empty, { orderId, platform: 'd2c', formatId: 'standard', characterHash: 'fixturehash', input: { characterSpecs } });
     const workflow = JSON.parse(readFileSync('../docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json', 'utf8')) as { nodes: { name: string; parameters: { jsCode: string } }[] };
     const expand = new Function('$input', '$execution', '$getWorkflowStaticData', workflow.nodes.find(node => node.name === 'Expand to N Poses')!.parameters.jsCode);
     for (const manifest of [emptyW0, w0]) {
@@ -62,7 +64,7 @@ async function main() {
     }
   });
   await check('repair cannot invent legacy requirements', async () => {
-    const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId, oneManifestUrl: w0.artifacts.manifestKey }, entries: [13, 17, 18].map(poseNumber => ({ poseNumber, bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png` })) };
+    const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId, oneManifestUrl: w0.artifacts.manifestKey }, entries: [13, 17, 18].map(poseNumber => ({ poseNumber, bgRemovedKey: buildBgRemovedPoseAssetKey('fixturehash', poseNumber, config.bookId) })) };
     const valid = await read2BManifestWithPoseRequirements({ manifest: twoB, orderId, loadManifest: async () => w0 });
     const sync = sync2BManifestEntries({ entryByPoseNumber: valid.entryByPoseNumber, poseNumbers: valid.requiredPoseNumbers, bgRemovedByPose: new Map(), nowIso: '2026-10-06T00:00:00Z', trackMissingEntries: true });
     assert.deepEqual(sync.missingPoseNumbers, []);

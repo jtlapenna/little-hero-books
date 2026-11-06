@@ -3,7 +3,8 @@
  * Used by CSV upload, create-sibling API, and D2C multi-book checkout.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
+import { assertCsvHelperSelection, csvBookSpecs, type CsvBookSelection } from './csv-book-selection';
 
 const DEFAULT_W0_WEBHOOK_URL = 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
 const DEFAULT_BOOK_ID = 'book-mvp-simple-adventure';
@@ -50,15 +51,17 @@ export function buildSiblingOrderRow(opts: {
   isSibling?: boolean;
   bookId?: string | null;
   formatId?: string | null;
+  selection?: CsvBookSelection;
   lineItem?: Record<string, unknown> | null;
   lineItems?: Record<string, unknown>[];
   unitIndex?: number;
   unitCount?: number;
 }): Record<string, unknown> {
   const now = new Date().toISOString();
-  const bookId = opts.bookId?.trim() || DEFAULT_BOOK_ID;
-  const formatId = opts.formatId?.trim() || (opts.platform === 'amazon' ? 'amazon' : 'standard');
-  const bookSpecs = {
+  assertCsvHelperSelection(opts.bookId, opts.formatId, opts.selection, opts.platform);
+  const bookId = opts.selection?.bookId ?? (opts.bookId?.trim() || DEFAULT_BOOK_ID);
+  const formatId = opts.selection?.formatId ?? (opts.formatId?.trim() || (opts.platform === 'amazon' ? 'amazon' : 'standard'));
+  const bookSpecs = opts.selection ? csvBookSpecs(opts.selection) : {
     bookId,
     formatId,
     title: `${(opts.characterSpecs.childName as string) ?? 'Child'} and the Adventure Compass`,
@@ -87,12 +90,14 @@ export function buildSiblingOrderRow(opts: {
     workflow_step: null,
     marketplace_id: opts.marketplaceId ?? 'ATVPDKIKX0DER',
     purchase_date: opts.purchaseDate ?? now,
+    ...(opts.selection ? { book_specs: bookSpecs } : {}),
     product_info: {
       _created_via_csv: true,
       bookId,
       book_id: bookId,
       formatId,
       format_id: formatId,
+      ...(opts.selection ? { configVersion: opts.selection.configVersion } : {}),
       bookSpecs,
       book_specs: bookSpecs,
       line_item: opts.lineItem ?? null,
@@ -127,6 +132,7 @@ export function buildW0Payload(opts: {
   dedicationText?: string | null;
   bookId?: string | null;
   formatId?: string | null;
+  selection?: CsvBookSelection;
   lineItem?: Record<string, unknown> | null;
   lineItems?: Record<string, unknown>[];
   unitIndex?: number;
@@ -144,9 +150,10 @@ export function buildW0Payload(opts: {
       : opts.shippingAddress;
 
   const platform = opts.amazonOrderId ? 'amazon' : 'd2c';
-  const bookId = opts.bookId?.trim() || DEFAULT_BOOK_ID;
-  const formatId = opts.formatId?.trim() || (platform === 'amazon' ? 'amazon' : 'standard');
-  const bookSpecs = {
+  assertCsvHelperSelection(opts.bookId, opts.formatId, opts.selection, platform);
+  const bookId = opts.selection?.bookId ?? (opts.bookId?.trim() || DEFAULT_BOOK_ID);
+  const formatId = opts.selection?.formatId ?? (opts.formatId?.trim() || (platform === 'amazon' ? 'amazon' : 'standard'));
+  const bookSpecs = opts.selection ? csvBookSpecs(opts.selection) : {
     bookId,
     formatId,
     title: `${(opts.characterSpecs.childName as string) ?? 'Child'} and the Adventure Compass`,
@@ -164,6 +171,7 @@ export function buildW0Payload(opts: {
     book_id: bookId,
     formatId,
     format_id: formatId,
+    ...(opts.selection ? { configVersion: opts.selection.configVersion } : {}),
     orderDate: opts.purchaseDate ?? new Date().toISOString(),
     purchaseDate: opts.purchaseDate ?? new Date().toISOString(),
     status: 'pending_w0',

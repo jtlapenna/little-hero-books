@@ -1,8 +1,8 @@
 /** Pure rendering of one reviewed transaction. Does not connect, execute SQL or issue approval. */
-import assert from 'node:assert/strict';import {IsolatedCasePacket} from './prepare-gelato-isolated-workflows';const SOURCE='c9b939f6a25bda6fa1ee4090973cea2c924c5450'; // Frozen historical admission contract; not the current Git HEAD or a live approval.
+import assert from 'node:assert/strict';import {LegacyIsolatedCasePacket} from './prepare-gelato-isolated-workflows';const SOURCE='c9b939f6a25bda6fa1ee4090973cea2c924c5450'; // Frozen historical admission contract; not the current Git HEAD or a live approval.
 const q=(v:string)=>{assert(!v.includes('$lhl$'),'SQL body delimiter is forbidden in input');return "'"+v.replaceAll("'","''")+"'";};
 export function prepareAdmissionSql(plan:any,tokenSha256:string,humanMessageReference:string,catalog:any){
- const p=IsolatedCasePacket.parse(plan.packet);const sealed=catalog.cases.find((c:any)=>c.label===plan.label);assert(sealed);assert(sealed.packet.rootOrderId===p.rootOrderId);assert(JSON.stringify(sealed.packet.members)===JSON.stringify(p.members));assert.equal(p.sourceSha,SOURCE);assert(/^[a-f0-9]{64}$/.test(tokenSha256));assert(humanMessageReference.length>=8&&humanMessageReference.length<=512);
+ const p=LegacyIsolatedCasePacket.parse(plan.packet);const sealed=catalog.cases.find((c:any)=>c.label===plan.label);assert(sealed);assert(sealed.packet.rootOrderId===p.rootOrderId);assert(JSON.stringify(sealed.packet.members)===JSON.stringify(p.members));assert.equal(p.sourceSha,SOURCE);assert(/^[a-f0-9]{64}$/.test(tokenSha256));assert(humanMessageReference.length>=8&&humanMessageReference.length<=512);
  const ids=p.members.map(m=>m.orderDbId).sort((a,b)=>a-b),members=p.members.map(m=>`(id=${m.orderDbId} AND "orderId"=${q(m.orderId)})`).join(' OR '),scope=q(p.scopeId),root=q(p.rootOrderId);
  return `BEGIN;
 SELECT pg_advisory_xact_lock(hashtextextended('gelato-root:'||${root},0));

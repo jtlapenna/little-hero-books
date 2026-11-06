@@ -15,8 +15,8 @@ async function main(){
 const root=await realpath(await mkdtemp(path.join(os.tmpdir(),'lhl-launch-')));await chmod(root,0o700);
 const checks:string[]=[];const mark=(s:string)=>{checks.push(s);console.log('PASS '+s);};
 const originalFetch=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Coordinator external network prohibited');};
-async function scenario(action:'healthy'|'primary-death'|'coordinator-death'|'coordinator-group-int'|'coordinator-group-term',count=1,amazon=false){
- const f=protectedRunnerFixture(count,amazon),service=fixtureServices(f),dir=path.join(root,checks.length+'-'+action);await mkdir(dir,{mode:0o700});const journalRoot=path.join(dir,'journals');await mkdir(journalRoot,{mode:0o700});
+async function scenario(action:'healthy'|'primary-death'|'coordinator-death'|'coordinator-group-int'|'coordinator-group-term',count=1,amazon=false,version:2|3=2){
+ const f=protectedRunnerFixture(count,amazon,version),service=fixtureServices(f),dir=path.join(root,checks.length+'-'+action);await mkdir(dir,{mode:0o700});const journalRoot=path.join(dir,'journals');await mkdir(journalRoot,{mode:0o700});
  let primary:ChildProcess|undefined,coordinator:ChildProcess|undefined,killed=false;
  if(action!=='healthy')service.setFault(async(kind,result)=>{if(kind==='assembly'&&!killed){killed=true;if(action==='coordinator-group-int'||action==='coordinator-group-term'){assert(coordinator?.pid);process.kill(-coordinator.pid,action==='coordinator-group-int'?'SIGINT':'SIGTERM');}else (action==='primary-death'?primary:coordinator)?.kill('SIGKILL');await sleep(40);throw Error('Synthetic accepted connection lost');}return result;});
  const server=http.createServer(async(req,res)=>{
@@ -80,6 +80,8 @@ async function scenario(action:'healthy'|'primary-death'|'coordinator-death'|'co
  }finally{coordinator?.kill('SIGKILL');server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 }
 try{
+ for(const [count,amazon]of [[1,false],[1,true],[2,true]] as const)await scenario('healthy',count,amazon,3);
+ await scenario('primary-death',2,true,3);
  await scenario('healthy');await scenario('healthy',1,true);await scenario('healthy',2,true);await scenario('primary-death');await scenario('coordinator-death');await scenario('coordinator-group-int');await scenario('coordinator-group-term');
  console.log(JSON.stringify({kind:'local-loopback-process-proof',checks:checks.length,passed:checks,externalRequests:0,liveOrderReads:0,liveOrderWrites:0,deployments:0,customerMessages:0}));
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true});}

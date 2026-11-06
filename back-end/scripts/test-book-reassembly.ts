@@ -26,6 +26,7 @@ async function main() {
     const { buildW0RunManifest } = await import('../src/lib/books');
     const { bookReviewInvalidation, invalidateBookReview } = await import('../src/lib/book-review-invalidation');
     const { approveStage } = await import('../src/lib/approval-store');
+    const { buildBgRemovedPoseAssetKey, buildGeneratedPoseAssetKey } = await import('../src/lib/order-paths');
     const { buildW3AssemblyInputResponse } = await import('../src/app/api/internal/w3/build-assembly-input/route');
     const orderId = 'LOCAL-BOOK-REASSEMBLY', bookId = 'book-mvp-simple-adventure', prefix = bookId + '/orders/' + orderId;
     const characterHash = 'synthetic-character';
@@ -49,8 +50,8 @@ async function main() {
       input: { characterSpecs: { childName: 'Sample', animalGuide: 'owl' }, bookSpecs: { title: 'Sample Book' }, orderDetails: { quantity: 1 } } });
     const two = { schema: 'lhb.run-manifest@v2.0', stage: '2b', characterHash,
       order: { orderId, rootOrderId: orderId, characterHash, characterSpecs: { childName: 'Sample', animalGuide: 'owl' }, bookSpecs: { title: 'Sample Book' }, orderDetails: { quantity: 1 } },
-      entries: [1, 2].map(poseNumber => ({ poseNumber, bgRemovedKey: bookId + '/generated/pose' + poseNumber + '_nobg.png',
-        sourceApprovedKey: bookId + '/generated/pose' + poseNumber + '.png', briaStatus: 'completed' })) };
+      entries: [1, 2].map(poseNumber => ({ poseNumber, bgRemovedKey: buildBgRemovedPoseAssetKey(characterHash, poseNumber, bookId),
+        sourceApprovedKey: buildGeneratedPoseAssetKey(characterHash, poseNumber, bookId), briaStatus: 'completed' })) };
     for (const stage of ['preBria', 'postBria'] as const) {
       Object.assign(row, { workflow_step: 'book_assembly_completed', manifest_3_url: prefix + '/manifests/3-manifest.json',
         status: 'customer_approved', execution_status: 'done', customer_approval_status: 'approved',

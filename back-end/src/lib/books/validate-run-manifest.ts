@@ -1,3 +1,4 @@
+import { isHistoricalBookConfigRef } from './book-legacy-compatibility';
 import { resolvePagePlan } from './resolve-page-plan';
 import { validateRenderSnapshot, requiredRecipePoses } from './book-render-recipe';
 import { RunManifestV3, RunManifestV3Schema } from '@/lib/books/types';
@@ -46,6 +47,9 @@ export function validateRunManifest(manifest: unknown): RunManifestV3 {
     );
   }
 
+  if (!parsed.book.resolved.renderSnapshot && !isHistoricalBookConfigRef(parsed.book.bookConfigRef)) {
+    throw new Error('Configured W0 manifest requires its frozen render snapshot');
+  }
   if (parsed.book.resolved.renderSnapshot) {
     const snapshot = validateRenderSnapshot(parsed.book.resolved.renderSnapshot, parsed.book.bookConfigRef);
     if (snapshot.testOnly !== undefined && snapshot.testOnly !== (parsed.input.bookSpecs.testMode === true)) throw new Error('Render snapshot test marker mismatch');

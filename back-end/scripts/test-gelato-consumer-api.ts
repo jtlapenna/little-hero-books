@@ -47,6 +47,13 @@ async function main() {
       assert.match(typeof body.error === 'string' ? body.error : body.error.message, scenario === 'mixed' ? /different print providers/ : /Existing Gelato submission/, scenario);
       assert.equal(writes, 0, 'print guard must reject before shipping hydration or queue mutation');
     }
+    // A sibling child whose group has only one stored row must never print alone.
+    rows = fresh().slice(0, 1);
+    const lone = await print(request('/api/orders/print'), { params: Promise.resolve({ orderId: `${root}-item-1` }) });
+    assert.equal(lone.ok, false, 'lone sibling child');
+    const loneBody = await lone.json();
+    assert.match(typeof loneBody.error === 'string' ? loneBody.error : loneBody.error.message, /must be sent to print as a group/, 'lone sibling child');
+    assert.equal(writes, 0, 'lone sibling child must not mutate or queue');
     rows = fresh(); rows[0].print_submission_id = 'existing';
     assert.equal((await regenerate(request('/api/admin/regenerate-4'), { params: Promise.resolve({ orderId: `${root}-item-1` }) })).status, 409);
     archived = [{ id: 700, order_data: rows[0] }]; rows = [];

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyLuluWebhook } from '@/lib/lulu-webhook-auth';
 import { supabase } from '@/lib/supabase-client';
+import { anyOvernightTestOrder, isOvernightTestOrder } from '@/lib/messaging/test-order-guard';
 import { buildLuluOrderUpdate } from '@/lib/lulu-status-map';
 import { recordLuluLifecycleWorkflowEvents } from '@/lib/workflow-jobs';
 
@@ -351,6 +352,8 @@ export async function POST(request: NextRequest) {
         byAmazonOrderId.get(aid)!.push(o);
       }
       for (const [amazonOrderId, orders] of byAmazonOrderId) {
+        // Marked overnight test order (or Amazon root containing one): no buyer-visible shipment confirmation.
+        if (anyOvernightTestOrder(orders)) continue;
         const { data: existingConfirm } = await supabase
           .from('notification_logs')
           .select('id')
@@ -395,6 +398,7 @@ export async function POST(request: NextRequest) {
     if (statusName === 'SHIPPED') {
       for (const ord of orderList) {
         if ((ord.platform ?? 'amazon') !== 'd2c' || !ord.customer_email?.trim()) continue;
+        if (isOvernightTestOrder(ord)) continue; // marked overnight test order: no customer email
         const orderIdForLog = ord.order_id ?? ord.orderId ?? String(ord.id);
         const recipient = ord.customer_email.trim();
         const existingSent = await hasRecentD2CShippedEmailLog({

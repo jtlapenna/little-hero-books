@@ -6,14 +6,15 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
 import {definitionSha256,workflowDefinition} from './helpers/prepare-w1-native-queue';
-import {IsolatedCasePacket,prepareIsolatedWorkflows,type IsolatedCase,type PreparedWorkflow} from './helpers/prepare-gelato-isolated-workflows';
-import {runPreparedIsolatedCase,FileCaseJournal,NORMAL_FLAGS,type IsolatedRunnerDependencies} from './helpers/gelato-isolated-case-runner';
+import {IsolatedCasePacket,LegacyIsolatedCasePacket,isolatedConfigVersion,prepareIsolatedWorkflows,type IsolatedCase,type PreparedWorkflow} from './helpers/prepare-gelato-isolated-workflows';
+import {runPreparedIsolatedCase,FileCaseJournal,NORMAL_FLAGS,validatePreparedClaim,type IsolatedRunnerDependencies} from './helpers/gelato-isolated-case-runner';
+import {prepareAdmissionSql} from './helpers/gelato-admission-sql';
 const root=path.resolve(__dirname,'../..'),cases:string[]=[],originalFetch=globalThis.fetch;let network=0;
 globalThis.fetch=async()=>{network++;throw Error('No external network allowed');};
 const mark=(label:string)=>{cases.push(label);console.log('PASS '+label);};
 const source=(siblings:boolean)=>JSON.parse(readFileSync(path.join(root,'docs/n8n-workflow-files/repo-centric/workflows',siblings?'w4.1-GELATO-Sibling-Aggregation.repo-centric.json':'w4-GELATO-Print_Fulfillment.repo-centric.json'),'utf8'));
-const packet=(count=1,amazon=false):IsolatedCase=>{const order='TEST-GELATO-LOCAL-'+randomUUID().slice(0,8),now=Date.now();return IsolatedCasePacket.parse({schema:'lhl.gelato-isolated-case@1',runId:'LOCAL-'+randomUUID(),scopeId:randomUUID(),rootOrderId:order,sourceSha:'c'.repeat(40),nativeDefinitionSha256:definitionSha256(workflowDefinition(source(count===2))),fixtureManifestSha256:'a'.repeat(64),accountKeySha256:'b'.repeat(64),startsAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+20*60_000).toISOString(),members:Array.from({length:count},(_,i)=>({orderDbId:101+i,orderId:count===1?order:order+'-'+i,edition:amazon||count===2?'amazon':'standard',pdfSha256:String(i+1).repeat(64)}))});};
-const claim=(p:IsolatedCase)=>({provider:'gelato',dispatchRoute:'dispatch',rootOrderId:p.rootOrderId,routeKind:p.members.length===2?'sibling':'single',submissionId:randomUUID(),claimToken:randomUUID(),idempotencyKey:'w1.1:'+p.rootOrderId+':'+p.members.map(m=>m.orderDbId).join('-'),orderDbIds:p.members.map(m=>m.orderDbId),orders:p.members.map(m=>({orderDbId:m.orderDbId,orderId:m.orderId,provider:'gelato',rootOrderId:p.rootOrderId,bookId:'book-finding-our-inner-voice',formatId:m.edition,configVersion:2,innerPageCount:32,apiPageCount:32,expectedPdfPageCount:35}))});
+const packet=(count=1,amazon=false,version:2|3=2):IsolatedCase=>{const order='TEST-GELATO-LOCAL-'+randomUUID().slice(0,8),now=Date.now();return IsolatedCasePacket.parse({...(version===2?{schema:'lhl.gelato-isolated-case@1'}:{schema:'lhl.gelato-isolated-case@2',configVersion:version}),runId:'LOCAL-'+randomUUID(),scopeId:randomUUID(),rootOrderId:order,sourceSha:'c'.repeat(40),nativeDefinitionSha256:definitionSha256(workflowDefinition(source(count===2))),fixtureManifestSha256:'a'.repeat(64),accountKeySha256:'b'.repeat(64),startsAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+20*60_000).toISOString(),members:Array.from({length:count},(_,i)=>({orderDbId:101+i,orderId:count===1?order:order+'-'+i,edition:amazon||count===2?'amazon':'standard',pdfSha256:String(i+1).repeat(64)}))});};
+const claim=(p:IsolatedCase)=>({provider:'gelato',dispatchRoute:'dispatch',rootOrderId:p.rootOrderId,routeKind:p.members.length===2?'sibling':'single',submissionId:randomUUID(),claimToken:randomUUID(),idempotencyKey:'w1.1:'+p.rootOrderId+':'+p.members.map(m=>m.orderDbId).join('-'),orderDbIds:p.members.map(m=>m.orderDbId),orders:p.members.map(m=>({orderDbId:m.orderDbId,orderId:m.orderId,provider:'gelato',rootOrderId:p.rootOrderId,bookId:'book-finding-our-inner-voice',formatId:m.edition,configVersion:isolatedConfigVersion(p),innerPageCount:32,apiPageCount:32,expectedPdfPageCount:35}))});
 const plain=(v:unknown)=>JSON.parse(JSON.stringify(v));
 export function executeCode(w:PreparedWorkflow,name:string,data:unknown,outputs=new Map<string,unknown>(),now=Date.now()){
  const n=w.nodes.find(n=>n.name===name);assert(n&&n.type==='n8n-nodes-base.code');
@@ -50,13 +51,53 @@ function fixture(p=packet()){
  return {p,c,d,prepared,steps,events,httpCalls,approval,setFail:(s:string)=>{fail=s;},badFile:()=>{badFile=true;},badReadback:()=>{badReadback=true;},expire:()=>{now=Date.parse(p.expiresAt)+1;},breakClose:()=>{closeFail=true;},breakStop:()=>{stopFail=true;},run:()=>runPreparedIsolatedCase(p,prepared.workflowSha256,approval,d)};
 }
 async function main(){
- for(const [label,count,amazon]of [['website',1,false],['amazon',1,true],['siblings',2,true]] as const){
-  const f=fixture(packet(count,amazon));const result=await f.run();assert(result.passed);assert.equal(result.maximumSpendCents,0);
+ for(const version of [2,3] as const)for(const [label,count,amazon]of [['website',1,false],['amazon',1,true],['siblings',2,true]] as const){
+  const f=fixture(packet(count,amazon,version));const result=await f.run();assert(result.passed);assert.equal(result.maximumSpendCents,0);
   assert.deepEqual(f.httpCalls.map(c=>new URL(c.url).pathname),['/api/internal/w4/engineering-isolation','/api/internal/w4/'+(count===2?'build-gelato-sibling-print-pdf':'build-gelato-print-pdf'),'/api/internal/w4/quote-gelato-submission','/api/internal/w4/submit-gelato-draft']);
   assert.deepEqual(f.httpCalls[0].body,{scopeId:f.p.scopeId,action:'queue'});assert(f.steps.indexOf('verifyAssembly')<f.steps.indexOf('draft'));assert(f.steps.indexOf('close')<f.steps.indexOf('timer-stop'));
+  const selector=f.httpCalls[1].body as {configVersion:number;orders?:Array<{configVersion:number}>};
+  assert.equal(selector.configVersion,version);assert(selector.orders?.every(order=>order.configVersion===version)??true);
   assert(!JSON.stringify(f.events).includes(f.c.claimToken),'Journal must not persist claim authority');
-  await assert.rejects(f.run());mark(label+': actual generated queue → assembly → independent hashes → quote/draft → owned timer → independent closure; replay denied');
+  await assert.rejects(f.run());mark('v'+version+' '+label+': actual generated queue → assembly → independent hashes → quote/draft → owned timer → independent closure; replay denied');
  }
+ for(const [count,amazon]of [[1,false],[1,true],[2,true]] as const){
+  const explicit=fixture(IsolatedCasePacket.parse({...packet(count,amazon),schema:'lhl.gelato-isolated-case@2',configVersion:2}));
+  assert((await explicit.run()).passed);
+  mark('Explicit versioned v2 packet passes generated and runner path: '+(count===2?'siblings':amazon?'Amazon single':'website'));
+ }
+ const golden=JSON.parse(readFileSync(path.join(__dirname,'fixtures/gelato-isolated-v1-compat.json'),'utf8'));
+ const legacy=prepareIsolatedWorkflows(golden.packet,source(false));
+ assert.deepEqual(LegacyIsolatedCasePacket.parse(golden.packet),golden.packet);
+ assert.equal(legacy.packetSha256,golden.packetSha256);assert.deepEqual(legacy.workflowSha256,golden.workflowSha256);
+ mark('Legacy v1 packet bytes and all four generated workflow hashes remain unchanged');
+ const modern=fixture(packet(2,true,3));
+ for(const version of [undefined,null,'3',1,2.5,4,Number.MAX_SAFE_INTEGER+1]){
+  assert.throws(()=>IsolatedCasePacket.parse({...modern.p,configVersion:version}));
+ }
+ assert.throws(()=>IsolatedCasePacket.parse({...golden.packet,configVersion:3}));
+ mark('Explicit packet requires a supported numeric version; legacy schema rejects a version field');
+ for(const p of [packet(1,false),packet(1,false,3),packet(2,true,3)]){
+  const prepared=prepareIsolatedWorkflows(p,source(p.members.length===2)),valid=claim(p);
+  for(const version of [2,3,'3',undefined,4]){
+   if(version===isolatedConfigVersion(p))continue;
+   const wrong={...valid,orders:valid.orders.map((order,index)=>index===valid.orders.length-1?{...order,configVersion:version}:order)};
+   assert.throws(()=>executeCode(prepared.workflows.queue,'Verify Exact Native Claim',{success:true,groups:[wrong],customerMessages:false}));
+   assert.throws(()=>validatePreparedClaim(wrong,p));
+   await assert.rejects(executeGraph(prepared.workflows.assembly,wrong,()=>{throw Error('Wrong version reached transport');}));
+   await assert.rejects(executeGraph(prepared.workflows.draft,{...wrong,artifactVerification:{scopeId:p.scopeId,fixtureManifestSha256:p.fixtureManifestSha256,files:p.members.map(member=>({orderDbId:member.orderDbId,sha256:member.pdfSha256}))}},()=>{throw Error('Wrong version reached draft transport');}),/Isolated dispatch does not match/);
+  }
+ }
+ mark('Cross-version, mixed-sibling and malformed claims reject in generated queue, assembly and runner consumers');
+ const other=prepareIsolatedWorkflows({...modern.p,configVersion:2},source(true));
+ assert.notEqual(other.packetSha256,modern.prepared.packetSha256);
+ for(const stage of ['queue','assembly','draft','timer'] as const)assert.notEqual(other.workflowSha256[stage],modern.prepared.workflowSha256[stage]);
+ await assert.rejects(runPreparedIsolatedCase(modern.p,modern.prepared.workflowSha256,{...modern.approval,packetSha256:other.packetSha256},modern.d));assert.equal(modern.steps.length,0);
+ mark('Version changes invalidate packet/workflow hashes and old approval before preflight');
+ const historicalPacket={...golden.packet,sourceSha:'c9b939f6a25bda6fa1ee4090973cea2c924c5450'};
+ const catalog={cases:[{label:'historical',packet:historicalPacket,productUid:'synthetic-product',shippingTier:'standard',frozenAddress:{country:'US'},contactEmail:'fixture@example.test'}]};
+ assert(prepareAdmissionSql({label:'historical',packet:historicalPacket},'d'.repeat(64),'SYNTHETIC HUMAN REVIEW',catalog).includes('print_config_version=2'));
+ for(const configVersion of [2,3])assert.throws(()=>prepareAdmissionSql({label:'historical',packet:{...historicalPacket,schema:'lhl.gelato-isolated-case@2',configVersion}},'d'.repeat(64),'SYNTHETIC HUMAN REVIEW',catalog));
+ mark('Historical admission SQL accepts only unchanged legacy packets and cannot admit a versioned packet');
  const f=fixture(),w=f.prepared.workflows;
  for(const [name,workflow]of Object.entries(w)){
   assert(!('active' in workflow)&&!('id' in workflow)&&!('pinData' in workflow)&&!('staticData' in workflow));assert.equal(workflow.settings.saveDataSuccessExecution,'none');assert.equal(workflow.settings.saveDataErrorExecution,'none');

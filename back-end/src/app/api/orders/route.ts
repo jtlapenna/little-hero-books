@@ -11,48 +11,8 @@ import {
   buildManifestKeyHintOptionsFromOrderLike,
   resolveOrderPathContext,
 } from '@/lib/order-paths';
+import { attachListSiblingMetadata } from '@/lib/order-sibling-summary';
 import { cleanPhoneNumber } from '@/lib/phone-utils';
-
-function isChildBookRow(order: Order): boolean {
-  return !!(order.rootOrderId && order.rootOrderId !== order.orderId);
-}
-
-function isRootGroupRow(order: Order): boolean {
-  return !!(order.rootOrderId && order.rootOrderId === order.orderId);
-}
-
-function attachListSiblingMetadata(orders: Order[]): Order[] {
-  const childGroupSizes = new Map<string, number>();
-
-  for (const order of orders) {
-    if (!isChildBookRow(order) || !order.rootOrderId) continue;
-    childGroupSizes.set(
-      order.rootOrderId,
-      (childGroupSizes.get(order.rootOrderId) || 0) + 1
-    );
-  }
-
-  return orders
-    .filter((order) => {
-      if (!isRootGroupRow(order) || !order.rootOrderId) {
-        return true;
-      }
-
-      return (childGroupSizes.get(order.rootOrderId) || 0) === 0;
-    })
-    .map((order) => {
-    if (!order.rootOrderId) {
-      return order;
-    }
-
-    const groupSize = childGroupSizes.get(order.rootOrderId) || 0;
-    return {
-      ...order,
-      isSibling: isChildBookRow(order) ? true : order.isSibling,
-      totalSiblings: groupSize > 1 ? groupSize : order.totalSiblings,
-    };
-  });
-}
 
 /**
  * Create a minimal order with error indicator when mapping fails

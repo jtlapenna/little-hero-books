@@ -1,4 +1,6 @@
+import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
 import { invalidateBookReview } from '@/lib/book-review-invalidation';
+import { flowPublicationAllowed } from '@/lib/books/flow-release';
 import { resolveW3ManifestOptions } from '@/lib/books/w3-manifest';
 import { buildW3Manifest, type BuildW3ManifestResult } from '@/lib/books';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -29,6 +31,8 @@ export interface PublishW3ManifestOptions {
   putObjectImpl?: PutObjectImpl;
   now?: Date;
   loadManifestImpl?: (key: string) => Promise<unknown | null>;
+  /** Approval entries for the recipe-level release gate (default: bundled file). Gates readyForBook for flow recipes. */
+  flowApprovals?: readonly unknown[];
 }
 
 export interface PublishW3ManifestResult extends BuildW3ManifestResult {
@@ -118,7 +122,14 @@ export async function publishW3Manifest(
   input: PublishW3ManifestInput,
   options: PublishW3ManifestOptions = {},
 ): Promise<PublishW3ManifestResult> {
-  const built = buildW3Manifest(input, await resolveW3ManifestOptions(input, options.loadManifestImpl));
+  const built = buildW3Manifest(input, { ...(await resolveW3ManifestOptions(input, options.loadManifestImpl)), flowApprovals: options.flowApprovals });
+  const frozenConfig = toRecord(toRecord(built.manifest.renderSnapshot).bookConfig);
+  const recipe = toRecord(toRecord(frozenConfig.rendering).recipe);
+  if (recipe.schema === 'lhb.book-render@v2' && !flowPublicationAllowed({ bookId: String(frozenConfig.bookId ?? ''), status: frozenConfig.status as 'draft' | 'active' })) {
+    throw new Error(`Flow publication is not yet available: book ${String(frozenConfig.bookId ?? 'unknown')} is not on the flow publication allow-list or its config is not active`);
+  }
+  const layoutRecipe = toRecord(toRecord(toRecord(toRecord(built.manifest.renderSnapshot).bookConfig).rendering).recipe);
+  if (requiresBookLayoutReview(layoutRecipe.schema)) throw new Error('Configured layout publication is not yet available');
   const backendUrl =
     firstString(input.backendUrl, (built as JsonRecord).backendUrl) ??
     resolveCanonicalBackendBaseUrl();
