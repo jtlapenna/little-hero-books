@@ -98,6 +98,9 @@ jobs:
           npm run test:inner-voice-workflow-e2e
           npm run test:inner-voice-pose-chain
           npm run test:configured-pose
+          npm run test:gelato-print-routing
+          npm run test:gelato-print-pdf
+          npm run test:w4-sibling-print-input
           npm run test:book-flow-contract
           npm run test:w4-print-input
           node --import tsx scripts/test-inner-voice-customizations.ts

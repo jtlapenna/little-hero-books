@@ -298,8 +298,15 @@ async function main() {
     const builtManifest = built.manifest as { book: { bookConfigRef: { version: number }; resolved: { print: { provider: string } } } };
     assert.equal(builtManifest.book.bookConfigRef.version, 1);
     assert.equal(builtManifest.book.resolved.print.provider, 'lulu');
-    const newBookEmitted = new Function('$json', node.parameters.jsCode)({
+    // The new book is never inferred: an explicit selection without formatId (or configVersion) must fail closed.
+    assert.throws(() => new Function('$json', node.parameters.jsCode)({
       ...callerInput, bookSpecs: { bookId: 'book-finding-our-inner-voice', configVersion: 2 },
+    }), /Missing W0 selection: formatId/);
+    assert.throws(() => new Function('$json', node.parameters.jsCode)({
+      ...callerInput, bookSpecs: { bookId: 'book-finding-our-inner-voice', formatId: 'standard' },
+    }), /Missing W0 selection: configVersion/);
+    const newBookEmitted = new Function('$json', node.parameters.jsCode)({
+      ...callerInput, bookSpecs: { bookId: 'book-finding-our-inner-voice', configVersion: 2, formatId: 'standard' },
     })[0].json.requestBody;
     const newBookParsed = parseW0ManifestRequest(JSON.parse(newBookEmitted));
     assert.equal(newBookParsed.options.bookId, 'book-finding-our-inner-voice');
@@ -311,7 +318,7 @@ async function main() {
       { bookId: config.bookId, configVersion: 2, formatId: 'amazon' },
       { bookSpecs: { bookId: config.bookId, configVersion: 2, formatId: 'amazon' } },
     ]) {
-      let current = { ...callerInput, ...selection, bookSpecs: { testMode: true, ...('bookSpecs' in selection ? selection.bookSpecs : {}) } };
+      let current = { ...callerInput, characterSpecs: { childName: 'Ada', animalGuide: 'owl', pronouns: 'they/them' }, ...selection, bookSpecs: { testMode: true, ...('bookSpecs' in selection ? selection.bookSpecs : {}) } };
       for (const producer of [normalize, dedication]) {
         current = new Function('$input', '$item', '$json', producer.parameters.jsCode)(
           { first: () => ({ json: current }) }, () => ({ $node: { 'CONFIG (PRODUCTION)': { json: {} } } }), current,
