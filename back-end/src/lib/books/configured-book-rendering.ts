@@ -2,10 +2,9 @@ import { mergeDefinedPlacementEntry, mergeDefinedPlacementMap } from './book-pla
 import { resolveBookCharacterPlacementMap } from './character-placement';
 import { resolveBookAnimalPlacementMap } from './animal-placement';
 import { resolveBookCoverCharacterPlacement } from './cover-character-placement';
-import { resolveBookPronouns } from './book-pronouns';
 import { BookV3CopyBlockSchema } from './book-render-contract';
 import { bookPlacementCss, resolveBookPlacement, mergeBookPlacement, type BookCanvas } from './book-layout-geometry';
-import { renderBookV3Copy, renderBookV3Stacks, BOOK_V3_FIT_SCRIPT, bookV3FontCss } from './book-v3-copy';
+import { renderBookV3Copy, renderBookV3Stacks, bookV3FitScript, bookV3FontCss } from './book-v3-copy';
 import { buildBgRemovedPoseAssetKey } from "@/lib/order-paths";
 import type {
   BookPageConfig,
@@ -15,12 +14,18 @@ import type {
 import {
   BookLayerPlacementSchema,
   type BookCopyBlock,
+  type BookV3CopyBlock,
+  type BookV3Stack,
+  type BookV3StackText,
   type BookPageLayer,
 } from "./book-render-contract";
 import type { BookCharacterPlacementMap } from "./character-placement";
 import { validateRenderSnapshot } from "./book-render-recipe";
+import { resolveBookPronouns } from "./book-pronouns";
+import { FLOW_COPY_CSS, renderFlowContent, resolveGuideTokens } from "./flow-layout.mjs";
 
 type JsonRecord = Record<string, unknown>;
+type ConfiguredCopyBlock = BookCopyBlock | BookV3CopyBlock;
 export interface ConfiguredRenderOptions {
   characterPlacementOverride?: BookCharacterPlacementMap;
   animalPlacementOverride?: BookCharacterPlacementMap;
@@ -81,6 +86,12 @@ function placementStyle(value: BookPageLayer["placement"], canvas?: BookCanvas):
   ];
   return `position:absolute;left:${value.left}px;top:${value.top}px;width:${value.width}px;${value.height ? `height:${value.height}px;` : ""}z-index:${value.zIndex ?? 10};transform:${transforms.join(" ")};transform-origin:0 0;`;
 }
+function layerClipStyle(layer: BookPageLayer): string {
+  if (!layer.clip) return '';
+  const { left, top, width, height, cornerRadiusPercent = 0 } = layer.clip;
+  const right = Math.max(0, 1 - left - width), bottom = Math.max(0, 1 - top - height);
+  return `clip-path:inset(${top * 100}% ${right * 100}% ${bottom * 100}% ${left * 100}% round ${width * cornerRadiusPercent}% / ${height * cornerRadiusPercent}%);`;
+}
 export function renderConfiguredBook(
   input: JsonRecord,
   frozen: BookRenderSnapshot,
@@ -96,6 +107,15 @@ export function renderConfiguredBook(
     recipe = config.rendering.recipe!,
     formatId = snapshot.formatId;
   const v3 = recipe.schema === 'lhb.book-render@v3';
+  const widthFit = (copy: { fit?: BookV3CopyBlock['fit'] }) => Boolean(copy.fit && 'mode' in copy.fit && copy.fit.mode === 'width-only');
+  const widthStack = (node: BookV3Stack | BookV3StackText): boolean => node.kind === 'stack'
+    ? node.children.some(widthStack) : widthFit(node);
+  const widthOnlyFit = recipe.schema === 'lhb.book-render@v3' && (
+    Object.values(recipe.copy).some(copy => (Array.isArray(copy) ? copy : [copy]).some(widthFit)) ||
+    Object.values(recipe.covers).some(cover => cover.texts.some(widthFit) ||
+      cover.stacks?.some(stack => stack.children.some(widthStack)))
+  );
+  const fitScript = v3 ? bookV3FitScript(widthOnlyFit) : '';
   const interiorCanvas = config.rendering.preview.interiorPx;
   const coverCanvas = config.rendering.preview.coverPx;
   const effectiveOptions = v3 ? {
@@ -118,28 +138,9 @@ export function renderConfiguredBook(
     guide = guideSlug(specs.animalGuide);
   const name = text(specs.childName);
   if (!name) throw new Error("Configured book requires child name");
-  const pronoun = text(specs.pronouns).toLowerCase();
-  const pronouns = v3 ? resolveBookPronouns(specs.pronouns) : ["she", "she/her"].includes(pronoun)
-    ? { subject: "she", object: "her", possessive: "her" }
-    : ["he", "he/him"].includes(pronoun)
-      ? { subject: "he", object: "him", possessive: "his" }
-      : { subject: "they", object: "them", possessive: "their" };
-  const clue = ["owl", "penguin"].includes(guide)
-    ? "a feather"
-    : guide === "unicorn"
-      ? "a tuft of colorful fur"
-      : guide === "t-rex"
-        ? "a giant footprint"
-        : "a paw print";
-  const clues = ["owl", "penguin"].includes(guide)
-    ? "feathers"
-    : guide === "unicorn"
-      ? "colorful fur"
-      : guide === "t-rex"
-        ? "giant footprints"
-        : "paw prints";
-  const guideName =
-    guide === "t-rex" ? "T-Rex" : guide[0].toUpperCase() + guide.slice(1);
+  const { subject, object, possessive } = resolveBookPronouns(specs.pronouns);
+  const pronouns = { subject, object, possessive };
+  const { name: guideName, clue, clues } = resolveGuideTokens(guide);
   const tokens: Record<string, string> = {
     "child name": name,
     ...(v3 ? { 'child name possessive': /s$/i.test(name) ? `${name}'` : `${name}'s`,
@@ -155,11 +156,12 @@ export function renderConfiguredBook(
       text(input.dedicationText) ||
       text(record(input.bookSpecs).dedicationMessage),
   };
-  const interpolate = (copy: string) =>
+  const interpolate = (copy: string, keepNameTogether = false) =>
     copy.replace(/\[([^\]]+)\]/g, (_match, token: string) => {
       const value = tokens[token.toLowerCase()];
       if (value === undefined)
         throw new Error(`Unknown configured copy token ${token}`);
+      if (keepNameTogether && token.toLowerCase() === 'child name') return value.replace(/\s+/g, '\u00a0');
       return value;
     });
   const processed = Array.isArray(input.processedImages)
@@ -190,14 +192,33 @@ export function renderConfiguredBook(
   };
   const overlays: JsonRecord[] = [],
     backgrounds: JsonRecord[] = [];
-  const css = `.lhb-config-page{position:relative;display:block;overflow:hidden;margin:0;padding:0;background:#fff;color:#fff4d7;font-family:LhbConfiguredBook,sans-serif;isolation:isolate}.lhb-config-page *{box-sizing:border-box}.lhb-config-page img{display:block;max-width:none;margin:0;padding:0;border:0}.lhb-config-page .lhb-copy{position:absolute;white-space:pre-line;overflow-wrap:anywhere;margin:0;font-weight:400}.lhb-config-page .lhb-layer{object-fit:contain}.lhb-config-page .lhb-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0}${v3 ? bookV3FontCss((recipe.schema === 'lhb.book-render@v3' ? recipe.fontRoles ?? ['primary'] : ['primary']).map(role => config.assets.fonts[role]), assetUrl) : `@font-face{font-family:LhbConfiguredBook;src:url('${assetUrl(config.assets.fonts.primary)}')}`}`;
-  const copyHtml = (copy: BookCopyBlock | undefined, canvas = interiorCanvas) => {
-    if (!copy) return '';
-    if (v3) return renderBookV3Copy(BookV3CopyBlockSchema.parse(copy), interpolate, canvas);
-    return `<div class="lhb-copy" style="${placementStyle(copy.placement)}font-size:${copy.fontSize}px;line-height:${copy.lineHeight};color:${copy.color};text-align:${copy.align};padding:${copy.padding}px;${copy.backgroundColor ? `background:${copy.backgroundColor};` : ""}">${escape(interpolate(copy.text))}</div>`;
+  const css = `.lhb-config-page{position:relative;display:block;overflow:hidden;margin:0;padding:0;background:#fff;color:#fff4d7;font-family:LhbConfiguredBook,sans-serif;isolation:isolate}.lhb-config-page *{box-sizing:border-box}.lhb-config-page img{display:block;max-width:none;margin:0;padding:0;border:0}.lhb-config-page .lhb-copy{position:absolute;white-space:pre-line;overflow-wrap:anywhere;margin:0;font-weight:400}.lhb-config-page .lhb-layer{object-fit:contain}.lhb-config-page .lhb-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0}${v3 ? bookV3FontCss((recipe.schema === 'lhb.book-render@v3' ? recipe.fontRoles ?? ['primary'] : ['primary']).map(role => config.assets.fonts[role]), assetUrl) : `@font-face{font-family:LhbConfiguredBook;src:url('${assetUrl(config.assets.fonts.primary)}')}`}${recipe.schema === 'lhb.book-render@v2' ? FLOW_COPY_CSS : ''}`;
+  const copyVariant = (copy: BookCopyBlock) => copy.longName && name.length >= copy.longName.minChars ? copy.longName : undefined;
+  const copyHtml = (rawCopy: ConfiguredCopyBlock | undefined, canvas = interiorCanvas) => {
+    if (!rawCopy) return '';
+    if (v3) return renderBookV3Copy(BookV3CopyBlockSchema.parse(rawCopy), interpolate, canvas);
+    const copy = rawCopy as BookCopyBlock;
+    const variant = copyVariant(copy);
+    const baseSize = variant?.fontSize ?? copy.fontSize;
+    const nameScale = copy.nameFit && /\[child name\]/i.test(copy.text) && name.length > copy.nameFit.thresholdChars
+      ? Math.max(copy.nameFit.minScale, copy.nameFit.thresholdChars / name.length)
+      : 1;
+    const keepNameStyle = variant?.keepNameTogether ? 'overflow-wrap:normal;' : '';
+    const content = copy.flow ? renderFlowContent(copy.flow, tokens) : escape(interpolate(copy.text, variant?.keepNameTogether));
+    return `<div class="lhb-copy${copy.flow ? ' lhb-flow' : ''}"${copy.id ? ` data-copy-block-id="${escape(copy.id)}"` : ""} style="${placementStyle(variant?.placement ?? copy.placement)}font-size:${baseSize * nameScale}px;line-height:${copy.lineHeight};color:${copy.color};text-align:${copy.align};padding:${copy.padding}px;${keepNameStyle}${copy.backgroundColor ? `background:${copy.backgroundColor};` : ""}${copy.edgeStyle === 'cover-shadow' ? '-webkit-text-stroke:4px rgba(19,43,48,.85);paint-order:stroke fill;text-shadow:0 3px 8px rgba(19,43,48,.85);' : copy.edgeStyle === 'soft-shadow' ? 'text-shadow:0 3px 7px rgba(16,36,60,.75);' : copy.edgeStyle === 'stroke' ? '-webkit-text-stroke:2.315px rgba(23,50,74,.6);paint-order:stroke fill;' : ''}">${content}</div>`;
   };
-  const pageCopyHtml = (value: BookCopyBlock | BookCopyBlock[] | undefined) =>
+  const pageCopyHtml = (value: ConfiguredCopyBlock | ConfiguredCopyBlock[] | undefined) =>
     (Array.isArray(value) ? value : value ? [value] : []).map(copy => copyHtml(copy)).join('');
+  const readingAreaHtml = (pageId: string) => {
+    if (!('readingAreas' in recipe)) return '';
+    const copy = recipe.copy[pageId];
+    const blocks = Array.isArray(copy) ? copy : copy ? [copy] : [];
+    const zIndex = Math.max(0, Math.min(40, ...blocks.map(block =>
+      ((copyVariant(block as BookCopyBlock)?.placement ?? block.placement).zIndex ?? 10) - 1)));
+    return (recipe.readingAreas?.[pageId] ?? []).map(area =>
+      `<div class="lhb-reading-area" aria-hidden="true" style="position:absolute;left:${area.left}px;top:${area.top}px;width:${area.width}px;height:${area.height}px;border-radius:${area.feather}px;background:${area.color};opacity:${area.opacity};filter:blur(${area.feather}px);z-index:${zIndex};pointer-events:none"></div>`
+    ).join('');
+  };
   const layerHtml = (
     layers: BookPageLayer[],
     pageLabel: string,
@@ -253,7 +274,10 @@ export function renderConfiguredBook(
             kind: layer.kind,
             imagePath: url,
           });
-        return `<img class="lhb-layer" data-layer-id="${escape(layer.id)}" data-layer-kind="${layer.kind}"${editable} src="${escape(url)}" alt="" style="${placementStyle(placement, cover ? coverCanvas : interiorCanvas)}" />`;
+        const effect = layer.kind === 'overlay' && layer.effect === 'cover-shadow'
+          ? 'filter:drop-shadow(0 3px 3px rgba(19,43,48,.9)) drop-shadow(0 2px 2px rgba(19,43,48,.75));'
+          : '';
+        return `<img class="lhb-layer" data-layer-id="${escape(layer.id)}" data-layer-kind="${layer.kind}"${editable} src="${escape(url)}" alt="" style="${placementStyle(placement, cover ? coverCanvas : interiorCanvas)}${layerClipStyle(layer)}${effect}" />`;
       })
       .join("");
   };
@@ -265,11 +289,11 @@ export function renderConfiguredBook(
     height: number,
     label: string,
   ) =>
-    `<style>${css}</style><div class="lhb-config-page" data-page-label="${escape(label)}"${v3 ? ' data-lhb-v3-root="true"' : ''} style="width:${width}px;height:${height}px">${backgroundKey ? `<img class="lhb-bg" alt="" src="${escape(assetUrl(backgroundKey))}" />` : ""}${layers}${copy}</div>${v3 ? `<script>${BOOK_V3_FIT_SCRIPT}</script>` : ""}`;
+    `<style>${css}</style><div class="lhb-config-page" data-page-label="${escape(label)}"${v3 ? ' data-lhb-v3-root="true"' : ''} style="width:${width}px;height:${height}px">${backgroundKey ? `<img class="lhb-bg" alt="" src="${escape(assetUrl(backgroundKey))}" />` : ""}${layers}${copy}</div>${v3 ? `<script>${fitScript}</script>` : ""}`;
   const pageBlocks = config.formats[formatId].interior.pageSequence.map(
     (configuredPage: BookPageConfig) => {
       const key = configuredPage.backgroundSlot
-        ? config.assets.backgrounds[configuredPage.backgroundSlot]
+        ? config.assets.guideBackgrounds?.[configuredPage.backgroundSlot]?.[guide] ?? config.assets.backgrounds[configuredPage.backgroundSlot]
         : null;
       if (key)
         backgrounds.push({
@@ -285,7 +309,7 @@ export function renderConfiguredBook(
           configuredPage.label,
           configuredPage.storyPageNumber,
         ),
-        pageCopyHtml(recipe.copy[configuredPage.id]),
+        readingAreaHtml(configuredPage.id) + pageCopyHtml(recipe.copy[configuredPage.id]),
         config.rendering.preview.interiorPx.w,
         config.rendering.preview.interiorPx.h,
         configuredPage.label,
@@ -327,7 +351,8 @@ export function renderConfiguredBook(
     },
     storyTexts: pageBlocks.map(({ page }) => {
       const copy = recipe.copy[page.id];
-      return { pageNumber: page.index, text: (Array.isArray(copy) ? copy : copy ? [copy] : []).map(block => interpolate(block.text)).join('\n') };
+      return { pageNumber: page.index,
+        text: (Array.isArray(copy) ? copy : copy ? [copy] : []).map(block => interpolate(block.text)).join('\n') };
     }),
     pronounsResolved: pronouns,
     animalDisplayName: guideName,

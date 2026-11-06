@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-05T00:36:14.716083+00:00",
+  "kind": "byte-identical synthetic actual CSV producer fixture",
+  "source": "/Volumes/WD_BLACK/AgentArtifacts/little-hero-books/mixed-backend-1ffb2cda-be21-4228-bbcc-6711895e3d46/actual-mixed-complete.json",
+  "source_sha256": "d42236c23ec9e8b0328239daf6b740596e07a8022a9bd42fc7a6116a43691743",
+  "source_result": {
+    "path": "/Volumes/WD_BLACK/AgentArtifacts/little-hero-books/mixed-backend-1ffb2cda-be21-4228-bbcc-6711895e3d46/result.json",
+    "sha256": "f8a871dc8582a38eee7657597228335007111fbac5a6952c5939ca5102402b12"
+  },
+  "handoff": {
+    "path": "/Volumes/WD_BLACK/AgentArtifacts/little-hero-books/mixed-backend-1ffb2cda-be21-4228-bbcc-6711895e3d46/handoff-complete.json",
+    "sha256": "bdbeb50231d0b1b68e3eb2daf79c9a4329818c2cc5ae364674c6c97898a44e7d"
+  },
+  "scope": "Accepted actual same-file mixed CSV output. Canonical stored input for native recovery tests. No fabricated mapped row, live customer data, native DB or generation/print acceptance. Fixture changes require producer evidence and review."
+}

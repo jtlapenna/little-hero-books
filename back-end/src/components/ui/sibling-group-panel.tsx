@@ -33,7 +33,6 @@ export function SiblingGroupPanel({
   rootOrderId,
   platform,
   totalSiblings,
-  itemNumber,
   siblingOrders = [],
   currentOrderId,
   showManifestWarning: _showManifestWarning = false,
@@ -41,8 +40,7 @@ export function SiblingGroupPanel({
 }: SiblingGroupPanelProps) {
   const resolvedTotal = totalSiblings ?? siblingOrders.length;
   const showNavigation = siblingOrders.length > 1;
-  const showItemLabel =
-    typeof itemNumber === 'number' && resolvedTotal > 0;
+
 
   return (
     <div className="space-y-4 mb-6">
@@ -53,11 +51,9 @@ export function SiblingGroupPanel({
               <span className="text-sm font-semibold text-indigo-900">
                 Multi-book order
               </span>
-              {showItemLabel && (
-                <span className="text-sm text-indigo-800">
-                  Item {itemNumber} of {resolvedTotal}
-                </span>
-              )}
+              <span className="text-sm text-indigo-800">
+                {resolvedTotal} books
+              </span>
             </div>
             {rootOrderId && (
               <p className="mt-2 text-sm text-indigo-900">

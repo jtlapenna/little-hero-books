@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isDeepStrictEqual } from 'node:util';
+import { readCsvRootRows, csvRowDeclaresInnerVoice, csvRowHasProgress, assertCompleteCsvRootUnits, csvRootNeedsCompleteUnits } from '@/lib/csv-book-selection';
+import { buildSelectedAmazonPendingW0Payload } from '@/lib/w0-payload';
 import { createClient } from '@supabase/supabase-js';
-import { calculateCharacterHash } from '@/lib/character-hash';
-import { upsertOrderByPerBookId } from '@/lib/supabase-client';
 
 export const dynamic = 'force-dynamic';
 // Note: Cron jobs require Node.js runtime, not Edge
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const cronSecret = process.env.CRON_SECRET;
-const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest';
+const n8nW0WebhookUrl = process.env.N8N_W0_WEBHOOK_URL || '';
 
 // Amazon SP-API credentials (check production-specific vars first, then fallback)
 const amazonClientId = process.env.AMZ_LWA_CLIENT_ID_PROD 
@@ -29,7 +30,7 @@ const amazonRegion = process.env.AMZ_REGION || process.env.AMAZON_SP_API_REGION 
 const amazonSandboxMode = process.env.AMAZON_SANDBOX_MODE === 'true';
 
 /**
- * Process Amazon orders - exportable function for use in router cron
+ * Recover stored Amazon orders. Fresh intake belongs to the middleware/API path.
  */
 export async function processAmazonOrders(
   supabase: any,
@@ -135,248 +136,118 @@ export async function processAmazonOrders(
 
     for (const amazonOrder of amazonOrders) {
       try {
-        let orderItems: any[] = [];
-        if (testMode) {
-          orderItems = amazonOrder.OrderItems || [];
-          console.log(`[Cron Amazon Orders] [${executionId}] TEST MODE: Using mock order items for ${amazonOrder.AmazonOrderId}`);
-        } else {
-          if (!accessToken) {
-            throw new Error('Access token not available for fetching order items');
-          }
-          orderItems = await fetchOrderItemsInternal(accessToken, amazonOrder.AmazonOrderId, amazonRegion, amazonSandboxMode);
+        const rawRetryOrderId = amazonOrder.AmazonOrderId;
+        const retryOrderIdValue = String(rawRetryOrderId || '').trim();
+
+        if (typeof rawRetryOrderId !== 'string' || !retryOrderIdValue || rawRetryOrderId !== retryOrderIdValue) {
+          console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
+          errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
+          continue;
         }
-        
-        const customization = parseCustomizationFromItems(orderItems);
-        
-        if (orderItems.length === 0 || Object.keys(customization).length === 0) {
-          const rawRetryOrderId = amazonOrder.AmazonOrderId;
-          const retryOrderIdValue = String(rawRetryOrderId || '').trim();
 
-          if (!retryOrderIdValue || retryOrderIdValue.length === 0) {
-            console.error(`[Cron Amazon Orders] [${executionId}] Invalid order ID for retry: ${rawRetryOrderId}`);
-            errors.push({ orderId: rawRetryOrderId, error: 'Invalid order ID: cannot be empty after trimming' });
-            continue;
+        const rootRows = await readCsvRootRows(supabase, retryOrderIdValue, [{ orderId: retryOrderIdValue }]);
+        if (!rootRows.length) throw new Error('Amazon fresh intake requires verified middleware/API admission');
+        assertCompleteCsvRootUnits(rootRows, retryOrderIdValue);
+        const inspectAll = csvRootNeedsCompleteUnits(rootRows);
+        const ids = new Set<string>();
+        const prepared: Array<{ orderId: string; payload: Record<string, unknown> }> = [];
+        const object = (value: unknown): value is Record<string, unknown> =>
+          value !== null && typeof value === 'object' && !Array.isArray(value);
+        const present = (value: unknown) => value !== null && value !== undefined;
+        const selectors = {
+          bookId: ['bookId', 'book_id', 'project', 'print_book_id', 'printBookId'],
+          formatId: ['formatId', 'format_id', 'print_format_id', 'printFormatId'],
+          configVersion: ['configVersion', 'config_version', 'version', 'print_config_version', 'printConfigVersion'],
+        };
+        const nullableSelectors = new Set(['book_id', 'project', 'print_book_id', 'print_format_id', 'print_config_version']);
+        for (const row of rootRows) {
+          const orderId = row.orderId ?? row.order_id;
+          if (typeof orderId !== 'string' || !orderId || orderId !== orderId.trim() ||
+              [row.orderId, row.order_id].some(value => present(value) && value !== orderId) || ids.has(orderId)) {
+            throw new Error('Ambiguous Amazon retry per-book identity');
           }
-
-          // Check if the order already has character_specs (e.g. populated by CSV upload).
-          // If so, skip the stub upsert and let the normal W0 trigger path handle it.
-          const { data: existingRow } = await supabase
-            .from('orders')
-            .select('character_specs, execution_status, next_workflow')
-            .eq('root_order_id', retryOrderIdValue)
-            .maybeSingle();
-
-          const existingSpecs = existingRow?.character_specs;
-          const hasExistingSpecs = existingSpecs && typeof existingSpecs === 'object' && !Array.isArray(existingSpecs) && Object.keys(existingSpecs).length > 0;
-
-          if (hasExistingSpecs) {
-            console.log(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no API customization but already has character_specs (CSV) — skipping stub upsert`);
-            // Trigger W0 if still pending (CSV may have failed to trigger it, e.g. W0 was inactive)
-            if (existingRow?.execution_status === 'pending_w0' && !existingRow?.next_workflow && n8nW0WebhookUrl) {
-              try {
-                // Purpose: amazon_order_id can be a group key; prefer per-book lookup for the primary row.
-                const byOrderId = await supabase.from('orders').select('*').eq('orderId', retryOrderIdValue).maybeSingle();
-                const byOrderIdSnake = byOrderId.error?.code === '42703'
-                  ? await supabase.from('orders').select('*').eq('order_id', retryOrderIdValue).maybeSingle()
-                  : null;
-                const byAmazon = (!byOrderId.data && !byOrderIdSnake?.data)
-                  ? await supabase.from('orders').select('*').eq('root_order_id', retryOrderIdValue).limit(50)
-                  : null;
-
-                const fullOrder =
-                  (byOrderId.data as any) ??
-                  (byOrderIdSnake?.data as any) ??
-                  (byAmazon?.data
-                    ? (byAmazon.data as any[]).find((o) => String(o?.orderId ?? '').trim() === retryOrderIdValue) ?? (byAmazon.data as any[])[0]
-                    : null);
-                if (fullOrder) {
-                  let sa = fullOrder.shipping_address;
-                  if (typeof sa === 'string') { try { sa = JSON.parse(sa); } catch { sa = null; } }
-                  let cs = fullOrder.character_specs;
-                  if (typeof cs === 'string') { try { cs = JSON.parse(cs); } catch { cs = null; } }
-                  const hasSa = sa && typeof sa === 'object' && Object.keys(sa).length > 0;
-                  if (hasSa && cs) {
-                    const ch = fullOrder.character_hash || calculateCharacterHash(cs, retryOrderIdValue);
-                    const pi = fullOrder.product_info as Record<string, unknown> | undefined;
-                    const items = (pi?.line_items as unknown[]) ?? (Array.isArray(pi) ? pi : []);
-                    const w0Payload = {
-                      amazonOrderId: retryOrderIdValue,
-                      orderId: fullOrder.orderId || retryOrderIdValue,
-                      id: fullOrder.orderId || retryOrderIdValue,
-                      purchaseDate: fullOrder.purchase_date,
-                      status: 'pending_w0',
-                      marketplaceId: fullOrder.marketplace_id,
-                      customerEmail: fullOrder.customer_email,
-                      buyer: { email: fullOrder.customer_email, name: fullOrder.customer_name },
-                      shippingAddress: sa, characterSpecs: cs, character_specs: cs, CharacterSpecs: cs,
-                      bookSpecs: { title: `${(cs as any)?.childName || 'Child'} and the Adventure Compass`, totalPages: 16, format: '8.5x8.5_softcover', bookType: 'adventure' },
-                      orderDetails: { quantity: Math.max(1, items.length), shippingAddress: sa },
-                      dedication: (cs as any)?.dedication || fullOrder.dedication_text || null,
-                      Dedication: (cs as any)?.dedication || fullOrder.dedication_text || null,
-                      items, characterHash: ch, character_hash: ch,
-                    };
-                    const w0Res = await fetch(n8nW0WebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(w0Payload) });
-                    if (w0Res.ok) {
-                      processedOrders.push(retryOrderIdValue);
-                      metrics.ordersProcessed++;
-                      console.log(`[Cron Amazon Orders] [${executionId}] ✅ Triggered W0 for CSV-populated order ${retryOrderIdValue}`);
-                    } else {
-                      console.warn(`[Cron Amazon Orders] [${executionId}] W0 failed for ${retryOrderIdValue}: ${w0Res.status}`);
-                    }
-                  }
-                }
-              } catch (w0Err: any) {
-                console.warn(`[Cron Amazon Orders] [${executionId}] W0 trigger error for ${retryOrderIdValue}:`, w0Err?.message);
+          ids.add(orderId);
+          if (![row.root_order_id, row.amazon_order_id].includes(retryOrderIdValue) ||
+              [row.root_order_id, row.amazon_order_id].some(value => present(value) && value !== retryOrderIdValue) ||
+              (present(row.platform) && row.platform !== 'amazon')) {
+            throw new Error('Conflicting Amazon retry root or platform');
+          }
+          const info = row.product_info;
+          const progressRow = { ...row, ...(Array.isArray(info) ? { product_info: undefined } : {}),
+            ...(Array.isArray(row.productInfo) ? { productInfo: undefined } : {}) };
+          const progressed = csvRowHasProgress(progressRow) ||
+            row.execution_status !== 'pending_w0' || present(row.next_workflow);
+          if (progressed && !inspectAll) continue;
+          const configured = csvRowDeclaresInnerVoice(row);
+          if (configured && row.platform !== 'amazon') throw new Error('Missing frozen Amazon platform');
+          if (Object.hasOwn(row, 'productInfo') && !isDeepStrictEqual(row.productInfo, info)) {
+            throw new Error('Conflicting Amazon retry product info');
+          }
+          const hasRetryFlag = object(info) && ['_customization_missing', '_retry_on_next_cron'].some(key => Object.hasOwn(info, key));
+          if (hasRetryFlag) {
+            const emptyFields = ['character_specs', 'characterSpecs', 'CharacterSpecs', 'character_hash', 'characterHash',
+              'dedication_text', 'dedication', 'Dedication', 'book_specs', 'bookSpecs'];
+            const placeholder = orderId === retryOrderIdValue && row.status === 'new' &&
+              !configured && emptyFields.every(key => !present(row[key])) &&
+              Object.values(selectors).flat().every(key => !Object.hasOwn(row, key) ||
+                row[key] === undefined || (nullableSelectors.has(key) && row[key] === null)) &&
+              !Object.hasOwn(row, 'bookSpecs') && !Object.hasOwn(row, 'productInfo') &&
+              info._customization_missing === true && info._retry_on_next_cron === true &&
+              Object.keys(info).length === 2;
+            if (!placeholder) throw new Error('Malformed Amazon retry placeholder');
+            throw new Error('Amazon fresh intake requires verified middleware/API admission');
+          }
+          let shipping = row.shipping_address;
+          if (!configured && typeof shipping === 'string') shipping = JSON.parse(shipping);
+          const specs = row.character_specs;
+          if (!object(shipping) || !Object.keys(shipping).length || !object(specs) || !Object.keys(specs).length) {
+            throw new Error('Missing Amazon retry original customization or shipping');
+          }
+          if (Object.hasOwn(row, 'CharacterSpecs') && !isDeepStrictEqual(row.CharacterSpecs, specs)) {
+            throw new Error('Conflicting Amazon retry original character specs');
+          }
+          const payload = buildSelectedAmazonPendingW0Payload({ ...row, platform: 'amazon', shipping_address: shipping });
+          if (configured) {
+            if (payload.bookId !== 'book-finding-our-inner-voice') throw new Error('Missing frozen Inner Voice selection');
+            for (const [key, aliases] of Object.entries(selectors)) for (const alias of aliases) {
+              if (Object.hasOwn(row, alias) && row[alias] !== undefined &&
+                  !(nullableSelectors.has(alias) && row[alias] === null) && row[alias] !== payload[key]) {
+                throw new Error('Conflicting Amazon retry frozen selection');
               }
             }
           } else {
-            console.warn(`[Cron Amazon Orders] [${executionId}] Order ${retryOrderIdValue} has no customization data - storing for retry`);
-            const { error: storeError } = await upsertOrderByPerBookId({
-                orderId: retryOrderIdValue,
-                root_order_id: retryOrderIdValue,
-                amazon_order_id: retryOrderIdValue,
-                execution_status: 'pending_w0',
-                next_workflow: null,
-                status: 'new',
-                customer_email: amazonOrder.BuyerInfo?.BuyerEmail || null,
-                marketplace_id: amazonOrder.MarketplaceId || amazonMarketplaceId,
-                purchase_date: amazonOrder.PurchaseDate || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                product_info: { _customization_missing: true, _retry_on_next_cron: true },
-              });
-
-            if (storeError) {
-              console.error(`[Cron Amazon Orders] [${executionId}] Failed to store order ${retryOrderIdValue} for retry:`, storeError.message);
-              errors.push({ orderId: retryOrderIdValue, error: `Store for retry failed: ${storeError.message}` });
-            } else {
-              console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${retryOrderIdValue} for retry (customization data not available yet)`);
+            if (payload.bookId != null && payload.bookId !== 'book-mvp-simple-adventure') {
+              throw new Error('Unsupported Amazon retry frozen book');
             }
+            const legacyTuple: Record<string, unknown> = { bookId: 'book-mvp-simple-adventure',
+              formatId: payload.formatId ?? 'amazon', configVersion: payload.configVersion ?? 1 };
+            for (const [key, aliases] of Object.entries(selectors)) for (const alias of aliases) {
+              if (Object.hasOwn(row, alias) && row[alias] !== undefined &&
+                  !(nullableSelectors.has(alias) && row[alias] === null) && row[alias] !== legacyTuple[key]) {
+                throw new Error('Unsupported Amazon retry legacy declaration');
+              }
+            }
+            if (Array.isArray(info)) payload.items = info;
+            payload.dedication = specs.dedication || row.dedication_text || null;
           }
-
-          continue;
+          payload.CharacterSpecs = specs;
+          payload.Dedication = payload.dedication;
+          if (progressed) continue;
+          prepared.push({ orderId, payload });
         }
-        
-        const orderData = await normalizeAmazonOrderInternal(amazonOrder, orderItems, customization, amazonMarketplaceId);
-        
-        const rawOrderId = orderData.amazon_order_id || orderData.amazonOrderId || orderData.orderId || amazonOrder.AmazonOrderId;
-        const orderIdValue = String(rawOrderId || '').trim();
-        
-        if (!orderIdValue || orderIdValue.length === 0) {
-          throw new Error(`Invalid order ID: cannot be empty after trimming. Original: ${rawOrderId}`);
+        for (const item of prepared) {
+          try {
+            if (!n8nW0WebhookUrl) throw new Error('W0 webhook is not configured');
+            const response = await fetch(n8nW0WebhookUrl, { method: 'POST',
+              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.payload),
+              redirect: 'error', signal: AbortSignal.timeout(30_000) });
+            if (!response.ok) throw new Error(`W0 retry failed: ${response.status}`);
+            processedOrders.push(item.orderId);
+            metrics.ordersProcessed++;
+          } catch (error) {
+            errors.push({ orderId: item.orderId, error: error instanceof Error ? error.message : 'W0 retry failed' });
+          }
         }
-        
-        const characterSpecs = orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs || {};
-        const characterHash = calculateCharacterHash(characterSpecs, orderIdValue);
-        
-        // Check if order already exists to avoid overwriting W0 progress.
-        // Purpose: amazon_order_id can be a sibling group key; prefer per-book lookup first.
-        const byOrderId = await supabase
-          .from('orders')
-          .select('execution_status, next_workflow, workflow_step, orderId')
-          .eq('orderId', orderIdValue)
-          .maybeSingle();
-        if (byOrderId.error?.code !== '42703' && byOrderId.error) throw byOrderId.error;
-        const byOrderIdSnake = byOrderId.error?.code === '42703'
-          ? await supabase
-              .from('orders')
-              .select('execution_status, next_workflow, workflow_step, orderId')
-              .eq('order_id', orderIdValue)
-              .maybeSingle()
-          : null;
-        if (byOrderIdSnake?.error) throw byOrderIdSnake.error;
-        const byAmazon = (!byOrderId.data && !byOrderIdSnake?.data)
-          ? await supabase
-              .from('orders')
-              .select('execution_status, next_workflow, workflow_step, orderId')
-              .eq('root_order_id', orderIdValue)
-              .limit(50)
-          : null;
-        if (byAmazon?.error) throw byAmazon.error;
-        const existingOrder =
-          (byOrderId.data as any) ??
-          (byOrderIdSnake?.data as any) ??
-          (byAmazon?.data
-            ? (byAmazon.data as any[]).find((o) => String(o?.orderId ?? '').trim() === orderIdValue) ??
-              (byAmazon.data as any[]).find((o) => String(o?.order_id ?? '').trim() === orderIdValue) ??
-              (byAmazon.data as any[])[0]
-            : null);
-        
-        // Only set execution_status and next_workflow if order is new or still in initial state
-        // Don't overwrite if w0 has already processed it
-        const isNewOrInitial = !existingOrder || 
-          (existingOrder.execution_status === 'pending_w0' && existingOrder.next_workflow === null);
-        
-        const supabaseOrderData: any = {
-          orderId: orderIdValue,
-          root_order_id: orderIdValue,
-          amazon_order_id: orderIdValue,
-          character_hash: characterHash,
-          order_status: orderData.status || 'Unshipped',
-          purchase_date: orderData.purchaseDate || orderData.orderDate,
-          marketplace_id: orderData.marketplaceId,
-          customer_email: orderData.customerEmail || orderData.buyer?.email,
-          customer_name: orderData.buyer?.name || orderData.shippingAddress?.name,
-          shipping_address: orderData.shippingAddress,
-          character_specs: orderData.character_specs || orderData.characterSpecs || orderData.CharacterSpecs,
-          dedication_text: orderData.dedication || orderData.Dedication,
-          product_info: orderData.items || orderData.lineItems || orderItems,
-          updated_at: new Date().toISOString(),
-        };
-        if (orderData.ShipmentServiceLevelCategory != null || orderData.ShipServiceLevel != null) {
-          supabaseOrderData.amazon_shipment_service_level =
-            orderData.ShipmentServiceLevelCategory || orderData.ShipServiceLevel;
-        }
-        
-        // Only set status/execution_status/next_workflow if order is new or still in initial state
-        // This prevents overwriting w0's progress if it has already run
-        if (isNewOrInitial) {
-          supabaseOrderData.status = 'pending_w0';
-          supabaseOrderData.execution_status = 'pending_w0';
-          supabaseOrderData.next_workflow = null;
-        }
-        // If order already exists and w0 has processed it, don't overwrite those fields
-        
-        const { data: storedOrder, error: storeError } = await upsertOrderByPerBookId(supabaseOrderData);
-
-        if (storeError) {
-          throw new Error(`Supabase store failed: ${storeError.message}`);
-        }
-
-        console.log(`[Cron Amazon Orders] [${executionId}] Stored order ${orderIdValue} in Supabase with character_hash: ${characterHash}`);
-
-        // PSEUDOCODE (avoid W0 re-processing existing orders)
-        // - Only call W0 if the order is actually pending W0 (or doesn't exist yet).
-        // - If it's already moved past W0, do NOT call W0 again (it can reset next_workflow).
-        const shouldTriggerW0 = !existingOrder || existingOrder.execution_status === 'pending_w0';
-        if (!shouldTriggerW0) {
-          console.log(
-            `[Cron Amazon Orders] [${executionId}] Skipping W0 webhook for existing order ${orderIdValue} (execution_status=${existingOrder.execution_status}, next_workflow=${existingOrder.next_workflow})`
-          );
-          continue;
-        }
-
-        const webhookPayload = {
-          ...orderData,
-          characterHash: characterHash,
-          character_hash: characterHash,
-        };
-        
-        const webhookResponse = await fetch(n8nW0WebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(webhookPayload),
-        });
-
-        if (!webhookResponse.ok) {
-          const errorText = await webhookResponse.text();
-          throw new Error(`W0 webhook failed (${webhookResponse.status}): ${errorText.substring(0, 200)}`);
-        }
-
-        processedOrders.push(amazonOrder.AmazonOrderId);
-        metrics.ordersProcessed++;
-        console.log(`[Cron Amazon Orders] [${executionId}] ✅ Processed order ${amazonOrder.AmazonOrderId}`);
 
       } catch (error: any) {
         const orderId = amazonOrder.AmazonOrderId || 'unknown';
@@ -565,158 +436,6 @@ async function fetchAmazonOrdersInternal(
   }
 }
 
-async function fetchOrderItemsInternal(
-  accessToken: string,
-  orderId: string,
-  region: string,
-  sandboxMode: boolean
-): Promise<any[]> {
-  try {
-    const baseUrl = sandboxMode
-      ? 'https://sandbox.sellingpartnerapi-na.amazon.com'
-      : (region === 'na'
-          ? 'https://sellingpartnerapi-na.amazon.com'
-          : `https://sellingpartnerapi-${region}.amazon.com`);
-
-    const url = `${baseUrl}/orders/v0/orders/${orderId}/orderItems`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-amz-access-token': accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Read response body once - can't read it twice in Cloudflare Workers
-    const responseText = await response.text();
-    let data: any;
-    try {
-      data = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      data = { raw: responseText };
-    }
-
-    if (!response.ok) {
-      const errorText = responseText;
-      if (response.status === 404) {
-        console.warn(`[Cron Amazon Orders] Order ${orderId} items not available yet (404)`);
-        return [];
-      }
-      throw new Error(`Failed to fetch order items (${response.status}): ${errorText}`);
-    }
-    const orderItems = data.payload?.OrderItems || [];
-    console.log(`[Cron Amazon Orders] Fetched ${orderItems.length} items for order ${orderId}`);
-    return orderItems;
-  } catch (error: any) {
-    console.error(`[Cron Amazon Orders] Error fetching items for order ${orderId}:`, error.message);
-    return [];
-  }
-}
-
-async function normalizeAmazonOrderInternal(
-  amazonOrder: any,
-  orderItems: any[] = [],
-  customization: Record<string, any> = {},
-  marketplaceId: string
-): Promise<any> {
-  const amazonOrderId = amazonOrder.AmazonOrderId;
-  const purchaseDate = amazonOrder.PurchaseDate || new Date().toISOString();
-  const buyerEmail = amazonOrder.BuyerInfo?.BuyerEmail || null;
-  const buyerName = amazonOrder.BuyerInfo?.BuyerName || null;
-
-  const shippingAddress = amazonOrder.ShippingAddress || {};
-  const normalizedShipping = {
-    name: shippingAddress.Name || buyerName || 'Unknown',
-    address: shippingAddress.AddressLine1 || '',
-    address2: shippingAddress.AddressLine2 || '',
-    city: shippingAddress.City || '',
-    state: shippingAddress.StateOrRegion || '',
-    zip: shippingAddress.PostalCode || '',
-    phone: shippingAddress.Phone || '',
-    country: shippingAddress.CountryCode || 'US',
-  };
-
-  const characterSpecs = parseCharacterSpecs(customization);
-  const dedication = characterSpecs.dedication || '';
-
-  const shipmentServiceLevel =
-    amazonOrder.ShipmentServiceLevelCategory || amazonOrder.ShipServiceLevel || null;
-
-  return {
-    amazon_order_id: amazonOrderId,
-    orderId: amazonOrderId,
-    id: amazonOrderId,
-    amazonOrderId: amazonOrderId,
-    orderDate: purchaseDate,
-    purchaseDate: purchaseDate,
-    createdAt: new Date().toISOString(),
-    status: 'pending_w0',
-    marketplaceId: marketplaceId,
-    ShipmentServiceLevelCategory: shipmentServiceLevel,
-    ShipServiceLevel: amazonOrder.ShipServiceLevel || shipmentServiceLevel,
-    customerEmail: buyerEmail,
-    buyer: {
-      email: buyerEmail,
-      name: buyerName,
-    },
-    ShippingAddress: shippingAddress,
-    shippingAddress: normalizedShipping,
-    characterSpecs: characterSpecs,
-    character_specs: characterSpecs,
-    CharacterSpecs: characterSpecs,
-    bookSpecs: {
-      title: `${characterSpecs.childName} and the Adventure Compass`,
-      totalPages: 16,
-      format: '8.5x8.5_softcover',
-      bookType: 'adventure',
-    },
-    orderDetails: {
-      quantity: parseInt(amazonOrder.NumberOfItemsShipped || amazonOrder.NumberOfItemsUnshipped || '1'),
-      shippingAddress: normalizedShipping,
-    },
-    dedication: dedication,
-    Dedication: dedication,
-    items: orderItems.length > 0 ? [{
-      sku: orderItems[0]?.SellerSKU || 'LHB-8X10-SOFTCOVER',
-      quantity: 1,
-      customizations: Object.entries(customization).map(([name, value]) => ({
-        name: name,
-        label: name,
-        type: 'text',
-        value: String(value),
-      })),
-    }] : [],
-    lineItems: [{
-      customizationFields: Object.entries(customization).map(([name, value]) => ({
-        name: name,
-        text: String(value),
-      })),
-    }],
-    _rawAmazonOrder: amazonOrder,
-    _rawOrderItems: orderItems,
-    _rawCustomization: customization,
-  };
-}
-
-/**
- * GET /api/cron/amazon-orders
- * 
- * Vercel Cron job that polls Amazon SP-API for new orders and triggers W0 processing.
- * Runs once per day (free tier) or manually triggered.
- * 
- * Flow:
- * 1. Poll Amazon SP-API for new orders (last 24 hours)
- * 2. For each new order:
- *    a. Store in Supabase via POST /api/orders (with execution_status='pending_w0')
- *    b. Call W0 webhook with order data
- * 
- * Returns early (0 n8n executions) if:
- * - No new orders found
- * 
- * Calls n8n webhook (1 execution per order) if:
- * - New orders exist
- */
 export async function GET(request: NextRequest) {
   // Check for test mode (via query parameter ?test=true)
   const url = new URL(request.url);
@@ -896,159 +615,4 @@ function getMockAmazonOrders(): any[] {
       }
     }]
   }];
-}
-
-/**
- * Get Amazon SP-API access token using refresh token
- * (Legacy function - now calls internal version)
- */
-async function getAmazonAccessToken(): Promise<string | null> {
-  if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
-    throw new Error('Amazon SP-API credentials not configured');
-  }
-  return getAmazonAccessTokenInternal(amazonClientId, amazonClientSecret, amazonRefreshToken);
-}
-
-/**
- * Fetch unshipped orders from Amazon SP-API
- * (Legacy function - now calls internal version)
- */
-async function fetchAmazonOrders(accessToken: string): Promise<any[]> {
-  return fetchAmazonOrdersInternal(
-    accessToken,
-    amazonMarketplaceId || 'ATVPDKIKX0DER',
-    amazonRegion || 'na',
-    amazonSandboxMode
-  );
-}
-
-/**
- * Fetch order items from Amazon SP-API to get customization data
- * (Legacy function - now calls internal version)
- */
-async function fetchOrderItems(accessToken: string, orderId: string): Promise<any[]> {
-  return fetchOrderItemsInternal(
-    accessToken,
-    orderId,
-    amazonRegion || 'na',
-    amazonSandboxMode
-  );
-}
-
-/**
- * Parse customization data from order items
- * 
- * EXPECTED AMAZON CUSTOM STRUCTURE:
- * OrderItems[0].BuyerCustomizedInfo.CustomizedInfo = {
- *   "Child's Name": "Alex",
- *   "Child's Age": "5",
- *   "Skin Tone": "skin-medium",
- *   "Hair Color": "brown-light",
- *   "Hair Style": "curly-crop",
- *   "Pronouns": "they/them",
- *   "Favorite Color": "blue",
- *   "Animal Guide": "dog",
- *   "Clothing Style": "tee-shorts",
- *   "Hometown": "San Francisco",
- *   "Dedication Message": "To my amazing child..."
- * }
- * 
- * NOTE: We log the actual structure when it differs from expected to help verify mapping
- */
-function parseCustomizationFromItems(orderItems: any[]): Record<string, any> {
-  if (!orderItems || orderItems.length === 0) {
-    return {};
-  }
-
-  const firstItem = orderItems[0];
-  
-  // Log the actual structure for verification (first time we see it)
-  // This helps us verify the real Amazon API structure matches our expectations
-  if (process.env.AMAZON_DEBUG_STRUCTURE === 'true') {
-    console.log('[Cron Amazon Orders] 🔍 DEBUG: Full order item structure:', JSON.stringify(firstItem, null, 2));
-    console.log('[Cron Amazon Orders] 🔍 DEBUG: Available paths:', {
-      'BuyerCustomizedInfo?.CustomizedInfo': !!firstItem?.BuyerCustomizedInfo?.CustomizedInfo,
-      'CustomizedInfo': !!firstItem?.CustomizedInfo,
-      'BuyerInfo?.BuyerCustomizedInfo': !!firstItem?.BuyerInfo?.BuyerCustomizedInfo,
-      'CustomizationInfo': !!firstItem?.CustomizationInfo,
-    });
-  }
-
-  // Try multiple locations for customization data (Amazon API structure can vary)
-  const customization =
-    firstItem?.BuyerCustomizedInfo?.CustomizedInfo ||
-    firstItem?.CustomizedInfo ||
-    firstItem?.BuyerInfo?.BuyerCustomizedInfo ||
-    firstItem?.CustomizationInfo ||
-    {};
-
-  if (Object.keys(customization).length > 0) {
-    const fields = Object.keys(customization);
-    console.log(`[Cron Amazon Orders] ✅ Found customization fields (${fields.length}): ${fields.join(', ')}`);
-    
-    // Log unexpected field names to help identify mapping issues
-    const expectedFields = [
-      "Child's Name", "Child's Age", "Skin Tone", "Hair Color", "Hair Style",
-      "Pronouns", "Favorite Color", "Animal Guide", "Clothing Style", 
-      "Hometown", "Dedication Message"
-    ];
-    const unexpectedFields = fields.filter(f => !expectedFields.some(ef => 
-      ef.toLowerCase().replace(/\s+/g, '') === f.toLowerCase().replace(/\s+/g, '')
-    ));
-    if (unexpectedFields.length > 0) {
-      console.warn(`[Cron Amazon Orders] ⚠️  Unexpected customization fields (may need mapping): ${unexpectedFields.join(', ')}`);
-    }
-  } else {
-    console.warn(`[Cron Amazon Orders] ⚠️  No customization data found in order items`);
-    console.warn(`[Cron Amazon Orders] ⚠️  Item structure keys: ${Object.keys(firstItem || {}).join(', ')}`);
-    
-    // Log the structure if we can't find customization (helps debug)
-    if (process.env.AMAZON_DEBUG_STRUCTURE === 'true') {
-      console.warn('[Cron Amazon Orders] 🔍 DEBUG: First item structure:', JSON.stringify(firstItem, null, 2));
-    }
-  }
-
-  return customization;
-}
-
-/**
- * Parse Amazon customization into character specs
- */
-function parseCharacterSpecs(customization: Record<string, any>): any {
-  const getField = (keys: string[]): string | null => {
-    for (const key of keys) {
-      const value = customization[key];
-      if (value !== undefined && value !== null && value !== '') {
-        return String(value);
-      }
-    }
-    return null;
-  };
-
-  return {
-    childName: getField(['Child\'s Name', 'Child Name', 'childName', 'ChildName']) || 'Hero',
-    age: parseInt(getField(['Child\'s Age', 'Child Age', 'age', 'Age']) || '5'),
-    pronouns: getField(['Pronouns', 'pronouns']) || 'they/them',
-    skinTone: (getField(['Skin Tone', 'skinTone', 'SkinTone']) || 'medium').toLowerCase(),
-    hairColor: (getField(['Hair Color', 'hairColor', 'HairColor']) || 'brown').toLowerCase(),
-    hairStyle: (getField(['Hair Style', 'hairStyle', 'HairStyle']) || 'short/straight').toLowerCase(),
-    favoriteColor: (getField(['Favorite Color', 'favoriteColor', 'FavoriteColor']) || 'blue').toLowerCase(),
-    animalGuide: getField(['Animal Guide', 'animalGuide', 'AnimalGuide']) || 'dog',
-    clothingStyle: (getField(['Clothing Style', 'clothingStyle', 'ClothingStyle']) || 't-shirt and shorts').toLowerCase(),
-    hometown: getField(['Hometown', 'hometown', 'Home Town']) || null,
-    dedication: getField(['Dedication Message', 'dedication', 'Dedication']) || '',
-  };
-}
-
-/**
- * Normalize Amazon order data to match W0's expected format
- * (Legacy function - now calls internal version)
- */
-async function normalizeAmazonOrder(
-  amazonOrder: any,
-  orderItems: any[] = [],
-  customization: Record<string, any> = {}
-): Promise<any> {
-  const marketplaceId = amazonOrder.MarketplaceId || amazonMarketplaceId || 'ATVPDKIKX0DER';
-  return normalizeAmazonOrderInternal(amazonOrder, orderItems, customization, marketplaceId);
 }

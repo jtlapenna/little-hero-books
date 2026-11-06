@@ -11,7 +11,7 @@ export interface W0ManifestStorage {
   persistOrder?(payload: RecordValue): Promise<{ data: RecordValue | null; error: Error | null }>;
 }
 
-function selectFrozenManifest(candidate: BuildOrderIntakeManifestResult, stored: unknown, order: RecordValue | null): BuildOrderIntakeManifestResult {
+function selectFrozenManifest(input: NormalizedW0WorkflowInput, candidate: BuildOrderIntakeManifestResult, stored: unknown, order: RecordValue | null): BuildOrderIntakeManifestResult {
   if (stored == null) return candidate;
   const prospective = validateRunManifest(candidate.manifest);
   const raw = stored as RecordValue;
@@ -31,8 +31,8 @@ function selectFrozenManifest(candidate: BuildOrderIntakeManifestResult, stored:
     throw new Error('Existing frozen W0 manifest does not match selected order/book/version/format');
   }
   assertPrintAssignmentCompatible(
-    buildW0OrderUpsertPayload({ normalizedInput: {}, manifest: frozen, manifestKey: candidate.manifestKey }),
-    buildW0OrderUpsertPayload({ normalizedInput: {}, manifest: prospective, manifestKey: candidate.manifestKey }),
+    buildW0OrderUpsertPayload({ normalizedInput: input, manifest: frozen, manifestKey: candidate.manifestKey }),
+    buildW0OrderUpsertPayload({ normalizedInput: input, manifest: prospective, manifestKey: candidate.manifestKey }),
   );
   return { ...candidate, manifest: frozen };
 }
@@ -55,7 +55,7 @@ export async function prepareFrozenW0Manifest(
   };
   assertRow(order);
   let stored = await storage.loadManifest(candidate.manifestKey);
-  let selected = selectFrozenManifest(candidate, stored, order);
+  let selected = selectFrozenManifest(input, candidate, stored, order);
   let created = false;
   if (publish && stored == null) {
     if (!storage.createManifest) throw new Error('Conditional W0 publication is unavailable');
@@ -63,7 +63,7 @@ export async function prepareFrozenW0Manifest(
     if (!created) {
       stored = await storage.loadManifest(candidate.manifestKey);
       if (stored == null) throw new Error('Concurrent W0 publication could not be reconciled');
-      selected = selectFrozenManifest(candidate, stored, order);
+      selected = selectFrozenManifest(input, candidate, stored, order);
     }
   }
   if (publish) { order = await storage.loadOrder(orderId); assertRow(order); }

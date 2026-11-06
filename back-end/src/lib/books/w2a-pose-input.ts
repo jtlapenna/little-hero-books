@@ -41,6 +41,7 @@ export interface W2APosePromptMeta {
 }
 
 export interface BuildW2APoseInputResult extends BookSnapshotFields {
+  poseIdentityContract: 'configured-recipe@v1' | 'legacy@v1';
   orderId: string;
   rootOrderId: string | null;
   amazonOrderId: string | null;
@@ -567,6 +568,20 @@ export async function buildW2APoseInput(
   const config = frozenConfig.config;
   if (frozenConfig.canonicalInput?.characterSpecs) characterSpecs = toRecord(frozenConfig.canonicalInput.characterSpecs);
   if (typeof frozenConfig.canonicalInput?.characterHash === 'string') characterHash = frozenConfig.canonicalInput.characterHash;
+  if (config.rendering.recipe) {
+    const aliases = [input.poseNumber, input.currentPoseNumber, input.workingPoseNumber, input.nextPoseNumber,
+      toRecord(input.__meta).poseNumber, orderContext.poseNumber, orderContext.currentPoseNumber,
+      compatSnapshot.poseNumber, compatSnapshot.currentPoseNumber, compatSnapshot.expectedPoseNumber]
+      .filter((value) => value !== undefined && value !== null);
+    const parsed = aliases.map((value) => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string' && /^\d+$/.test(value.trim())) return Number(value.trim());
+      return NaN;
+    });
+    if (!parsed.length || parsed.some((value) => !Number.isInteger(value) || value < 0 || value > 99 || value !== poseNumber)) {
+      throw new Error('Invalid or conflicting configured pose numbers');
+    }
+  }
 
   const explicitBackendUrl = normalizeLikelyUrl(
     pickFirstNonEmpty(input.backendUrl, explicitOrderContext.backendUrl),
@@ -722,6 +737,7 @@ export async function buildW2APoseInput(
   );
 
   return {
+    poseIdentityContract: config.rendering.recipe ? 'configured-recipe@v1' : 'legacy@v1',
     ...(frozenConfig.renderSnapshot ? { renderSnapshot: frozenConfig.renderSnapshot, configVersion: config.version } : {}),
     orderId,
     rootOrderId:

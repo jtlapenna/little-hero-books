@@ -12,8 +12,8 @@ const root=mkdtempSync(path.join(os.tmpdir(),'lhl-protected-runner-')),checks:st
 const originalFetch=globalThis.fetch;let external=0;
 globalThis.fetch=async()=>{external++;throw Error('External network blocked');};
 const mark=(s:string)=>{checks.push(s);console.log('PASS '+s);};
-function setup(count=1,amazon=false){
- const f=protectedRunnerFixture(count,amazon),service=fixtureServices(f),journalRoot=path.join(root,String(checks.length)+'-'+Math.random());mkdirSync(journalRoot,{mode:0o700});
+function setup(count=1,amazon=false,version:2|3=2){
+ const f=protectedRunnerFixture(count,amazon,version),service=fixtureServices(f),journalRoot=path.join(root,String(checks.length)+'-'+Math.random());mkdirSync(journalRoot,{mode:0o700});
  const options={credentials:f.credentials,fetcher:service.fetcher,now:Date.now,sleep:async(_ms:number,s:AbortSignal)=>s.throwIfAborted(),journalRoot};
  const adapter=createProtectedRunnerAdapter(f.binding,definitionSha256(f.binding),options);
  const approval={packetSha256:definitionSha256(f.binding.packet),workflowSha256:definitionSha256(adapter.workflowHashes),sourceSha:f.binding.packet.sourceSha,maximumSpendCents:0,draftOnly:true,customerMessages:false};
@@ -69,8 +69,31 @@ async function main(){
   mark('Diagnostic edge '+status+' stops before queue without redirect, retry or credential forwarding; cleanup remains independent');
  }
 
- for(const [label,count,amazon]of [['website',1,false],['Amazon',1,true],['siblings',2,true]] as const){
-  const f=setup(count,amazon);await f.run();assert.equal(f.service.state.draftCalls,1);assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);assert(Object.values(f.f.flows).every(w=>!w.active),'Every owned workflow copy returns OFF');f.service.assertSentinels();await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,1);mark(label+': concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied');
+ for(const version of [2,3] as const)for(const [label,count,amazon]of [['website',1,false],['Amazon',1,true],['siblings',2,true]] as const){
+  const f=setup(count,amazon,version);await f.run();assert.equal(f.service.state.draftCalls,1);assert.equal(f.service.state.providerReads,1);assert(f.service.state.closed&&!f.service.state.timer);assert(Object.values(f.f.flows).every(w=>!w.active),'Every owned workflow copy returns OFF');f.service.assertSentinels();await assert.rejects(f.run());assert.equal(f.service.state.queueCalls,1);mark('v'+version+' '+label+': concrete queue/assembly/draft/file/provider/mapping/timer/closure transport; replay denied');
+ }
+ for(const version of [2,3] as const){
+  const f=setup(2,true,version);
+  const wrong=structuredClone(f.f.binding);const other=version===2?3:2;
+  wrong.artifacts[1].key=wrong.artifacts[1].key.replace('/v'+version+'/', '/v'+other+'/');
+  wrong.artifacts[1].sourceUrl=wrong.artifacts[1].sourceUrl.replace('/v'+version+'/', '/v'+other+'/');
+  assert.throws(()=>createProtectedRunnerAdapter(wrong,definitionSha256(wrong),f.options),/Exact owned artifact binding/);
+  assert.equal(f.service.calls.length,0);
+  f.service.setFault(async(kind,result)=>{
+   if(kind!=='queue')return result;
+   const claim=await result.json();claim.orders[1].configVersion=other;return Response.json(claim);
+  });
+  await assert.rejects(f.run());assert.equal(f.service.state.assemblyCalls,0);assert.equal(f.service.state.draftCalls,0);assert(f.service.state.closed);
+ }
+ mark('Exact packet version rejects mixed artifact paths before transport and mixed queue claims before assembly');
+ {
+  const f=setup(1,false,3);f.f.rows[0].print_config_version=2;
+  f.f.binding.cohortRowsSha256=definitionSha256(f.f.rows);
+  const adapter=createProtectedRunnerAdapter(f.f.binding,definitionSha256(f.f.binding),f.options);
+  const approval={packetSha256:definitionSha256(f.f.binding.packet),workflowSha256:definitionSha256(adapter.workflowHashes),sourceSha:f.f.binding.packet.sourceSha,maximumSpendCents:0,draftOnly:true,customerMessages:false};
+  await assert.rejects(runPreparedIsolatedCase(f.f.binding.packet,adapter.workflowHashes,approval,adapter.dependencies),/Case stopped/);
+  assert.equal(f.service.state.queueCalls,0);assert.equal(f.service.state.draftCalls,0);assert(f.service.state.closed);
+  mark('Current cohort version must match packet even when mismatched rows have a matching approved row hash');
  }
  {
   const f=setup();let delayed=false;

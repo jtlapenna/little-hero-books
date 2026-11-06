@@ -20,8 +20,8 @@ const child=(mode:string,context:string)=>{
  const exit=async()=>{for(let n=0;n<500;n++){if(ended)return worker.exitCode;await sleep(20);}throw Error('Worker exit timeout: '+errors);};
  return {worker,wait,exit,messages};
 };
-async function scenario(killAt:string|null){
- const f=protectedRunnerFixture(2,true),service=fixtureServices(f),dir=path.join(root,randomUUID());mkdirSync(dir,{mode:0o700});const journalRoot=path.join(dir,'journals');mkdirSync(journalRoot,{mode:0o700});
+async function scenario(killAt:string|null,version:2|3=2){
+ const f=protectedRunnerFixture(2,true,version),service=fixtureServices(f),dir=path.join(root,randomUUID());mkdirSync(dir,{mode:0o700});const journalRoot=path.join(dir,'journals');mkdirSync(journalRoot,{mode:0o700});
  let primary:ReturnType<typeof child>|undefined,accepted=false;
  service.setFault(async(kind,result)=>{
   if(kind===killAt){accepted=true;assert(primary);primary.worker.kill('SIGKILL');await sleep(30);throw Error('Accepted but connection lost');}return result;
@@ -58,7 +58,7 @@ async function scenario(killAt:string|null){
  }finally{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 }
 async function main(){
- for(const point of [null,'claim','queue','assembly','draft','activate'])await scenario(point);
+ for(const version of [2,3] as const)for(const point of [null,'claim','queue','assembly','draft','activate'])await scenario(point,version);
  // Separate OS workers execute the actual fsync journal implementation, not a copy.
  const f=protectedRunnerFixture(),dir=path.join(root,'race');mkdirSync(dir,{mode:0o700});
  const journalRoot=path.join(dir,'journals');mkdirSync(journalRoot,{mode:0o700});

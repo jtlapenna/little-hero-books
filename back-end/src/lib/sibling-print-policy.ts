@@ -134,3 +134,91 @@ export function describeSiblingPrintSubmissionBlockers(order: OrderLike): string
 
   return blockers;
 }
+
+// Full membership is required before a detail view or print action can name its targets.
+export function assertOrderGroupMembers(
+  rows: OrderLike[], rootOrderId: string, currentOrderId: string, currentRowId: unknown,
+): void {
+  if (!rootOrderId || !currentOrderId || !rows.length || rows.length > 200) {
+    throw new Error('Order group membership is unavailable or exceeds the safe lookup limit');
+  }
+  const businessIds = new Set<string>();
+  const physicalIds = new Set<number>();
+  for (const row of rows) {
+    const id = getPerBookOrderId(row);
+    const aliases = [row.orderId, row.order_id].filter(value => value !== undefined && value !== null && value !== '');
+    const roots = [row.root_order_id, row.amazon_order_id, row.rootOrderId, row.amazonOrderId]
+      .filter(value => value !== undefined && value !== null && value !== '');
+    if (!id || (aliases.length === 0 && id !== rootOrderId) ||
+        aliases.some(value => typeof value !== 'string' || value !== id) ||
+        roots.some(value => typeof value !== 'string' || value !== rootOrderId) ||
+        (roots.length === 0 && id !== rootOrderId) ||
+        typeof row.id !== 'number' || !Number.isSafeInteger(row.id) || row.id <= 0 ||
+        businessIds.has(id) || physicalIds.has(row.id)) {
+      throw new Error('Conflicting or duplicate order group identity');
+    }
+    businessIds.add(id); physicalIds.add(row.id);
+  }
+  const current = rows.find(row => getPerBookOrderId(row) === currentOrderId);
+  if (!current || current.id !== currentRowId) throw new Error('Current order is missing from the verified group');
+}
+
+export async function readCompleteOrderGroup(
+  db: import('@supabase/supabase-js').SupabaseClient, current: OrderLike,
+): Promise<OrderLike[]> {
+  const orderId = getPerBookOrderId(current);
+  const rootId = getRootOrderId(current) || orderId;
+  assertOrderGroupMembers([current], rootId, orderId, current.id);
+  const { readCsvRootRows, assertCompleteCsvRootUnits, csvRootNeedsCompleteUnits, isPurePlaceholder } = await import('./csv-book-selection');
+  const rows = await readCsvRootRows(db, rootId, [{ orderId }, { orderId: rootId }]);
+  assertOrderGroupMembers(rows, rootId, orderId, current.id);
+  if (current.platform === 'amazon') assertCompleteCsvRootUnits(rows, rootId);
+  // Legacy Amazon roots keep an empty placeholder parent beside their per-book children; it is not a printable member
+  // (HEAD excluded every root row here). Only the canonical pure-placeholder predicate qualifies, on an Amazon row.
+  // Roots needing complete unit context stay strict (the canonical CSV contract makes a placeholder the sole root
+  // member there) and the placeholder as the current order stays strict. Legacy children store the per-line quantity in
+  // _quantity_unit_count, so that value cannot be compared with the group size.
+  if (orderId !== rootId && !csvRootNeedsCompleteUnits(rows as Parameters<typeof csvRootNeedsCompleteUnits>[0])) {
+    const members = rows.filter(row => !(row.platform === 'amazon' && isPurePlaceholder(row as Parameters<typeof isPurePlaceholder>[0], rootId)));
+    if (members.length !== rows.length && members.length > 0) {
+      assertOrderGroupMembers(members, rootId, orderId, current.id);
+      return members;
+    }
+  }
+  return rows;
+}
+
+export async function assertNoArchivedOrderGroupMembers(
+  db: import('@supabase/supabase-js').SupabaseClient, rootId: string, currentId: string,
+): Promise<void> {
+  const archivedIds = new Set<string>();
+  for (const [column, value] of [
+    ['root_order_id', rootId], ['amazon_order_id', rootId],
+    ['orderId', rootId], ['order_id', rootId],
+    ['orderId', currentId], ['order_id', currentId],
+  ]) {
+    const result = await db.from('archived_orders').select('order_data')
+      .eq(`order_data->>${column}`, value).limit(201);
+    if (result.error || !Array.isArray(result.data) || result.data.length >= 201) {
+      throw new Error('Unable to verify archived order group membership; no orders were queued');
+    }
+    for (const stored of result.data) {
+      const member = stored.order_data;
+      if (!member || typeof member !== 'object' || Array.isArray(member) || !getPerBookOrderId(member)) {
+        throw new Error('Invalid archived order group member; no orders were queued');
+      }
+      archivedIds.add(getPerBookOrderId(member));
+    }
+  }
+  if (archivedIds.size) {
+    throw new Error(`Order group ${rootId} includes archived orders (${[...archivedIds].sort().join(', ')}); verify the complete group before queueing print`);
+  }
+}
+
+export function assertExactOrderLookup(requestedId: string, row: OrderLike, allowGroupAlias: boolean): void {
+  const requested = requestedId.trim();
+  if (!requested || (requested !== getPerBookOrderId(row) && requested !== String(row.id) &&
+      !(allowGroupAlias && requested === getRootOrderId(row)))) {
+    throw new Error('Order lookup did not match the requested book or group');
+  }
+}

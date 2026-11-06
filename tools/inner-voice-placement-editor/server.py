@@ -3,9 +3,15 @@ from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 import argparse,json,mimetypes,os,math,threading,hashlib
+try:
+    import fcntl
+except ImportError:
+    fcntl=None
+    import msvcrt
 from lettering_state import clean_lettering
 
 ROOT=Path(__file__).parent.resolve()
+FLOW_LAYOUT=ROOT.parent.parent/'back-end/src/lib/books/flow-layout.mjs'
 SEED=json.loads((ROOT/'editor-data.json').read_text())
 ASSETS={k:(ROOT/v).resolve() for k,v in json.loads((ROOT/'asset-map.json').read_text()).items()}
 if any(not path.is_relative_to(ROOT/'assets') for path in ASSETS.values()):
@@ -15,6 +21,16 @@ LETTERING_SEED=json.loads((ROOT/'lettering-data.json').read_text())
 LETTERING_STATE=ROOT/'lettering.json'
 LOCK=threading.Lock()
 PORT=None
+
+def lock_draft(lock_file):
+    if fcntl is not None:
+        fcntl.flock(lock_file,fcntl.LOCK_EX)
+    else:
+        lock_file.seek(0,os.SEEK_END)
+        if lock_file.tell()==0:
+            lock_file.write(b'\0');lock_file.flush()
+        lock_file.seek(0)
+        msvcrt.locking(lock_file.fileno(),msvcrt.LK_LOCK,1)
 
 def clean_state(value):
     if not isinstance(value,dict):raise ValueError('Expected an adjustment object')
@@ -41,7 +57,9 @@ def clean_state(value):
         cleaned.append({'page':p['page'],'pageId':p['pageId'],'reviewed':p['reviewed'],'notes':p['notes'],'layers':result})
     saved=value.get('savedAt')
     if not isinstance(saved,str) or len(saved)>40:raise ValueError('Missing save time')
-    return {key:value[key] for key in ('schema','bookId','configVersion','formatId','baselineFingerprint','savedAt')}|{'pages':cleaned,'coordinateSystem':{'width':unit,'height':unit,'origin':'top-left','placementBox':'full source image, including transparent padding'},'purpose':'Local placement review; apply only after approval','sourceManifest':SEED['sourceManifest']}
+    revision=value.get('revision',0)
+    if type(revision) is not int or revision<0:raise ValueError('Invalid revision')
+    return {key:value[key] for key in ('schema','bookId','configVersion','formatId','baselineFingerprint','savedAt')}|{'revision':revision,'pages':cleaned,'coordinateSystem':{'width':unit,'height':unit,'origin':'top-left','placementBox':'full source image, including transparent padding'},'purpose':'Local placement review; apply only after approval','sourceManifest':SEED['sourceManifest']}
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self,*args):pass
@@ -61,11 +79,14 @@ class Handler(BaseHTTPRequestHandler):
             state_file=LETTERING_STATE if path=='/text-state' else STATE
             with LOCK:data=state_file.read_bytes() if state_file.exists() else b'null'
             return self.respond(200,data)
-        public={'/':ROOT/'index.html','/index.html':ROOT/'index.html','/app.js':ROOT/'app.js','/lettering.js':ROOT/'lettering.js','/styles.css':ROOT/'styles.css','/editor-data.json':ROOT/'editor-data.json','/lettering-data.json':ROOT/'lettering-data.json'}
+        if path=='/editor-data.json':return self.respond(200,json.dumps(SEED).encode())
+        if path=='/lettering-data.json':return self.respond(200,json.dumps(LETTERING_SEED).encode())
+        public={'/':ROOT/'index.html','/index.html':ROOT/'index.html','/app.js':ROOT/'app.js','/lettering.js':ROOT/'lettering.js','/flow-layout.mjs':FLOW_LAYOUT,'/styles.css':ROOT/'styles.css'}
         target=public.get(path)
         if path.startswith('/asset/'):target=ASSETS.get(path.removeprefix('/asset/'))
         if not target or not target.is_file():return self.error(404,'File not available')
-        self.respond(200,target.read_bytes(),mimetypes.guess_type(str(target))[0] or 'application/octet-stream')
+        content_type='text/javascript' if path=='/flow-layout.mjs' else mimetypes.guess_type(str(target))[0] or 'application/octet-stream'
+        self.respond(200,target.read_bytes(),content_type)
     def do_POST(self):
         path=urlparse(self.path).path
         if not self.headers_ok() or path not in {'/state','/text-state'}:return self.error(403,'Not allowed')
@@ -78,20 +99,31 @@ class Handler(BaseHTTPRequestHandler):
             value=json.loads(self.rfile.read(length))
             value=clean_lettering(value,LETTERING_SEED) if text_save else clean_state(value)
             state_file=LETTERING_STATE if text_save else STATE
-            with LOCK:
+            with LOCK, state_file.with_suffix('.lock').open('a+b') as lock_file:
+                lock_draft(lock_file)
                 prior=json.loads(state_file.read_text()) if state_file.exists() else None
-                if text_save and value['revision']!=(prior['revision'] if prior else 0):
-                    return self.error(409,'Another lettering draft was saved. Download your adjustments before loading the saved version.')
-                if not text_save and prior and value['savedAt']<prior.get('savedAt',''):
-                    return self.error(409,'A newer draft is saved. Download your adjustments before reloading.')
-                if text_save:value['revision']+=1
+                identity=('schema','bookId','baselineFingerprint','layoutFingerprint') if text_save else ('schema','bookId','configVersion','formatId','baselineFingerprint')
+                if prior and any(prior.get(key)!=value.get(key) for key in identity):
+                    return self.error(409,'The saved adjustments belong to another draft. Download a backup before changing drafts.')
+                prior_revision=prior.get('revision',0) if prior else 0
+                if type(prior_revision) is not int or prior_revision<0 or value['revision']!=prior_revision:
+                    return self.error(409,'Another draft was saved. Download your adjustments before loading the saved version.')
+                value['revision']+=1
                 temp=state_file.with_suffix('.tmp');temp.write_text(json.dumps(value,indent=2)+'\n');os.replace(temp,state_file)
-            self.respond(200,json.dumps({'saved':True,**({'revision':value['revision']} if text_save else {})}).encode())
+            self.respond(200,json.dumps({'saved':True,'revision':value['revision']}).encode())
         except (ValueError,TypeError,KeyError,AttributeError,OverflowError):self.error(400,'Invalid adjustment file')
         except OSError:self.error(500,'Could not save. Download a backup from the editor.')
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8847);parser.add_argument('--state-dir',type=Path,default=ROOT);args=parser.parse_args();PORT=args.port
+    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8847);parser.add_argument('--state-dir',type=Path,default=ROOT)
+    parser.add_argument('--lettering-seed',type=Path,default=ROOT/'lettering-data.json')
+    parser.add_argument('--editor-seed',type=Path,default=ROOT/'editor-data.json')
+    parser.add_argument('--asset-map',type=Path,default=ROOT/'asset-map.json')
+    parser.add_argument('--asset-root',type=Path,default=ROOT)
+    args=parser.parse_args();PORT=args.port
+    LETTERING_SEED=json.loads(args.lettering_seed.read_text());SEED=json.loads(args.editor_seed.read_text())
+    asset_root=args.asset_root.resolve();ASSETS={k:(asset_root/v).resolve() for k,v in json.loads(args.asset_map.read_text()).items()}
+    if any(not path.is_relative_to(asset_root/'assets') for path in ASSETS.values()):raise ValueError('Asset map must stay inside bundled assets')
     args.state_dir.mkdir(parents=True,exist_ok=True)
     STATE=args.state_dir/'placements.json';LETTERING_STATE=args.state_dir/'lettering.json'
     server=ThreadingHTTPServer(('127.0.0.1',PORT),Handler)

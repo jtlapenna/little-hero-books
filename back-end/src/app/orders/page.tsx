@@ -236,14 +236,14 @@ export default function OrdersPage() {
         {archiveError && <p role="alert" className="mb-4">Archived orders could not be loaded. <button onClick={() => fetchArchivedOrders()} className="underline text-blue-700 focus-visible:outline-2">Retry archived orders</button></p>}
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
           <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
           <p className="mt-2 text-gray-600">
             Manage and review personalized book orders
           </p>
         </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleRefresh}
                 disabled={refreshing || loading}

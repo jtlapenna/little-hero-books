@@ -1,6 +1,10 @@
 """Exercise the local editor HTTP boundary against disposable saved files."""
 import copy
 import json
+import socket
+import subprocess
+import sys
+import time
 from pathlib import Path
 import tempfile
 import threading
@@ -10,6 +14,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import server
+import test_lettering_flow
 
 ROOT = Path(__file__).resolve().parent
 
@@ -103,6 +108,55 @@ class EditorHTTPTests(unittest.TestCase):
         self.assertEqual(self.request('/text-state', candidate)[0], 400)
         self.assertEqual(server.LETTERING_STATE.read_bytes(), before)
 
+    def test_existing_draft_with_different_identity_cannot_be_overwritten(self):
+        before = server.LETTERING_STATE.read_bytes()
+        original_seed = server.LETTERING_SEED
+        try:
+            seed = copy.deepcopy(original_seed)
+            seed['stateSchema'] = 'lhb.lettering-review@v2'
+            seed['layoutFingerprint'] = 'new-layout'
+            server.LETTERING_SEED = seed
+            candidate = copy.deepcopy(self.text)
+            candidate['schema'] = seed['stateSchema']
+            candidate['layoutFingerprint'] = seed['layoutFingerprint']
+            self.assertEqual(self.request('/text-state', candidate)[0], 409)
+            self.assertEqual(server.LETTERING_STATE.read_bytes(), before)
+        finally:
+            server.LETTERING_SEED = original_seed
+
+    def test_v2_flow_http_roundtrip_and_conflict(self):
+        fixture = test_lettering_flow.LetteringFlowTest()
+        fixture.setUp()
+        original_seed = server.LETTERING_SEED
+        try:
+            server.LETTERING_SEED = fixture.seed
+            self.assertEqual(json.loads(self.request('/lettering-data.json')[1])['stateSchema'], 'lhb.lettering-review@v2')
+            status, _, headers = self.request('/flow-layout.mjs')
+            self.assertEqual(status, 200)
+            self.assertEqual(headers['Content-Type'], 'text/javascript')
+            server.LETTERING_STATE.unlink()
+            candidate = copy.deepcopy(fixture.state)
+            candidate['revision'] = 0
+            self.assertEqual(self.request('/text-state', candidate)[0], 200)
+            saved = json.loads(self.request('/text-state')[1])
+            self.assertEqual(saved['pages'][25]['blocks'][0]['flow'], candidate['pages'][25]['blocks'][0]['flow'])
+            self.assertEqual(saved['pages'][25]['blocks'][0]['height'], candidate['pages'][25]['blocks'][0]['height'])
+            before = server.LETTERING_STATE.read_bytes()
+            self.assertEqual(self.request('/text-state', candidate)[0], 409)
+            self.assertEqual(server.LETTERING_STATE.read_bytes(), before)
+            saved['pages'][25]['blocks'][0]['left'] += 1
+            self.assertEqual(self.request('/text-state', saved)[0], 200)
+            self.assertEqual(json.loads(self.request('/text-state')[1])['revision'], 2)
+        finally:
+            server.LETTERING_SEED = original_seed
+
+    def test_v1_extra_flow_field_keeps_legacy_cleaning(self):
+        candidate = copy.deepcopy(self.text)
+        candidate['pages'][0]['blocks'][0]['flow'] = {'legacy-extra': True}
+        self.assertEqual(self.request('/text-state', candidate)[0], 200)
+        saved = json.loads(self.request('/text-state')[1])
+        self.assertNotIn('flow', saved['pages'][0]['blocks'][0])
+
     def test_personalization_fields_stay_in_one_block(self):
         page = self.text['pages'][4]
         block = page['blocks'][0]
@@ -129,6 +183,60 @@ class EditorHTTPTests(unittest.TestCase):
         older = copy.deepcopy(self.figures)
         older['savedAt'] = '2000-01-01T00:00:00.000Z'
         self.assertEqual(self.request('/state', older)[0], 409)
+
+    def test_stale_placement_with_later_timestamp_cannot_overwrite(self):
+        first, stale = copy.deepcopy(self.figures), copy.deepcopy(self.figures)
+        first['pages'][0]['notes'] = 'First tab'
+        first['savedAt'] = '2030-01-01T00:00:00.000Z'
+        stale['pages'][0]['notes'] = 'Stale tab'
+        stale['savedAt'] = '2031-01-01T00:00:00.000Z'
+        status, body, _ = self.request('/state', first)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['revision'], 1)
+        self.assertEqual(self.request('/state', stale)[0], 409)
+        saved = json.loads(self.request('/state')[1])
+        self.assertEqual(saved['pages'][0]['notes'], 'First tab')
+        saved['pages'][0]['notes'] = 'Updated after reload'
+        self.assertEqual(self.request('/state', saved)[0], 200)
+
+    def test_concurrent_placement_saves_have_one_winner(self):
+        first, second = copy.deepcopy(self.figures), copy.deepcopy(self.figures)
+        first['pages'][0]['notes'], second['pages'][0]['notes'] = 'First', 'Second'
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            statuses = list(pool.map(lambda d: self.request('/state', d)[0], [first, second]))
+        self.assertEqual(sorted(statuses), [200, 409])
+
+    def test_placement_saves_across_server_processes(self):
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            port = sock.getsockname()[1]
+        other = f'http://127.0.0.1:{port}'
+        process = subprocess.Popen([sys.executable, str(ROOT / 'server.py'), '--port', str(port), '--state-dir', self.temp.name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            for _ in range(100):
+                try:
+                    with urlopen(other + '/state', timeout=1):
+                        break
+                except OSError:
+                    time.sleep(.02)
+            else:
+                self.fail('Second server did not start')
+            first, second = copy.deepcopy(self.figures), copy.deepcopy(self.figures)
+            first['pages'][0]['notes'], second['pages'][0]['notes'] = 'First server', 'Second server'
+            def post_other():
+                request = Request(other + '/state', data=json.dumps(second).encode(), headers={'Origin':other,'Content-Type':'application/json'})
+                try:
+                    with urlopen(request, timeout=5) as response:
+                        return response.status
+                except HTTPError as error:
+                    return error.code
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = [pool.submit(self.request, '/state', first), pool.submit(post_other)]
+                statuses = [results[0].result()[0], results[1].result()]
+            self.assertEqual(sorted(statuses), [200, 409])
+        finally:
+            process.terminate()
+            process.wait(timeout=5)
 
 
 if __name__ == '__main__':

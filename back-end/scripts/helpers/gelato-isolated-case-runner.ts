@@ -5,7 +5,7 @@ import {GELATO_WORKFLOW_OPERATION_MS} from './gelato-runner-deadlines';
 import {mkdir,open} from 'node:fs/promises';
 import path from 'node:path';
 import {definitionSha256} from './prepare-w1-native-queue';
-import {IsolatedCasePacket,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
+import {IsolatedCasePacket,IsolatedConfigVersionSchema,isolatedConfigVersion,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const files=z.array(z.object({orderDbId:z.number().int().positive().safe(),sha256:hash}).strict()).min(1).max(2);
 export const NORMAL_FLAGS=GELATO_NORMAL_CONTROL_FLAGS;
@@ -17,7 +17,7 @@ const readback=z.object({at:z.string().datetime({offset:true}),sourceSha:z.strin
  ownedFreshCohortVerified:z.literal(true),recipientVerified:z.literal(true),fixtureManifestSha256:hash}).strict();
 const claim=z.object({provider:z.literal('gelato'),dispatchRoute:z.literal('dispatch'),rootOrderId:z.string(),routeKind:z.enum(['single','sibling']),
  submissionId:z.string().uuid(),claimToken:z.string().uuid(),orderDbIds:z.array(z.number().int().positive().safe()).min(1).max(2),
- idempotencyKey:z.string(),orders:z.array(z.object({orderDbId:z.number().int().positive().safe(),orderId:z.string(),formatId:z.string(),rootOrderId:z.string(),provider:z.literal('gelato'),bookId:z.literal('book-finding-our-inner-voice'),configVersion:z.literal(2),innerPageCount:z.literal(32),apiPageCount:z.literal(32),expectedPdfPageCount:z.literal(35)}).passthrough()).min(1).max(2)}).passthrough();
+ idempotencyKey:z.string(),orders:z.array(z.object({orderDbId:z.number().int().positive().safe(),orderId:z.string(),formatId:z.string(),rootOrderId:z.string(),provider:z.literal('gelato'),bookId:z.literal('book-finding-our-inner-voice'),configVersion:IsolatedConfigVersionSchema,innerPageCount:z.literal(32),apiPageCount:z.literal(32),expectedPdfPageCount:z.literal(35)}).passthrough()).min(1).max(2)}).passthrough();
 export type RunnerClaim=z.infer<typeof claim>;
 export interface CaseJournal {claim(packetSha256:string):Promise<void>;record(event:{step:string;state:'starting'|'confirmed'|'unconfirmed'}):Promise<void>}
 /** Exclusive directory is never reused/removed, including after crash. Contains no payloads or credentials. */
@@ -50,7 +50,7 @@ export function validatePreparedClaim(raw:unknown,p:IsolatedCase){
  const c=claim.parse(raw),ids=p.members.map(m=>m.orderDbId).sort((a,b)=>a-b);
  if(c.rootOrderId!==p.rootOrderId||c.routeKind!==(p.members.length===2?'sibling':'single')||c.idempotencyKey!==`w1.1:${p.rootOrderId}:${ids.join('-')}`||
  c.orderDbIds.length!==ids.length||new Set(c.orderDbIds).size!==ids.length||c.orderDbIds.some(id=>!ids.includes(id))||c.orders.length!==ids.length||new Set(c.orders.map(o=>o.orderDbId)).size!==ids.length||
- c.orders.some(o=>o.rootOrderId!==p.rootOrderId||!p.members.some(m=>m.orderDbId===o.orderDbId&&m.orderId===o.orderId&&m.edition===o.formatId)))throw Error('Runner claim differs');return c;
+ c.orders.some(o=>o.configVersion!==isolatedConfigVersion(p)||o.rootOrderId!==p.rootOrderId||!p.members.some(m=>m.orderDbId===o.orderDbId&&m.orderId===o.orderId&&m.edition===o.formatId)))throw Error('Runner claim differs');return c;
 }
 export async function runPreparedIsolatedCase(raw:unknown,workflowHashes:unknown,approval:unknown,d:IsolatedRunnerDependencies){
  const p=IsolatedCasePacket.parse(raw),packetSha256=definitionSha256(p);

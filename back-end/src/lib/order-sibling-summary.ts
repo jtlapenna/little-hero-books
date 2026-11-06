@@ -1,4 +1,4 @@
-import { Order, SiblingOrderSummary } from '@/types/order';
+import type { Order, SiblingOrderSummary } from '@/types/order';
 import { parseSiblingItemNumber, splitName } from '@/lib/order-mapper';
 
 type SiblingRow = Record<string, any>;
@@ -56,17 +56,8 @@ export function buildSiblingOrderSummaries(
 ): SiblingOrderSummary[] {
   const summaries = siblingRows
     .map((row) => {
-      const rowOrderId = String(row.orderId ?? row.order_id ?? row.amazon_order_id ?? '').trim();
-      if (
-        currentOrder.rootOrderId &&
-        rowOrderId === currentOrder.rootOrderId &&
-        rowOrderId !== currentOrder.orderId
-      ) {
-        return null;
-      }
-
       const summary = toSiblingSummary(row, currentOrder.orderId);
-      if (!summary) return null;
+      if (!summary) throw new Error('Order group contains a member without a book identity');
 
       const createdAt = row.created_at ? String(row.created_at) : undefined;
       return {
@@ -77,23 +68,10 @@ export function buildSiblingOrderSummaries(
     .filter((entry): entry is { summary: SiblingOrderSummary; createdAt?: string } => !!entry);
 
   if (!summaries.some((entry) => entry.summary.orderId === currentOrder.orderId)) {
-    summaries.push({
-      summary: {
-        orderId: currentOrder.orderId,
-        displayOrderId: currentOrder.displayOrderId,
-        itemNumber: currentOrder.itemNumber,
-        isCurrent: true,
-        executionStatus: currentOrder.executionStatus,
-        workflowStep: currentOrder.workflowStep,
-        manifest2aUrl: currentOrder.manifest2aUrl,
-        characterHash: currentOrder.characterHash,
-        customer: {
-          firstName: currentOrder.customer.firstName,
-          lastName: currentOrder.customer.lastName,
-        },
-      },
-      createdAt: currentOrder.createdAt,
-    });
+    throw new Error('Current order is missing from the verified group');
+  }
+  if (new Set(summaries.map(entry => entry.summary.orderId)).size !== summaries.length) {
+    throw new Error('Duplicate order group identity');
   }
 
   summaries.sort((a, b) => {
@@ -121,7 +99,7 @@ export function attachSiblingOrderSummaries(
   order: Order,
   siblingRows: SiblingRow[]
 ): Order {
-  if (!order.rootOrderId || order.rootOrderId === order.orderId) {
+  if (!order.rootOrderId) {
     return order;
   }
 
@@ -133,6 +111,21 @@ export function attachSiblingOrderSummaries(
   return {
     ...order,
     siblingOrders,
+    isSibling: siblingOrders.length > 1,
     totalSiblings: siblingOrders.length,
   };
+}
+
+export function attachListSiblingMetadata(orders: Order[]): Order[] {
+  const groupIds = new Map<string, Set<string>>();
+  for (const order of orders) {
+    if (!order.rootOrderId) continue;
+    const ids = groupIds.get(order.rootOrderId) ?? new Set<string>();
+    ids.add(order.orderId);
+    groupIds.set(order.rootOrderId, ids);
+  }
+  return orders.map(order => {
+    const count = order.rootOrderId ? groupIds.get(order.rootOrderId)?.size ?? 0 : 0;
+    return count > 1 ? { ...order, isSibling: true, totalSiblings: count } : order;
+  });
 }

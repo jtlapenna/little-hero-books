@@ -6,10 +6,11 @@ import { getCharacterAssets, downloadManifest } from '@/lib/r2-service';
 import { Order, SharedImageInfo } from '@/types/order';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
-import { getOrderFromSupabase, listOrdersByAmazonRootId, supabase } from '@/lib/supabase-client';
+import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { getArchivedOrderById } from '@/lib/order-lifecycle';
 import { mapSupabaseOrderToOrder, mapManifestToOrder, mergeOrderData } from '@/lib/order-mapper';
 import { getActivePreviewToken } from '@/lib/preview-tokens';
+import { readCompleteOrderGroup, getRootOrderId, assertExactOrderLookup } from '@/lib/sibling-print-policy';
 import { attachSiblingOrderSummaries } from '@/lib/order-sibling-summary';
 import {
   buildReviewPoseAssignments,
@@ -92,6 +93,11 @@ async function getOrder(
         error?.message || error
       );
     }
+  }
+
+  if (supabaseOrderRecord) {
+    try { assertExactOrderLookup(orderId, supabaseOrderRecord, !isArchivedOrder && String(supabaseOrderRecord.lifecycle_status || '').toLowerCase() !== 'recently_delivered'); }
+    catch { throw createValidationError('Order lookup did not match the requested book or group'); }
   }
 
   let supabaseOrder: Order | null = null;
@@ -258,15 +264,22 @@ async function getOrder(
     pagePlan: reviewPageContext.pagePlan,
   };
 
-  if (order.rootOrderId && order.rootOrderId !== order.orderId) {
+  if (supabaseOrderRecord && !isArchivedOrder) {
     try {
-      const siblingRows = await listOrdersByAmazonRootId(order.rootOrderId);
+      const isDelivered = String(supabaseOrderRecord.lifecycle_status || '').toLowerCase() === 'recently_delivered';
+      const siblingRows = isDelivered ? [supabaseOrderRecord] : await readCompleteOrderGroup(supabase, supabaseOrderRecord);
+      order.rootOrderId = getRootOrderId(supabaseOrderRecord) || order.orderId;
       order = attachSiblingOrderSummaries(order, siblingRows);
-    } catch (error: any) {
+    } catch (error) {
+      // Viewing stays available; print remains strict because the print route re-verifies the full group itself.
       console.warn(
-        `[GET /api/orders/[orderId]] Failed to enrich sibling orders for ${order.orderId}:`,
-        error?.message || error
+        `[GET /api/orders/[orderId]] Order group could not be verified for ${order.orderId}:`,
+        error instanceof Error ? error.message : 'unknown error',
       );
+      order = {
+        ...order,
+        groupVerificationError: 'Order group could not be verified. Reload the order before sending it to print.',
+      } as Order;
     }
   }
 

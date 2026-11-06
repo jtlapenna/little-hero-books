@@ -1,4 +1,5 @@
 import { requiresBookLayoutReview } from '@/lib/books/book-layout-review';
+import { isDeepStrictEqual } from 'node:util';
 import {
   buildAssetApiUrl,
   buildManifestKeyCandidates,
@@ -1388,6 +1389,20 @@ export async function buildW4PrintInput(
           fallbackManifestKey: loadedOneManifest.manifestKey,
         })
       : null;
+  if (normalizedOneManifest?.renderSnapshot &&
+      !isDeepStrictEqual(normalizedOneManifest.renderSnapshot, loadedThreeManifest.manifest.renderSnapshot)) {
+    throw new Error('W4 print input rejected because the frozen render snapshot does not match W0');
+  }
+  const storedW3Config = toRecord(toRecord(loadedThreeManifest.manifest.renderSnapshot).bookConfig);
+  const storedW3Recipe = toRecord(toRecord(storedW3Config.rendering).recipe);
+  if (normalizedOneManifest?.renderSnapshot?.bookConfig.rendering.recipe?.schema === 'lhb.book-render@v2' ||
+      storedW3Recipe.schema === 'lhb.book-render@v2') {
+    throw new Error('W4 print input rejected because flow layout fit is not yet verified');
+  }
+  const configuredW3 = loadedThreeManifest.manifest.renderSnapshot !== undefined;
+  if (configuredW3 && !normalizedOneManifest?.renderSnapshot) {
+    throw new Error('W4 print input rejected because configured W3 requires a frozen W0 snapshot');
+  }
 
   const storedLayoutRecipe = toRecord(toRecord(toRecord(toRecord(toRecord(loadedThreeManifest.manifest).renderSnapshot).bookConfig).rendering).recipe);
   if (requiresBookLayoutReview(normalizedOneManifest?.renderSnapshot?.bookConfig.rendering.recipe?.schema) ||
@@ -1433,7 +1448,10 @@ export async function buildW4PrintInput(
   const manifest3Key = buildManifestKeyFromOrderPrefix(orderPrefix, '3');
   const manifest4Key = buildManifestKeyFromOrderPrefix(orderPrefix, '4');
   const oneManifestKey = loadedOneManifest.manifestKey ?? oneManifestKeyFallback;
-  const manifestPayload = frozenGelato ? loadedThreeManifest.manifest : buildManifestPayload(sourcePayload, loadedThreeManifest.manifest);
+  if (pickJsonRecord(loadedThreeManifest.manifest.summary).readyForBook === false) {
+    throw new Error('W4 print input rejected because saved summary.readyForBook is false');
+  }
+  const manifestPayload = frozenGelato || configuredW3 ? loadedThreeManifest.manifest : buildManifestPayload(sourcePayload, loadedThreeManifest.manifest);
   if (frozenGelato && pickJsonRecord(manifestPayload.summary).readyForBook !== true) {
     throw new Error('Gelato original W3 source is not ready for book assembly');
   }

@@ -6,7 +6,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {z} from 'zod';
 import {GELATO_TERMINAL_WEBHOOK_MS,GELATO_METADATA_REQUEST_MS,GELATO_STATUS_OBSERVATION_ITERATIONS} from './gelato-runner-deadlines';
 import {definitionSha256,workflowDefinition} from './prepare-w1-native-queue';
-import {IsolatedCasePacket,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
+import {IsolatedCasePacket,isolatedConfigVersion,workflowPath,type IsolatedCase} from './prepare-gelato-isolated-workflows';
 import {FileCaseJournal,NORMAL_FLAGS,validatePreparedClaim,type RunnerClaim,type IsolatedRunnerDependencies} from './gelato-isolated-case-runner';
 import {GelatoProviderOrderSchema,validateGelatoConnectedOrdersWithFiles} from '../../src/lib/books/gelato-provider-snapshot';
 import type {GelatoDraftOrderRequest} from '../../src/lib/books/gelato-api-contract';
@@ -34,7 +34,7 @@ export const ProtectedRunnerBinding=z.object({
  if(u.origin!==b.n8nOrigin||u.port)c.addIssue({code:'custom',message:'n8n origin must be canonical'});
  if(new Set(stageNames.map(k=>b.workflowBindings[k].id)).size!==4)c.addIssue({code:'custom',message:'Distinct owned workflows required'});
  if(b.artifacts.length!==p.members.length||new Set(b.artifacts.map(a=>a.orderDbId)).size!==p.members.length||b.artifacts.some(a=>{
-  const m=p.members.find(m=>m.orderDbId===a.orderDbId);return !m||!new RegExp('^book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v2/[a-f0-9]{24}\\.pdf$').test(a.key)||new URL(a.sourceUrl).origin!=='https://admin.littleherolabs.com'||new URL(a.sourceUrl).pathname!=='/api/pdf/'+a.key;
+  const m=p.members.find(m=>m.orderDbId===a.orderDbId);return !m||!new RegExp('^book-finding-our-inner-voice/orders/'+m.orderId+'/gelato/print/v'+isolatedConfigVersion(p)+'/[a-f0-9]{24}\\.pdf$').test(a.key)||new URL(a.sourceUrl).origin!=='https://admin.littleherolabs.com'||new URL(a.sourceUrl).pathname!=='/api/pdf/'+a.key;
  }))c.addIssue({code:'custom',message:'Exact owned artifact binding required'});
  if(b.funding.accountKeySha256!==p.accountKeySha256||Date.parse(b.funding.expiresAt)>Date.parse(p.expiresAt)||Date.parse(b.funding.expiresAt)<=Date.parse(b.funding.at))c.addIssue({code:'custom',message:'Funding attestation binding differs'});
 });
@@ -201,7 +201,7 @@ export function createProtectedRunnerAdapter(raw:unknown,approvedBindingSha256:s
    if(o.now()-Date.parse(b.funding.at)>60_000||o.now()<Date.parse(b.funding.at)-1000||o.now()>=Date.parse(b.funding.expiresAt))throw Error('Fresh funding/message attestation required');
    const {s}=await scope(signal);if(s.submission_id!==null||s.status_claims!==0)throw Error('Fresh unconsumed scope required');
    const rows=z.array(obj).length(p.members.length).parse(await db('orders',{select:rowSelect,id:'in.('+p.members.map(m=>m.orderDbId).sort((a,b)=>a-b).join(',')+')',order:'id'},signal));
-   if(definitionSha256(rows)!==b.cohortRowsSha256||rows.some(r=>!p.members.some(m=>m.orderDbId===r.id&&m.orderId===r.orderId)||r.print_provider!=='gelato'||(r.book_specs as {testMode?:unknown})?.testMode!==true))throw Error('Owned approved fresh cohort differs');
+   if(definitionSha256(rows)!==b.cohortRowsSha256||rows.some(r=>!p.members.some(m=>m.orderDbId===r.id&&m.orderId===r.orderId)||r.print_book_id!=='book-finding-our-inner-voice'||r.print_config_version!==isolatedConfigVersion(p)||r.print_provider!=='gelato'||(r.book_specs as {testMode?:unknown})?.testMode!==true))throw Error('Owned approved fresh cohort differs');
    for(const stage of stageNames)await workflow(stage,stage!=='timer',signal);
    const finalControls=await controls(signal);preflightVerified=true;
    return {at:new Date(o.now()).toISOString(),sourceSha:p.sourceSha,packetSha256:definitionSha256(p),accountKeySha256:p.accountKeySha256,statusAccountKeySha256:p.accountKeySha256,workflowSha256:Object.fromEntries(stageNames.map(k=>[k,b.workflowBindings[k].definitionSha256])),...finalControls,noFundingRoutes:true,applicationMessagesSuppressed:true,providerMessagesSuppressed:true,ownedFreshCohortVerified:true,recipientVerified:true,fixtureManifestSha256:p.fixtureManifestSha256};

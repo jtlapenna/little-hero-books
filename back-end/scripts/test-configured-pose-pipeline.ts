@@ -1,3 +1,5 @@
+import { loadBundledBookConfig } from '../src/lib/books/load-book-config';
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from 'node:assert/strict';
 import { parsePublishedBookConfigRow, canFallbackToBundled, PublishedBookConfigError } from '../src/lib/books/runtime-book-config';
 import { configuredBookFixture } from './configured-book-fixture';
@@ -48,7 +50,7 @@ async function main() {
   assert.ok(context.allowed.includes(13)); assert.ok(!context.allowed.includes(99));
   assert.equal(context.referenceKeys['13'], generated.poseRefKey, 'Review/revision must use the generated frozen reference');
   await assert.rejects(() => buildW2APoseInput({ ...stored[1], bookId: 'wrong-book', characterHash: 'fixturehash' }, { loadConfig: async () => config }), /identity/);
-  const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId }, entries: [13,17,18].map(p => ({ poseNumber: p, bgRemovedKey: `${config.bookId}/characters/generated/pose${p}.png`, briaStatus: 'completed' })) };
+  const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId }, entries: [13,17,18].map(p => ({ poseNumber: p, bgRemovedKey: buildBgRemovedPoseAssetKey('fixturehash', p, config.bookId), briaStatus: 'completed' })) };
   const assembly = await buildW3AssemblyInput({ orderId, bookId: config.bookId, formatId: 'standard', orderPrefix: prefix }, { loadManifest: async key => key.endsWith('1-manifest.json') ? w0 : key.endsWith('2b-manifest.json') ? twoB : null });
   assert.equal(assembly.renderSnapshot?.bookConfig.rendering.recipe?.poses['custom-run'].referenceKey, generated.poseRefKey);
   assert.equal(assembly.expectedPageCount, 3);
@@ -76,13 +78,17 @@ async function main() {
   assert.equal(canFallbackToBundled(new PublishedBookConfigError('invalid-row', 'invalid')), false);
   assert.equal(canFallbackToBundled(new PublishedBookConfigError('query-failed', 'failed')), false);
   assert.equal(canFallbackToBundled(new PublishedBookConfigError('not-found', 'missing')), true);
-  const legacyConfig = configuredBookFixture();
-  delete legacyConfig.rendering.recipe;
-  for (const format of Object.values(legacyConfig.formats)) for (const page of format.interior.pageSequence) delete page.layers;
+  const strippedConfig = configuredBookFixture();
+  delete strippedConfig.rendering.recipe;
+  for (const format of Object.values(strippedConfig.formats)) for (const page of format.interior.pageSequence) delete page.layers;
+  assert.throws(() => normalizeW0Manifest(buildW0RunManifestFromConfig(strippedConfig, { orderId, platform: 'd2c', formatId: 'standard', characterHash: 'fixturehash' })), /Configured W0 manifest requires its frozen render snapshot/);
+  const legacyConfig = loadBundledBookConfig({ bookId: 'book-mvp-simple-adventure', version: 1 });
   const legacyW0 = buildW0RunManifestFromConfig(legacyConfig, { orderId, platform: 'd2c', formatId: 'standard', characterHash: 'fixturehash' });
-  const legacyContext = await readOrderPoseContext({ bookId: config.bookId, orderPrefix: prefix }, async () => legacyW0);
+  const legacyPrefix = legacyW0.artifacts.orderPrefix;
+  const legacyContext = await readOrderPoseContext({ bookId: legacyConfig.bookId, orderPrefix: legacyPrefix }, async () => legacyW0);
   assert.deepEqual(legacyContext.allowed, Array.from({ length: 13 }, (_, i) => i));
-  const legacyAssembly = await buildW3AssemblyInput({ orderId, bookId: config.bookId, orderPrefix: prefix }, { loadManifest: async key => key.endsWith('1-manifest.json') ? legacyW0 : key.endsWith('2b-manifest.json') ? twoB : null });
+  const legacyTwoB = { characterHash: 'fixturehash', order: { orderId, bookId: legacyConfig.bookId }, entries: Array.from({ length: 13 }, (_, poseNumber) => ({ poseNumber, bgRemovedKey: buildBgRemovedPoseAssetKey('fixturehash', poseNumber, legacyConfig.bookId), briaStatus: 'completed' })) };
+  const legacyAssembly = await buildW3AssemblyInput({ orderId, bookId: legacyConfig.bookId, orderPrefix: legacyPrefix }, { loadManifest: async key => key.endsWith('1-manifest.json') ? legacyW0 : key.endsWith('2b-manifest.json') ? legacyTwoB : null });
   assert.equal(legacyAssembly.renderSnapshot, undefined);
   const empty = configuredBookFixture();
   for (const format of Object.values(empty.formats)) for (const page of format.interior.pageSequence) { page.layers = []; page.poseNumber = null; }

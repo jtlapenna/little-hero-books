@@ -433,32 +433,67 @@ async function main(): Promise<void> {
   );
 
   const syntheticOrderId = 'TEST-W3-SAFE-PROOF-001';
+  let mismatchedManifestError = '';
+  const callsBeforeMismatch = normalizationCalls.length;
+  try {
+    await buildW3AssemblyInput(
+      {
+        orderId: syntheticOrderId,
+        rootOrderId: syntheticOrderId,
+        amazonOrderId: syntheticOrderId,
+        oneManifestUrl: `${backendUrl}/api/manifests/${siblingOneManifestKey}`,
+        manifest2bUrl: `${backendUrl}/api/manifests/${siblingTwoBManifestKey}`,
+        backendUrl,
+        testMode: true,
+        testModePages: 2,
+      },
+      { loadManifest: siblingLoadManifest, normalizePoseScale },
+    );
+  } catch (error) {
+    mismatchedManifestError = error instanceof Error ? error.message : String(error);
+  }
+  assert(
+    mismatchedManifestError === 'W3 legacy order identity conflicts with sibling manifest',
+    'Expected a different order manifest to be rejected for the synthetic output order',
+  );
+  assert(
+    normalizationCalls.length === callsBeforeMismatch,
+    'Expected cross-order manifest rejection before any pose normalization',
+  );
+
+  const syntheticPrefix = buildOrderPrefix(syntheticOrderId, bookId);
+  const syntheticOneManifest = buildW0RunManifest({
+    orderId: syntheticOrderId,
+    rootOrderId: syntheticOrderId,
+    amazonOrderId: null,
+    platform: 'd2c',
+    bookId,
+    formatId: 'standard',
+    characterHash: 'syntheticproofhash',
+    input: { characterSpecs: { childName: 'Proof', animalGuide: 'owl' } },
+  });
+  const syntheticTwoBManifest = create2BManifest({
+    orderId: syntheticOrderId,
+    rootOrderId: syntheticOrderId,
+    characterHash: 'syntheticproofhash',
+    characterSpecs: { childName: 'Proof', animalGuide: 'owl' },
+  });
   const syntheticBuilt = await buildW3AssemblyInput(
+    { orderId: syntheticOrderId, orderPrefix: syntheticPrefix, backendUrl, testMode: true, testModePages: 2 },
     {
-      orderId: syntheticOrderId,
-      rootOrderId: syntheticOrderId,
-      amazonOrderId: syntheticOrderId,
-      oneManifestUrl: `${backendUrl}/api/manifests/${siblingOneManifestKey}`,
-      manifest2bUrl: `${backendUrl}/api/manifests/${siblingTwoBManifestKey}`,
-      backendUrl,
-      testMode: true,
-      testModePages: 2,
-    },
-    {
-      loadManifest: siblingLoadManifest,
+      loadManifest: async (key) =>
+        key === buildManifestKeyFromOrderPrefix(syntheticPrefix, '1')
+          ? syntheticOneManifest
+          : key === buildManifestKeyFromOrderPrefix(syntheticPrefix, '2b')
+            ? syntheticTwoBManifest
+            : null,
       normalizePoseScale,
     },
   );
-
   assert(
-    syntheticBuilt.orderPrefix ===
-      'book-mvp-simple-adventure/orders/TEST-W3-SAFE-PROOF-001',
-    'Expected manifest lookup URLs to not override the synthetic output order root',
-  );
-  assert(
-    syntheticBuilt.manifest3Key ===
-      'book-mvp-simple-adventure/orders/TEST-W3-SAFE-PROOF-001/manifests/3-manifest.json',
-    'Expected manifest3Key to stay under the synthetic output order root',
+    syntheticBuilt.orderPrefix === syntheticPrefix &&
+      syntheticBuilt.manifest3Key === buildManifestKeyFromOrderPrefix(syntheticPrefix, '3'),
+    'Expected same-order synthetic manifests to produce output under their own order root',
   );
 
   const wrappedResponse = await buildW3AssemblyInputResponse(
@@ -594,7 +629,7 @@ async function main(): Promise<void> {
           'used W0-frozen page plan and required poses when available',
           'preferred bgRemovedKey and fell back to approved/sourceApprovedKey',
           'derived canonical 3-manifest key under the per-book order root',
-          'kept synthetic output roots when manifest URLs pointed at source-order inputs',
+          'rejected cross-order manifest hints before normalization and accepted same-order synthetic manifests',
           'handled nested body payloads and standard-format orders',
           'route helper wrapper returned normalized success payload',
           'completed W3 orders short-circuit unless force=true is set',

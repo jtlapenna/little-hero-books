@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
         executionId: `${executionId}-amazon`,
         supabaseUrl,
         supabaseKey,
-        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || 'https://thepeakbeyond.app.n8n.cloud/webhook/order-intake-sibtest',
+        n8nW0WebhookUrl: process.env.N8N_W0_WEBHOOK_URL || '',
         amazonClientId: process.env.AMZ_LWA_CLIENT_ID_PROD 
           || process.env.AMZ_APP_CLIENT_ID 
           || process.env.AMAZON_SP_API_CLIENT_ID,
@@ -391,14 +391,38 @@ export async function GET(request: NextRequest) {
     } = splitCronExcludedOrders(stuckPendingW0 || []);
     logExcludedTestOrders('pending_w0_retrigger', excludedStuckPendingW0);
     if (eligibleStuckPendingW0.length > 0) {
-      const { buildPendingW0Payload } = await import('@/lib/w0-payload');
+      const { buildPendingW0Payload, buildSelectedAmazonPendingW0Payload } = await import('@/lib/w0-payload');
       const { triggerW0 } = await import('@/lib/sibling-order-helpers');
+      const { readCsvRootRows, assertCompleteCsvRootUnits, csvRowHasProgress, csvRootNeedsCompleteUnits } = await import('@/lib/csv-book-selection');
       for (const o of eligibleStuckPendingW0) {
         const orderData = o as Record<string, unknown>;
         const oid = orderData.orderId ?? orderData.order_id ?? orderData.id;
         console.log(`[Cron Router] [${executionId}] Re-triggering W0 for stuck order ${oid}`);
         try {
-          const payload = buildPendingW0Payload(orderData);
+          let payloadSource = orderData;
+          if (orderData.platform === 'amazon') {
+            const rootId = orderData.root_order_id ?? orderData.amazon_order_id ?? orderData.orderId ?? orderData.order_id;
+            if (typeof rootId !== 'string' || !rootId || rootId !== rootId.trim() ||
+                [orderData.root_order_id, orderData.amazon_order_id].some(value => value != null && value !== rootId) ||
+                typeof oid !== 'string') throw new Error('Invalid Amazon pending root identity');
+            const rootRows = await readCsvRootRows(supabase, rootId, [{ orderId: rootId }, { orderId: oid }]);
+            assertCompleteCsvRootUnits(rootRows, rootId);
+            const current = rootRows.filter(row => row.id === orderData.id &&
+              (row.orderId === oid || row.order_id === oid));
+            if (current.length !== 1) throw new Error('Missing or ambiguous Amazon pending member');
+            payloadSource = current[0];
+            if (current[0].execution_status !== 'pending_w0' || current[0].next_workflow != null) continue;
+            if (csvRootNeedsCompleteUnits(rootRows)) {
+              for (const member of rootRows) buildSelectedAmazonPendingW0Payload(member);
+            }
+            const progressRow = { ...current[0],
+              ...(Array.isArray(current[0].product_info) ? { product_info: undefined } : {}),
+              ...(Array.isArray(current[0].productInfo) ? { productInfo: undefined } : {}) };
+            if (csvRowHasProgress(progressRow)) continue;
+          }
+          const payload = orderData.platform === 'amazon'
+            ? buildSelectedAmazonPendingW0Payload(payloadSource) : buildPendingW0Payload(payloadSource);
+          if (!process.env.N8N_W0_WEBHOOK_URL) throw new Error('W0 webhook is not configured');
           const res = await triggerW0(payload);
           if (!res.ok) console.error(`[Cron Router] [${executionId}] W0 re-trigger failed for ${oid}:`, res.error);
         } catch (error) {

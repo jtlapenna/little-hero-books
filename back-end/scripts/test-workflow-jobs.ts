@@ -436,7 +436,13 @@ async function testWorkflowJobEventRoute() {
       },
     },
     {
-      getWorkflowJobAttemptById: async () => null,
+      getWorkflowJobAttemptById: async (id: number) => id === 70 ? {
+        id: 70, job_id: 7, attempt: 1, status: 'running', worker_kind: 'n8n',
+        lease_owner: null, started_at: '2026-03-24T20:00:06.000Z', ended_at: null,
+        duration_ms: null, error_message: null, error_details: null,
+        provider_request_id: null, provider_status_url: null,
+        created_at: '2026-03-24T20:00:06.000Z', updated_at: '2026-03-24T20:00:06.000Z',
+      } : null,
       getWorkflowJobById: async (id: number) => (id === 7 ? baseJob : null),
       getWorkflowJobByIdempotencyKey: async () => null,
       finishWorkflowJobAttempt: async (input) => {

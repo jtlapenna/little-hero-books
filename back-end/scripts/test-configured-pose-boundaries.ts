@@ -1,3 +1,4 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { configuredBookFixture } from './configured-book-fixture';
@@ -63,7 +64,7 @@ async function main() {
     }
   });
   await check('repair cannot invent legacy requirements', async () => {
-    const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId, oneManifestUrl: w0.artifacts.manifestKey }, entries: [13, 17, 18].map(poseNumber => ({ poseNumber, bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png` })) };
+    const twoB = { characterHash: 'fixturehash', order: { orderId, bookId: config.bookId, oneManifestUrl: w0.artifacts.manifestKey }, entries: [13, 17, 18].map(poseNumber => ({ poseNumber, bgRemovedKey: buildBgRemovedPoseAssetKey('fixturehash', poseNumber, config.bookId) })) };
     const valid = await read2BManifestWithPoseRequirements({ manifest: twoB, orderId, loadManifest: async () => w0 });
     const sync = sync2BManifestEntries({ entryByPoseNumber: valid.entryByPoseNumber, poseNumbers: valid.requiredPoseNumbers, bgRemovedByPose: new Map(), nowIso: '2026-10-06T00:00:00Z', trackMissingEntries: true });
     assert.deepEqual(sync.missingPoseNumbers, []);

@@ -87,6 +87,8 @@ interface PostPdfStageProps {
   finalApprovalError?: string | null;
   finalApprovalLoading?: boolean;
   onSendToPrint?: () => Promise<{ message?: string } | void> | { message?: string } | void;
+  printActionDisabled?: boolean;
+  printActionPending?: boolean;
   onViewPrintStatus?: () => void;
   onOrderUpdate?: (updates: Partial<Order>) => void;
 }
@@ -219,6 +221,8 @@ export function PostPdfStage({
   finalApprovalError,
   finalApprovalLoading,
   onSendToPrint,
+  printActionDisabled = false,
+  printActionPending = false,
   onOrderUpdate,
   onViewPrintStatus,
 }: PostPdfStageProps) {
@@ -322,7 +326,11 @@ export function PostPdfStage({
   // A clean first-pass approval still needs a visible Send to Print action.
   const showPrintAction = isApproved && customerApprovedPreview;
   const existingGelato = order.printProvider === 'gelato' && Boolean(order.printSubmissionId);
-  const actionCardTitle = existingGelato ? 'Review Gelato Submission' : showPrintAction ? (order?.printProvider === 'gelato' ? 'Create Held Gelato Draft' : 'Send to Print') : 'Send for Customer Approval';
+  const printBookCount = String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered' ? 1 : order.totalSiblings ?? 1;
+  const printActionLabel = order.printProvider === 'gelato'
+    ? printBookCount > 1 ? `Create ${printBookCount} Held Gelato Drafts` : 'Create Held Gelato Draft'
+    : printBookCount > 1 ? `Send ${printBookCount} Books to Print` : 'Send to Print';
+  const actionCardTitle = existingGelato ? 'Review Gelato Submission' : showPrintAction ? printActionLabel : 'Send for Customer Approval';
   const reviewPageContext = resolveReviewPageContext({
     bookId: order.bookContext?.bookId ?? order.project ?? null,
     formatId: order.bookContext?.formatId ?? null,
@@ -2176,7 +2184,7 @@ export function PostPdfStage({
   };
 
   const handleSendToPrintClick = async () => {
-    if (sendingToPrint) {
+    if (sendingToPrint || printActionDisabled) {
       return;
     }
 
@@ -2191,6 +2199,7 @@ export function PostPdfStage({
           'Order queued for print. It will be processed by the router when capacity is available (usually within 1–2 minutes).'
       );
     } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       console.error('[PostPdfStage] Failed to send to print:', error);
       alert(error?.message || 'Failed to send to print. Please try again.');
     } finally {
@@ -2780,12 +2789,12 @@ export function PostPdfStage({
       </div>
 
       <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
             <h4 className="text-lg font-medium text-gray-900">{actionCardTitle}</h4>
             <p className="text-sm text-gray-600 mt-1">
               {existingGelato ? 'This book has a saved Gelato submission. Check its status before taking further action.' : showPrintAction
-                ? (order?.printProvider === 'gelato' ? 'The customer approved the preview. Create a held draft for review before printing.' : 'The customer approved the preview. Queue this order for print production.')
+                ? (order?.printProvider === 'gelato' ? `The customer approved the preview. Create ${printBookCount > 1 ? `${printBookCount} held drafts` : 'a held draft'} for review before printing.` : `The customer approved the preview. Queue ${printBookCount > 1 ? `all ${printBookCount} books` : 'this order'} for print production.`)
                 : isApproved && notificationWasSent
                 ? 'Customer preview was sent. Wait for customer approval before printing.'
                 : isApproved && hasExistingPreview
@@ -2809,30 +2818,30 @@ export function PostPdfStage({
             )}
           </div>
           
-          <div className="flex space-x-3 ml-8">
-            {existingGelato ? (onViewPrintStatus ? <button onClick={onViewPrintStatus} className="rounded-md bg-blue-600 px-4 py-2 text-white">View Print Status</button> : null) : isApproved ? (
+          <div className="flex flex-wrap gap-3 sm:ml-8 sm:shrink-0">
+            {existingGelato ? (onViewPrintStatus ? <button onClick={onViewPrintStatus} className="w-full rounded-md bg-blue-600 px-4 py-2 text-white sm:w-auto">View Print Status</button> : null) : isApproved ? (
               showPrintAction ? (
                 <button
                   onClick={handleSendToPrintClick}
-                  disabled={sendingToPrint}
-                  className={`inline-flex items-center whitespace-nowrap px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    sendingToPrint
-                      ? 'bg-indigo-500/70 text-white cursor-wait focus:ring-indigo-500'
+                  disabled={sendingToPrint || printActionDisabled}
+                  className={`inline-flex w-full items-center justify-center whitespace-normal px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto sm:whitespace-nowrap ${
+                    sendingToPrint || printActionDisabled
+                      ? 'bg-indigo-500/70 text-white cursor-not-allowed focus:ring-indigo-500'
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500'
                   }`}
                 >
-                  {sendingToPrint ? (
+                  {sendingToPrint || printActionPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Printer className="h-4 w-4 mr-2" />
                   )}
-                  {sendingToPrint ? 'Sending...' : order?.printProvider === 'gelato' ? 'Create Held Gelato Draft' : 'Send to Print'}
+                  {sendingToPrint || printActionPending ? 'Sending...' : printActionLabel}
                 </button>
               ) : (
               <button
                 onClick={onInitiateWorkflow}
                   disabled={approvalSendDisabled}
-                  className={`inline-flex items-center whitespace-nowrap px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  className={`inline-flex w-full items-center justify-center whitespace-normal px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto sm:whitespace-nowrap ${
                     finalApprovalIsLoading
                       ? 'bg-green-500/70 text-white cursor-wait focus:ring-green-500'
                       : previewJustSent && notificationWasSent

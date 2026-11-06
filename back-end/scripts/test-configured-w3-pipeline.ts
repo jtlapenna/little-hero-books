@@ -1,3 +1,4 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { configuredBookFixture } from "./configured-book-fixture";
@@ -64,7 +65,7 @@ async function main() {
       order: { orderId, bookId: config.bookId },
       entries: [13, 17, 18].map((poseNumber) => ({
         poseNumber,
-        bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png`,
+        bgRemovedKey: buildBgRemovedPoseAssetKey('testhash', poseNumber, config.bookId),
       })),
     };
     for (const selector of [0, 2, [0, 13, 31]]) {

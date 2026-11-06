@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const root = dirname(fileURLToPath(import.meta.url));
+const dir = mkdtempSync(join(tmpdir(),'lhb-proof-inspector-test-'));
+try {
+  const font = pathToFileURL(join(root,'assets/lettering-LoveYaLikeASister.ttf')).href;
+  const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aWQAAAAASUVORK5CYII=';
+  const html = `<!doctype html><meta name="lhb-proof-status" content="provisional"><style>@font-face{font-family:LhbConfiguredBook;src:url('${font}')}body{margin:0}.lhb-config-page{position:relative;width:2625px;height:2625px}.lhb-flow{position:absolute;left:700px;top:700px;width:100px;height:100px;transform:rotate(45deg);font:1px LhbConfiguredBook}.lhb-flow span{position:absolute;left:-4px;top:45px;width:3px;height:10px}</style><div class="lhb-config-page"><img src="${pixel}"><div class="lhb-copy lhb-flow"><span>x</span></div></div>`;
+  const file = join(dir,'rotated.html');writeFileSync(file,html);
+  const result = spawnSync(process.execPath,[join(root,'inspect_local_proof.mjs'),'--require-fit',file],{encoding:'utf8',timeout:30000,env:process.env});
+  assert.equal(result.status,2,result.stderr);
+  const report=JSON.parse(result.stdout);
+  assert.equal(report.results[0].flowOverflow,false);
+  assert.equal(report.results[0].spanOutsideRegion,true);
+  assert.equal(report.remoteRequests,0);
+  const orphanHtml = `<!doctype html><meta name="lhb-proof-status" content="provisional"><style>@font-face{font-family:LhbConfiguredBook;src:url('${font}')}body{margin:0}.lhb-config-page{position:relative;width:2625px;height:2625px}.lhb-flow{position:absolute;left:700px;top:700px;width:1000px;height:400px;padding:40px;box-sizing:border-box;font:78px LhbConfiguredBook;line-height:1}.lhb-flow p{margin:0}</style><div class="lhb-config-page"><img src="${pixel}"><div class="lhb-copy lhb-flow"><p><span>hello world<br>alone</span></p></div></div>`;
+  const orphanFile = join(dir,'orphan.html');writeFileSync(orphanFile,orphanHtml);
+  const orphanResult = spawnSync(process.execPath,[join(root,'inspect_local_proof.mjs'),'--require-fit',orphanFile],{encoding:'utf8',timeout:30000,env:process.env});
+  assert.equal(orphanResult.status,2,orphanResult.stderr);
+  const orphanReport=JSON.parse(orphanResult.stdout);
+  assert.equal(orphanReport.results[0].orphanLastWord,true);
+  assert.equal(orphanReport.results[0].flowOverflow,false);
+  const normalFile = join(dir,'normal.html');writeFileSync(normalFile,orphanHtml.replace('hello world<br>alone', 'hello <span style="font-size:150%;display:inline-block;transform:rotate(-4deg)">world</span> alone'));
+  const normalResult = spawnSync(process.execPath,[join(root,'inspect_local_proof.mjs'),'--require-fit',normalFile],{encoding:'utf8',timeout:30000,env:process.env});
+  assert.equal(normalResult.status,2,normalResult.stdout + normalResult.stderr);
+  assert.equal(JSON.parse(normalResult.stdout).results[0].orphanLastWord,false);
+  assert.equal(JSON.parse(normalResult.stdout).results[0].orphanCheckInconclusive,true);
+  const cleanFile = join(dir,'clean.html');writeFileSync(cleanFile,orphanHtml.replace('hello world<br>alone','hello world alone'));
+  const cleanResult = spawnSync(process.execPath,[join(root,'inspect_local_proof.mjs'),'--require-fit',cleanFile],{encoding:'utf8',timeout:30000,env:process.env});
+  assert.equal(cleanResult.status,0,cleanResult.stdout + cleanResult.stderr);
+  assert.equal(JSON.parse(cleanResult.stdout).results[0].orphanLastWord,false);
+  const tightFile = join(dir,'tight.html');writeFileSync(tightFile,orphanHtml.replace('line-height:1}', 'line-height:.5}'));
+  const tightResult = spawnSync(process.execPath,[join(root,'inspect_local_proof.mjs'),'--require-fit',tightFile],{encoding:'utf8',timeout:30000,env:process.env});
+  assert.equal(tightResult.status,2,tightResult.stderr);
+  assert.equal(JSON.parse(tightResult.stdout).results[0].orphanCheckInconclusive,true);
+  assert.match(orphanReport.inspectorSha256,/^[a-f0-9]{64}$/);
+  assert.match(orphanReport.results[0].htmlSha256,/^[a-f0-9]{64}$/);
+  console.log('Headless proof inspector rejects a rotated span outside its local flow region');
+} finally {rmSync(dir,{recursive:true,force:true});}

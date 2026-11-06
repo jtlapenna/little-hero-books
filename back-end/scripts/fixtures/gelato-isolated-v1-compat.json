@@ -1,0 +1,29 @@
+{
+  "packet": {
+    "schema": "lhl.gelato-isolated-case@1",
+    "runId": "LEGACY-COMPAT",
+    "scopeId": "00000000-0000-4000-8000-000000000001",
+    "rootOrderId": "TEST-GELATO-LEGACY-COMPAT",
+    "sourceSha": "cccccccccccccccccccccccccccccccccccccccc",
+    "nativeDefinitionSha256": "46d218712688dd3a70b777c663559d065b23f98f9b6a8412aac2f3b3a451695a",
+    "fixtureManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "accountKeySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "startsAt": "2030-01-01T00:00:00Z",
+    "expiresAt": "2030-01-01T00:20:00Z",
+    "members": [
+      {
+        "orderDbId": 101,
+        "orderId": "TEST-GELATO-LEGACY-COMPAT",
+        "edition": "standard",
+        "pdfSha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    ]
+  },
+  "packetSha256": "5f3847751ee11f524022c9dbb32a4b6f983988b571ae0ea1a5cf49cac7d6c11b",
+  "workflowSha256": {
+    "queue": "e44160c2f8ce8abbf72ae16cbc9b5ca9b4ed0b8c492c683ddd95940581ca5717",
+    "assembly": "65f7a10f50ff42512c16f57c53ffa64738a95386da10c03de533f385bd7791f1",
+    "draft": "a417467797389ffb81c6900c15853d911776f02236e52f4db43b3d2cadfba93b",
+    "timer": "e0ff5d6d3f2d0eaa2b3b0234cbf722f4763545451876970c7035175c8d325cfd"
+  }
+}

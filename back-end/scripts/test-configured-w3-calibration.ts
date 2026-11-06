@@ -1,3 +1,4 @@
+import { buildBgRemovedPoseAssetKey } from '../src/lib/order-paths';
 import assert from "node:assert/strict";
 import { configuredBookFixture } from "./configured-book-fixture";
 import { buildW0RunManifestFromConfig } from "../src/lib/books/build-run-manifest";
@@ -28,7 +29,7 @@ async function main() {
     order: { orderId, bookId: config.bookId },
     entries: [13, 17, 18].map((poseNumber) => ({
       poseNumber,
-      bgRemovedKey: `${config.bookId}/generated/pose${poseNumber}.png`,
+      bgRemovedKey: buildBgRemovedPoseAssetKey('testhash', poseNumber, config.bookId),
     })),
   };
   const assembly = await buildW3AssemblyInput(

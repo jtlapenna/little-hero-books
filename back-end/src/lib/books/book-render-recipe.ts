@@ -7,6 +7,7 @@ import { BOOK_V3_COPY_TOKENS, type BookV3Stack, type BookV3StackText, type BookV
 import { BookRenderSnapshotSchema, type BookConfig, type BookPageConfig, type BookRenderSnapshot } from './types';
 import { assertBookConfigSemantics } from './book-config-semantics';
 
+const GUIDES = ['cat','dog','owl','lion','tiger','penguin','t-rex','unicorn'];
 export function pagePoseNumbers(page: Pick<BookPageConfig, 'poseNumber' | 'layers'>): number[] {
   return [...new Set([...(page.poseNumber == null ? [] : [page.poseNumber]), ...(page.layers ?? []).filter(l => l.kind === 'pose').map(l => l.poseNumber)])];
 }
@@ -45,6 +46,14 @@ export function validateBookRenderRecipe(config: BookConfig, formatId: string): 
   const checkText = (text: string) => {
     for (const token of text.match(/\[[^\]]+\]/g) ?? []) if (!(recipe.schema === 'lhb.book-render@v3' ? BOOK_V3_COPY_TOKENS : BOOK_COPY_TOKENS).has(token.slice(1,-1).toLowerCase())) throw new Error(`Unknown copy token ${token}`);
   };
+  if (recipe.schema === 'lhb.book-render@v2') {
+    for (const value of Object.values(recipe.copy)) {
+      for (const block of Array.isArray(value) ? value : [value]) checkText(block.text);
+    }
+    for (const configuredCover of Object.values(recipe.covers)) {
+      for (const block of configuredCover.texts) checkText(block.text);
+    }
+  }
 
   const v3 = recipe.schema === 'lhb.book-render@v3';
   const checkPlacement = (placement: BookLayerPlacement) => {
@@ -110,6 +119,17 @@ export function validateBookRenderRecipe(config: BookConfig, formatId: string): 
     if (pose) mergeBookPlacement(pose.placement, resolveBookCoverCharacterPlacement(config, formatId));
   }
   const ids = new Set<string>();
+  const pageSlots = new Set(Object.values(config.formats).flatMap(value => value.interior.pageSequence)
+    .map(page => page.backgroundSlot).filter((slot): slot is string => Boolean(slot)));
+  const guideBackgrounds = config.assets.guideBackgrounds ?? {};
+  for (const slot of config.assets.guideBackgroundRequiredSlots ?? []) {
+    if (!guideBackgrounds[slot]) throw new Error(`Missing required guide background mapping: ${slot}`);
+  }
+  for (const [slot, guideKeys] of Object.entries(guideBackgrounds)) {
+    if (!pageSlots.has(slot)) throw new Error(`Guide background slot is not used by ${formatId}: ${slot}`);
+    if (Object.keys(guideKeys).length !== GUIDES.length || GUIDES.some(guide => !guideKeys[guide])) throw new Error(`Incomplete guide background mapping: ${slot}`);
+    for (const guide of GUIDES) key(guideKeys[guide], `${slot}/${guide}`);
+  }
   for (const page of pages) {
     if (ids.has(page.id)) throw new Error(`Duplicate page ID ${page.id}`);
     ids.add(page.id);

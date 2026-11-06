@@ -88,6 +88,7 @@ async function main() {
     schema: 'lhb.run-manifest@v2.0', stage: '3-book-assembly', orderId: printOrderId,
     rootOrderId: printOrderId, bookId: config.bookId, formatId: 'standard',
     orderR2BaseKey: printOrderPrefix,
+    renderSnapshot: printOne.book.resolved.renderSnapshot,
     pagePlan: printOne.book.resolved.pagePlan, pageLabels: printOne.book.resolved.pageLabels, summary: { readyForBook: true },
     pages: Object.fromEntries(v2.formats.standard.interior.pageSequence.map((page) =>
       [page.label, buildPreviewImageAssetKey(printOrderPrefix, page.label)])),
@@ -112,11 +113,11 @@ async function main() {
     expectedProvider: 'gelato', loadManifest: async (key) => key === printOneKey ? one : key === printThreeKey ? three : null,
     loadOrder: async () => canonicalRow,
   });
-  await assert.rejects(testSources(printOne, { ...printThree, summary: { readyForBook: false } }), /original W3 source/);
+  await assert.rejects(testSources(printOne, { ...printThree, summary: { readyForBook: false } }), /saved summary\.readyForBook is false/);
   await assert.rejects(buildW4PrintInput({ ...sourceInput, body: { ...sourceInput, summary: { readyForBook: true }, pages: printThree.pages } }, {
     expectedProvider: 'gelato', loadOrder: async () => canonicalRow,
     loadManifest: async (key) => key === printOneKey ? printOne : key === printThreeKey ? { ...printThree, summary: { readyForBook: false } } : null,
-  }), /original W3 source/);
+  }), /saved summary\.readyForBook is false/);
   const oldCover = await testSources(printOne, { ...printThree, pngGeneration: { coverSpreadImage: `${printOrderPrefix}/preview-images/older-cover-spread.png` } });
   assert.throws(() => assertW4GelatoPrintInput(oldCover), /canonical cover raster/);
   const activeFixture = BookConfigSchema.parse({ ...v2, status: 'active' });
@@ -132,7 +133,7 @@ async function main() {
     orderR2BaseKey: printOrderPrefix, renderSnapshot: activeOne.book.resolved.renderSnapshot,
     pagePreviewImages: producedThree.pagePreviewImages.slice(0, -1),
   }, { intake: normalizeW0Manifest(activeOne) });
-  await assert.rejects(testSources(activeOne, incompleteProduced.manifest), /original W3 source/);
+  await assert.rejects(testSources(activeOne, incompleteProduced.manifest), /saved summary\.readyForBook is false/);
   const otherOne = buildW0RunManifestFromConfig(v2, { ...input, orderId: 'OTHER-SOURCE-ORDER' });
   await assert.rejects(testSources(otherOne, printThree), /canonical order\/book identity/);
   await assert.rejects(testSources(printOne, { ...printThree, orderId: 'OTHER-SOURCE-ORDER' }), /canonical order\/book identity/);
@@ -154,11 +155,12 @@ async function main() {
       print_api_page_count: 32, print_expected_pdf_page_count: 35,
     }),
   }), /frozen assignment mismatch: print_product_uid/);
+  const wrongProviderOne = buildW0RunManifestFromConfig(config, { ...input, orderId: printOrderId });
   await assert.rejects(buildW4PrintInput({
     orderId: printOrderId, bookId: config.bookId, formatId: 'standard', manifest3Key: printThreeKey,
   }, {
     expectedProvider: 'gelato',
-    loadManifest: async (key) => key === printOneKey ? buildW0RunManifestFromConfig(config, { ...input, orderId: printOrderId }) : key === printThreeKey ? printThree : null,
+    loadManifest: async (key) => key === printOneKey ? wrongProviderOne : key === printThreeKey ? { ...printThree, renderSnapshot: wrongProviderOne.book.resolved.renderSnapshot } : null,
     loadOrder: async () => ({ orderId: printOrderId, print_provider: 'lulu' }),
   }), /non-Gelato provider assignment/);
   await assert.rejects(buildW0RunManifestRuntime({ ...input, bookId: config.bookId, configSource: 'published' }), /explicit positive configVersion/);

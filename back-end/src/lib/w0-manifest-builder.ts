@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { assertCsvItemBookTuple, csvHasItemBookSelections, validateCsvItemBookContext } from '@/lib/csv-book-selection';
 import {
   buildW0RunManifest,
   buildW0RunManifestRuntime,
@@ -123,7 +124,14 @@ function toBooleanValue(value: unknown): boolean | undefined {
 }
 
 function normalizeProductInfo(order: OrderRecord): Record<string, unknown> {
-  return toObject(order.product_info) ?? toObject(order.productInfo) ?? {};
+  const values = [order.product_info, order.productInfo];
+  const decoded = values.map(toObject);
+  const sources = values.map((value, index) => decoded[index] ?? (Array.isArray(value) ? { items: value } : {}));
+  if (csvHasItemBookSelections(sources)) {
+    for (const value of values) if (value !== undefined && !isRecord(value)) throw new Error('Mixed W0 product info requires an object');
+    if (values[0] !== undefined && values[1] !== undefined && !isDeepStrictEqual(values[0], values[1])) throw new Error('Conflicting mixed W0 product info aliases');
+  }
+  return decoded[0] ?? decoded[1] ?? {};
 }
 
 function normalizeCharacterSpecs(order: OrderRecord): Record<string, unknown> {
@@ -165,6 +173,7 @@ function normalizeBookSpecs(
 }
 
 function normalizeUnitContext(sources: Record<string, unknown>[]): Record<string, unknown> {
+  validateCsvItemBookContext(sources);
   const read = (aliases: string[]): unknown => {
     const values = sources.flatMap(source => aliases.filter(key => Object.hasOwn(source, key) && source[key] !== undefined).map(key => source[key]));
     if (values.some(value => !isDeepStrictEqual(value, values[0]))) throw new Error('Conflicting W0 unit context');
@@ -215,11 +224,64 @@ function normalizeUnitContext(sources: Record<string, unknown>[]): Record<string
 function normalizedUnitContextSources(input: NormalizedW0WorkflowInput): Record<string, unknown>[] {
   const normalized = { ...input } as unknown as Record<string, unknown>;
   const raw = toObject(input._raw) ?? {};
-  // The exported normalizer supplies an empty list when the original body has no top-level items.
+  // Preserve the existing unmarked-input interpretation.
   if (isRecord(input._raw) && Array.isArray(normalized.items) && normalized.items.length === 0 &&
       !Object.hasOwn(raw, 'items') && !Object.hasOwn(raw, 'lineItems')) delete normalized.items;
-  return [normalized, raw, toObject(input.orderDetails) ?? {}, toObject(input.order_details) ?? {},
+  const original = [normalized, raw, toObject(input.orderDetails) ?? {}, toObject(input.order_details) ?? {},
     toObject(raw.orderDetails) ?? {}, toObject(raw.order_details) ?? {}];
+  const body = toObject(raw.body) ?? {};
+  const extra = [body, toObject(body.orderDetails) ?? {}, toObject(body.order_details) ?? {}];
+  for (const source of [normalized, raw, body]) {
+    for (const name of ['product_info', 'productInfo']) {
+      const value = source[name];
+      const decoded = toObject(value);
+      if (decoded) extra.push(decoded);
+      else if (Array.isArray(value)) extra.push({ items: value });
+    }
+  }
+  if (!csvHasItemBookSelections([...original, ...extra])) return original;
+  if (raw.body !== undefined && !isRecord(raw.body)) throw new Error('Mixed W0 original body requires an object');
+  for (const source of [normalized, raw, body]) {
+    const values = [source.product_info, source.productInfo];
+    for (const value of values) if (value !== undefined && !isRecord(value)) throw new Error('Mixed W0 original product info requires an object');
+    if (values[0] !== undefined && values[1] !== undefined && !isDeepStrictEqual(values[0], values[1])) throw new Error('Conflicting mixed W0 original product info');
+  }
+  return [...original, ...extra];
+}
+
+function bindMixedW0Context(
+  order: OrderRecord,
+  productInfo: Record<string, unknown>,
+  bookSpecs: Record<string, unknown>,
+  bookId: string,
+  formatId: string,
+  options: BuildOrderIntakeManifestOptions,
+  orderDetails: Record<string, unknown>,
+): void {
+  if (!csvHasItemBookSelections([productInfo, orderDetails])) return;
+  if (resolveW0ManifestSchemaVersion(options.schemaVersion) !== 'v3') throw new Error('Mixed item book selection requires W0 v3');
+  const tuple = { bookId, formatId, configVersion: options.configVersion ?? bookSpecs.configVersion };
+  assertCsvItemBookTuple(tuple);
+  for (const value of [order.book_specs, order.bookSpecs, productInfo.book_specs, productInfo.bookSpecs]) {
+    if (value !== undefined && value !== null && (!isRecord(value) || !isDeepStrictEqual(value, bookSpecs))) {
+      throw new Error('Conflicting mixed W0 book specs');
+    }
+  }
+  if (bookSpecs.bookId !== tuple.bookId || bookSpecs.formatId !== tuple.formatId || bookSpecs.configVersion !== tuple.configVersion) {
+    throw new Error('Missing mixed W0 canonical book selection');
+  }
+  const aliases = {
+    bookId: ['bookId', 'book_id', 'project', 'print_book_id', 'printBookId'],
+    formatId: ['formatId', 'format_id', 'print_format_id', 'printFormatId'],
+    configVersion: ['configVersion', 'config_version', 'version', 'print_config_version', 'printConfigVersion'],
+  };
+  for (const source of [order, productInfo, bookSpecs]) for (const [key, names] of Object.entries(aliases)) {
+    for (const name of names) if (source[name] !== undefined && source[name] !== null && source[name] !== tuple[key as keyof typeof tuple]) {
+      throw new Error('Conflicting mixed W0 canonical selection');
+    }
+  }
+  validateCsvItemBookContext([orderDetails], tuple);
+  Object.assign(orderDetails, tuple, { bookSpecs, book_specs: bookSpecs });
 }
 
 function normalizeOrderDetails(
@@ -590,7 +652,9 @@ export function buildOrderIntakeManifestFromOrder(
   );
   const characterSpecs = normalizeCharacterSpecs(order);
   const shippingAddress = normalizeShippingAddress(order, productInfo);
-  const orderDetails = normalizeOrderDetails(productInfo, shippingAddress, schemaVersion === 'v3' && bookId !== 'book-mvp-simple-adventure');
+  const orderDetails = normalizeOrderDetails(productInfo, shippingAddress, schemaVersion === 'v3' &&
+    (bookId !== 'book-mvp-simple-adventure' || csvHasItemBookSelections([productInfo])));
+  bindMixedW0Context(order, productInfo, bookSpecs, bookId, formatId, options, orderDetails);
   const manifestKey = `${bookId}/orders/${orderId}/manifests/1-manifest.json`;
   const dedicationText = toStringValue(order.dedication_text) ?? null;
   const amazonOrderId = toStringValue(order.amazon_order_id) ?? null;
@@ -647,7 +711,9 @@ export async function buildOrderIntakeManifestFromOrderRuntime(
   const selection = normalizeManifestSelection(order, options);
   const characterSpecs = normalizeCharacterSpecs(order);
   const shippingAddress = normalizeShippingAddress(order, selection.productInfo);
-  const orderDetails = normalizeOrderDetails(selection.productInfo, shippingAddress, schemaVersion === 'v3' && selection.bookId !== 'book-mvp-simple-adventure');
+  const orderDetails = normalizeOrderDetails(selection.productInfo, shippingAddress, schemaVersion === 'v3' &&
+    (selection.bookId !== 'book-mvp-simple-adventure' || csvHasItemBookSelections([selection.productInfo])));
+  bindMixedW0Context(order, selection.productInfo, selection.bookSpecs, selection.bookId, selection.formatId, options, orderDetails);
   const manifestKey = `${selection.bookId}/orders/${orderId}/manifests/1-manifest.json`;
   const dedicationText = toStringValue(order.dedication_text) ?? null;
   const amazonOrderId = toStringValue(order.amazon_order_id) ?? null;
@@ -699,8 +765,25 @@ export async function buildOrderIntakeManifestFromNormalizedInputRuntime(
   options: BuildOrderIntakeManifestOptions = {},
 ): Promise<BuildOrderIntakeManifestResult> {
   const order = buildOrderRecordFromNormalizedInput(input);
+  const itemSelections = csvHasItemBookSelections(normalizedUnitContextSources(input));
+  if (itemSelections && resolveW0ManifestSchemaVersion(options.schemaVersion) !== 'v3') throw new Error('Mixed item book selection requires W0 v3');
   const selection = normalizeManifestSelection(order, options);
-  if (resolveW0ManifestSchemaVersion(options.schemaVersion) === 'v3' && selection.bookId !== 'book-mvp-simple-adventure') {
+  if (selection.bookId === 'book-finding-our-inner-voice' || itemSelections) {
+    const raw = isRecord(input._raw) ? input._raw : {};
+    const rawBody = isRecord(raw.body) ? raw.body : {};
+    const originals = [raw, rawBody].flatMap(source =>
+      ['character_specs', 'characterSpecs', 'CharacterSpecs']
+        .filter(key => Object.hasOwn(source, key))
+        .map(key => source[key]));
+    if (originals.length) {
+      if (originals.some(value => !isRecord(value) || Object.keys(value).length === 0) ||
+          originals.some(value => !isDeepStrictEqual(value, originals[0]))) {
+        throw new Error('Invalid or conflicting W0 original character specs');
+      }
+      order.character_specs = originals[0] as Record<string, unknown>;
+    }
+  }
+  if (resolveW0ManifestSchemaVersion(options.schemaVersion) === 'v3' && (selection.bookId !== 'book-mvp-simple-adventure' || itemSelections)) {
     const unitContext = normalizeUnitContext(normalizedUnitContextSources(input));
     order.product_info = { ...normalizeProductInfo(order), ...unitContext };
   }
@@ -738,9 +821,17 @@ export function buildW0OrderUpsertPayload({
     toObject(manifestInput.orderDetails) ??
     toObject(manifestOrder.orderDetails) ??
     {};
-  if (manifestRecord.schema === 'lhb.run-manifest@v3' && bookConfigRef.bookId !== 'book-mvp-simple-adventure') {
+  const itemSelections = csvHasItemBookSelections([orderDetails]) || csvHasItemBookSelections(normalizedUnitContextSources(normalizedInput));
+  if (itemSelections && manifestRecord.schema !== 'lhb.run-manifest@v3') throw new Error('Mixed item book selection requires W0 v3');
+  if (manifestRecord.schema === 'lhb.run-manifest@v3' && (bookConfigRef.bookId !== 'book-mvp-simple-adventure' || itemSelections)) {
     const frozenContext = normalizeUnitContext([orderDetails]);
     const requestedContext = normalizeUnitContext(normalizedUnitContextSources(normalizedInput));
+    if (itemSelections) {
+      const tuple = { bookId: bookConfigRef.bookId, formatId: bookConfigRef.formatId, configVersion: bookConfigRef.version };
+      assertCsvItemBookTuple(tuple);
+      if (!validateCsvItemBookContext([orderDetails], tuple) || !validateCsvItemBookContext(normalizedUnitContextSources(normalizedInput), tuple)) throw new Error('Missing mixed W0 frozen item context');
+      if (bookSpecs.bookId !== tuple.bookId || bookSpecs.formatId !== tuple.formatId || bookSpecs.configVersion !== tuple.configVersion) throw new Error('Mixed W0 manifest book selection mismatch');
+    }
     if (Object.keys(requestedContext).length && !isDeepStrictEqual(requestedContext, frozenContext)) throw new Error('Frozen W0 unit context mismatch');
     if (Object.keys(frozenContext).length && orderDetails.quantity !== 1) throw new Error('W0 physical book quantity must be one');
   }

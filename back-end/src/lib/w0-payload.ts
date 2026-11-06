@@ -1,5 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { calculateCharacterHash } from './character-hash';
+import { calculateSiblingCharacterHash } from './sibling-order-helpers';
+import { assertCsvItemBookTuple, csvRowHasItemBookSelections, validateCsvItemBookRow } from './csv-book-selection';
 import { getPerBookOrderId, getRootOrderId } from './sibling-print-policy';
 
 /**
@@ -157,6 +159,23 @@ export function buildPendingW0Payload(order: Record<string, unknown>): Record<st
       if (Object.hasOwn(order, key) && order[key] !== originalHash) throw new Error('Conflicting pending W0 original character hash');
     }
   }
+  if (csvRowHasItemBookSelections(order)) {
+    if (platform !== 'amazon' || !object(rawInfo)) throw new Error('Mixed pending W0 requires Amazon product context');
+    const tuple = { bookId: payload.bookId, formatId: payload.formatId, configVersion: payload.configVersion };
+    assertCsvItemBookTuple(tuple);
+    if (!validateCsvItemBookRow(order, tuple)) throw new Error('Missing mixed pending W0 canonical context');
+    const originalSpecs = order.character_specs;
+    if (!object(originalSpecs) || !Object.keys(originalSpecs).length) throw new Error('Missing mixed pending W0 original specs');
+    for (const key of ['character_specs', 'characterSpecs', 'CharacterSpecs']) {
+      if (Object.hasOwn(order, key) && !isDeepStrictEqual(order[key], originalSpecs)) throw new Error('Conflicting mixed pending W0 original specs');
+    }
+    const originalHash = order.character_hash;
+    const expectedHash = tuple.bookId === 'book-finding-our-inner-voice'
+      ? calculateCharacterHash(originalSpecs, orderId) : calculateSiblingCharacterHash(originalSpecs);
+    if (typeof originalHash !== 'string' || originalHash !== expectedHash ||
+        (Object.hasOwn(order, 'characterHash') && order.characterHash !== originalHash)) throw new Error('Invalid mixed pending W0 original hash');
+    if (order.dedication_text != null && order.dedication_text !== originalSpecs.dedication) throw new Error('Conflicting mixed pending W0 dedication');
+  }
   if (info.line_items != null) {
     if (!Array.isArray(info.line_items)) throw new Error('Invalid pending W0 line items');
     payload.items = info.line_items;
@@ -174,6 +193,44 @@ export function buildPendingW0Payload(order: Record<string, unknown>): Record<st
     const marketplaceId = text(order.marketplace_id);
     if (!rootOrderId || !marketplaceId || (text(order.root_order_id) && text(order.amazon_order_id) && text(order.root_order_id) !== text(order.amazon_order_id))) throw new Error('Missing or conflicting pending W0 Amazon identity');
     payload.amazonOrderId = rootOrderId; payload.marketplaceId = marketplaceId;
+  }
+  return payload;
+}
+
+/** Automatic Amazon recovery requires a stored book assignment, never workflow defaults. */
+export function buildSelectedAmazonPendingW0Payload(order: Record<string, unknown>): Record<string, unknown> {
+  const payload = buildPendingW0Payload(order);
+  const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const info: Record<string, unknown> = object(order.product_info ?? order.productInfo) ? (order.product_info ?? order.productInfo) as Record<string, unknown> : {};
+  const tuple = { bookId: payload.bookId, formatId: payload.formatId, configVersion: payload.configVersion };
+  const stored = [order.book_specs, order.bookSpecs, info.book_specs, info.bookSpecs, info];
+  const explicit = stored.some(value => object(value) && ['bookId', 'formatId', 'configVersion'].every(key =>
+    Object.hasOwn(value, key) && value[key] === tuple[key as keyof typeof tuple]));
+  const hold = () => { throw new Error('Unclassified Amazon intake requires authenticated operator assignment'); };
+  if (order.platform !== 'amazon' || !explicit) hold();
+  try { assertCsvItemBookTuple(tuple); } catch { hold(); }
+  const aliases = {
+    bookId: ['bookId', 'book_id', 'project', 'print_book_id', 'printBookId'],
+    formatId: ['formatId', 'format_id', 'print_format_id', 'printFormatId'],
+    configVersion: ['configVersion', 'config_version', 'version', 'print_config_version', 'printConfigVersion'],
+  };
+  const nullable = new Set(['book_id', 'project', 'print_book_id', 'print_format_id', 'print_config_version']);
+  if (order.product_info !== undefined && order.productInfo !== undefined && !isDeepStrictEqual(order.product_info, order.productInfo)) {
+    throw new Error('Conflicting stored Amazon book assignment');
+  }
+  for (const source of [order, ...stored.filter(object)]) for (const [key, names] of Object.entries(aliases)) for (const name of names) {
+    if (Object.hasOwn(source, name) && source[name] !== undefined && !(source === order && nullable.has(name) && source[name] === null) &&
+        source[name] !== tuple[key as keyof typeof tuple]) throw new Error('Conflicting stored Amazon book assignment');
+  }
+  const specs = order.character_specs, hash = order.character_hash;
+  if (!object(specs) || !Object.keys(specs).length || typeof hash !== 'string' || !hash || hash !== hash.trim()) {
+    throw new Error('Missing original Amazon intake context');
+  }
+  for (const key of ['character_specs', 'characterSpecs', 'CharacterSpecs']) {
+    if (Object.hasOwn(order, key) && !isDeepStrictEqual(order[key], specs)) throw new Error('Conflicting original Amazon intake specs');
+  }
+  for (const key of ['character_hash', 'characterHash']) {
+    if (Object.hasOwn(order, key) && order[key] !== hash) throw new Error('Conflicting original Amazon intake hash');
   }
   return payload;
 }

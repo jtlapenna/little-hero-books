@@ -96,6 +96,12 @@
     "test:w1-gelato-claim-routing": "tsx scripts/test-w1-gelato-claim-routing.ts",
     "test:gelato-print-submissions": "bash scripts/test-gelato-print-submissions.sh",
     "test:gelato-intake-replay": "tsx scripts/test-gelato-intake-replay.ts",
+    "test:amazon-replacement:middleware": "tsx scripts/test-amazon-cron-auth-logging.ts --middleware-backend-only --middleware-source ../amazon/sp-api-middleware.js --middleware-source-sha 10bde085c663405c386a42cd6fcb2defd7c4e035cdb3e2abe0e2b93cc1096904",
+    "test:amazon-replacement:primitives": "tsx scripts/test-gelato-intake-replay.ts --replacement-primitives-only",
+    "test:amazon-replacement:api": "tsx scripts/test-gelato-intake-replay.ts --replacement-api-only",
+    "test:amazon-replacement:w0": "tsx scripts/test-gelato-intake-replay.ts --replacement-w0-bridge-only",
+    "test:amazon-native-recovery": "tsx scripts/test-amazon-native-recovery.ts",
+    "test:amazon-generic-recovery": "tsx scripts/test-gelato-ordinary-router.ts --source-row scripts/fixtures/amazon-native-mixed-csv.json --source-row-sha d42236c23ec9e8b0328239daf6b740596e07a8022a9bd42fc7a6116a43691743 --expected-w0 0 --mixed-source-kind complete",
     "test:w0-manifest-freeze": "tsx scripts/test-w0-manifest-freeze.ts",
     "test:gelato-recovery-archive": "tsx scripts/test-gelato-recovery-archive.ts",
     "test:w0-legacy-rollout": "tsx scripts/test-w0-legacy-rollout.ts",
@@ -150,7 +156,13 @@
     "test:gelato-admission-settlement": "node --import tsx scripts/test-gelato-admission-settlement.ts && node --import tsx scripts/test-gelato-admission-settlement-boundaries.ts && node --import tsx scripts/test-gelato-admission-settlement-processes.ts && node --import tsx scripts/test-gelato-admission-settlement-transport.ts && tsc -p tsconfig.gelato-admission-settlement.json --noEmit",
     "test:book-review-invalidation": "node --import tsx scripts/test-book-review-invalidation.ts",
     "test:gelato-release-application": "node --import tsx scripts/test-gelato-release-application.ts",
-    "test:gelato-release-service": "node --import tsx scripts/test-gelato-release-service.ts"
+    "test:gelato-release-service": "node --import tsx scripts/test-gelato-release-service.ts",
+    "test:w2a-pose-workflow-identity": "tsx scripts/test-w2a-pose-workflow-identity.ts",
+    "test:exact-book-identity": "tsx scripts/test-exact-book-identity.ts",
+    "test:inner-voice-final-art": "node --import tsx scripts/test-inner-voice-final-art.ts && node --import tsx scripts/test-immutable-asset-upload.ts && node --import tsx scripts/test-inner-voice-proof-export.ts",
+    "test:book-flow-contract": "node --import tsx scripts/test-book-flow-contract.ts",
+    "test:inner-voice-workflow-e2e": "node --import tsx scripts/test-inner-voice-workflow-e2e.ts",
+    "test:inner-voice-local-assets": "node --import tsx scripts/test-inner-voice-local-assets.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

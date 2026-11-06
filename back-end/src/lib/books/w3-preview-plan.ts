@@ -1,5 +1,6 @@
 import { parseW3PageSelection, selectW3Pages } from './w3-page-selection';
 import { renderConfiguredBook } from './configured-book-rendering';
+import { resolveBookPronouns } from './book-pronouns';
 import { validateRenderSnapshot } from './book-render-recipe';
 import {
   buildBgRemovedPoseAssetKey,
@@ -680,31 +681,7 @@ function buildStoryContext(input: JsonRecord, backendUrl: string): StoryContext 
   }
 
   const pronounsRaw = toTrimmedString(characterSpecs.pronouns) ?? '';
-  const pronounsLower = pronounsRaw.toLowerCase();
-  const pronouns = (() => {
-    if (pronounsLower.includes('she') || pronounsLower.includes('girl')) {
-      return {
-        subject: 'she',
-        object: 'her',
-        possessive: 'her',
-        reflexive: 'herself',
-      };
-    }
-    if (pronounsLower.includes('he') || pronounsLower.includes('boy')) {
-      return {
-        subject: 'he',
-        object: 'him',
-        possessive: 'his',
-        reflexive: 'himself',
-      };
-    }
-    return {
-      subject: 'they',
-      object: 'them',
-      possessive: 'their',
-      reflexive: 'themselves',
-    };
-  })();
+  const pronouns = resolveBookPronouns(pronounsRaw);
 
   const animalImages = toRecord(order.animalImages);
   const animalSlug =
@@ -1652,6 +1629,14 @@ export function buildW3PreviewPlan(
   const amazonOrderId = resolveAmazonOrderId(input, orderId);
   const rootOrderId = resolveRootOrderId(input, amazonOrderId, orderId);
   const explicitFormatId = toTrimmedString(input.formatId);
+  if (input.renderSnapshot === undefined && input.configVersion !== undefined && input.configVersion !== null) {
+    const rawVersion = input.configVersion;
+    const version = typeof rawVersion === 'string' && /^[1-9][0-9]*$/.test(rawVersion) ? Number(rawVersion) : rawVersion;
+    if (typeof version !== 'number' || !Number.isSafeInteger(version) || version <= 0) throw new Error('W3 configVersion identity is malformed');
+    const selected = loadBundledBookConfig({ bookId, version });
+    if (!selected.formats[explicitFormatId ?? selected.defaultFormatId]) throw new Error('Unknown W3 preview format');
+    if (selected.rendering.recipe) throw new Error('Configured W3 preview requires its frozen W0 snapshot');
+  }
   const isAmazonFallback =
     explicitFormatId === 'amazon' ||
     (explicitFormatId === null &&

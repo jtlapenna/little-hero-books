@@ -3,20 +3,29 @@ import {z} from 'zod';
 import {GELATO_DIAGNOSTIC_WORKFLOW_SECONDS} from './gelato-runner-deadlines';
 import {definitionSha256,workflowDefinition} from './prepare-w1-native-queue';
 const hash=z.string().regex(/^[a-f0-9]{64}$/),uuid=z.string().uuid();
-export const IsolatedCasePacket=z.object({
- schema:z.literal('lhl.gelato-isolated-case@1'),runId:z.string().regex(/^[A-Za-z0-9-]{1,64}$/),
+export const ISOLATED_CONFIG_VERSIONS = [2, 3] as const;
+export const IsolatedConfigVersionSchema = z.union([z.literal(ISOLATED_CONFIG_VERSIONS[0]), z.literal(ISOLATED_CONFIG_VERSIONS[1])]);
+const packetFields={
+ runId:z.string().regex(/^[A-Za-z0-9-]{1,64}$/),
  scopeId:uuid,rootOrderId:z.string().regex(/^TEST-GELATO-[A-Za-z0-9-]{1,38}$/),
  sourceSha:z.string().regex(/^[a-f0-9]{40}$/),nativeDefinitionSha256:hash,fixtureManifestSha256:hash,accountKeySha256:hash,
  startsAt:z.string().datetime({offset:true}),expiresAt:z.string().datetime({offset:true}),
  members:z.array(z.object({orderDbId:z.number().int().positive().safe(),orderId:z.string().regex(/^TEST-GELATO-[A-Za-z0-9-]{1,60}$/),
   edition:z.enum(['standard','amazon']),pdfSha256:hash}).strict()).min(1).max(2),
-}).strict().superRefine((p,c)=>{
+};
+const legacyPacket=z.object({schema:z.literal('lhl.gelato-isolated-case@1'),...packetFields}).strict();
+const versionedPacket=z.object({schema:z.literal('lhl.gelato-isolated-case@2'),configVersion:IsolatedConfigVersionSchema,...packetFields}).strict();
+const validateCase=(p:z.infer<typeof legacyPacket>|z.infer<typeof versionedPacket>,c:z.RefinementCtx)=>{
  if(Date.parse(p.expiresAt)<=Date.parse(p.startsAt)||Date.parse(p.expiresAt)-Date.parse(p.startsAt)>30*60_000)c.addIssue({code:'custom',message:'Window must be positive and at most 30 minutes'});
  for(const key of ['orderDbId','orderId','pdfSha256'] as const)if(new Set(p.members.map(m=>m[key])).size!==p.members.length)c.addIssue({code:'custom',message:'Duplicate member binding'});
  if(p.members.length===2&&p.members.some(m=>m.edition!=='amazon'))c.addIssue({code:'custom',message:'Siblings require Amazon editions'});
  if(p.members.length===1&&p.members[0].orderId!==p.rootOrderId)c.addIssue({code:'custom',message:'Single identity must be its root'});
-});
+};
+/** Historical admission remains bound to this unchanged version-2-only shape. */
+export const LegacyIsolatedCasePacket=legacyPacket.superRefine(validateCase);
+export const IsolatedCasePacket=z.discriminatedUnion('schema',[legacyPacket,versionedPacket]).superRefine(validateCase);
 export type IsolatedCase=z.infer<typeof IsolatedCasePacket>;
+export function isolatedConfigVersion(packet:IsolatedCase):2|3{return packet.schema==='lhl.gelato-isolated-case@1'?2:packet.configVersion;}
 export type PreparedWorkflow={name:string;nodes:Array<Record<string,unknown>&{name:string;type:string;parameters:Record<string,unknown>}>;connections:Record<string,{main:Array<Array<{node:string;type:string;index:number}>>}>;settings:Record<string,unknown>};
 export const CREDENTIALS={intake:'__LHL_ISOLATED_INTAKE_HEADER_AUTH__',backend:'__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__',scope:'__LHL_SCOPE_MULTIPLE_HEADERS_AUTH__'} as const;
 const api='https://admin.littleherolabs.com/api/internal/w4/engineering-isolation';
@@ -41,7 +50,7 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 if(!group||group.provider!=='gelato'||group.dispatchRoute!=='dispatch'||group.rootOrderId!==bound.rootOrderId||group.routeKind!==(bound.members.length===2?'sibling':'single')||!uuid.test(group.submissionId)||!uuid.test(group.claimToken)||
  group.idempotencyKey!=='w1.1:'+bound.rootOrderId+':'+bound.members.map(m=>m.orderDbId).sort((a,b)=>a-b).join('-')||
  !Array.isArray(group.orderDbIds)||group.orderDbIds.length!==bound.members.length||new Set(group.orderDbIds).size!==bound.members.length||group.orderDbIds.some(id=>!bound.members.some(m=>m.orderDbId===id))||
- !Array.isArray(group.orders)||group.orders.length!==bound.members.length||new Set(group.orders.map(m=>m.orderDbId)).size!==bound.members.length||group.orders.some(row=>!bound.members.some(m=>m.orderDbId===row.orderDbId&&m.orderId===row.orderId&&m.edition===row.formatId)||row.provider!=='gelato'||row.rootOrderId!==bound.rootOrderId||row.bookId!=='book-finding-our-inner-voice'||row.configVersion!==2||row.innerPageCount!==32||row.apiPageCount!==32||row.expectedPdfPageCount!==35))throw Error('Isolated dispatch does not match the frozen cohort');
+ !Array.isArray(group.orders)||group.orders.length!==bound.members.length||new Set(group.orders.map(m=>m.orderDbId)).size!==bound.members.length||group.orders.some(row=>!bound.members.some(m=>m.orderDbId===row.orderDbId&&m.orderId===row.orderId&&m.edition===row.formatId)||row.provider!=='gelato'||row.rootOrderId!==bound.rootOrderId||row.bookId!=='book-finding-our-inner-voice'||row.configVersion!==${isolatedConfigVersion(p)}||row.innerPageCount!==32||row.apiPageCount!==32||row.expectedPdfPageCount!==35))throw Error('Isolated dispatch does not match the frozen cohort');
 `;}
 export function prepareIsolatedWorkflows(raw:unknown,nativeRaw:unknown){
  const p=IsolatedCasePacket.parse(raw),source=workflowDefinition(nativeRaw),wanted=p.members.length===2?'W4.1 Gelato Sibling Aggregation':'W4 Gelato Print Fulfillment';
@@ -53,7 +62,7 @@ export function prepareIsolatedWorkflows(raw:unknown,nativeRaw:unknown){
   const prep=named('Prepare Gelato Request');const original=String(prep.parameters.jsCode);
   const proof=stage==='draft'?`const proof=group.artifactVerification;if(!proof||proof.fixtureManifestSha256!==bound.fixtureManifestSha256||proof.scopeId!==bound.scopeId||!Array.isArray(proof.files)||proof.files.length!==bound.members.length||new Set(proof.files.map(f=>f.orderDbId)).size!==bound.members.length||proof.files.some(f=>!bound.members.some(m=>m.orderDbId===f.orderDbId&&m.pdfSha256===f.sha256)))throw Error('Independent frozen PDF verification is required');\n`:'';
   // Strip the proof before feeding the exact original native preparation code.
-  prep.parameters.jsCode=isolatedClaimGuard(p)+proof+`const clean={submissionId:group.submissionId,claimToken:group.claimToken,bookId:'book-finding-our-inner-voice',configVersion:2,rootOrderId:bound.rootOrderId,...(bound.members.length===1?{orderId:bound.members[0].orderId,formatId:bound.members[0].edition}:{orders:bound.members.map(m=>({orderId:m.orderId,orderDbId:m.orderDbId,bookId:'book-finding-our-inner-voice',configVersion:2,formatId:m.edition}))})};return (function($input){\n`+original+`\n})({first:()=>({json:{body:clean}})});`;
+  prep.parameters.jsCode=isolatedClaimGuard(p)+proof+`const clean={submissionId:group.submissionId,claimToken:group.claimToken,bookId:'book-finding-our-inner-voice',configVersion:${isolatedConfigVersion(p)},rootOrderId:bound.rootOrderId,...(bound.members.length===1?{orderId:bound.members[0].orderId,formatId:bound.members[0].edition}:{orders:bound.members.map(m=>({orderId:m.orderId,orderDbId:m.orderDbId,bookId:'book-finding-our-inner-voice',configVersion:${isolatedConfigVersion(p)},formatId:m.edition}))})};return (function($input){\n`+original+`\n})({first:()=>({json:{body:clean}})});`;
   const nodes:PreparedWorkflow['nodes']=[webhook(workflowPath(p,stage)),prep,...names.map(named),respond()];
   for(const n of nodes)if(n.type==='n8n-nodes-base.httpRequest'){
    n.credentials=cred('httpHeaderAuth',CREDENTIALS.backend);n.parameters.options={...(n.parameters.options as object),timeout:120000};

@@ -18,6 +18,10 @@ export function stableBookValue(value: unknown): string {
   return JSON.stringify(value) ?? 'null';
 }
 
+export function isHistoricalBookConfigRef(ref: { bookId?: string | null; version?: number | null; formatId?: string | null }): boolean {
+  return HISTORICAL_NON_RECIPE_TUPLES.has(`${ref.bookId}@${ref.version}/${ref.formatId}`);
+}
+
 export function isHistoricalNonRecipeConfig(config: BookConfig, formatId: string): boolean {
   if (config.rendering.recipe || !HISTORICAL_NON_RECIPE_TUPLES.has(`${config.bookId}@${config.version}/${formatId}`)) return false;
   const historical = loadBundledBookConfig({ bookId: config.bookId, version: config.version });

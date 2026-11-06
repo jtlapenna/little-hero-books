@@ -37,6 +37,13 @@ jobs:
           node --experimental-strip-types lhl-scheduler/build.ts
           node --experimental-strip-types lhl-scheduler/test.ts
           node back-end/node_modules/typescript/bin/tsc -p lhl-scheduler/tsconfig.json
+      - name: Verify offline Amazon replacement intake and W0 handoff
+        working-directory: back-end
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-amazon-cron-auth-logging.ts --middleware-backend-only --middleware-source ../amazon/sp-api-middleware.js --middleware-source-sha 10bde085c663405c386a42cd6fcb2defd7c4e035cdb3e2abe0e2b93cc1096904
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-intake-replay.ts --replacement-primitives-only
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-intake-replay.ts --replacement-api-only
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-gelato-intake-replay.ts --replacement-w0-bridge-only
       - name: Verify bounded public request bodies and signed Stripe payloads
         run: node --import tsx scripts/test-request-body.ts
         working-directory: back-end
@@ -49,7 +56,8 @@ jobs:
           node --import tsx scripts/test-customization-zip-consumers.ts
         working-directory: back-end
       - name: Verify checkout validation before provider or storage access
-        run: node --import tsx scripts/test-checkout-validation.ts
+        run: |
+          node --import tsx scripts/test-checkout-validation.ts
         working-directory: back-end
       - name: Check asynchronous route parameters
         working-directory: back-end
@@ -66,6 +74,10 @@ jobs:
           node --import tsx scripts/test-w2a-base-input.ts
           node --import tsx scripts/test-w2a-pose-input.ts
           node --import tsx scripts/test-w2a-frozen-generation-input.ts
+          npm run test:w2a-pose-workflow-identity
+          npm run test:exact-book-identity
+          npm run test:workflow-jobs
+          node --import tsx scripts/test-workflow-event-ownership.ts
           node --import tsx scripts/test-publish-book-config-immutability.ts
           node --import tsx scripts/test-book-config-semantics.ts
           node --import tsx scripts/test-frozen-book-handoff.ts
@@ -78,6 +90,31 @@ jobs:
       - name: Verify PDFMonkey server credential boundary
         run: npm run test:w4-print-worker
         working-directory: back-end
+      - name: Verify isolated Inner Voice art handoff and configured workflow boundaries
+        working-directory: back-end
+        run: |
+          npm run test:inner-voice-final-art
+          npm run test:inner-voice-local-assets
+          npm run test:inner-voice-workflow-e2e
+          npm run test:book-flow-contract
+          npm run test:w4-print-input
+          node --import tsx scripts/test-inner-voice-customizations.ts
+          node --import tsx scripts/test-configured-book-contract.ts
+          node --import tsx scripts/test-configured-w3-boundaries.ts
+          node --import tsx scripts/test-w3-whole-worklist.ts
+          node --import tsx scripts/test-w3-legacy-identity.ts
+          node --import tsx scripts/test-w3-assembly-input.ts
+          node --import tsx scripts/test-cover-pose-provenance.ts
+          node --import tsx scripts/test-inner-voice-book.ts
+      - name: Verify lettering editor persistence and flow validation
+        run: |
+          python3 tools/inner-voice-placement-editor/test_server.py
+          python3 tools/inner-voice-placement-editor/test_lettering_flow.py
+          python3 tools/inner-voice-placement-editor/test_migrate_flow.py
+          python3 tools/inner-voice-placement-editor/test_export_flow_candidate.py
+          python3 tools/inner-voice-placement-editor/test_legacy_metadata.py
+          node tools/inner-voice-placement-editor/test_flow_browser.mjs
+          node tools/inner-voice-placement-editor/test_proof_inspector.mjs
       - name: Build actual Next, OpenNext and Pages package (no font fixture)
         run: npm run pages:build
         working-directory: back-end

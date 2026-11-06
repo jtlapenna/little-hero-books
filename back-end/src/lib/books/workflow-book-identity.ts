@@ -93,13 +93,13 @@ export function inspectWorkflowBookIdentity(input: RecordValue, selection: Selec
   return result;
 }
 
-export function assertWorkflowMatchesW0(identity: WorkflowBookIdentity, manifest: NormalizedW0Manifest, raw: unknown, key: string): void {
-  if (identity.orderId && identity.orderId !== manifest.orderId) throw new Error('Frozen W0 manifest order identity does not match W2A request');
-  if (manifest.renderSnapshot && !identity.orderId) throw new Error('Configured W2A request requires orderId');
+export function assertWorkflowMatchesW0(identity: WorkflowBookIdentity, manifest: NormalizedW0Manifest, raw: unknown, key: string, workflow: 'W2A' | 'W3' = 'W2A'): void {
+  if (identity.orderId && identity.orderId !== manifest.orderId) throw new Error(`Frozen W0 manifest order identity does not match ${workflow} request`);
+  if (manifest.renderSnapshot && !identity.orderId) throw new Error(`Configured ${workflow} request requires orderId`);
   for (const [field, actual] of [['bookId', manifest.bookId], ['formatId', manifest.formatId], ['version', manifest.configVersion]] as const) {
     if (identity[field] !== undefined && (actual != null || manifest.schema === 'lhb.run-manifest@v3') && identity[field] !== actual) {
       const label = field.replace(/Id$/, '');
-      throw new Error(`Frozen W0 manifest ${label} identity does not match W2A request`);
+      throw new Error(`Frozen W0 manifest ${label} identity does not match ${workflow} request`);
     }
   }
   const embedded = object(object(raw).artifacts).manifestKey;

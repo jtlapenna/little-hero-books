@@ -10,6 +10,11 @@ import { SKIN_TONE_HEX_MAP } from '@/types/customization';
 
 // Frontend skinTone (traitOptions) -> w2A skinToneCanonical
 const SKIN_MAP: Record<string, string> = {
+  'skin-light': 'skin-light',
+  'skin-medium': 'skin-medium',
+  'skin-tan': 'skin-tan',
+  'skin-medium-dark': 'skin-medium-dark',
+  'skin-deep': 'skin-deep',
   light: 'skin-light',
   medium: 'skin-medium',
   tan: 'skin-tan',

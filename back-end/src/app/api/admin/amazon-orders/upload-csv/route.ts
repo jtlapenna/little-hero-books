@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
+import { isDeepStrictEqual } from 'node:util';
 import Papa from 'papaparse';
 import {
   validateCsvHeaders,
@@ -13,6 +14,7 @@ import {
   extractCustomizationUrl,
   extractPurchaseDate,
   buildLineItemFromRow,
+  readCsvItemSelectionRows,
 } from '@/lib/csv-upload-helpers';
 import { getOrderFromSupabase } from '@/lib/supabase-client';
 import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
@@ -26,7 +28,9 @@ import {
 } from '@/lib/sibling-order-helpers';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { resolveCsvBookSelection, CsvBookSelectionError, csvBookSpecs, readCsvRootRows, reconcileCsvRoot,
-  resolveCsvOriginalContext, updateExactCsvRow, csvRowDeclaresInnerVoice, type CsvUnitDescriptor } from '@/lib/csv-book-selection';
+  resolveCsvOriginalContext, updateExactCsvRow, csvRowDeclaresInnerVoice, assertCompleteCsvRootUnits,
+  readCsvItemBookSelections, validateCsvItemBookChoiceCoverage, resolveCsvRootItemSelections, csvItemBookChoiceKey,
+  csvItemBookSpecs, resolveCsvOriginalItemContext, type CsvResolvedItemSelection, type CsvItemBookChoice, type CsvUnitDescriptor } from '@/lib/csv-book-selection';
 import { ADMIN_BODY_LIMITS, readBoundedRequestFormData, RequestBodyError } from '@/lib/request-body';
 
 export const dynamic = 'force-dynamic';
@@ -173,13 +177,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const selection = await resolveCsvBookSelection(formData);
-    const selectedBookId = selection?.bookId ?? AMAZON_CSV_BOOK_ID;
-    const selectedFormatId = selection?.formatId ?? AMAZON_CSV_FORMAT_ID;
+    const dataRows = rows.slice(1);
+    const itemChoices = readCsvItemBookSelections(formData);
+    if (itemChoices) {
+      try {
+        const sourceRows = readCsvItemSelectionRows(headers, dataRows as string[][]);
+        validateCsvItemBookChoiceCoverage(itemChoices, sourceRows);
+      } catch (error) {
+        if (error instanceof CsvBookSelectionError) throw error;
+        throw new CsvBookSelectionError(error instanceof Error ? error.message : 'Invalid mixed CSV source declarations');
+      }
+    }
+    const selection = itemChoices ? undefined : await resolveCsvBookSelection(formData);
+    const strictSelection = !!selection || !!itemChoices;
+    const confirmedSelections: Array<CsvItemBookChoice & { configVersion: number }> = [];
+    const itemPreflight = new Map<string, {
+      rows: Record<string, unknown>[]; selections: Map<string, CsvResolvedItemSelection>;
+    }>();
 
     // Process rows: group by amazon-order-id, then create ONE order per row
     // (primary for first row, sibling for subsequent rows in same group)
-    const dataRows = rows.slice(1);
     const summary = {
       total_rows: dataRows.length,
       total_orders: 0,
@@ -226,6 +243,31 @@ export async function POST(request: NextRequest) {
     summary.total_orders = orderIdToRows.size;
     console.log(`[CSV Upload] [${requestId}] Grouped ${dataRows.length} rows into ${orderIdToRows.size} unique order(s)`);
 
+    if (itemChoices) {
+      if (summary.errors || invalidRoots.size) throw new CsvBookSelectionError('Mixed CSV requires valid shipping and identity for every source row.');
+      for (const [root, group] of orderIdToRows) {
+        let stored: Record<string, unknown>[];
+        try { stored = await readCsvRootRows(supabase, root, [{ orderId: root }]); }
+        catch { throw new CsvBookSelectionError('Mixed root membership could not be verified.', 503); }
+        try {
+          const choices = itemChoices.filter(choice => choice.rootOrderId === root);
+          const items = group.map(({ row }) => buildLineItemFromRow(row as string[], headers));
+          const selections = await resolveCsvRootItemSelections(root, choices, items, stored);
+          itemPreflight.set(root, { rows: stored, selections });
+          for (const choice of choices) {
+            const key = JSON.stringify([choice.rootOrderId, choice.source.kind, choice.source.value]);
+            const resolved = selections.get(key);
+            if (!resolved) throw new Error('Missing resolved source book selection');
+            confirmedSelections.push({ ...choice, ...resolved.tuple });
+          }
+        } catch (error) {
+          if (error instanceof CsvBookSelectionError) throw error;
+          throw new CsvBookSelectionError(error instanceof Error ? error.message : 'Mixed source context could not be verified.', 409);
+        }
+      }
+      if (confirmedSelections.length !== itemChoices.length) throw new CsvBookSelectionError('Incomplete mixed CSV selection confirmation', 409);
+    }
+
     for (const [amazonOrderId, group] of orderIdToRows) {
       const firstRow = group[0].row;
       const shippingAddress = buildShippingAddress(firstRow, headers)!;
@@ -233,14 +275,15 @@ export async function POST(request: NextRequest) {
       const customerEmail = extractCustomerEmail(firstRow, headers);
       const purchaseDate = extractPurchaseDate(firstRow, headers);
 
-      if (selection) {
+      if (strictSelection) {
         const quantityColumn = findColumnIndex(headers, ['quantity-purchased', 'quantity_purchased', 'quantity']);
         const invalidQuantity = group.some(({ row }) => {
           if (quantityColumn === null) return false;
           const raw = String((row as string[])[quantityColumn] ?? '').trim();
           return !/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw));
         });
-        if (invalidRoots.has(amazonOrderId) || invalidQuantity) {
+        const totalQuantity = group.reduce((sum, { row }) => sum + (quantityColumn === null ? 1 : Number(String((row as string[])[quantityColumn] ?? '').trim())), 0);
+        if (invalidRoots.has(amazonOrderId) || invalidQuantity || !Number.isSafeInteger(totalQuantity) || totalQuantity > 200) {
           errors.push({ row: group[0].rowNumber, orderId: amazonOrderId,
             error: 'Amazon root has invalid rows or quantities. Upload its complete corrected group.' });
           summary.errors++;
@@ -265,7 +308,10 @@ export async function POST(request: NextRequest) {
       for (const { row, rowNumber } of group) {
         const orderItemId = extractOrderItemId(row as string[], headers);
         const customizationUrl = extractCustomizationUrl(row as string[], headers);
-        const sourceLineItem = buildLineItemFromRow(row as string[], headers);
+        const parsedSourceLineItem = buildLineItemFromRow(row as string[], headers);
+        const sourceLineItem: Record<string, unknown> = itemChoices
+          ? JSON.parse(JSON.stringify(parsedSourceLineItem))
+          : parsedSourceLineItem;
         sourceLineItems.push(sourceLineItem);
         const quantity =
           typeof sourceLineItem.quantity === 'number' && Number.isFinite(sourceLineItem.quantity)
@@ -327,7 +373,7 @@ export async function POST(request: NextRequest) {
 
       // Process each row as its own order
       const totalUnits = rowSpecs.length;
-      const units: CsvUnitDescriptor[] = rowSpecs.map((item, index) => {
+      let units: CsvUnitDescriptor[] = rowSpecs.map((item, index) => {
         const suffixBase = (item.orderItemId?.trim() || item.customizedUrlHash || String(index + 1)).trim();
         const suffix = item.unitCount > 1 ? `${suffixBase}-unit-${item.unitIndex}` : suffixBase;
         return { orderId: totalUnits > 1 ? buildSiblingOrderId(amazonOrderId, suffix) : amazonOrderId,
@@ -335,14 +381,41 @@ export async function POST(request: NextRequest) {
           itemKey: item.orderItemId ? `item:${item.orderItemId}` : item.customizedUrlHash ? `custom:${item.customizedUrlHash}` : null };
       });
       let exactRows = new Map<string, Record<string, unknown>>();
+      let placeholderOrderId: string | null = null;
+      let itemSelections: Map<string, CsvResolvedItemSelection> | undefined;
       const originals = new Map<string, { specs: Record<string, unknown>; hash: string }>();
       try {
-        const members = await readCsvRootRows(supabase, amazonOrderId, units);
-        exactRows = reconcileCsvRoot(members, amazonOrderId, units, selection);
-        if (selection) for (let index = 0; index < units.length; index++) {
-          const unit = units[index];
-          originals.set(unit.orderId, await resolveCsvOriginalContext(selection, unit,
-            exactRows.get(unit.orderId), rowSpecs[index].characterSpecs, amazonOrderId, totalUnits));
+        const members = await readCsvRootRows(supabase, amazonOrderId, strictSelection ? [{ orderId: amazonOrderId }, ...units] : units);
+        if (itemChoices) {
+          const staged = itemPreflight.get(amazonOrderId);
+          if (!staged || members.length !== staged.rows.length || members.some(row => !staged.rows.some(original => original.id === row.id && isDeepStrictEqual(original, row)))) {
+            throw new Error('Mixed CSV root changed after selection preflight');
+          }
+          itemSelections = staged.selections;
+          for (const item of sourceLineItems) {
+            const resolved = itemSelections.get(csvItemBookChoiceKey(amazonOrderId, item));
+            if (!resolved) throw new Error('Missing resolved CSV source book');
+            item.bookSelection = resolved.tuple;
+          }
+          units = units.map(unit => {
+            const resolved = itemSelections!.get(csvItemBookChoiceKey(amazonOrderId, unit.lineItem));
+            if (!resolved) throw new Error('Missing resolved CSV unit book');
+            return { ...unit, lineItem: { ...unit.lineItem, bookSelection: resolved.tuple }, lineItems: sourceLineItems };
+          });
+        }
+        const plan = reconcileCsvRoot(members, amazonOrderId, units, selection, itemSelections);
+        units = plan.units; exactRows = plan.matches; placeholderOrderId = plan.placeholderOrderId;
+        if (strictSelection) {
+          const confirmed = await readCsvRootRows(supabase, amazonOrderId, [{ orderId: amazonOrderId }, ...units]);
+          if (confirmed.length !== members.length || confirmed.some(row => !members.some(original => original.id === row.id && isDeepStrictEqual(original, row)))) {
+            throw new Error('CSV root or destination changed during planning');
+          }
+        }
+        if (strictSelection) for (let index = 0; index < units.length; index++) {
+          const unit = units[index], original = exactRows.get(unit.orderId), parsed = rowSpecs[index].characterSpecs;
+          originals.set(unit.orderId, itemSelections
+            ? await resolveCsvOriginalItemContext(unit.selection!, unit, original, parsed, amazonOrderId, placeholderOrderId === unit.orderId)
+            : await resolveCsvOriginalContext(selection!, unit, original, parsed, amazonOrderId, placeholderOrderId === unit.orderId));
         }
       } catch (error) {
         errors.push({ row: group[0].rowNumber, orderId: amazonOrderId,
@@ -350,29 +423,42 @@ export async function POST(request: NextRequest) {
         summary.errors++;
         continue;
       }
-      for (let idx = 0; idx < rowSpecs.length; idx++) {
+      const deferW0 = !!itemSelections || (!!selection && totalUnits > 1);
+      const errorsBeforeRoot = summary.errors;
+      const deferred: Array<{ orderId: string; payload: ReturnType<typeof buildW0Payload> }> = [];
+      const savedPhysicalIds = new Map<string, number>();
+      const writeIndices = rowSpecs.map((_, index) => index);
+      if (placeholderOrderId !== null) writeIndices.sort((a, b) =>
+        units[a].orderId === placeholderOrderId ? -1 : units[b].orderId === placeholderOrderId ? 1 : a - b);
+      for (const idx of writeIndices) {
         const {
           rowNumber,
           orderItemId,
           unitIndex,
           unitCount,
-          lineItem,
+          lineItem: parsedLineItem,
           characterSpecs: parsedCharacterSpecs,
           customizationFailure,
           customizedUrlHash,
         } = rowSpecs[idx];
+        const unitSelection = units[idx].selection;
+        const configuredSelection = unitSelection?.configured ?? selection;
+        const selectedBookId = unitSelection?.tuple.bookId ?? selection?.bookId ?? AMAZON_CSV_BOOK_ID;
+        const selectedFormatId = unitSelection?.tuple.formatId ?? selection?.formatId ?? AMAZON_CSV_FORMAT_ID;
+        const lineItem = strictSelection ? units[idx].lineItem : parsedLineItem;
+        const unitSourceItems = strictSelection ? (units[idx].lineItems ?? sourceLineItems) : sourceLineItems;
         const isMultiUnitOrder = totalUnits > 1;
         const isSibling = isMultiUnitOrder;
         const effectiveOrderId = units[idx].orderId;
         const original = originals.get(effectiveOrderId);
-        const characterSpecs = selection ? original!.specs : parsedCharacterSpecs;
+        const characterSpecs = strictSelection ? original!.specs : parsedCharacterSpecs;
 
         try {
           // Purpose: existence check by per-book identity (orderId), not amazon_order_id.
-          const existing = selection ? exactRows.get(effectiveOrderId) : await getOrderFromSupabase(effectiveOrderId);
+          const existing = strictSelection ? exactRows.get(effectiveOrderId) : await getOrderFromSupabase(effectiveOrderId);
           if (existing) {
             const existingRecord = existing as Record<string, unknown>;
-            if (!selection && csvRowDeclaresInnerVoice(existingRecord)) {
+            if (!strictSelection && csvRowDeclaresInnerVoice(existingRecord)) {
               throw new CsvBookSelectionError('This Amazon root contains Inner Voice; use its complete selected-book intake');
             }
             // Update existing order with latest shipping/specs
@@ -386,7 +472,7 @@ export async function POST(request: NextRequest) {
             };
             if (characterSpecs) {
               updates.character_specs = characterSpecs;
-              updates.character_hash = selection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
+              updates.character_hash = strictSelection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
             }
             if (existingRecord.review_stages) updates.review_stages = existingRecord.review_stages;
             updates.product_info = {
@@ -398,7 +484,7 @@ export async function POST(request: NextRequest) {
               book_id: selectedBookId,
               formatId: selectedFormatId,
               format_id: selectedFormatId,
-              bookSpecs: selection ? csvBookSpecs(selection) : {
+              bookSpecs: unitSelection ? csvItemBookSpecs(unitSelection, characterSpecs!) : selection ? csvBookSpecs(selection) : {
                 bookId: selectedBookId,
                 formatId: selectedFormatId,
                 title: `${(characterSpecs?.childName as string) ?? 'Child'} and the Adventure Compass`,
@@ -408,29 +494,32 @@ export async function POST(request: NextRequest) {
                 channel: 'amazon',
               },
               line_item: lineItem,
-              line_items: sourceLineItems,
+              line_items: unitSourceItems,
               _quantity_unit_index: unitIndex,
               _quantity_unit_count: unitCount,
               ...(isSibling ? { _sibling_order: true, _parent_amazon_order_id: amazonOrderId, _order_item_id: orderItemId ?? null } : {}),
             };
 
-            if (selection) {
-              updates.book_specs = csvBookSpecs(selection);
+            if (strictSelection) {
+              const metadata = unitSelection ? csvItemBookSpecs(unitSelection, characterSpecs!) : csvBookSpecs(selection!);
+              updates.book_specs = metadata;
               updates.dedication_text = characterSpecs!.dedication ?? null;
               const info = updates.product_info as Record<string, unknown>;
-              info.configVersion = selection.configVersion;
-              info.book_specs = csvBookSpecs(selection);
+              info.configVersion = unitSelection?.tuple.configVersion ?? selection!.configVersion;
+              info.book_specs = metadata;
               delete info._customization_missing;
               delete info._retry_on_next_cron;
             }
             try {
-              await updateExactCsvRow(supabase, existingRecord, effectiveOrderId, updates, !!selection);
+              await updateExactCsvRow(supabase, existingRecord, effectiveOrderId, updates, strictSelection);
+              if (deferW0) savedPhysicalIds.set(effectiveOrderId, existingRecord.id as number);
               matchedOrders.push(effectiveOrderId);
               summary.matched++;
             } catch (ue: unknown) {
               const msg = ue instanceof Error ? ue.message : String(ue);
               errors.push({ row: rowNumber, orderId: effectiveOrderId, error: `Update failed: ${msg}` });
               summary.errors++;
+              if (effectiveOrderId === placeholderOrderId) break;
               continue;
             }
           } else {
@@ -445,7 +534,7 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
-            const characterHash = selection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
+            const characterHash = strictSelection ? original!.hash : calculateSiblingCharacterHash(characterSpecs);
             const orderRow = buildSiblingOrderRow({
               orderId: effectiveOrderId,
               parentOrderId: amazonOrderId,
@@ -461,9 +550,9 @@ export async function POST(request: NextRequest) {
               isSibling,
               bookId: selectedBookId,
               formatId: selectedFormatId,
-              ...(selection ? { selection } : {}),
+              ...(configuredSelection ? { selection: configuredSelection } : {}),
               lineItem,
-              lineItems: sourceLineItems,
+              lineItems: unitSourceItems,
               unitIndex,
               unitCount,
             });
@@ -474,10 +563,17 @@ export async function POST(request: NextRequest) {
               _csv_sibling_index: idx,
               _customized_url_hash: customizedUrlHash,
               line_item: lineItem,
-              line_items: sourceLineItems,
+              line_items: unitSourceItems,
             };
 
-            const { error: insertError } = await supabase
+            if (unitSelection) {
+              const metadata = csvItemBookSpecs(unitSelection, characterSpecs);
+              orderRowRecord.book_specs = metadata;
+              Object.assign(orderRowRecord.product_info as Record<string, unknown>, unitSelection.tuple,
+                { bookSpecs: metadata, book_specs: metadata });
+            }
+
+            const { data: inserted, error: insertError } = await supabase
               .from('orders')
               .insert(orderRow)
               .select()
@@ -500,6 +596,10 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
+            if (deferW0) {
+              if (typeof inserted?.id !== 'number' || !Number.isSafeInteger(inserted.id) || inserted.id <= 0) throw new Error('CSV insert did not return its physical row ID');
+              savedPhysicalIds.set(effectiveOrderId, inserted.id);
+            }
             if (isSibling) {
               siblingOrdersCreated.push(effectiveOrderId);
               summary.sibling_created++;
@@ -512,7 +612,7 @@ export async function POST(request: NextRequest) {
           // Trigger W0 for this order
           if (!characterSpecs && !existing) continue; // already errored above
 
-          const specsForW0 = (selection ? original!.specs : characterSpecs) ?? (await (async () => {
+          const specsForW0 = (strictSelection ? original!.specs : characterSpecs) ?? (await (async () => {
             const q1 = await supabase.from('orders').select('character_specs').eq('orderId', effectiveOrderId).maybeSingle();
             if (q1.error?.code !== '42703' && q1.error) throw q1.error;
             const q2 = q1.error?.code === '42703'
@@ -530,7 +630,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          const charHash = selection ? original!.hash : calculateSiblingCharacterHash(specsForW0);
+          const charHash = strictSelection ? original!.hash : calculateSiblingCharacterHash(specsForW0);
           const payload = buildW0Payload({
             orderId: effectiveOrderId,
             amazonOrderId,
@@ -543,13 +643,18 @@ export async function POST(request: NextRequest) {
             characterHash: charHash,
             bookId: selectedBookId,
             formatId: selectedFormatId,
-            ...(selection ? { selection } : {}),
+            ...(configuredSelection ? { selection: configuredSelection } : {}),
             lineItem,
-            lineItems: selection ? sourceLineItems : [lineItem],
+            lineItems: strictSelection ? unitSourceItems : [lineItem],
             unitIndex,
             unitCount,
           });
 
+          if (unitSelection) {
+            const metadata = csvItemBookSpecs(unitSelection, specsForW0);
+            Object.assign(payload, unitSelection.tuple, { bookSpecs: metadata, book_specs: metadata });
+          }
+          if (deferW0) { deferred.push({ orderId: effectiveOrderId, payload }); continue; }
           const w0Result = await triggerW0(payload);
           if (w0Result.ok) {
             w0Triggered.push(effectiveOrderId);
@@ -560,6 +665,44 @@ export async function POST(request: NextRequest) {
           const msg = orderError instanceof Error ? orderError.message : String(orderError);
           errors.push({ row: rowNumber, orderId: effectiveOrderId, error: `Processing error: ${msg}` });
           summary.errors++;
+          if (effectiveOrderId === placeholderOrderId) break;
+        }
+      }
+      if (deferW0) {
+        let holdReason: string | undefined;
+        if (summary.errors !== errorsBeforeRoot || deferred.length !== units.length || savedPhysicalIds.size !== units.length) {
+          holdReason = 'CSV root has incomplete writes; saved books remain pending';
+        } else {
+          try {
+            const stored = await readCsvRootRows(supabase, amazonOrderId, [{ orderId: amazonOrderId }, ...units]);
+            assertCompleteCsvRootUnits(stored, amazonOrderId);
+            const verified = reconcileCsvRoot(stored, amazonOrderId, units, selection, itemSelections);
+            if (verified.placeholderOrderId !== null || verified.units.some((unit, index) => unit.orderId !== units[index].orderId) || verified.matches.size !== units.length) throw new Error('CSV saved root identity changed');
+            for (const unit of units) {
+              const row = verified.matches.get(unit.orderId), original = originals.get(unit.orderId)!;
+              if (!row || row.id !== savedPhysicalIds.get(unit.orderId) || !isDeepStrictEqual(row.shipping_address, shippingAddress) ||
+                  (customerName != null && row.customer_name !== customerName) || (customerEmail != null && row.customer_email !== customerEmail)) throw new Error('CSV saved root changed before W0');
+              if (itemSelections) {
+                const freshUnit = verified.units.find(candidate => candidate.orderId === unit.orderId);
+                if (!freshUnit || !isDeepStrictEqual(freshUnit.lineItem, unit.lineItem) ||
+                    !isDeepStrictEqual(freshUnit.lineItems, unit.lineItems)) throw new Error('Mixed CSV saved unit context changed before W0');
+                await resolveCsvOriginalItemContext(unit.selection!, unit, row, original.specs, amazonOrderId, false);
+              }
+              else await resolveCsvOriginalContext(selection!, unit, row, original.specs, amazonOrderId, false);
+            }
+          } catch (error) {
+            holdReason = error instanceof Error ? error.message : 'CSV complete root could not be verified';
+            errors.push({ row: group[0].rowNumber, orderId: amazonOrderId, error: holdReason }); summary.errors++;
+          }
+        }
+        if (holdReason) {
+          for (const orderId of savedPhysicalIds.keys()) w0Skipped.push({ orderId, reason: holdReason });
+        } else {
+          for (const item of deferred) {
+            const result = await triggerW0(item.payload);
+            if (result.ok) w0Triggered.push(item.orderId);
+            else w0Skipped.push({ orderId: item.orderId, reason: result.error ?? 'unknown' });
+          }
         }
       }
     }
@@ -578,6 +721,7 @@ export async function POST(request: NextRequest) {
       },
       ...(selection ? { selection: { bookId: selection.bookId, formatId: selection.formatId,
         configVersion: selection.configVersion, title: selection.title } } : {}),
+      ...(itemChoices ? { itemSelections: confirmedSelections } : {}),
       timestamp: new Date().toISOString(),
       request_id: requestId,
     };

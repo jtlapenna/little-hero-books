@@ -201,6 +201,8 @@ export const BookConfigSchema = z.object({
     assetRoot: z.string().min(1),
     fonts: z.record(z.string(), z.string().min(1)),
     backgrounds: z.record(z.string(), z.string().min(1)),
+    guideBackgrounds: z.record(z.string(), z.record(z.string(), z.string().min(1))).optional(),
+    guideBackgroundRequiredSlots: z.array(z.string().min(1)).optional(),
     overlays: z.record(z.string(), z.string().min(1)).default({}),
     preview: z
       .object({
