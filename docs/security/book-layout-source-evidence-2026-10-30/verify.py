@@ -36,6 +36,7 @@ ADDED = {
     'back-end/scripts/test-book-layout-calibration-http.ts',
 }
 REBOUND = {
+    'back-end/scripts/test-compiled-pages-worker.ts',
     'back-end/src/lib/books/types.ts',
     '.github/workflows/check-production-build.yml',
     '.github/workflows/check-gelato-ordinary-release.yml',

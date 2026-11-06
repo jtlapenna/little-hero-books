@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "9f59c6619741fcd7d676f69f829ae23cd93e1c0d1db95102098a8cc9b2f09488",
+  "sourceSnapshotSha256": "4326dc19a8f9df3cb0ccc0a6006104a7444ffb227a92a4e07971de4f924dd124",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -44,6 +44,7 @@
     "back-end/scripts/helpers/gelato-protected-runner-fixture.ts",
     "back-end/scripts/helpers/prepare-gelato-isolated-workflows.ts",
     "back-end/scripts/test-amazon-cron-auth-logging.ts",
+    "back-end/scripts/test-compiled-pages-worker.ts",
     "back-end/scripts/test-gelato-engineering-automation.ts",
     "back-end/scripts/test-gelato-isolated-preparation.ts",
     "back-end/scripts/test-gelato-isolation.ts",
@@ -285,7 +286,7 @@
     {
       "path": "back-end/scripts/test-compiled-pages-worker.ts",
       "kind": "source",
-      "sha256": "b72574c5584411b5ade47160484288bc6ffe05863bb8f777018c2994502ea592"
+      "sha256": "7a4ed7e9d345eddd439c2e13d2a14ff175d800d9a5a08b9f51ffe831f4d6eb4c"
     },
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-boundaries.ts",
@@ -895,7 +896,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "dd7d9350122c7f1993e0019c9146a917d20b9da32986539c92dd6667b327b4c6"
+      "sha256": "89f31fc7fb6b49ec3237d506cb81539c05018852f270d7df173902473ec7ff99"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
@@ -905,7 +906,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "1694473d9b1692b36dfc1651cfdad5da3ce4cc972a02664ce058a8648662087f"
+      "sha256": "e1b5f987fd52ee9ea033ede0d61339fb391373797c9b0576ed96fa36f290b49d"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
