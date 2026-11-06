@@ -147,7 +147,7 @@ async function printHoldMatrix() {
       assert.deepEqual(one.w0.book.resolved.pagePlan, three.built.manifest.pagePlan); checks++;
       for (const claim of ['legacy-top-level', 'test-top-level']) {
         let manifestReads = 0, orderReads = 0;
-        const expected = composedControl && snapshots !== 'matching-v3' ? mismatch : layoutHold;
+        const expected = snapshots === 'matching-v3' ? layoutHold : mismatch;
         const stored = { ...structuredClone(three.built.manifest), summary: { ...(three.built.manifest.summary as Record<string, unknown>), readyForBook: true },
           renderingSchema: claim === 'legacy-top-level' ? 'lhb.book-render@v1' : 'lhb.book-render@v2', testOnly: claim === 'test-top-level' };
         const order = { orderId: one.orderId, root_order_id: one.orderId, one_manifest_url: one.w0.artifacts.manifestKey };

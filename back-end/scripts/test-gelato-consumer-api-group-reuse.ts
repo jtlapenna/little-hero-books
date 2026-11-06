@@ -133,7 +133,7 @@ async function main() {
       if (scenario === 'archive-query' || scenario === 'root-query') fault = scenario;
       if (scenario === 'alias-conflict') rows[0].amazon_order_id = 'conflicting-root';
       if (scenario === 'duplicate-business') rows.push({ ...rows[0], id: 99 });
-      if (scenario === 'truncated') rows = Array.from({ length: 201 }, (_, index) => ({ ...rows[0], id: index + 1, orderId: `extra-${index}` })).concat(ready(producerRows).slice(1));
+      if (scenario === 'truncated') rows = (Array.from({ length: 201 }, (_, index) => ({ ...rows[0], id: index + 1, orderId: `extra-${index}` })) as Record<string, unknown>[]).concat(ready(producerRows).slice(1));
       if (scenario === 'missing-unit') rows = rows.slice(1);
       if (scenario === 'root-submission' || scenario === 'root-approval') {
         rows.forEach(row => row.print_provider = 'gelato');
@@ -237,7 +237,7 @@ async function main() {
       assert.deepEqual(transportViolations,[],caseId+' swallowed consumer transport assertion');
     };
     const selectedSources = readSelectedProducerFixtures();
-    const selectedReady = (source: Record<string, any>[]) => source.map(row => ({...structuredClone(row),
+    const selectedReady = (source: Record<string, any>[]): Record<string, any>[] => source.map(row => ({...structuredClone(row),
       manifest_3_url:'https://assets.example.test/group-reuse-synthetic-3-manifest.json',
       workflow_step:'book_assembly_completed',execution_status:'done'}));
     const preserveKeys=['id','orderId','order_id','root_order_id','amazon_order_id','character_hash','character_specs',
@@ -311,7 +311,7 @@ async function main() {
       const children=fresh().map(row=>({...row,amazon_order_id:root}));const childIds=children.map(row=>String(row.orderId)).sort();
       const entry=root+'-item-1';
       caseId='legacy-placeholder-excluded:detail:'+entry;rows=[structuredClone(stub),...structuredClone(children)];archived=[];writes=0;changedIds.clear();allowQueue=false;fault='';
-      let before=structuredClone(rows);let response=await invokeDetail(entry);
+      let before=structuredClone(rows);let response:Response=await invokeDetail(entry);
       assert.equal(response.status,200,await response.clone().text());let detail=await response.json();
       assert.deepEqual(detail.siblingOrders.map((row:any)=>row.orderId).sort(),childIds);assert.equal(detail.totalSiblings,2);assert.equal(detail.groupVerificationError,undefined);
       assert.deepEqual(rows,before);assert.equal(writes,0);assert.equal(changedIds.size,0);
@@ -329,7 +329,7 @@ async function main() {
       const children=fresh().map(row=>({...row,amazon_order_id:root}));const entry=root+'-item-1';
       const allIds=[root,...children.map(row=>String(row.orderId))].sort();
       caseId='legacy-nonpure-root-kept:detail:'+entry;rows=[structuredClone(real),...structuredClone(children)];archived=[];writes=0;changedIds.clear();allowQueue=false;fault='';
-      let before=structuredClone(rows);let response=await invokeDetail(entry);
+      let before=structuredClone(rows);let response:Response=await invokeDetail(entry);
       assert.equal(response.status,200,await response.clone().text());const detail=await response.json();
       assert.deepEqual(detail.siblingOrders.map((row:any)=>row.orderId).sort(),allIds);assert.equal(detail.totalSiblings,3);
       assert.deepEqual(rows,before);assert.equal(writes,0);assert.equal(changedIds.size,0);
@@ -345,7 +345,7 @@ async function main() {
       const children=fresh().map(row=>({...row,amazon_order_id:root,product_info:{_quantity_unit_index:1,_quantity_unit_count:1}}));
       const childIds=children.map(row=>String(row.orderId)).sort();const entry=root+'-item-1';
       caseId='legacy-multiline-placeholder-excluded:detail:'+entry;rows=[structuredClone(stub),...structuredClone(children)];archived=[];writes=0;changedIds.clear();allowQueue=false;fault='';
-      let before=structuredClone(rows);let response=await invokeDetail(entry);
+      let before=structuredClone(rows);let response:Response=await invokeDetail(entry);
       assert.equal(response.status,200,await response.clone().text());const detail=await response.json();
       assert.deepEqual(detail.siblingOrders.map((row:any)=>row.orderId).sort(),childIds);assert.equal(detail.totalSiblings,2);assert.equal(detail.groupVerificationError,undefined);
       assert.deepEqual(rows,before);assert.equal(writes,0);assert.equal(changedIds.size,0);

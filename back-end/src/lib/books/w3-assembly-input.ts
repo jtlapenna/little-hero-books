@@ -990,7 +990,13 @@ export async function buildW3AssemblyInput(
       seen.add(number);
       declared(entry.characterHash, frozenHash, 'pose character identity');
       if (required.has(number) && !toTrimmedString(entry.bgRemovedKey)) throw new Error(`W3 configured required pose ${number} has no background-removed asset`);
-      if (entry.bgRemovedKey !== undefined && entry.bgRemovedKey !== null && entry.bgRemovedKey !== '' && entry.bgRemovedKey !== buildBgRemovedPoseAssetKey(frozenHash, number, frozen.bookId!)) throw new Error('W3 configured pose key conflicts with frozen W0');
+      if (entry.bgRemovedKey !== undefined && entry.bgRemovedKey !== null && entry.bgRemovedKey !== '' && entry.bgRemovedKey !== buildBgRemovedPoseAssetKey(frozenHash, number, frozen.bookId!)) {
+        // Same fail-closed rejection; the message names which identity failed.
+        const otherPoseKey = [...allowed].some(candidate => candidate !== number && entry.bgRemovedKey === buildBgRemovedPoseAssetKey(frozenHash, candidate, frozen.bookId!));
+        throw new Error(otherPoseKey
+          ? 'W3 configured pose identity conflicts with manifest entry: background-removed key belongs to another pose'
+          : 'W3 configured pose key character identity is unverified or conflicts with frozen W0');
+      }
       for (const value of [entry.approvedKey, entry.sourceApprovedKey]) {
         const key = toTrimmedString(value);
         if (key && (!key.startsWith(`${frozen.bookId}/order-generated-assets/characters/${frozenHash}/`) || key.split('/').some(part => part === '.' || part === '..'))) throw new Error('W3 configured source pose key conflicts with frozen W0');

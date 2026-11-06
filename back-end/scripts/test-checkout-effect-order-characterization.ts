@@ -71,7 +71,7 @@ async function handleFetch(input: RequestInfo | URL, init?: RequestInit): Promis
         injected = true; throw Error('Injected cache lookup transport failure');
       }
       assert.ok(predicate?.startsWith('eq.'), 'Cache query must bind a key');
-      const stored = cache.get(predicate.slice(3));
+      const stored = cache.get(predicate!.slice(3));
       const snapshot = stored ? structuredClone(stored) : null;
       if (url.searchParams.get('select')?.includes('created_at') && missBarrier) await missBarrier();
       return Response.json(snapshot);

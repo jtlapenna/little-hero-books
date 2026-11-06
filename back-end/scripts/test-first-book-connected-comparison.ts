@@ -40,7 +40,7 @@ async function main() {
     const work = await buildW2BWorklist({ orderId: c.id, rootOrderId: c.root, amazonOrderId: amazon, orderPrefix: prefix, bookId, backendUrl: 'https://example.invalid' }, { loadManifest: async (k) => k === key('2a') ? w2a : null });
     assert.equal(work.workItems.length, 12);
     const entries = work.workItems.map(item => {
-      const result = buildW2BPoseInput(item);
+      const result = buildW2BPoseInput(item as any);
       assert.ok(result.bgRemovedKey.includes(hash));
       return { poseNumber: result.poseNumber, bgRemovedKey: result.bgRemovedKey, sourceApprovedKey: item.approvedKey, briaStatus: 'completed' };
     });
@@ -48,8 +48,8 @@ async function main() {
     const manifests = new Map<string, unknown>([[key('1'), w0], [key('2b'), w2b]]);
     const loadManifest = async (k: string) => manifests.get(k) as Record<string, unknown> | undefined ?? null;
     const normalizePoseScale = async ({ poseNumber, imageKey }: { poseNumber: number; imageKey: string }) => ({ success: true, normalized: false, imageKey, refKey: '', poseNumber, bookId, message: 'synthetic adapter', scaleFactor: 1, verticalOffset: 0, horizontalOffset: 0, groundContactOffset: 0, sourceAnchorMetrics: null, referenceAnchorMetrics: null, sourceBBoxFound: true, referenceBBoxFound: true });
-    const assembly = await buildW3AssemblyInput({ orderId: c.id, rootOrderId: c.root, amazonOrderId: amazon, orderPrefix: prefix, bookId, backendUrl: 'https://example.invalid' }, { loadManifest, normalizePoseScale });
-    const preview = buildW3PreviewPlan(assembly);
+    const assembly = await buildW3AssemblyInput({ orderId: c.id, rootOrderId: c.root, amazonOrderId: amazon, orderPrefix: prefix, bookId, backendUrl: 'https://example.invalid' }, { loadManifest, normalizePoseScale: normalizePoseScale as any });
+    const preview = buildW3PreviewPlan(assembly as any);
     assert.equal(preview.pagePreviewItems.length, c.format === 'amazon' ? 17 : 15);
     assert.ok(preview.pages_html.includes(c.name), `${c.id} child name`);
     assert.ok(preview.pages_html.includes(c.town), `${c.id} hometown`);

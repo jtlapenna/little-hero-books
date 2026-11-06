@@ -92,7 +92,7 @@ async function main() {
     instrumentPoseWorkItems: p => attachWorkflowJobsToW2AWorkItems({ orderId: 'FIXTURE-W2A', bookId: config.bookId, workItems: p.poseWorklist }, repository),
   });
   const queued = worklist.poseWorklist.find(item => item.poseNumber === 13)!;
-  const queuedJob = jobs.get(queued.workflowJobId);
+  const queuedJob = jobs.get(queued.workflowJobId!);
   assert.equal(queuedJob.normalized_input_snapshot.poseRefKey, null);
   const frozen = await buildW2APoseInput({ ...queued, characterHash: 'abcdef123456', characterSpecs: { childName: 'Ada' } }, { loadConfig: async () => { throw new Error('must use frozen config'); } });
   const claimed = await claimAndStartW2APoseJob({ ...frozen, workflowJobId: queued.workflowJobId }, {}, repository);

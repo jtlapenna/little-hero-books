@@ -172,9 +172,9 @@ export async function run() {
       for (const role of roles) writeFileSync(resolve(output,role,'prepared-record.json'),recordBytes[role],{flag:'wx',mode:0o600});
       const assetEvidence = Object.fromEntries([...used].map(([key, a]) => [key, {sourcePath:a.sourcePath, file:`assets/${basename(a.path)}`, sha256:a.sha256}]));
       const coverSelections = Object.fromEntries(Object.entries(config.rendering.recipe!.covers).map(([format, cover]) =>
-        [format, cover.layers.filter(layer => layer.kind === 'pose').map(layer => ({ poseId: layer.poseId, poseNumber: layer.poseNumber,
+        [format, cover.layers.filter((layer: any) => layer.kind === 'pose').map((layer: any) => ({ poseId: layer.poseId, poseNumber: layer.poseNumber,
           referenceKey: config.rendering.recipe!.poses[layer.poseId].referenceKey }))]));
-      const usesOldCover = Object.values(coverSelections).some(layers => layers.some(layer => layer.poseNumber === 0));
+      const usesOldCover = Object.values(coverSelections).some(layers => layers.some((layer: any) => layer.poseNumber === 0));
       const evidence = {schema:'lhb.custom-flow-local-proof@v1', status:'provisional local review; not print-ready', approved:false, printReady:false,
         stages: {intake:'W0 manifest builder only; intake worker/order trigger not run', generation:'retained editor-aligned interior poses and earlier cover poses; W2 not run in this proof', coverProvenance:usesOldCover ? 'Pose 0 reference and W2 provenance are not independently verified; cover remains provisional' : 'Configured cover uses retained named poses with recorded reference bindings; W2 was not rerun and cover remains provisional', preview:'canonical local W3 assembly and renderer', pdf:'not run'},
         coverSelections,

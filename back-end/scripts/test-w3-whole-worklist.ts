@@ -13,13 +13,13 @@ const makeEntries = (bookId: string, poses = [13, 17, 18]) => poses.map(poseNumb
   poseNumber, bgRemovedKey: buildBgRemovedPoseAssetKey(hash, poseNumber, bookId),
   approvedKey: `${bookId}/order-generated-assets/characters/${hash}/poses/pose${String(poseNumber).padStart(2, '0')}.png`,
 }));
-const run = (config: ReturnType<typeof configuredBookFixture>, entries: unknown[], formatId = 'standard') => {
+const run = (config: ReturnType<typeof configuredBookFixture>, entries: unknown[], formatId = 'standard', existing?: Set<string>) => {
   const w0 = buildW0RunManifestFromConfig(config, { orderId, platform: formatId === 'amazon' ? 'amazon' : 'd2c', formatId, characterHash: hash,
     input: { characterSpecs: { childName: 'Ada', animalGuide: 'owl' } } });
   let writes = 0;
   const result = buildW3AssemblyInput({ orderId, bookId: config.bookId, formatId }, {
     loadManifest: async key => key.endsWith('1-manifest.json') ? w0 : key.endsWith('2b-manifest.json') ? { characterHash: hash, entries } : null,
-    normalizePoseScale: async ({ imageKey }) => { writes++; return { sourceBBoxFound: true, referenceBBoxFound: true, refKey: imageKey } as never; },
+    normalizePoseScale: async ({ imageKey }) => { if (existing && !existing.has(imageKey)) throw new Error('NoSuchKey'); writes++; return { sourceBBoxFound: true, referenceBBoxFound: true, refKey: imageKey } as never; },
   });
   return { result, writes: () => writes };
 };
@@ -67,7 +67,7 @@ async function main() {
     ];
     for (const [name, altered] of cases) {
       const attempt = run(config, altered, format);
-      await assert.rejects(attempt.result, undefined, `${format}: ${name} must hold`);
+      await assert.rejects(attempt.result, undefined as never, `${format}: ${name} must hold`);
       assert.equal(attempt.writes(), 0, `${format}: ${name} normalized an asset`);
     }
   }
@@ -75,9 +75,15 @@ async function main() {
   raw.rendering.recipe.poses.zero = { poseNumber: 0, referenceKey: `${raw.bookId}/characters/references/pose00.png` };
   for (const cover of Object.values(raw.rendering.recipe.covers) as any[]) cover.layers.push({ id: 'cover-zero', kind: 'pose', poseId: 'zero', poseNumber: 0, placement: { left: 100, top: 200, width: 700 } });
   const zeroConfig = BookConfigSchema.parse(raw);
-  const missingZero = run(zeroConfig, makeEntries(zeroConfig.bookId));
-  await assert.rejects(missingZero.result, undefined, 'missing pose zero must hold');
-  assert.equal(missingZero.writes(), 0);
+  // A missing pose-0 manifest entry is deliberate: assembly falls back to the canonical book/hash key and the strict normalization step
+  // is what holds when that processed asset does not exist. Prove both halves against a mock that can actually fail.
+  const zeroKey = buildBgRemovedPoseAssetKey(hash, 0, zeroConfig.bookId);
+  const allKeys = new Set(makeEntries(zeroConfig.bookId).map(entry => entry.bgRemovedKey));
+  const absentZero = run(zeroConfig, makeEntries(zeroConfig.bookId), 'standard', new Set(allKeys));
+  await assert.rejects(absentZero.result, /pose 00/, 'cover pose zero with no processed asset must hold');
+  const fallbackZero = run(zeroConfig, makeEntries(zeroConfig.bookId), 'standard', new Set([...allKeys, zeroKey]));
+  await fallbackZero.result;
+  assert.equal(fallbackZero.writes(), 4, 'missing pose-0 entry uses the canonical key when the asset exists');
   const withZero = run(zeroConfig, makeEntries(zeroConfig.bookId, [0, 13, 17, 18]));
   await withZero.result;
   assert.equal(withZero.writes(), 4);

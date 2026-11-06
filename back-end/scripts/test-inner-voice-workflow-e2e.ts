@@ -115,8 +115,8 @@ async function main() {
       const regression = structuredClone(config);
       const blocks = regression.rendering.recipe!.copy['page-05']; assert(Array.isArray(blocks));
       blocks[0].placement.zIndex = zIndex;
-      if (label.startsWith('long')) blocks[0].longName!.placement = { ...blocks[0].placement, zIndex: longNameZ };
-      regression.rendering.recipe!.readingAreas!['page-05'][0].opacity = 1;
+      if (label.startsWith('long')) (blocks[0] as any).longName!.placement = { ...blocks[0].placement, zIndex: longNameZ };
+      (regression.rendering.recipe as any).readingAreas!['page-05'][0].opacity = 1;
       const id = `LOCAL-STACK-${label}`;
       await journey(regression, 'standard', label.startsWith('long') ? 'Alexandria Montgomery' : 'A', 'cat', id, id, expected);
     }

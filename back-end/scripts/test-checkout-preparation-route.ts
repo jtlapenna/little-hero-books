@@ -193,7 +193,7 @@ try {
   const draft = (await import('../src/lib/books/configs/book-finding-our-inner-voice/v2.json')).default;
   const activeConfig = { ...draft, status: 'active' };
   const published = { book_id: activeConfig.bookId, version: 2, is_active: true, config_json: activeConfig,
-    checksum: computeBookConfigChecksum(activeConfig as Parameters<typeof computeBookConfigChecksum>[0]) };
+    checksum: computeBookConfigChecksum(activeConfig as unknown as Parameters<typeof computeBookConfigChecksum>[0]) };
   process.env.D2C_INNER_VOICE_V2_SALES_ENABLED = '1';
   const innerVoice = { ...oneInput, product_info: { bookId: 'book-finding-our-inner-voice', formatId: 'standard', custom: 'value' } };
   await parity(innerVoice, { published });

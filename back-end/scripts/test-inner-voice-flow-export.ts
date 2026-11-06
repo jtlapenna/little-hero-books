@@ -10,7 +10,7 @@ const path = process.argv[2];
 if (!path) throw new Error('Pass the local provisional authoring config path');
 const config = BookConfigSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
 const saved = config.rendering.recipe!.copy['page-26'];
-assert.ok(Array.isArray(saved) && saved[0].flow, 'Exported flow group must survive config parsing');
+assert.ok(Array.isArray(saved) && (saved[0] as { flow?: unknown }).flow, 'Exported flow group must survive config parsing');
 const manifest = buildW0RunManifestFromConfig(config, { orderId: 'FLOW-LOCAL-EXPORT', platform: 'd2c', formatId: 'standard', characterHash: 'flow-local-child', input: { bookSpecs: { testMode: true }, characterSpecs: { childName: 'Alexandra', animalGuide: 'cat' } } });
 const snapshot = normalizeW0Manifest(JSON.parse(JSON.stringify(manifest))).renderSnapshot!;
 assert.deepEqual(snapshot.bookConfig.rendering.recipe!.copy['page-26'], saved);

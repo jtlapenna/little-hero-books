@@ -9,7 +9,7 @@ async function main() {
   const logs: string[] = [], marker = 'SYNTHETIC_PRIVATE_ZIP_CONSUMER_48791';
   let existing = false, broken = false, fixture = amazonV3 as unknown, inserts = 0, updates = 0, triggers = 0, downloads = 0, checks = 0;
   const specs = { childName: 'Stored Synthetic Child', age: '5', skinTone: 'light', hairColor: 'brown', hairStyle: 'short-straight', favoriteColor: 'blue', animalGuide: 'dog', pronouns: 'they/them' };
-  const row = { id: 1, orderId: 'TEST-ZIP-CONSUMER', platform: 'amazon', character_specs: specs, customer_name: 'Synthetic Parent', customer_email: 'parent@example.test', shipping_address: { address_line1: '1 Test Lane', city: 'Test City', state: 'CA', postal_code: '00000', country: 'US' }, product_info: {} };
+  const row = { id: 1, orderId: 'TEST-ZIP-CONSUMER', updated_at: '2026-01-01T00:00:00.000Z', platform: 'amazon', character_specs: specs, customer_name: 'Synthetic Parent', customer_email: 'parent@example.test', shipping_address: { address_line1: '1 Test Lane', city: 'Test City', state: 'CA', postal_code: '00000', country: 'US' }, product_info: {} };
   const capture = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
   console.log = capture;console.warn = capture;console.error = capture;
   globalThis.fetch = async (input, init) => {
@@ -19,7 +19,7 @@ async function main() {
       assert.equal(url.pathname, '/rest/v1/orders');let rows: unknown[];
       if (request.method === 'GET') rows = existing ? [row] : [];
       else if (request.method === 'POST') { inserts++;const inserted = await request.json();assert.equal(inserted.character_specs.childName, 'Synthetic Child');rows = [{ id: 2, ...inserted }]; }
-      else { assert.equal(request.method, 'PATCH');updates++;rows = [{ id: 1 }]; }
+      else { assert.equal(request.method, 'PATCH');assert.equal(url.searchParams.get('updated_at'), `eq.${row.updated_at}`);assert.equal(url.searchParams.get('id'), 'eq.1');updates++;rows = [{ id: 1 }]; }
       return Response.json(request.headers.get('accept')?.includes('vnd.pgrst.object') ? rows[0] ?? null : rows, { status: request.method === 'POST' ? 201 : 200 });
     }
     assert.equal(url.origin, 'https://zip-w0.example.test');assert.equal(request.method, 'POST');triggers++;

@@ -266,7 +266,7 @@ export async function resolveCsvRootItemSelections(
           ...(original ? { version: original.configVersion } : {}) });
         const config = published.config, format = config.formats.amazon;
         if (config.bookId !== CSV_INNER_VOICE_BOOK_ID || config.version < 2 || !format?.channels.includes('amazon') ||
-            config.status === 'draft' || (original && (!['active', 'archived'].includes(published.row.status) || config.version !== original.configVersion)) ||
+            config.status === 'draft' || (original && (!['active', 'archived'].includes(published.row.status as string) || config.version !== original.configVersion)) ||
             (!original && (published.row.is_active !== true || published.row.status !== 'active' || config.status !== 'active'))) {
           throw new CsvBookSelectionError('The selected item book is not available for this intake.', 409);
         }

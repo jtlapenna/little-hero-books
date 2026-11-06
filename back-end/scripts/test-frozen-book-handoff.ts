@@ -77,7 +77,7 @@ async function main() {
         await assert.rejects(() => buildW2APoseInput({ ...payload, configVersion: version }, options), /version identity/); checks++;
       }
       const changedSnapshot = structuredClone(w0.book.resolved.renderSnapshot!);
-      changedSnapshot.bookConfig.rendering.recipe!.copy['scene-a'].text = 'Different frozen copy';
+      (changedSnapshot.bookConfig.rendering.recipe!.copy['scene-a'] as { text: string }).text = 'Different frozen copy';
       await assert.rejects(() => buildW2ABaseInput({ ...payload, orderData: { renderSnapshot: changedSnapshot } }, options), /Conflicting workflow render snapshots/); checks++;
       await assert.rejects(() => buildW2ABaseInput({ ...payload, renderSnapshot: changedSnapshot }, options), /Conflicting workflow render snapshots/); checks++;
       await assert.rejects(() => buildW2ABaseInput({ ...payload, oneManifestKey: `${config.bookId}/orders/OTHER/manifests/1-manifest.json` }, options), /manifestKey identity/); checks++;
