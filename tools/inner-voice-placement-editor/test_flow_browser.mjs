@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const chrome = process.env.CHROME_PATH || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
+const chrome = process.env.CHROME_PATH || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium'].find(existsSync);
 if (!chrome) throw new Error('A headless Chrome executable is required');
 const temp = mkdtempSync(join(tmpdir(), 'lhb-editor-flow-'));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -58,13 +58,19 @@ try {
   const origin = `http://127.0.0.1:${port}`;
   await until(async () => (await fetch(origin)).ok);
   const browserPort = await freePort();
-  const ciFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
+  const ciFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage', '--headless=new', '--remote-debugging-address=127.0.0.1'] : [];
   let chromeStderr = '';
   browser = spawn(chrome, ['--headless', '--disable-gpu', '--disable-extensions', '--no-first-run', '--no-default-browser-check', ...ciFlags, `--user-data-dir=${join(temp, 'chrome')}`, `--remote-debugging-port=${browserPort}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   browser.stderr.on('data', chunk => { chromeStderr = (chromeStderr + chunk).slice(-4000); });
   const base = `http://127.0.0.1:${browserPort}`;
-  try { await until(async () => (await fetch(`${base}/json/version`)).ok); }
-  catch (error) { throw new Error(`${error?.message ?? error}\nChrome stderr:\n${chromeStderr || '(none)'}`); }
+  let browserExit = 'running';
+  browser.on('exit', (code, signal) => { browserExit = `exited code=${code} signal=${signal}`; });
+  try { await until(async () => (await fetch(`${base}/json/version`)).ok, process.env.CI ? 60000 : 30000); }
+  catch (error) {
+    let version = '(unknown)';
+    try { version = execFileSync(chrome, ['--version'], { encoding: 'utf8', timeout: 10000 }).trim(); } catch (versionError) { version = `(version failed: ${versionError?.message})`; }
+    throw new Error(`${error?.message ?? error}\nChrome: ${chrome} ${version}; process ${browserExit}\nChrome stderr:\n${chromeStderr || '(none)'}`);
+  }
   const target = await (await fetch(`${base}/json/new?${encodeURIComponent(origin)}`, { method: 'PUT' })).json();
   socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
