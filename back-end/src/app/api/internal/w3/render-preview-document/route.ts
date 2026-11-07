@@ -37,6 +37,9 @@ const PayloadSchema = z.object({
   pdfMonkeyTemplateId: z.string().trim().min(1).nullable().optional(),
   pdfMonkeyImageTemplateId: z.string().trim().min(1).nullable().optional(),
   pdfMonkeyCoverTemplateId: z.string().trim().min(1).nullable().optional(),
+  pdfMonkeyDocumentId: z.string().trim().min(1).nullable().optional(),
+  allowPending: z.union([z.boolean(), z.enum(['true', 'false'])]).nullable().optional(),
+  pollMaxAttempts: z.coerce.number().int().min(1).max(100).nullable().optional(),
 }).passthrough();
 
 function isRecord(value: unknown): value is JsonRecord {
