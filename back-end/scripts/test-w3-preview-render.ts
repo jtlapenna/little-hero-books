@@ -263,6 +263,60 @@ async function testCoverPreviewFailureLogging(): Promise<void> {
   );
 }
 
+async function testCoverPreviewPollsLongerThanPages(): Promise<void> {
+  const counts: Record<string, number> = {};
+  for (const kind of ['cover-preview', 'page-preview'] as const) {
+    counts[kind] = 0;
+    try {
+      await renderW3PreviewDocument(
+        {
+          documentKind: kind,
+          orderId: 'W3-PREVIEW-ORDER-009',
+          amazonOrderId: 'W3-PREVIEW-ORDER-009',
+          rootOrderId: 'W3-PREVIEW-ORDER-ROOT-009',
+          workflowJobId: 329,
+          workflowJobIdempotencyKey: 'wf:3:w3-assembly:W3-PREVIEW-ORDER-009:default:test',
+          workflowAttemptId: 659,
+          coverHTML: '<section>Cover spread</section>',
+          coverPngFilename: 'cover-spread.png',
+          coverPngR2Key: 'book-mvp-simple-adventure/orders/W3-PREVIEW-ORDER-009/preview-images/cover-spread.png',
+          pageNumber: 7,
+          pageHtml: '<div class="book-page" id="page-07">Preview content</div>',
+          page_css: '.book-page { color: black; }',
+          pageImageFilename: 'p07.png',
+          pageImageR2Key: 'book-mvp-simple-adventure/orders/W3-PREVIEW-ORDER-009/preview-images/p07.png',
+          orderR2BaseKey: 'book-mvp-simple-adventure/orders/W3-PREVIEW-ORDER-009',
+          bookId: 'book-mvp-simple-adventure',
+          useImgBackgrounds: true,
+          pdfMonkeyCoverTemplateId: 'template-cover-preview',
+          pdfMonkeyImageTemplateId: 'template-page-preview',
+        },
+        {
+          defaultBackendUrl: 'https://preview-admin.example',
+          pdfMonkeyApiKey: 'stub-pdfmonkey-key',
+          sleep: async () => undefined,
+          recordWorkflowEvent: createWorkflowEventRecorder([]),
+          fetchImpl: async (input, init) => {
+            const url = resolveUrl(input);
+            const method = String(init?.method ?? 'GET').toUpperCase();
+            if (method === 'POST' && url === 'https://api.pdfmonkey.io/api/v1/documents') {
+              return jsonResponse({ data: { id: 'pdf-slow-1', status: 'pending' } });
+            }
+            if (method === 'GET' && url === 'https://api.pdfmonkey.io/api/v1/documents/pdf-slow-1') {
+              counts[kind] += 1;
+              return jsonResponse({ data: { id: 'pdf-slow-1', status: 'generating' } });
+            }
+            throw new Error(`Unexpected fetch call: ${method} ${url}`);
+          },
+        },
+      );
+    } catch (error) {
+      assert(String(error instanceof Error ? error.message : error).includes('not ready after polling'), `Expected ${kind} to give up with the not-ready error`);
+    }
+  }
+  assert(counts['page-preview'] === 30 && counts['cover-preview'] === 100, 'Expected pages to poll 30 times and the slower cover template 100 times');
+}
+
 async function testPagePreviewToleratesTransientFirstPollFailure(): Promise<void> {
   const workflowEvents: JsonRecord[] = [];
   let getCalls = 0;
@@ -355,6 +409,7 @@ async function testPagePreviewToleratesTransientFirstPollFailure(): Promise<void
 async function main(): Promise<void> {
   await testPagePreviewRouteSuccess();
   await testCoverPreviewFailureLogging();
+  await testCoverPreviewPollsLongerThanPages();
   await testPagePreviewToleratesTransientFirstPollFailure();
   console.log('W3 preview render tests passed');
 }

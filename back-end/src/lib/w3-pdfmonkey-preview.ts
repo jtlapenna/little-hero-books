@@ -415,7 +415,8 @@ export async function renderW3PreviewDocument(
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  const maxPollAttempts = Math.max(1, options.maxPollAttempts ?? 30);
+  // The cover template (barcode spread) takes about two minutes on PDFMonkey; pages finish in seconds.
+  const maxPollAttempts = Math.max(1, options.maxPollAttempts ?? (input.documentKind === 'cover-preview' ? 100 : 30));
   const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 1800);
   const maxPollRequestErrors = Math.max(0, options.maxPollRequestErrors ?? 3);
   const workflowJobId = typeof input.workflowJobId === 'number' ? input.workflowJobId : null;
