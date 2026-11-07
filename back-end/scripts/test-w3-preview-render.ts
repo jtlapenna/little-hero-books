@@ -406,11 +406,102 @@ async function testPagePreviewToleratesTransientFirstPollFailure(): Promise<void
   );
 }
 
+async function testCoverSubmitThenResumeWithoutDuplicate(): Promise<void> {
+  const posts: string[] = [];
+  const workflowEvents: JsonRecord[] = [];
+  let getCalls = 0;
+  let readyAfter = 3;
+  const coverInput = {
+    documentKind: 'cover-preview' as const,
+    orderId: 'W3-COVER-RESUME-001',
+    workflowJobId: 411,
+    coverHTML: '<div>cover</div>',
+    coverPngR2Key: 'book-x/orders/W3-COVER-RESUME-001/preview-images/cover-spread.png',
+    allowPending: true,
+    pollMaxAttempts: 1,
+  };
+  const options: W3RenderPreviewDocumentOptions = {
+    defaultBackendUrl: 'https://preview-admin.example',
+    pdfMonkeyApiKey: 'stub-pdfmonkey-key',
+    sleep: async () => undefined,
+    recordWorkflowEvent: createWorkflowEventRecorder(workflowEvents),
+    fetchImpl: async (input, init) => {
+      const url = resolveUrl(input);
+      const method = String(init?.method ?? 'GET').toUpperCase();
+      if (method === 'POST' && url === 'https://api.pdfmonkey.io/api/v1/documents') {
+        posts.push(url);
+        return jsonResponse({ data: { id: 'pdf-cover-1', status: 'pending' } });
+      }
+      if (method === 'GET' && url === 'https://api.pdfmonkey.io/api/v1/documents/pdf-cover-1') {
+        getCalls += 1;
+        if (getCalls >= readyAfter) {
+          return jsonResponse({ data: { id: 'pdf-cover-1', status: 'success', download_url: 'https://cdn.example.test/cover.png' } });
+        }
+        return jsonResponse({ data: { id: 'pdf-cover-1', status: 'generating' } });
+      }
+      throw new Error(`Unexpected fetch call: ${method} ${url}`);
+    },
+  };
+
+  // Submit: one create + one poll, returns pending instead of throwing.
+  const submitted = await renderW3PreviewDocument(coverInput, options);
+  assert(submitted.pending === true && submitted.pdfMonkeyStatus === 'generating', 'Expected submit to return pending');
+  assert(submitted.pdfMonkeyDocumentId === 'pdf-cover-1' && submitted.pdfMonkeyCoverDocumentId === 'pdf-cover-1', 'Expected pending result to carry the document id');
+  assert(posts.length === 1 && getCalls === 1, 'Expected one create and one poll on submit');
+  assert(!workflowEvents.some((e) => e.eventType === 'provider-failed'), 'Pending must not log provider-failed');
+
+  // Resume while still generating: still pending, no new create.
+  const stillPending = await renderW3PreviewDocument(
+    { ...coverInput, pdfMonkeyDocumentId: 'pdf-cover-1' },
+    options,
+  );
+  assert(stillPending.pending === true && posts.length === 1, 'Expected resume to stay pending without creating a duplicate');
+
+  // Resume when done: full success result.
+  const done = await renderW3PreviewDocument(
+    { ...coverInput, pdfMonkeyDocumentId: 'pdf-cover-1' },
+    options,
+  );
+  assert(done.pending === false && done.coverPngDownloadUrl === 'https://cdn.example.test/cover.png', 'Expected resume to return the download URL');
+  assert(done.coverPngR2Key === coverInput.coverPngR2Key, 'Expected resume to keep the cover R2 key');
+  assert(posts.length === 1, 'Expected no duplicate PDFMonkey documents across submit and polls');
+  assert(
+    workflowEvents.filter((e) => e.eventType === 'provider-submitted').length === 1,
+    'Expected provider-submitted to be logged only once',
+  );
+
+  // Without allowPending the old behaviour (throw) is kept; a failed document always throws.
+  readyAfter = 999;
+  let threw = false;
+  try {
+    await renderW3PreviewDocument(
+      { ...coverInput, allowPending: false, pdfMonkeyDocumentId: 'pdf-cover-1' },
+      options,
+    );
+  } catch (error) {
+    threw = String(error instanceof Error ? error.message : error).includes('not ready after polling');
+  }
+  assert(threw, 'Expected non-pending mode to keep throwing when not ready');
+
+  const failing: W3RenderPreviewDocumentOptions = {
+    ...options,
+    fetchImpl: async () => jsonResponse({ data: { id: 'pdf-cover-1', status: 'failure' } }),
+  };
+  let failedThrew = false;
+  try {
+    await renderW3PreviewDocument({ ...coverInput, pdfMonkeyDocumentId: 'pdf-cover-1' }, failing);
+  } catch (error) {
+    failedThrew = String(error instanceof Error ? error.message : error).includes('polling failed');
+  }
+  assert(failedThrew, 'Expected a failed PDFMonkey document to throw even with allowPending');
+}
+
 async function main(): Promise<void> {
   await testPagePreviewRouteSuccess();
   await testCoverPreviewFailureLogging();
   await testCoverPreviewPollsLongerThanPages();
   await testPagePreviewToleratesTransientFirstPollFailure();
+  await testCoverSubmitThenResumeWithoutDuplicate();
   console.log('W3 preview render tests passed');
 }
 

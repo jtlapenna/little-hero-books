@@ -30,6 +30,12 @@ export interface W3RenderPreviewDocumentInput extends JsonRecord {
   pdfMonkeyTemplateId?: string | null;
   pdfMonkeyImageTemplateId?: string | null;
   pdfMonkeyCoverTemplateId?: string | null;
+  /** Resume an already-submitted PDFMonkey document instead of creating a new (billed) one. */
+  pdfMonkeyDocumentId?: string | null;
+  /** When true, return a pending result instead of throwing if the document is still generating. */
+  allowPending?: boolean | null;
+  /** Per-request poll cap (1-100). Lets callers keep each HTTP request short. */
+  pollMaxAttempts?: number | null;
 }
 
 export type W3RenderPreviewWorkflowEvent = {
@@ -52,6 +58,9 @@ export type W3RenderPreviewDocumentResult = JsonRecord & {
   backendUrl: string;
   pdfMonkeyStatus: string;
   pdfMonkeyPollAttempts: number;
+  /** True when allowPending was set and PDFMonkey has not finished yet. */
+  pending?: boolean;
+  pdfMonkeyDocumentId?: string;
   workflowLogEvent: {
     submitted: W3RenderPreviewWorkflowEvent | null;
     polled: W3RenderPreviewWorkflowEvent | null;
@@ -416,7 +425,15 @@ export async function renderW3PreviewDocument(
   const fetchImpl = options.fetchImpl ?? fetch;
   const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   // The cover template (barcode spread) takes about two minutes on PDFMonkey; pages finish in seconds.
-  const maxPollAttempts = Math.max(1, options.maxPollAttempts ?? (input.documentKind === 'cover-preview' ? 100 : 30));
+  const requestedPollCap = toInteger(input.pollMaxAttempts);
+  const defaultPollAttempts = input.documentKind === 'cover-preview' ? 100 : 30;
+  const maxPollAttempts = Math.max(
+    1,
+    options.maxPollAttempts ??
+      (requestedPollCap !== null ? Math.min(requestedPollCap, defaultPollAttempts) : defaultPollAttempts),
+  );
+  const allowPending = asBoolean(input.allowPending, false);
+  const existingDocumentId = toTrimmedString(input.pdfMonkeyDocumentId);
   const pollIntervalMs = Math.max(0, options.pollIntervalMs ?? 1800);
   const maxPollRequestErrors = Math.max(0, options.maxPollRequestErrors ?? 3);
   const workflowJobId = typeof input.workflowJobId === 'number' ? input.workflowJobId : null;
@@ -425,32 +442,40 @@ export async function renderW3PreviewDocument(
   const recordWorkflowEvent = options.recordWorkflowEvent ?? (async () => ({}));
 
   const createPayload = buildCreateDocumentPayload(input, orderId, amazonOrderId, rootOrderId);
-  const createResponse = await requestPdfMonkey(
-    fetchImpl,
-    pdfMonkeyApiKey,
-    PDFMONKEY_DOCUMENTS_API,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+  let createdDocument: JsonRecord;
+  let documentId: string | null;
+  if (existingDocumentId) {
+    // Resume: never create a second billed document.
+    documentId = existingDocumentId;
+    createdDocument = { id: existingDocumentId };
+  } else {
+    const createResponse = await requestPdfMonkey(
+      fetchImpl,
+      pdfMonkeyApiKey,
+      PDFMONKEY_DOCUMENTS_API,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createPayload),
       },
-      body: JSON.stringify(createPayload),
-    },
-  );
+    );
 
-  const createdDocument = toDocumentRecord(
-    createResponse.data ?? createResponse.document ?? createResponse,
-  );
-  const documentId = toTrimmedString(
-    createdDocument.id ?? createdDocument.document_id ?? toJsonRecord(createdDocument.data).id,
-  );
-  if (!documentId) {
-    throw new Error('PDFMonkey create response missing id');
+    createdDocument = toDocumentRecord(
+      createResponse.data ?? createResponse.document ?? createResponse,
+    );
+    documentId = toTrimmedString(
+      createdDocument.id ?? createdDocument.document_id ?? toJsonRecord(createdDocument.data).id,
+    );
+    if (!documentId) {
+      throw new Error('PDFMonkey create response missing id');
+    }
   }
 
   const statusUrl = `${PDFMONKEY_DOCUMENTS_API}/${documentId}`;
   let currentDocument = createdDocument;
-  let status = toTrimmedString(createdDocument.status) ?? 'queued';
+  let status = toTrimmedString(createdDocument.status) ?? (existingDocumentId ? 'generating' : 'queued');
   let downloadUrl =
     toTrimmedString(createdDocument.download_url) ??
     toTrimmedString(createdDocument.file_url);
@@ -498,19 +523,21 @@ export async function renderW3PreviewDocument(
   };
 
   try {
-    submitLog = await logEvent({
-      eventType: 'provider-submitted',
-      jobStatus: 'polling',
-      attemptStatus: 'polling',
-      payload: {
-        orderId,
-        ...externalContext,
-      },
-      context: buildContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
-        ...externalContext,
-        pdfMonkeyStatus: status,
-      }),
-    });
+    if (!existingDocumentId) {
+      submitLog = await logEvent({
+        eventType: 'provider-submitted',
+        jobStatus: 'polling',
+        attemptStatus: 'polling',
+        payload: {
+          orderId,
+          ...externalContext,
+        },
+        context: buildContext(input, orderId, amazonOrderId, rootOrderId, backendUrl, {
+          ...externalContext,
+          pdfMonkeyStatus: status,
+        }),
+      });
+    }
 
     while (attempts < maxPollAttempts) {
       if (status === 'success' && downloadUrl) {
@@ -570,6 +597,29 @@ export async function renderW3PreviewDocument(
       await sleep(pollIntervalMs);
     }
 
+    if ((status !== 'success' || !downloadUrl) && allowPending) {
+      return {
+        ...input,
+        ...baseContext,
+        documentKind,
+        orderId,
+        amazonOrderId,
+        rootOrderId,
+        backendUrl,
+        document: currentDocument,
+        pdfMonkeyStatus: status,
+        pdfMonkeyPollAttempts: attempts,
+        pending: true,
+        pdfMonkeyDocumentId: documentId,
+        pdfMonkeyCoverDocumentId: documentKind === 'cover-preview' ? documentId : undefined,
+        pdfMonkeyCoverStatusUrl: documentKind === 'cover-preview' ? statusUrl : undefined,
+        workflowLogEvent: {
+          submitted: submitLog,
+          polled: lastPollLog,
+        },
+      };
+    }
+
     if (status !== 'success' || !downloadUrl) {
       throw new Error(`PDFMonkey ${documentKind} not ready after polling (status=${status})`);
     }
@@ -585,6 +635,8 @@ export async function renderW3PreviewDocument(
       document: currentDocument,
       pdfMonkeyStatus: status,
       pdfMonkeyPollAttempts: attempts,
+      pending: false,
+      pdfMonkeyDocumentId: documentId,
       workflowLogEvent: {
         submitted: submitLog,
         polled: lastPollLog,
