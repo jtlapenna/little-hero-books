@@ -491,7 +491,7 @@
     },
     {
       "parameters": {
-        "amount": 3,
+        "amount": 0.3,
         "unit": "seconds"
       },
       "id": "686de040-bef2-4ec8-b88f-30881cb490cc",
