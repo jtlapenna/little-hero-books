@@ -89,7 +89,10 @@ async function main(): Promise<void> {
       bookTwoBuilt.posePromptBlock.includes("no cast shadow") &&
       bookTwoBuilt.posePromptBlock.includes("non-character pixels pure white") &&
       bookTwoBuilt.posePromptBlock.includes("Preserve BASE clothing and footwear exactly") &&
-      bookTwoBuilt.posePromptBlock.includes("Keep shoe design locked to BASE"),
+      bookTwoBuilt.posePromptBlock.includes("Keep shoe design locked to BASE") &&
+      bookTwoBuilt.posePromptBlock.includes("Exactly one face") &&
+      bookTwoBuilt.posePromptBlock.includes("Never an oversized cloud or mass of hair") &&
+      bookTwoBuilt.posePromptBlock.includes("subtle paper-grain texture"),
     "Expected repo-owned prompt construction to emit the core BASE/POSE/HAIR/background/footwear contract",
   );
   assert(
