@@ -460,6 +460,7 @@ function buildPosePromptBlock(input: {
     '- No extra limbs.',
     '- Exactly one face: two eyes, one nose and one mouth. Never a duplicated, overlapping or second face, and no extra eye marks.',
     '- Keep the hair the same size, volume and shape as BASE, close to the head. Never an oversized cloud or mass of hair.',
+    '- Skin tone must match BASE exactly on the face, ears, arms, hands and legs. The POSE reference is a body-shape guide only: ignore its skin color, hair style and bangs.',
     '- Keep the soft painted finish of BASE: soft shading and subtle paper-grain texture on the character. Do not flatten it into clean vector art.',
     '- No crop above the feet.',
     '- No colored or textured background.',
