@@ -1,12 +1,12 @@
 /**
  * Flow-recipe (`lhb.book-render@v2`) release gates. Pure and synchronous: no network, no fs.
  *
- * Two separate gates:
+ * Gates:
  * 1. Publication: only allow-listed books whose config is `active` may publish a flow order
- *    (`flowPublicationAllowed`). Publication alone leaves the order held (readyForBook=false).
- * 2. Recipe-level release approval: a recorded, checksum-bound entry in `flow-release-approvals.json`
- *    (`hasRecordedFlowReleaseApproval`). It authorizes the template and layout only, never an order's
- *    bytes. The run never creates an entry; one is recorded only from Jeff's quoted chat approval.
+ *    (`flowPublicationAllowed`).
+ * 2. Release: admin stage approvals (preBria, postBria, postPdf, customer) are the release gates. There is
+ *    no separate sign-off. A bundled entry with `revokedAt` for a book, version and format is a kill switch
+ *    (`hasRecordedFlowReleaseApproval` returns false). Valid unrevoked entries are optional audit stamps.
  *
  * The config checksum is `computeBookConfigChecksum` (sha256 of the canonical JSON with object keys
  * sorted by `localeCompare`), so key order in the source file never changes it, but any value edit does.
@@ -105,13 +105,23 @@ export function flowReleaseApprovalsSha256(approvals: readonly unknown[] = BUNDL
 }
 
 /**
- * True only for an unrevoked, well-formed entry matching bookId, version, format, flow recipe and the
- * exact config checksum, for an allow-listed, active config. Anything else fails closed.
+ * Flow release gate. Admin stage approvals (preBria, postBria, postPdf, customer) are the release gates;
+ * there is no separate recipe-level sign-off. True for an allow-listed, active flow-recipe config unless a
+ * bundled entry for the same book, version and format has been revoked (explicit kill switch).
  */
 export function hasRecordedFlowReleaseApproval(
   config: BookConfig,
   formatId: string,
   approvals: readonly unknown[] = BUNDLED_APPROVALS,
 ): boolean {
-  return findFlowReleaseApproval(config, formatId, approvals) !== null;
+  if (!flowPublicationAllowed(config)) return false;
+  if (config.rendering.recipe?.schema !== FLOW_RECIPE_SCHEMA) return false;
+  if (!Array.isArray(approvals)) return false;
+  const revoked = approvals.some((entry) =>
+    isRecord(entry)
+    && entry.revokedAt !== undefined
+    && entry.bookId === config.bookId
+    && entry.version === config.version
+    && entry.formatId === formatId);
+  return !revoked;
 }

@@ -334,7 +334,7 @@ export function buildW3Manifest(input: JsonRecord, options: W3ManifestOptions = 
 
   const selectedPageLabels = frozen ? selectW3Pages(pagePlan, parseW3PageSelection(input.testModePages)).map(page => page.label) : undefined;
   const fullConfiguredOutput = frozen ? pagePlan.every(page => Boolean(pages[page.label])) && pagePlan.length === pagePreviewImages.length && Boolean(coverImageKey) : true;
-  // Flow layouts stay unready unless a recorded, checksum-bound release approval exists for this format.
+  // Flow layouts are ready for an allow-listed active config unless a bundled revoke entry blocks this format.
   const configuredReady = frozen ? !requiresBookLayoutReview(frozen.bookConfig.rendering.recipe?.schema) && (frozen.bookConfig.rendering.recipe?.schema !== 'lhb.book-render@v2' || hasRecordedFlowReleaseApproval(frozen.bookConfig, frozen.formatId, options.flowApprovals)) && frozen.bookConfig.status === 'active' && !frozen.testOnly && input.testOnly !== true && options.intake?.bookSpecs.testMode !== true && input.testMode !== true && toRecord(input.bookSpecs).testMode !== true && fullConfiguredOutput && selectedPageLabels?.length === pagePlan.length : true;
   const nowIso = new Date().toISOString();
   const manifest = {
