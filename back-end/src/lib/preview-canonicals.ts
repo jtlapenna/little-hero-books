@@ -160,8 +160,12 @@ export function resolvePreviewCanonicalsForConfig(
   const baseFilename = filenameMap[skinToneCanonical] ?? filenameMap['skin-medium'];
   const baseRefKey = `${baseCharactersPrefix}/${baseFilename}`;
 
-  const hairRaw = (specs.hairStyle ?? 'side-part').toString().toLowerCase().trim().replace(/\s+/g, '-');
-  const hairStyleCanonical = HAIR_CANONICAL_SET.has(hairRaw) ? hairRaw : 'side-part';
+  const hairRaw = (specs.hairStyle ?? 'side-part').toString().toLowerCase().trim().replace(/[\s/]+/g, '-');
+  // Amazon option labels arrive as 'long-straight' / 'short-straight'; the chip names are 'straight-long' / 'straight-short'.
+  const hairReversed = hairRaw.split('-').reverse().join('-');
+  const hairStyleCanonical = HAIR_CANONICAL_SET.has(hairRaw)
+    ? hairRaw
+    : HAIR_CANONICAL_SET.has(hairReversed) ? hairReversed : 'side-part';
   const colorRaw = (specs.hairColor ?? '').toString().toLowerCase().trim().replace(/\s+/g, '-');
   const hairColorSuffix = HAIR_COLOR_CHIP_SUFFIX[colorRaw] ?? DEFAULT_HAIR_COLOR_CHIP;
   const hairRefKey = `${hairstylesPrefix}/${hairStyleCanonical}-${hairColorSuffix}.jpg`;
