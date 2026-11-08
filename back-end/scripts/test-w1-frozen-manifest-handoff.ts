@@ -63,87 +63,36 @@ async function main() {
     $input: { all: () => extracted }, $execution: { customData: {} },
   });
   assert.equal((routed[0].json.workflow2A as unknown[]).length, 1);
+  const noFetch = () => { throw new Error('Configured rows must not read the private W0 manifest from n8n'); };
   const prepared = await runCode(workflow, 'Prep 2A Orders', {
     $input: { first: () => routed[0] },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
+    fetch: noFetch,
   });
   assert.equal(prepared.length, 1);
   assert.equal(prepared[0].json.oneManifestUrl, pointer);
-  assert.equal((prepared[0].json.bookSpecs as { testMode?: boolean })?.testMode, true);
+  assert.equal(prepared[0].json.characterHash, 'synthetic-hash');
+  assert.equal(prepared[0].json.bookSpecs ?? null, null, 'Backend bootstrap owns book specs from frozen W0');
   const repoWorkflow = JSON.parse(readFileSync(path.resolve('../docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json'), 'utf8')) as CodeGraph;
+  const hold = async (row: Record<string, unknown>) => (await runCode(repoWorkflow, 'Prep 2A Orders', {
+    $input: { first: () => ({ json: { workflow2A: [row] } }) },
+    fetch: noFetch,
+  })).length;
   const missingSpecsRow = { ...cronRow, character_specs: null };
   const missingSpecsRouting = { json: { workflow2A: [missingSpecsRow] } };
-  const recovered = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => missingSpecsRouting },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal((recovered[0].json.characterSpecs as { childName?: string }).childName, 'Alex');
-  assert.equal((recovered[0].json.bookSpecs as { testMode?: boolean }).testMode, true);
-  const missingBothRow = { ...missingSpecsRow, character_hash: null };
-  const missingBoth = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [missingBothRow] } }) },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal(missingBoth[0].json.characterHash, 'synthetic-hash', 'W1 must use the frozen W0 hash');
-  const staleHash = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [{ ...missingSpecsRow, character_hash: 'stale-hash' }] } }) },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal(staleHash.length, 0, 'W1 must hold a row with a stale character hash');
-  let configuredFetches = 0;
-  const staleNonempty = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [{
-      ...cronRow, character_specs: { childName: 'Wrong child', animalGuide: 'cat' }, character_hash: 'stale-hash',
-    }] } }) },
-    fetch: async () => { configuredFetches++; return { ok: true, json: async () => manifest }; },
-  });
-  assert.equal(configuredFetches, 1, 'Configured rows must read frozen W0 before claim');
-  assert.equal(staleNonempty.length, 0, 'Stale nonempty specs must be held before claim');
-  const failedConfiguredFetch = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
-    fetch: async () => ({ ok: false, status: 503 }),
-  });
-  assert.equal(failedConfiguredFetch.length, 0, 'Configured row must stay unclaimed when frozen W0 cannot be read');
-  const timedOutConfiguredFetch = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
-    fetch: async () => { throw new Error('Synthetic manifest timeout'); },
-  });
-  assert.equal(timedOutConfiguredFetch.length, 0, 'Helper timeout must hold configured row before claim');
-  const retryAfterTimeout = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal(retryAfterTimeout.length, 1, 'Read-only recovery may retry the same frozen manifest after timeout');
-  const malformedConfiguredManifest = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [cronRow] } }) },
-    fetch: async () => ({ ok: true, json: async () => ({ schema: 'lhb.run-manifest@v3' }) }),
-  });
-  assert.equal(malformedConfiguredManifest.length, 0, 'Configured row must stay unclaimed when W0 is malformed');
-  const validNonemptyMissingHash = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [{ ...cronRow, character_hash: null }] } }) },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal(validNonemptyMissingHash[0].json.characterHash, 'synthetic-hash');
-  const failedRecovery = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => missingSpecsRouting },
-    fetch: async () => ({ ok: false, status: 404 }),
-  });
-  assert.equal(failedRecovery.length, 0, 'Failed manifest fetch must leave the order ready for retry');
-  const emptySpecsRecovery = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => ({ json: { workflow2A: [{ ...cronRow, character_specs: {} }] } }) },
-    fetch: async () => ({ ok: true, json: async () => manifest }),
-  });
-  assert.equal((emptySpecsRecovery[0].json.characterSpecs as { childName?: string }).childName, 'Alex');
+  assert.equal(await hold(missingSpecsRow), 0, 'Configured row without frozen specs on the row must be held');
+  assert.equal(await hold({ ...cronRow, character_hash: null }), 0, 'Configured row without a character hash must be held');
+  assert.equal(await hold({ ...cronRow, character_specs: {} }), 0, 'Configured row with empty specs must be held');
+  assert.equal(await hold({ ...cronRow, one_manifest_url: pointer.replace('SYNTHETIC-W1-W2A', 'SYNTHETIC-OTHER-ORDER') }), 0, 'Pointer for another order must be held');
+  assert.equal(await hold({ ...cronRow, one_manifest_url: null }), 0, 'Missing W0 pointer must be held');
+  assert.equal(await hold({ ...cronRow, updated_at: null }), 0, 'Missing row revision must be held');
+  assert.equal(await hold({ ...cronRow, print_format_id: null }), 0, 'Missing book selection must be held');
+  assert.equal(await hold({ ...cronRow, print_config_version: null }), 0, 'Missing config version must be held');
+  assert.equal(await hold(cronRow), 1, 'Complete configured row passes without any manifest fetch');
   const wrongLegacy = {
     schema: 'lhb.run-manifest@v2.0', order: {
       orderId: 'SYNTHETIC-OTHER-ORDER', characterSpecs: { childName: 'Wrong child' },
     },
   };
-  const rejectedLegacyRecovery = await runCode(repoWorkflow, 'Prep 2A Orders', {
-    $input: { first: () => missingSpecsRouting },
-    fetch: async () => ({ ok: true, json: async () => wrongLegacy }),
-  });
-  assert.equal(rejectedLegacyRecovery.length, 0, 'Wrong-order legacy specs must not reach W2A');
   await assert.rejects(() => resolveW2APoseWorklistResponse({
     orderId: cronRow.orderId, oneManifestUrl: pointer,
   }, {
@@ -151,15 +100,6 @@ async function main() {
     loadBookConfig: async () => config,
     instrumentPoseWorkItems: async (payload) => payload.poseWorklist,
   }), /order identity/, 'Legacy nested order identity must match W2A request');
-  if (deployedPath) {
-    const activeRecovery = await runCode(workflow, 'Prep 2A Orders', {
-      $input: { first: () => missingSpecsRouting },
-      fetch: async () => ({ ok: true, json: async () => manifest }),
-    });
-    assert.equal((activeRecovery[0]?.json.characterSpecs as { childName?: string })?.childName, 'Alex',
-      'Selected W1 graph must recover missing specs from frozen W0');
-  }
-
   const claimNode = workflow.nodes.find((node) => node.name === 'Mark as Processing (2A)');
   assert.equal(claimNode?.parameters?.headerParameters?.parameters?.find((header) => header.name === 'Prefer')?.value, 'return=representation');
   const revisionExpression = claimNode?.parameters?.queryParameters?.parameters?.find((parameter) => parameter.name === 'updated_at')?.value;
@@ -409,7 +349,7 @@ async function main() {
   });
   const amazonRow = {
     ...cronRow, orderId: 'SYNTHETIC-INNER-VOICE-AMAZON', root_order_id: 'SYNTHETIC-INNER-VOICE-AMAZON',
-    character_specs: null, character_hash: null, one_manifest_url: amazonManifest.artifacts.manifestKey,
+    character_specs: { childName: 'Alex', animalGuide: 'cat' }, character_hash: 'amazon-hash', one_manifest_url: amazonManifest.artifacts.manifestKey,
     print_format_id: 'amazon',
   };
   const amazonPrep = await runCode(repoWorkflow, 'Prep 2A Orders', {

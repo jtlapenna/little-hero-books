@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "880a41853b9c701ae999e1dde54a11c4e97fd41612b63b109e28e9bc7af5c210",
+  "sourceSnapshotSha256": "81270bb38bc3277306630bc0ba1c986f61cc6d1263f45bf8a9ee2e4f739ea054",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -53,6 +53,8 @@
     "back-end/scripts/test-gelato-protected-runner-crashes.ts",
     "back-end/scripts/test-gelato-protected-runner.ts",
     "back-end/scripts/test-w0-character-handoff.ts",
+    "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
+    "back-end/scripts/test-w2-workflow-contracts.ts",
     "back-end/scripts/test-w2a-pose-input.ts",
     "back-end/src/app/api/checkout/create/route.ts",
     "back-end/src/app/api/cron/amazon-orders/route.ts",
@@ -61,7 +63,9 @@
     "back-end/src/lib/books/w3-manifest.ts",
     "back-end/src/lib/books/w4-print-input.ts",
     "back-end/src/lib/w0-manifest-builder.ts",
-    "back-end/src/lib/w0-payload.ts"
+    "back-end/src/lib/w0-payload.ts",
+    "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json"
   ],
   "files": [
     {
@@ -462,12 +466,12 @@
     {
       "path": "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
       "kind": "source",
-      "sha256": "ce9a91b9f58af0eac1bbb4282aca464dcf47439d630809042ce1b6a95a993d2a"
+      "sha256": "adf67cb34056cdd2888bfa58a7df088a66b499ea4517e22b164735003222c76e"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
       "kind": "source",
-      "sha256": "8169313ca4698c6c02708f2ec15de525aaf4680e8070c7e4549a826d58d1437a"
+      "sha256": "4882ea8238865194f8165931fb20a4e7018bfa621f92885d499210dd9cb7c688"
     },
     {
       "path": "back-end/scripts/test-w2a-base-input.ts",
@@ -812,12 +816,12 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
       "kind": "source",
-      "sha256": "908e137665094a36b763262e9315643dd6b99957db257f9bd131924307e6d2e0"
+      "sha256": "a1890d3136288d8ac634c5c5b7c083f6bacbea4f34de6b728eb6df3e6375577e"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
       "kind": "source",
-      "sha256": "d7a5594b8479b227f5087abf13829504f0801c40adfec1375f0489b215b32d6f"
+      "sha256": "221637359eb38d57e7d0972ec345c4286205dcccf7267cef1b1ae81edb0feeae"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
@@ -907,7 +911,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "81ce4b50f065059527e720ff859f1b5af023df338a55be81e614d16abd241889"
+      "sha256": "60f424155dac599ccf410b74fd742c9c584642bdf2407a588d47940bbf7cccc1"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
