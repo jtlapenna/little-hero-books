@@ -37,6 +37,10 @@ ADDED = {
 }
 REBOUND = {
     'back-end/scripts/test-w2a-pose-input.ts',
+    'back-end/scripts/test-w1-frozen-manifest-handoff.ts',
+    'back-end/scripts/test-w2-workflow-contracts.ts',
+    'docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json',
+    'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'back-end/scripts/test-compiled-pages-worker.ts',
     'back-end/src/lib/books/types.ts',
     '.github/workflows/check-production-build.yml',

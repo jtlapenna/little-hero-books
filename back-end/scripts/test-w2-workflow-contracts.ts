@@ -548,10 +548,10 @@ async function main(): Promise<void> {
       JSON.stringify(w2aReplayIfNode.parameters).includes(
         "workflowReplayReady === true",
       ) &&
-      JSON.stringify(w2aReplayIfNode.parameters).includes(
+      !JSON.stringify(w2aReplayIfNode.parameters).includes(
         "workflowJobStatus === 'succeeded'",
       ),
-    "Repo-centric W2A subworkflow should branch around Gemini for both the repo replay envelope and the existing live succeeded-job contract",
+    "Repo-centric W2A subworkflow should branch around Gemini only for a verified replay envelope; a merely succeeded job must not skip generation (retry attempts need fresh generation)",
   );
   assert(
     w2aReplayOutputCode.includes("storageKey: replayUploadKey") &&
@@ -920,10 +920,6 @@ async function main(): Promise<void> {
     w3Workflow,
     "Generate Cover Image with PDFMonkey (3A)1",
   );
-  const w3GenerateCoverCode = getCode(
-    w3Workflow,
-    "Generate Cover Image with PDFMonkey (3A)1",
-  );
   const w3CoverPollCode = getCode(w3Workflow, "Poll Cover Image (3A)1");
   const w3DownloadCoverNode = getNode(
     w3Workflow,
@@ -1072,19 +1068,25 @@ async function main(): Promise<void> {
       ),
     "Repo-centric W3 page preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
   );
+  const w3CoverBody = JSON.stringify(w3GenerateCoverNode.parameters);
   assert(
-    w3GenerateCoverNode.type === "n8n-nodes-base.code" &&
-      w3GenerateCoverCode.includes("this.helpers.httpRequest") &&
-      w3GenerateCoverCode.includes("/api/internal/w3/render-preview-document") &&
-      w3GenerateCoverCode.includes("documentKind: 'cover-preview'") &&
-      w3GenerateCoverCode.includes("body: {") &&
-      w3GenerateCoverCode.includes("...j") &&
-      w3GenerateCoverCode.includes("json: true") &&
-      w3GenerateCoverCode.includes(
-        "Bearer REDACTED_BACKEND_API_TOKEN",
-      ),
-    "Repo-centric W3 cover preview generation should use a thin code-node adapter so the repo-owned render-preview endpoint always receives a real JSON object with backend bearer auth",
+    w3GenerateCoverNode.type === "n8n-nodes-base.httpRequest" &&
+      w3CoverBody.includes("/api/internal/w3/render-preview-document") &&
+      w3CoverBody.includes("documentKind: 'cover-preview'") &&
+      w3CoverBody.includes("allowPending: true") &&
+      w3CoverBody.includes("pollMaxAttempts: 1") &&
+      w3CoverBody.includes("httpHeaderAuth") &&
+      !w3CoverBody.includes("Bearer "),
+    "Repo-centric W3 cover preview submit should be an HTTP request node using the backend credential (no inline token) that returns a pending state; the wait/poll loop resumes by PDFMonkey document id",
   );
+  for (const loopNode of [
+    "Cover Pending? (3A)",
+    "Cover Poll Counter (3A)",
+    "Wait Cover Render (3A)",
+    "Poll Cover Render (3A)",
+  ]) {
+    getNode(w3Workflow, loopNode);
+  }
   assert(
     w3PagePollCode.includes("const current = $json || {}") &&
       w3PagePollCode.includes("const binary = $binary || {}") &&

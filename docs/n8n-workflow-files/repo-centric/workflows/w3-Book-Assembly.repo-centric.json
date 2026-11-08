@@ -337,21 +337,51 @@
       "notes": "3A cover branch placeholder. Implement real logic with credentials and correct fields."
     },
     {
-      "parameters": {
-        "jsCode": "const j = $json || {};\nconst b = $binary || {};\nconst itemIx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst backendUrl = String(j.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/render-preview-document',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: {\n    ...j,\n    documentKind: 'cover-preview',\n  },\n  json: true,\n  timeout: 90000,\n});\n\nreturn {\n  json: response && typeof response === 'object' && !Array.isArray(response)\n    ? response\n    : { response },\n  binary: b,\n  pairedItem: { item: itemIx },\n};",
-        "mode": "runOnceForEachItem",
-        "language": "javaScript"
-      },
       "id": "f680fd37-9959-4746-b5e3-72e055ac84dd",
       "name": "Generate Cover Image with PDFMonkey (3A)1",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
       "position": [
         4336,
         2288
       ],
-      "notesInFlow": true,
-      "notes": "Phase 3: Generate 5203×2625 cover PNG. Security TODO (Phase 6): move Authorization to credentials."
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ (String($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w3/render-preview-document' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { ...$json, documentKind: 'cover-preview', allowPending: true, pollMaxAttempts: 1 } }}",
+        "options": {
+          "timeout": 90000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7oKyY07EBCKuCjU",
+          "name": "LHL backend API containment 2026-10-16"
+        }
+      }
     },
     {
       "parameters": {
@@ -876,6 +906,115 @@
       ],
       "id": "eec56400-73d4-43bc-a19d-cc31c0be9fbb",
       "name": "Code in JavaScript"
+    },
+    {
+      "id": "a19c0001-0000-4000-8000-000000000001",
+      "name": "Cover Pending? (3A)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4436,
+        2548
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a19c0001-0000-4000-8000-0000000000a1",
+              "leftValue": "={{ $json.pending }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a19c0001-0000-4000-8000-000000000002",
+      "name": "Cover Poll Counter (3A)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4676,
+        2548
+      ],
+      "parameters": {
+        "jsCode": "const j = $json || {};\nconst loop = (Number(j.coverPollLoop) || 0) + 1;\nif (loop > 10) {\n  throw new Error('PDFMonkey cover still generating after 10 poll loops (documentId=' + (j.pdfMonkeyDocumentId || 'unknown') + ', order=' + (j.orderId || 'unknown') + ')');\n}\nreturn [{ json: { ...j, coverPollLoop: loop } }];"
+      }
+    },
+    {
+      "id": "a19c0001-0000-4000-8000-000000000003",
+      "name": "Wait Cover Render (3A)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4916,
+        2548
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "webhookId": "a19c0001-0000-4000-8000-000000000011"
+    },
+    {
+      "id": "a19c0001-0000-4000-8000-000000000004",
+      "name": "Poll Cover Render (3A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5156,
+        2548
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ (String($json.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '')) + '/api/internal/w3/render-preview-document' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { ...$json, documentKind: 'cover-preview', allowPending: true, pollMaxAttempts: 10, pdfMonkeyDocumentId: $json.pdfMonkeyDocumentId } }}",
+        "options": {
+          "timeout": 90000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7oKyY07EBCKuCjU",
+          "name": "LHL backend API containment 2026-10-16"
+        }
+      }
     }
   ],
   "connections": {
@@ -1089,7 +1228,7 @@
       "main": [
         [
           {
-            "node": "Poll Cover Image (3A)1",
+            "node": "Cover Pending? (3A)",
             "type": "main",
             "index": 0
           }
@@ -1459,6 +1598,57 @@
         [
           {
             "node": "Mark Previews Ready (3A status)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cover Pending? (3A)": {
+      "main": [
+        [
+          {
+            "node": "Cover Poll Counter (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Poll Cover Image (3A)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cover Poll Counter (3A)": {
+      "main": [
+        [
+          {
+            "node": "Wait Cover Render (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Cover Render (3A)": {
+      "main": [
+        [
+          {
+            "node": "Poll Cover Render (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Cover Render (3A)": {
+      "main": [
+        [
+          {
+            "node": "Cover Pending? (3A)",
             "type": "main",
             "index": 0
           }
