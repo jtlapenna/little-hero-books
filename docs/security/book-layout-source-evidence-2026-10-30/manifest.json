@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "8b37fae0252436215aad6eae318d4d2936f8a5dfc82bf0c418715dae06d6b04c",
+  "sourceSnapshotSha256": "880a41853b9c701ae999e1dde54a11c4e97fd41612b63b109e28e9bc7af5c210",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -53,6 +53,7 @@
     "back-end/scripts/test-gelato-protected-runner-crashes.ts",
     "back-end/scripts/test-gelato-protected-runner.ts",
     "back-end/scripts/test-w0-character-handoff.ts",
+    "back-end/scripts/test-w2a-pose-input.ts",
     "back-end/src/app/api/checkout/create/route.ts",
     "back-end/src/app/api/cron/amazon-orders/route.ts",
     "back-end/src/app/api/cron/router/route.ts",
@@ -481,7 +482,7 @@
     {
       "path": "back-end/scripts/test-w2a-pose-input.ts",
       "kind": "source",
-      "sha256": "710285ed5919fc90b46208a6cd5dfe0d58be2dafd355b419c8a9fe015e32af21"
+      "sha256": "be76b88abab6340724a36d78287896d83c82d559649b9db1d24813b36b26bfe2"
     },
     {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
@@ -906,7 +907,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "e1b5f987fd52ee9ea033ede0d61339fb391373797c9b0576ed96fa36f290b49d"
+      "sha256": "81ce4b50f065059527e720ff859f1b5af023df338a55be81e614d16abd241889"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
