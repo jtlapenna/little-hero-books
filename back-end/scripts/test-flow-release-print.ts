@@ -122,16 +122,16 @@ async function main() {
   for (const formatId of ['standard', 'amazon']) {
     const p = await prepare(config, formatId, `FLOWPRINT-${formatId.toUpperCase()}-A`);
 
-    await check(`(a) no approval, ${formatId}: W3 holds and W4 rejects with the existing message`, async () => {
+    await check(`(a) no sign-off file, ${formatId}: W3 ready, W4 builds the input; admin stage approvals remain the gates`, async () => {
       const { saved, patch } = await publish(p);
-      assert.equal(saved.summary.readyForBook, false);
-      assert.equal(saved.testOnly, true);
-      assert.equal(patch.next_workflow, null);
-      await assert.rejects(consumer(p, saved)(), { message: HOLD_MESSAGE });
-      await assert.rejects(consumer(p, saved)([]), { message: HOLD_MESSAGE });
-      // A forged saved-ready manifest is still blocked: W4 rechecks the approval, it does not trust the saved flag.
-      const forged = JSON.parse(JSON.stringify(saved)); forged.summary.readyForBook = true; forged.testOnly = false;
-      await assert.rejects(consumer(p, forged)(), { message: HOLD_MESSAGE });
+      assert.equal(saved.summary.readyForBook, true);
+      assert.equal(saved.testOnly, false);
+      assert.equal(patch.next_workflow, '4');
+      assert.ok(await consumer(p, saved)());
+      assert.ok(await consumer(p, saved)([]));
+      // A revoked bundled entry is the kill switch: it blocks W4 even for an already-ready manifest.
+      const revokedNow = [entryFor(config, formatId, { revokedAt: '2026-11-07T00:00:00.000Z' })];
+      await assert.rejects(consumer(p, saved)(revokedNow), { message: HOLD_MESSAGE });
     });
 
     await check(`(b) valid ${formatId} approval: ready, routes to W4, builds 35-page Gelato input, router blocks while drafts disabled`, async () => {
@@ -168,16 +168,16 @@ async function main() {
   }
 
   const standard = await prepare(config, 'standard', 'FLOWPRINT-NEG');
-  await check('(c) entry for the other format does not release this edition (both directions)', async () => {
-    const amazonOnly = [entryFor(config, 'amazon')];
-    const { saved, patch } = await publish(standard, amazonOnly);
-    assert.equal(saved.summary.readyForBook, false); assert.equal(patch.next_workflow, null);
-    await assert.rejects(consumer(standard, saved)(amazonOnly), { message: HOLD_MESSAGE });
+  await check('(c) a revoke for the other format does not block this edition (both directions)', async () => {
+    const amazonRevoked = [entryFor(config, 'amazon', { revokedAt: '2026-11-07T00:00:00.000Z' })];
+    const { saved, patch } = await publish(standard, amazonRevoked);
+    assert.equal(saved.summary.readyForBook, true); assert.equal(patch.next_workflow, '4');
+    assert.ok(await consumer(standard, saved)(amazonRevoked));
     const amazon = await prepare(config, 'amazon', 'FLOWPRINT-NEG-AMZ');
-    const standardOnly = [entryFor(config, 'standard')];
-    const out = await publish(amazon, standardOnly);
-    assert.equal(out.saved.summary.readyForBook, false);
-    await assert.rejects(consumer(amazon, out.saved)(standardOnly), { message: HOLD_MESSAGE });
+    const standardRevoked = [entryFor(config, 'standard', { revokedAt: '2026-11-07T00:00:00.000Z' })];
+    const out = await publish(amazon, standardRevoked);
+    assert.equal(out.saved.summary.readyForBook, true);
+    assert.ok(await consumer(amazon, out.saved)(standardRevoked));
   });
 
   await check('(c) revoked entry is rejected at W3 and W4', async () => {
@@ -187,23 +187,18 @@ async function main() {
     await assert.rejects(consumer(standard, saved)(revoked), { message: HOLD_MESSAGE });
   });
 
-  await check('(c) entry removed or revoked after publish: W4 recheck blocks the already-ready manifest', async () => {
-    const approvals = [entryFor(config, 'standard')];
-    const { saved } = await publish(standard, approvals);
+  await check('(c) revoke after publish: W4 recheck blocks the already-ready manifest', async () => {
+    const { saved } = await publish(standard, []);
     assert.equal(saved.summary.readyForBook, true);
-    assert.ok(await consumer(standard, saved)(approvals));
-    await assert.rejects(consumer(standard, saved)([]), { message: HOLD_MESSAGE });
-    await assert.rejects(consumer(standard, saved)([{ ...approvals[0], revokedAt: '2026-11-07T00:00:00.000Z' }]), { message: HOLD_MESSAGE });
+    assert.ok(await consumer(standard, saved)([]));
+    await assert.rejects(consumer(standard, saved)([{ ...entryFor(config, 'standard'), revokedAt: '2026-11-07T00:00:00.000Z' }]), { message: HOLD_MESSAGE });
   });
 
-  await check('(c) checksum mismatch after a config edit voids the entry', async () => {
-    const approvals = [entryFor(config, 'standard')];
+  await check('(c) an edited active config still publishes: release is by allow-list and admin stages, not a config checksum', async () => {
     const edited = activeV3((c) => { c.displayName = `${c.displayName} edited`; });
-    assert.notEqual(computeBookConfigChecksum(edited), computeBookConfigChecksum(config));
     const p = await prepare(edited, 'standard', 'FLOWPRINT-EDITED');
-    const { saved, patch } = await publish(p, approvals);
-    assert.equal(saved.summary.readyForBook, false); assert.equal(patch.next_workflow, null);
-    await assert.rejects(consumer(p, saved)(approvals), { message: HOLD_MESSAGE });
+    const { saved, patch } = await publish(p, []);
+    assert.equal(saved.summary.readyForBook, true); assert.equal(patch.next_workflow, '4');
   });
 
   await check('(c) entry copied for another book id stays blocked (allow-list and bookId binding)', async () => {

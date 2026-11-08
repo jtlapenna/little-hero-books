@@ -94,7 +94,7 @@ async function main() {
   });
 
   for (const formatId of ['standard', 'amazon']) {
-    await check(`allow-listed active v3 publishes held (${formatId}): 33 keys, readyForBook false, next_workflow null, preview closed`, async () => {
+    await check(`allow-listed active v3 publishes (${formatId}): 33 keys, admin stage approvals remain the gates`, async () => {
       const orderId = `FLOWREL-${formatId.toUpperCase()}-1`;
       const { input, pageCount, prefix } = await publishInput(config, formatId, orderId);
       assert.equal(pageCount, 32);
@@ -102,34 +102,34 @@ async function main() {
       assert.equal(effects.puts.length, 1);
       assert.equal(effects.puts[0].key, `${prefix}/manifests/3-manifest.json`);
       const saved = JSON.parse(effects.puts[0].body);
-      assert.equal(saved.summary.readyForBook, false);
-      assert.equal(saved.testOnly, true);
+      assert.equal(saved.summary.readyForBook, true);
+      assert.equal(saved.testOnly, false);
       assert.equal(saved.formatId, formatId);
       const keys = [saved.pngGeneration.coverSpreadImage, ...Object.values(saved.pngGeneration.pages as Record<string, string>)] as string[];
       assert.equal(keys.length, 33);
       assert(keys.every((key) => key.startsWith(`${prefix}/preview-images/`)));
       assert(keys.includes(`${prefix}/preview-images/cover-spread.png`));
       assert.equal(effects.patches.length, 1);
-      assert.equal(effects.patches[0].next_workflow, null);
+      assert.equal(effects.patches[0].next_workflow, '4');
       assert.equal(effects.patches[0].workflow_step, 'book_assembly_completed');
       assert.equal(effects.invalidated, 1);
       assert.equal(result.manifestReady, true);
-      // Customer preview stays closed while held (customer-preview-files.ts requires testOnly !== true).
+      // Customer preview opens for a ready, non-test manifest; a test-only marker still closes it.
       process.env.BACKEND_API_TOKEN = `unit-test-${'x'.repeat(40)}`;
-      const closed = await buildCustomerPreviewFiles(saved, prefix, new Date(Date.now() + 600_000).toISOString());
-      assert.equal(closed.ready, false);
+      const open = await buildCustomerPreviewFiles(saved, prefix, new Date(Date.now() + 600_000).toISOString());
+      assert.equal(open.ready, true);
       const control = JSON.parse(JSON.stringify(saved));
-      control.testOnly = false; control.summary.readyForBook = true;
-      assert.equal((await buildCustomerPreviewFiles(control, prefix, new Date(Date.now() + 600_000).toISOString())).ready, true, 'control: testOnly is the closing reason');
+      control.testOnly = true; control.summary.readyForBook = false;
+      assert.equal((await buildCustomerPreviewFiles(control, prefix, new Date(Date.now() + 600_000).toISOString())).ready, false, 'control: testOnly closes the preview');
     });
   }
 
-  await check('a postBria-stage order is not advanced by publish: no routing, stage preserved', async () => {
+  await check('a postBria-stage order keeps its stage on publish (W4 admission is gated by the admin stage approvals)', async () => {
     const { input } = await publishInput(config, 'standard', 'FLOWREL-POSTBRIA');
     const order = { orderId: 'FLOWREL-POSTBRIA', status: 'pending_bg_removal_review', review_stages: { postBria: { status: 'in-review' } } };
     const { effects } = await publish(input, order);
     const patch = effects.patches[0];
-    assert.equal(patch.next_workflow, null, 'held: nothing routes to W4');
+    assert.equal(patch.next_workflow, '4', 'ready flow book queues for W4 like any configured book; W4 print input still requires the admin stage approvals');
     assert.deepEqual((patch.review_stages as Record<string, unknown>).postBria, { status: 'in-review' }, 'postBria stage untouched');
   });
 
@@ -167,24 +167,21 @@ async function main() {
     noEffects(effects);
   });
 
-  await check('approval matching: exact entry per format passes; every deviation fails closed', () => {
+  await check('release gate: allow-listed active flow config passes with no sign-off file; revoke is a kill switch', () => {
     const good = entryFor(config, 'standard');
     assert.deepEqual(flowReleaseApprovalsProblems([good]), []);
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard'), true, 'empty bundled file does not block');
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'amazon'), true);
     assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [good]), true);
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'amazon', [good]), false, 'per-format entry');
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard'), false, 'bundled file is empty');
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, revokedAt: '2026-11-07T00:00:00.000Z' }]), false, 'revoked');
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, version: 2 }]), false, 'version');
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, configChecksum: '0'.repeat(64) }]), false, 'checksum');
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, bookId: 'other' }]), false, 'book id');
+    const revoked = { ...good, revokedAt: '2026-11-07T00:00:00.000Z' };
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [revoked]), false, 'revoked entry blocks that format');
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'amazon', [revoked]), true, 'revoke is per format');
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...revoked, version: 2 }]), true, 'revoke is per version');
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...revoked, bookId: 'other' }]), true, 'revoke is per book');
     const draft = BookConfigSchema.parse({ ...config, status: 'draft' });
-    assert.equal(hasRecordedFlowReleaseApproval(draft, 'standard', [entryFor(draft, 'standard')]), false, 'draft config');
-    const edited = structuredClone(config);
-    edited.displayName = `${edited.displayName} edited`;
-    assert.notEqual(computeBookConfigChecksum(edited), computeBookConfigChecksum(config));
-    assert.equal(hasRecordedFlowReleaseApproval(edited, 'standard', [good]), false, 'edited config voids the entry');
+    assert.equal(hasRecordedFlowReleaseApproval(draft, 'standard'), false, 'draft config');
     const copied = BookConfigSchema.parse({ ...config, bookId: 'book-contract-copy' });
-    assert.equal(hasRecordedFlowReleaseApproval(copied, 'standard', [{ ...good, bookId: 'book-contract-copy', configChecksum: computeBookConfigChecksum(copied), approvalQuote: `${computeBookConfigChecksum(copied).slice(0, 12)}`, approvalReceiptSha256: sha256Hex(computeBookConfigChecksum(copied).slice(0, 12)) }]), false, 'allow-list binds the book id');
+    assert.equal(hasRecordedFlowReleaseApproval(copied, 'standard'), false, 'not allow-listed');
     assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', 'nope' as unknown as unknown[]), false);
   });
 
@@ -214,8 +211,8 @@ async function main() {
     assert.match(problems({ ...good, revokedAt: 'x' }), /revokedAt/);
     assert.match(problems(null), /not an object/);
     assert.deepEqual(flowReleaseApprovalsProblems({}), ['approvals must be an array']);
-    // An entry that is malformed never approves, even if its checksum matches.
-    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, approvalQuote: 'no prefix', approvalReceiptSha256: sha256Hex('no prefix') }]), false);
+    // A malformed entry has no effect on the gate.
+    assert.equal(hasRecordedFlowReleaseApproval(config, 'standard', [{ ...good, approvalQuote: 'no prefix', approvalReceiptSha256: sha256Hex('no prefix') }]), true);
   });
 
   await check('injected approvals do not change whether publication happens (readiness is covered by test-flow-release-print.ts)', async () => {

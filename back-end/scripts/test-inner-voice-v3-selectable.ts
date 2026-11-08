@@ -84,9 +84,10 @@ async function main() {
     assert.equal(listBundledBookConfigs().filter(c => c.bookId === BOOK && c.status === 'active').some(c => c.version === 3), true, 'v3 is bundled active');
   });
 
-  await check('bundled active v3 has no recorded flow-release approval (print stays blocked)', () => {
+  await check('bundled active v3 needs no sign-off file: admin stage approvals are the gates', () => {
     assert.deepEqual([...BUNDLED_APPROVALS], []);
-    for (const formatId of ['standard', 'amazon']) assert.equal(hasRecordedFlowReleaseApproval(v3, formatId), false);
+    const v3 = loadBundledBookConfig({ bookId: 'book-finding-our-inner-voice', version: 3 });
+    for (const formatId of ['standard', 'amazon']) assert.equal(hasRecordedFlowReleaseApproval(v3, formatId), true);
   });
 
   installFakePostgrest();

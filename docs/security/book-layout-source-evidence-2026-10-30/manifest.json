@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "81270bb38bc3277306630bc0ba1c986f61cc6d1263f45bf8a9ee2e4f739ea054",
+  "sourceSnapshotSha256": "3d6f6bb26fb3abb46580d4c5ce10a6cd36ca82d0627c20adbe6f1241022be1c5",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -746,7 +746,7 @@
     {
       "path": "back-end/src/lib/books/w3-manifest.ts",
       "kind": "source",
-      "sha256": "85b01e4c4fa7f626fb7d1b20406f064e4bc157e7ee33f8fb0ed5b4b53412de5e"
+      "sha256": "df09fc6bc08253a06f53fc4337f5f85fea36af42b9dde0c4992720cb0f2937a2"
     },
     {
       "path": "back-end/src/lib/books/w4-print-input.ts",
