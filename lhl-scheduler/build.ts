@@ -14,7 +14,7 @@ const config = JSON.parse(await readFile(join(root, 'vercel.json'), 'utf8'));
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await writeFile(join(output, 'config.json'), JSON.stringify({
-  version: 3, crons: config.crons,
+  version: 3, schedules: config.schedules,
   routes: [{ handle: 'filesystem' }, { src: '/.*', status: 404 }],
 }, null, 2));
 // Explicit closure: each function contains only its entrypoint, shared relay and metadata.
