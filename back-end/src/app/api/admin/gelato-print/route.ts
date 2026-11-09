@@ -7,7 +7,7 @@ import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { gelatoSubmissionStore } from '@/lib/books/gelato-submission-store';
 import { refreshGelatoSubmission, recoverGelatoSubmission, cancelGelatoSubmission } from '@/lib/books/gelato-lifecycle';
 import { GelatoSavedSnapshotSchema } from '@/lib/books/gelato-submission';
-import type { GelatoPrintInspection } from '@/lib/books/gelato-admin-inspection';
+import { canRetryFailedUnsentPrint, type GelatoPrintInspection } from '@/lib/books/gelato-admin-inspection';
 
 export const dynamic = 'force-dynamic';
 async function inspect(orderId: string) {
@@ -39,6 +39,7 @@ async function inspect(orderId: string) {
       context.providerOrders.every((entry) => !entry.action_reason && canCancelGelatoOrder(entry.order_type ?? '', [entry.status, ...(entry.progress_status ? [entry.progress_status] : [])])) &&
       context.members.every((entry) => !entry.action_reason && canCancelGelatoOrder('order', [entry.status ?? '', ...(entry.progress_status ? [entry.progress_status] : [])])),
     canRecover: ['claimed', 'submitting', 'outcome_unknown'].includes(context.submission.request_state) && Date.parse(context.submission.lease_expires_at) <= Date.now(),
+    canRetry: canRetryFailedUnsentPrint({ state: context.submission.request_state, providerOrderCount: context.providerOrders.length, itemProviderOrderIds: context.members.map((member) => member.provider_order_id) }),
     monetaryQuote, polling,
     orders: context.providerOrders.map((entry) => ({ id: entry.provider_order_id, status: entry.status, orderType: entry.order_type, actionReason: entry.action_reason, updatedAt: entry.last_event_at,
       lastCheckedAt: entry.last_checked_at ?? null, financial: entry.financial_observation ?? null,
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
   try { return NextResponse.json(await inspect(orderId)); }
   catch { return NextResponse.json({ error: 'Gelato print details unavailable' }, { status: 409 }); }
 }
-const Action = z.object({ orderId: z.string().trim().min(1), action: z.enum(['refresh', 'recover', 'cancel']) }).strict();
+const Action = z.object({ orderId: z.string().trim().min(1), action: z.enum(['refresh', 'recover', 'cancel', 'retry']) }).strict();
 export async function POST(request: NextRequest) {
   const auth = await requireAdminAuth(request);
   if (!auth.ok) return auth.response;
@@ -63,6 +64,13 @@ export async function POST(request: NextRequest) {
   try {
     const inspected = await inspect(parsed.data.orderId);
     if (!inspected.submissionId) throw new Error('Gelato action target missing');
+    if (parsed.data.action === 'retry') {
+      // Only a claim that failed before anything was sent can be retired; the database function re-checks this.
+      if (!inspected.canRetry) throw new Error('Gelato retry not allowed');
+      const retired = await gelatoSubmissionStore.transition('retire_failed_unsent_gelato_submission', { p_submission_id: inspected.submissionId });
+      console.warn('[Gelato retry] retired failed unsent submission', { orderId: parsed.data.orderId, retired });
+      return NextResponse.json({ success: true, retired: true, ...(retired && typeof retired === 'object' ? { details: retired } : {}) });
+    }
     const action = parsed.data.action === 'refresh' ? refreshGelatoSubmission : parsed.data.action === 'recover' ? recoverGelatoSubmission : cancelGelatoSubmission;
     // Operator status/recovery actions must not construct customer message intents.
     const result = await action(inspected.submissionId, { ...gelatoLifecycleRuntime(), loadOrder: undefined });
