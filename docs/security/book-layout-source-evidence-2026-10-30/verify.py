@@ -36,6 +36,7 @@ ADDED = {
     'back-end/scripts/test-book-layout-calibration-http.ts',
 }
 REBOUND = {
+    'back-end/src/lib/books/gelato-submission.ts',
     'back-end/scripts/test-w2a-pose-input.ts',
     'back-end/scripts/test-w1-frozen-manifest-handoff.ts',
     'back-end/scripts/test-w2-workflow-contracts.ts',
