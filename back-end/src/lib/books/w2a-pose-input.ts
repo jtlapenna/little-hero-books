@@ -395,6 +395,7 @@ function buildPosePromptBlock(input: {
   childName: string | null;
   favoriteAnimal: string | null;
   clothingTypeCanonical: string | null;
+  skinColorLock: string;
   poseNumber: number;
   pageLabel: string | null;
   pageType: string | null;
@@ -423,6 +424,7 @@ function buildPosePromptBlock(input: {
     'Show the full body, including hands and feet.',
     'Do not transfer props, textures, background details, or shoe designs from the pose reference.',
     EYEBROW_PROMPT_GUARDRAIL,
+    `SKIN-TONE LOCK: ${input.skinColorLock}`,
   );
 
   if (input.childName) {
@@ -460,6 +462,7 @@ function buildPosePromptBlock(input: {
     '- No extra limbs.',
     '- Exactly one face: two eyes, one nose and one mouth. Never a duplicated, overlapping or second face, and no extra eye marks.',
     '- Keep the hair the same size, volume and shape as BASE, close to the head. Never an oversized cloud or mass of hair.',
+    '- Skin tone must match BASE exactly on the face, ears, arms, hands and legs. The POSE reference is a body-shape guide only: ignore its skin color, hair style and bangs.',
     '- Keep the soft painted finish of BASE: soft shading and subtle paper-grain texture on the character. Do not flatten it into clean vector art.',
     '- No crop above the feet.',
     '- No colored or textured background.',
@@ -723,6 +726,9 @@ export async function buildW2APoseInput(
     childName,
     favoriteAnimal,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,
+    skinColorLock: previewResolved.skinToneHex
+      ? `Target skin tone is ${previewResolved.skinToneLabel ?? 'selected tone'} ${previewResolved.skinToneHex}. Match it exactly and do not lighten or darken it.`
+      : 'Keep skin tone identical to the selected child settings and do not lighten or darken it.',
     poseNumber,
     pageLabel,
     pageType,

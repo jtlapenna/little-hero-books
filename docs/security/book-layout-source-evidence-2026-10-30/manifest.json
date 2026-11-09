@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "3d6f6bb26fb3abb46580d4c5ce10a6cd36ca82d0627c20adbe6f1241022be1c5",
+  "sourceSnapshotSha256": "80b9859317139fbf18290fc22f53a816c1c34a5a0f8ad6d89ed444f382d4caa2",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -486,7 +486,7 @@
     {
       "path": "back-end/scripts/test-w2a-pose-input.ts",
       "kind": "source",
-      "sha256": "be76b88abab6340724a36d78287896d83c82d559649b9db1d24813b36b26bfe2"
+      "sha256": "3fb33f77478e243ccdf907df0bc07bfc8517db467d98af11d2c8393c9b5ba0e5"
     },
     {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
