@@ -25,12 +25,15 @@ for (const job of jobs) {
 }
 const config = JSON.parse(await readFile(join(root, '.vercel/output/config.json'), 'utf8'));
 const oldConfig = JSON.parse(await readFile(join(root, '../back-end/vercel.json'), 'utf8'));
-// Vercel Schedules replace the deprecated crons. Same three routes and the same GET method; the expression is a
-// manual-only placeholder (Feb 29) so nothing runs unless an operator uses Run Schedule or edits the expression.
+// Vercel Schedules replace the deprecated crons. They are declared only in vercel.json (declaring them in the build
+// output as well fails the deploy). Same three routes, GET; the expression is a manual-only placeholder (Feb 29).
 assert.equal(config.crons, undefined);
-assert.deepEqual(Object.keys(config.schedules).sort(), ['book-config-integrity', 'health-monitor', 'router']);
-assert.deepEqual((Object.values(config.schedules) as Array<{ path: string }>).map((s) => s.path).sort(), oldConfig.crons.map((c: { path: string }) => c.path).sort());
-for (const schedule of Object.values(config.schedules) as Array<{ schedule: string; requestMethod: string; function?: string; topic?: string }>) {
+assert.equal(config.schedules, undefined);
+const vercelConfig = JSON.parse(await readFile(join(root, 'vercel.json'), 'utf8'));
+assert.equal(vercelConfig.crons, undefined);
+assert.deepEqual(Object.keys(vercelConfig.schedules).sort(), ['book-config-integrity', 'health-monitor', 'router']);
+assert.deepEqual((Object.values(vercelConfig.schedules) as Array<{ path: string }>).map((s) => s.path).sort(), oldConfig.crons.map((c: { path: string }) => c.path).sort());
+for (const schedule of Object.values(vercelConfig.schedules) as Array<{ schedule: string; requestMethod: string; function?: string; topic?: string }>) {
   assert.equal(schedule.requestMethod, 'GET');
   assert.equal(schedule.schedule, '0 0 29 2 *');
   assert.equal(schedule.function, undefined); assert.equal(schedule.topic, undefined);

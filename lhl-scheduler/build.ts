@@ -14,7 +14,8 @@ const config = JSON.parse(await readFile(join(root, 'vercel.json'), 'utf8'));
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await writeFile(join(output, 'config.json'), JSON.stringify({
-  version: 3, schedules: config.schedules,
+  version: 3, // Schedules are declared only in vercel.json: declaring them in both places fails the deploy (SCHEDULE_NAME_CONFLICT).
+  
   routes: [{ handle: 'filesystem' }, { src: '/.*', status: 404 }],
 }, null, 2));
 // Explicit closure: each function contains only its entrypoint, shared relay and metadata.
