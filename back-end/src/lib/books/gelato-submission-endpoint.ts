@@ -12,7 +12,9 @@ export async function handleGelatoSubmission(body: unknown, action: 'quote' | 'd
   try {
     const result = action === 'quote' ? await quoteGelatoSubmission(identity.data, dependencies) : await submitGelatoDraft(identity.data, dependencies);
     return { status: 200, body: { success: true, ...result } };
-  } catch {
-    return { status: 409, body: { error: 'Gelato submission was not confirmed; inspect saved submission before retrying' } };
+  } catch (error) {
+    // Internal bearer-only endpoint: surface a short, bounded reason so operators can tell why a quote or draft was not confirmed.
+    const detail = error instanceof Error ? error.message.slice(0, 300) : undefined;
+    return { status: 409, body: { error: 'Gelato submission was not confirmed; inspect saved submission before retrying', ...(detail ? { details: detail } : {}) } };
   }
 }
