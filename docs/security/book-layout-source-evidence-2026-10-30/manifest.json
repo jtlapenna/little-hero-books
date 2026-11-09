@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "83e0db93808f252e83fa7c2fdf4834beb3598927afc750ec2985388d67680cb7",
+  "sourceSnapshotSha256": "6c2f8734717b8528393fab2918b9f8a226d75e85f30ef0d0c6eb5c8bc753d950",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -59,6 +59,7 @@
     "back-end/src/app/api/checkout/create/route.ts",
     "back-end/src/app/api/cron/amazon-orders/route.ts",
     "back-end/src/app/api/cron/router/route.ts",
+    "back-end/src/lib/books/gelato-submission.ts",
     "back-end/src/lib/books/types.ts",
     "back-end/src/lib/books/w3-manifest.ts",
     "back-end/src/lib/books/w4-print-input.ts",
@@ -696,7 +697,7 @@
     {
       "path": "back-end/src/lib/books/gelato-submission.ts",
       "kind": "source",
-      "sha256": "f48c1aee18198a27612337027d795fcc7a709a12bf98c9f22ce686fc50db4cc3"
+      "sha256": "b3c5ae169e2de0ac950c566a09b9c1ad8519bc4ecea76a3ab163879b9e4a0e9e"
     },
     {
       "path": "back-end/src/lib/books/gelato-test-safety.ts",
@@ -911,7 +912,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "60f424155dac599ccf410b74fd742c9c584642bdf2407a588d47940bbf7cccc1"
+      "sha256": "b8573273649396eb6daae3e8c5d8ed824387dc4a6d7f64a2e5cda5dd2748a81b"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
