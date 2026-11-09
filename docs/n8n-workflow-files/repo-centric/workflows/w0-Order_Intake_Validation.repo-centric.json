@@ -63,7 +63,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ (() => { /* LHL pinned backend */ const value = String(String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '') + '/api/internal/w0/publish-manifest'); if (!value.startsWith('https://admin.littleherolabs.com/api/') || /[\\\\\\s#@]/.test(value) || /%(?:2e|2f|5c|25|3f|23)/i.test(value.split('?')[0]) || value.split('?')[0].split('/').some(p => p === '.' || p === '..')) throw new Error('Invalid backend request destination'); return value; })() }}",
+        "url": "https://admin.littleherolabs.com/api/internal/w0/publish-manifest",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -97,8 +97,8 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "LHL backend API"
+          "id": "e7oKyY07EBCKuCjU",
+          "name": "LHL backend API containment 2026-10-16"
         }
       }
     },
@@ -143,7 +143,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json || {};\nconst orderData = input.body || input;\nconst backendBase = String($env.BACKEND_BASE_URL || 'https://admin.littleherolabs.com').replace(/\\/+$/, '');\nreturn [{ json: {\n  ...orderData,\n  supabase: { url: $env.SUPABASE_URL, serviceKey: $env.SUPABASE_SERVICE_ROLE_KEY },\n  r2: {\n    bucket: $env.R2_ORDERS_BUCKET || 'little-hero-orders',\n    signedUrlEndpoint: backendBase + '/api/r2/signed-url',\n    apiToken: $env.BACKEND_API_TOKEN,\n    expiresIn: 600,\n    keyPrefix: 'book-mvp-simple-adventure/orders',\n    useBackendSignedUpload: true,\n  },\n  s3: {\n    endpoint: $env.R2_ENDPOINT,\n    accessKeyId: $env.R2_ACCESS_KEY_ID || $env.CLOUDFLARE_R2_ACCESS_KEY_ID,\n    secretAccessKey: $env.R2_SECRET_ACCESS_KEY || $env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,\n    accountId: $env.R2_ACCOUNT_ID || $env.CLOUDFLARE_ACCOUNT_ID,\n  },\n} }];"
+        "jsCode": "const input = $input.first().json || {};\nreturn [{ json: input.body || input }];"
       },
       "id": "ce4915eb-c99d-472e-a1a3-704f63dcb881",
       "name": "CONFIG (PRODUCTION)",
@@ -231,7 +231,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function select(field, fallback) {\n  const values = [$json[field], $json.bookSpecs?.[field]].filter(value => value !== undefined);\n  if (values.some(value => value !== values[0])) throw new Error('Conflicting W0 selection: ' + field);\n  return values.length ? values[0] : fallback;\n}\nconst bookId = select('bookId', 'book-mvp-simple-adventure');\nconst explicitSelection = typeof bookId === 'string' && bookId.trim() === 'book-finding-our-inner-voice';\nconst configVersion = select('configVersion', explicitSelection ? undefined : 1);\nconst formatId = select('formatId', explicitSelection ? undefined : ($json.marketplaceId || $json.amazonOrderId ? 'amazon' : 'standard'));\nif (explicitSelection && configVersion === undefined) throw new Error('Missing W0 selection: configVersion');\nif (explicitSelection && formatId === undefined) throw new Error('Missing W0 selection: formatId');\nreturn [{ json: { requestBody: JSON.stringify({\n  payload: $json,\n  schemaVersion: 'v3',\n  configSource: 'published',\n  configVersion,\n  formatId,\n  bookId,\n}) } }];"
+        "jsCode": "function select(field, fallback) {\n  const values = [$json[field], $json.bookSpecs?.[field]].filter(value => value !== undefined);\n  if (values.some(value => value !== values[0])) throw new Error('Conflicting W0 selection: ' + field);\n  return values.length ? values[0] : fallback;\n}\nreturn [{ json: { requestBody: JSON.stringify({\n  payload: $json,\n  schemaVersion: 'v3',\n  configSource: 'published',\n  configVersion: select('configVersion', 1),\n  formatId: select('formatId', $json.marketplaceId || $json.amazonOrderId ? 'amazon' : 'standard'),\n  bookId: select('bookId', 'book-mvp-simple-adventure'),\n}) } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

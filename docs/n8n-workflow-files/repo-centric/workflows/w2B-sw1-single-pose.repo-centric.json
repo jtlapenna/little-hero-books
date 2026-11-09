@@ -70,10 +70,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "api_token",
-              "value": "REDACTED_BRIA_API_TOKEN"
-            },
-            {
               "name": "Content-Type",
               "value": "application/json"
             }
@@ -89,7 +85,9 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "f7397a37-14d4-466f-823d-b1af6f052c43",
       "name": "Bria Submit",
@@ -100,7 +98,13 @@
         -592
       ],
       "retryOnFail": true,
-      "waitBetweenTries": 3000
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bX1vYOPWN7j0eBqS",
+          "name": "LHL Bria containment 2026-10-19"
+        }
+      }
     },
     {
       "parameters": {
@@ -135,12 +139,7 @@
         "url": "={{ $json.briaStatusUrl }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            {
-              "name": "api_token",
-              "value": "REDACTED_BRIA_API_TOKEN"
-            }
-          ]
+          "parameters": []
         },
         "options": {
           "response": {
@@ -149,7 +148,9 @@
             }
           },
           "timeout": 90000
-        }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "46502794-5c68-42ea-9d81-4383bf173216",
       "name": "Bria Poll",
@@ -161,7 +162,13 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bX1vYOPWN7j0eBqS",
+          "name": "LHL Bria containment 2026-10-19"
+        }
+      }
     },
     {
       "parameters": {
