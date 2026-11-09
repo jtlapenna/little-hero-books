@@ -335,7 +335,9 @@ async function putObjectFromStream(
   const carryBytes = { value: 0 };
   const first = await readStreamPart(reader, carry, carryBytes, partBytes);
   if (first.done) {
-    const body = first.part ?? new Uint8Array(0);
+    // A stream that fits in one part keeps the original contract: a single PUT that still carries a stream body.
+    const bytes = first.part ?? new Uint8Array(0);
+    const body = new ReadableStream<Uint8Array>({ start(controller) { if (bytes.byteLength > 0) controller.enqueue(bytes); controller.close(); } });
     const response = await fetch(await signR2Request({ url: objectUrl, method: 'PUT', headers: contentType ? { 'Content-Type': contentType } : {}, body }));
     if (!response.ok) throw new Error(`R2 putObject failed: ${response.status} ${response.statusText} - ${await response.text()}`);
     return response;
