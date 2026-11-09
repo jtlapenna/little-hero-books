@@ -345,7 +345,7 @@ async function putObjectFromStream(
   const created = await fetch(await signR2Request({ url: `${objectUrl}?uploads`, method: 'POST', headers: contentType ? { 'Content-Type': contentType } : {} }));
   const createdText = await created.text();
   const uploadId = /<UploadId>([^<]+)<\/UploadId>/.exec(createdText)?.[1];
-  if (!created.ok || !uploadId) throw new Error(`R2 multipart create failed: ${created.status} ${created.statusText}`);
+  if (!created.ok || !uploadId) throw new Error(`R2 multipart create failed: ${created.status} ${created.statusText} - ${createdText.slice(0, 300)}`);
   const uploadUrl = `${objectUrl}?uploadId=${encodeURIComponent(uploadId)}`;
   const parts: Array<{ number: number; etag: string }> = [];
   try {
@@ -356,8 +356,8 @@ async function putObjectFromStream(
         url: `${objectUrl}?partNumber=${number}&uploadId=${encodeURIComponent(uploadId)}`, method: 'PUT', body: current,
       }));
       if (!partResponse.ok) {
-        await partResponse.text().catch(() => '');
-        throw new Error(`R2 multipart part ${number} failed: ${partResponse.status} ${partResponse.statusText}`);
+        const detail = await partResponse.text().catch(() => '');
+        throw new Error(`R2 multipart part ${number} failed: ${partResponse.status} ${partResponse.statusText} (${current.byteLength} bytes) - ${detail.slice(0, 300)}`);
       }
       await partResponse.arrayBuffer().catch(() => undefined);
       const etag = partResponse.headers.get('ETag');
@@ -373,7 +373,7 @@ async function putObjectFromStream(
     const xml = '<CompleteMultipartUpload>' + parts.map((part) => `<Part><PartNumber>${part.number}</PartNumber><ETag>${part.etag}</ETag></Part>`).join('') + '</CompleteMultipartUpload>';
     const completed = await fetch(await signR2Request({ url: uploadUrl, method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml }));
     const completedText = await completed.text();
-    if (!completed.ok || /<Error>/.test(completedText)) throw new Error(`R2 multipart complete failed: ${completed.status} ${completed.statusText}`);
+    if (!completed.ok || /<Error>/.test(completedText)) throw new Error(`R2 multipart complete failed: ${completed.status} ${completed.statusText} - ${completedText.slice(0, 300)}`);
     return completed;
   } catch (error) {
     try { await reader.cancel(); } catch { /* producer already finished */ }
