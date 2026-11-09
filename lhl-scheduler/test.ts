@@ -29,7 +29,7 @@ const oldConfig = JSON.parse(await readFile(join(root, '../back-end/vercel.json'
 // manual-only placeholder (Feb 29) so nothing runs unless an operator uses Run Schedule or edits the expression.
 assert.equal(config.crons, undefined);
 assert.deepEqual(Object.keys(config.schedules).sort(), ['book-config-integrity', 'health-monitor', 'router']);
-assert.deepEqual(Object.values(config.schedules).map((s: { path: string }) => s.path).sort(), oldConfig.crons.map((c: { path: string }) => c.path).sort());
+assert.deepEqual((Object.values(config.schedules) as Array<{ path: string }>).map((s) => s.path).sort(), oldConfig.crons.map((c: { path: string }) => c.path).sort());
 for (const schedule of Object.values(config.schedules) as Array<{ schedule: string; requestMethod: string; function?: string; topic?: string }>) {
   assert.equal(schedule.requestMethod, 'GET');
   assert.equal(schedule.schedule, '0 0 29 2 *');
