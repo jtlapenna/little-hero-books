@@ -75,8 +75,8 @@ async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSu
     }
     assertGelatoCustomerApproval(row);
     const quantity = z.number().int().positive().parse(row.quantity ?? object(row.product_info).quantity ?? 1);
-    const tier = string(row.shipping_tier).toLowerCase();
-    if (!tier) throw new Error('Gelato saved shipping tier is missing');
+    // Amazon CSV orders carry no saved tier; they ship USPS Ground Advantage ("standard"). D2C checkout saves its own tier.
+    const tier = string(row.shipping_tier).toLowerCase() || 'standard';
     inputs.push({ input, member, row, quantity, recipient: gelatoRecipientFromOrder(row, dependencies.merchantEmail), tier });
   }
   const first = inputs[0];
