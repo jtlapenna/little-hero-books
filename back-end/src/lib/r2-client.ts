@@ -138,7 +138,7 @@ async function normalizeBodyForSigning(
 
 async function signR2Request(input: {
   url: string;
-  method: 'GET' | 'HEAD' | 'PUT' | 'DELETE';
+  method: 'GET' | 'HEAD' | 'PUT' | 'DELETE' | 'POST';
   headers?: Record<string, string>;
   body?: BodyInit | null;
 }): Promise<Request> {
@@ -279,6 +279,109 @@ export async function headObject(bucket: string, key: string): Promise<Response>
   return response;
 }
 
+/** Part size for streamed uploads. R2 requires every part except the last to be at least 5 MiB. */
+export const R2_STREAM_PART_BYTES = 8 * 1024 * 1024;
+
+async function readStreamPart(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  carry: Uint8Array[],
+  carryBytes: { value: number },
+  partBytes: number,
+): Promise<{ part: Uint8Array | null; done: boolean }> {
+  let done = false;
+  while (carryBytes.value < partBytes && !done) {
+    const next = await reader.read();
+    if (next.done) { done = true; break; }
+    if (next.value && next.value.byteLength > 0) {
+      carry.push(next.value);
+      carryBytes.value += next.value.byteLength;
+    }
+  }
+  if (carryBytes.value === 0) return { part: null, done };
+  const take = Math.min(carryBytes.value, partBytes);
+  const part = new Uint8Array(take);
+  let offset = 0;
+  while (offset < take) {
+    const head = carry[0];
+    const room = take - offset;
+    if (head.byteLength <= room) {
+      part.set(head, offset);
+      offset += head.byteLength;
+      carry.shift();
+    } else {
+      part.set(head.subarray(0, room), offset);
+      carry[0] = head.subarray(room);
+      offset += room;
+    }
+  }
+  carryBytes.value -= take;
+  return { part, done: done && carryBytes.value === 0 };
+}
+
+/**
+ * Upload a stream of unknown length without holding it in memory. Streams that fit in one part use a plain
+ * PUT; larger streams use an S3 multipart upload with one buffered part at a time (a Worker has about 128 MB).
+ */
+async function putObjectFromStream(
+  bucket: string,
+  key: string,
+  stream: ReadableStream,
+  contentType: string | undefined,
+  partBytes: number = R2_STREAM_PART_BYTES,
+): Promise<Response> {
+  const objectUrl = `https://${bucket}.${ACCOUNT_ID}.r2.cloudflarestorage.com/${encodeS3Key(key)}`;
+  const reader = (stream as ReadableStream<Uint8Array>).getReader();
+  const carry: Uint8Array[] = [];
+  const carryBytes = { value: 0 };
+  const first = await readStreamPart(reader, carry, carryBytes, partBytes);
+  if (first.done) {
+    // A stream that fits in one part keeps the original contract: a single PUT that still carries a stream body.
+    const bytes = first.part ?? new Uint8Array(0);
+    const body = new ReadableStream<Uint8Array>({ start(controller) { if (bytes.byteLength > 0) controller.enqueue(bytes); controller.close(); } });
+    const response = await fetch(await signR2Request({ url: objectUrl, method: 'PUT', headers: contentType ? { 'Content-Type': contentType } : {}, body }));
+    if (!response.ok) throw new Error(`R2 putObject failed: ${response.status} ${response.statusText} - ${await response.text()}`);
+    return response;
+  }
+  const created = await fetch(await signR2Request({ url: `${objectUrl}?uploads`, method: 'POST', headers: contentType ? { 'Content-Type': contentType } : {} }));
+  const createdText = await created.text();
+  const uploadId = /<UploadId>([^<]+)<\/UploadId>/.exec(createdText)?.[1];
+  if (!created.ok || !uploadId) throw new Error(`R2 multipart create failed: ${created.status} ${created.statusText}`);
+  const uploadUrl = `${objectUrl}?uploadId=${encodeURIComponent(uploadId)}`;
+  const parts: Array<{ number: number; etag: string }> = [];
+  try {
+    let current = first.part;
+    let finished = false;
+    for (let number = 1; current; number += 1) {
+      const partResponse = await fetch(await signR2Request({
+        url: `${objectUrl}?partNumber=${number}&uploadId=${encodeURIComponent(uploadId)}`, method: 'PUT', body: current,
+      }));
+      if (!partResponse.ok) {
+        await partResponse.text().catch(() => '');
+        throw new Error(`R2 multipart part ${number} failed: ${partResponse.status} ${partResponse.statusText}`);
+      }
+      await partResponse.arrayBuffer().catch(() => undefined);
+      const etag = partResponse.headers.get('ETag');
+      if (!etag) throw new Error(`R2 multipart part ${number} returned no ETag`);
+      parts.push({ number, etag });
+      current = null;
+      if (!finished) {
+        const next = await readStreamPart(reader, carry, carryBytes, partBytes);
+        current = next.part;
+        finished = next.done;
+      }
+    }
+    const xml = '<CompleteMultipartUpload>' + parts.map((part) => `<Part><PartNumber>${part.number}</PartNumber><ETag>${part.etag}</ETag></Part>`).join('') + '</CompleteMultipartUpload>';
+    const completed = await fetch(await signR2Request({ url: uploadUrl, method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml }));
+    const completedText = await completed.text();
+    if (!completed.ok || /<Error>/.test(completedText)) throw new Error(`R2 multipart complete failed: ${completed.status} ${completed.statusText}`);
+    return completed;
+  } catch (error) {
+    try { await reader.cancel(); } catch { /* producer already finished */ }
+    try { (await fetch(await signR2Request({ url: uploadUrl, method: 'DELETE' }))).body?.cancel().catch(() => undefined); } catch { /* best-effort abort */ }
+    throw error;
+  }
+}
+
 export async function putObject(
   bucket: string,
   key: string,
@@ -288,6 +391,10 @@ export async function putObject(
 ): Promise<Response> {
   if (!ACCOUNT_ID) {
     throw new Error('R2 endpoint not configured: CLOUDFLARE_ACCOUNT_ID or R2_ACCOUNT_ID is missing');
+  }
+
+  if (!conditions && typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) {
+    return putObjectFromStream(bucket, key, body, contentType);
   }
 
   const encodedKey = encodeS3Key(key);
