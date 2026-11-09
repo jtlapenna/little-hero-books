@@ -56,6 +56,8 @@ async function main() {
     assert.deepEqual(calls.slice(1, 4).map((call) => call.bytes), [R2_STREAM_PART_BYTES, R2_STREAM_PART_BYTES, 123_456]);
     assert.equal(calls.slice(1, 4).reduce((sum, call) => sum + call.bytes, 0), total);
     assert.equal(calls[0].contentType, 'application/pdf');
+    // aws4fetch drops a Request body unless Content-Type is set; every part must carry one or R2 sees an empty body.
+    assert.ok(calls.slice(1, 4).every((call) => call.contentType === 'application/octet-stream'));
     assert.match(calls[4].body ?? '', /^<CompleteMultipartUpload>(<Part><PartNumber>\d<\/PartNumber><ETag>"etag-\d"<\/ETag><\/Part>){3}<\/CompleteMultipartUpload>$/);
     assert.ok((calls[4].body ?? '').indexOf('etag-1') < (calls[4].body ?? '').indexOf('etag-2') && (calls[4].body ?? '').indexOf('etag-2') < (calls[4].body ?? '').indexOf('etag-3'));
 

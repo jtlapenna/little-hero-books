@@ -354,6 +354,8 @@ async function putObjectFromStream(
     for (let number = 1; current; number += 1) {
       const partResponse = await fetch(await signR2Request({
         url: `${objectUrl}?partNumber=${number}&uploadId=${encodeURIComponent(uploadId)}`, method: 'PUT', body: current,
+        // aws4fetch only carries a Request body into the signed request when a Content-Type header is present; without it the part goes out empty and R2 rejects the hash.
+        headers: { 'Content-Type': 'application/octet-stream' },
       }));
       if (!partResponse.ok) {
         const detail = await partResponse.text().catch(() => '');
