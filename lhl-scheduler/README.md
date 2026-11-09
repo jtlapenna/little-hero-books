@@ -26,10 +26,27 @@ Source references checked 2026-10-21: [Vercel primitives](https://vercel.com/doc
 
 ## Production consequences and cutover gates
 
-The unchanged router and health schedules run every three hours; book integrity runs daily at12:00UTC. These existing handlers can trigger Amazon intake, reminder email, order lifecycle/alert writes and n8n dispatch. Six Gelato OFF controls do not make them read-only. Never use a valid live cron request as a smoke test.
+The original cron cadence was: router and health every three hours (`0 */3 * * *`), book integrity daily at 12:00 UTC (`0 12 * * *`). They are now Vercel Schedules (see below) with a manual-only placeholder expression. These existing handlers can trigger Amazon intake, reminder email, order lifecycle/alert writes and n8n dispatch. Six Gelato OFF controls do not make them read-only. Never use a valid live cron request as a smoke test.
 
 Before conversion: confirm exact LHL Vercel identity and settings; inventory old alias/webhook/manual/API consumers, scoped environment names, historical deployments and previews; identify only obsolete bindings for removal. Confirm no duplicate producer. Pause this project's schedules, reconcile in-flight execution and preserve safe metadata. Keep all old database authority revoked. Install only required relay secrets, package/deploy the reviewed source, and verify negative authorization and configuration provenance without invoking business jobs. Historical deployments need separate protection/retirement; environment edits do not erase their secrets. No automatic old-backend rollback.
 
 Activation requires a concrete reviewed approval for normal processing and an operator observing the first normal scheduled tick. A stateless relay does not serialize concurrent requests, stop future ticks after failure, guarantee delivery or provide exactly-once processing. On network/timeout ambiguity, the operator must pause this project's schedules and reconcile before any replay/resume; another scheduled tick can occur until paused. HTTP200 is not proof that every backend business subtask succeeded. Failure leaves schedules paused and old database authority revoked.
 
 No provider setting, credential, schedule, backend, frontend, database, workflow, customer row, paid job, Hello Sniff or NCWSC is changed by local preparation/tests.
+
+## Vercel Schedules (replaces deprecated Cron Jobs)
+
+Vercel deprecated Cron Jobs. This relay now declares three Schedules (`router`, `health-monitor`, `book-config-integrity`) with `path` targets and `requestMethod: GET`, so the handlers and the `CRON_SECRET` check are unchanged. Source: https://vercel.com/docs/schedules/migrate-from-cron-jobs and https://vercel.com/docs/schedules/configuration (Build Output API `schedules`).
+
+All three use the placeholder expression `0 0 29 2 *` (Feb 29), so nothing runs on its own. An operator runs one with **Schedules → select schedule → Run Schedule** (or `vercel schedules invoke router`) after approving an order in the admin panel. To turn on automatic runs later, edit the expressions in `vercel.json` (original cadences above), review, and deploy. Enable/disable and Run need no redeploy.
+
+Unverified until the first deployment: that the Build Output `schedules` object is accepted for path targets, and that Run Schedule sends the `Authorization: Bearer <CRON_SECRET>` header the relay requires. Check both on the first run; expect `upstream_accepted`.
+
+### Operator checklist (do in order; the first normal run must be watched)
+
+1. Handle the three old d2c orders stuck at print step 4 so a router run cannot touch them.
+2. In the Vercel project, confirm identity and that the old Cron Jobs tab is Disabled.
+3. Set two Production environment variables: `CRON_SECRET` (new random token) and `LHL_BACKEND_CRON_SECRET` (equal to the Cloudflare backend's `CRON_SECRET`). They must differ from each other. Never paste either into chat.
+4. Point the project at this folder (Root Directory `lhl-scheduler`, framework Other) and deploy to production.
+5. Confirm the Schedules page lists the three schedules and that none has a next run.
+6. Run `router` once while exactly one order is ready, watch the result and the order, then continue.

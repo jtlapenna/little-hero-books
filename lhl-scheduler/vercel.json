@@ -3,9 +3,21 @@
   "framework": null,
   "buildCommand": "npm run build",
   "installCommand": "echo No dependencies required",
-  "crons": [
-    { "path": "/api/cron/router", "schedule": "0 */3 * * *" },
-    { "path": "/api/cron/health-monitor", "schedule": "0 */3 * * *" },
-    { "path": "/api/cron/book-config-integrity", "schedule": "0 12 * * *" }
-  ]
+  "schedules": {
+    "router": {
+      "schedule": "0 0 29 2 *",
+      "path": "/api/cron/router",
+      "requestMethod": "GET"
+    },
+    "health-monitor": {
+      "schedule": "0 0 29 2 *",
+      "path": "/api/cron/health-monitor",
+      "requestMethod": "GET"
+    },
+    "book-config-integrity": {
+      "schedule": "0 0 29 2 *",
+      "path": "/api/cron/book-config-integrity",
+      "requestMethod": "GET"
+    }
+  }
 }
