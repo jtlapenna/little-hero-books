@@ -93,6 +93,7 @@ async function main(): Promise<void> {
       bookTwoBuilt.posePromptBlock.includes("Exactly one face") &&
       bookTwoBuilt.posePromptBlock.includes("Never an oversized cloud or mass of hair") &&
       bookTwoBuilt.posePromptBlock.includes("Skin tone must match BASE exactly") &&
+      bookTwoBuilt.posePromptBlock.includes("SKIN-TONE LOCK: ") &&
       bookTwoBuilt.posePromptBlock.includes("subtle paper-grain texture"),
     "Expected repo-owned prompt construction to emit the core BASE/POSE/HAIR/background/footwear contract",
   );

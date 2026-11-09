@@ -395,6 +395,7 @@ function buildPosePromptBlock(input: {
   childName: string | null;
   favoriteAnimal: string | null;
   clothingTypeCanonical: string | null;
+  skinColorLock: string;
   poseNumber: number;
   pageLabel: string | null;
   pageType: string | null;
@@ -423,6 +424,7 @@ function buildPosePromptBlock(input: {
     'Show the full body, including hands and feet.',
     'Do not transfer props, textures, background details, or shoe designs from the pose reference.',
     EYEBROW_PROMPT_GUARDRAIL,
+    `SKIN-TONE LOCK: ${input.skinColorLock}`,
   );
 
   if (input.childName) {
@@ -724,6 +726,9 @@ export async function buildW2APoseInput(
     childName,
     favoriteAnimal,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,
+    skinColorLock: previewResolved.skinToneHex
+      ? `Target skin tone is ${previewResolved.skinToneLabel ?? 'selected tone'} ${previewResolved.skinToneHex}. Match it exactly and do not lighten or darken it.`
+      : 'Keep skin tone identical to the selected child settings and do not lighten or darken it.',
     poseNumber,
     pageLabel,
     pageType,
