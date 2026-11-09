@@ -111,6 +111,7 @@ jobs:
           node --import tsx scripts/test-flow-release.ts
           node --import tsx scripts/test-flow-release-print.ts
           node --import tsx scripts/test-r2-streaming-put.ts
+          node --import tsx scripts/test-gelato-retry-guard.ts
           node --import tsx scripts/test-inner-voice-v3-selectable.ts
           node --import tsx scripts/test-message-safety-guard.ts
           node --import tsx scripts/test-message-safety-guard-persistence.ts

@@ -25,7 +25,7 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
     }).catch((failure) => { if (!controller.signal.aborted) setError(failure.message); });
     return () => controller.abort();
   }, [url]);
-  async function update(action: 'refresh' | 'recover' | 'reload' | 'cancel') {
+  async function update(action: 'refresh' | 'recover' | 'reload' | 'cancel' | 'retry') {
     setBusy(true); setError(''); setMessage(''); setCancelResults([]);
     let resultMessage = '';
     try {
@@ -36,6 +36,8 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
         if (action === 'cancel') {
           setCancelResults(result.providerOrders ?? []);
           resultMessage = result.canceled ? 'All connected print orders are confirmed canceled.' : 'Cancellation is incomplete or unconfirmed. Review each order below.';
+        } else if (action === 'retry') {
+          resultMessage = 'The failed print attempt was cleared. The order is queued for print again: the router will pick it up on its next run, or use Send to Print.';
         } else if (result.needsAttention) resultMessage = 'Gelato details updated. Review is still needed.';
       }
       const response = await fetch(url);
@@ -56,6 +58,7 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
         {details?.canRefresh && <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50" disabled={busy} onClick={() => update('refresh')}>{busy ? 'Updating…' : 'Refresh Gelato status'}</button>}
         {details?.canCancel && <button className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-50" disabled={busy} onClick={() => dialog.current?.showModal()}>Cancel print group</button>}
         {details?.canRecover && <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50" disabled={busy} onClick={() => update('recover')}>Check submission outcome</button>}
+        {details?.canRetry && <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50" disabled={busy} onClick={() => update('retry')}>Retry print</button>}
       </div>
     </div>
     <dialog ref={dialog} className="max-w-sm rounded-lg p-5 shadow-lg backdrop:bg-black/40" aria-labelledby="gelato-cancel-heading">
