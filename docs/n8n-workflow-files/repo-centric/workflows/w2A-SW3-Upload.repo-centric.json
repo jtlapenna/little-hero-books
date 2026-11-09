@@ -341,7 +341,7 @@
           "conditions": [
             {
               "id": "85942841-2113-4135-b126-d100eb431839",
-              "leftValue": "={{ [3, 11].includes(Number($json.poseNumber ?? $json.currentPoseNumber ?? $json.__meta?.poseNumber ?? -1)) }}",
+              "leftValue": "={{ [3, 11].includes(Number($json.poseNumber ?? $json.currentPoseNumber ?? $json.__meta?.poseNumber ?? -1)) && !String($json.poseRefKey ?? $json.__meta?.poseRefKey ?? $json.poseRefPublicUrl ?? '').includes('/v3/') }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
