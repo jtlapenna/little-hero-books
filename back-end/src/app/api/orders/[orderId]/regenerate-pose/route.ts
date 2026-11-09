@@ -387,7 +387,7 @@ export async function regeneratePoseResponse(
           'Do not sample any palette or materials from POSE.',
           'HARD CONSTRAINT ORDER (highest→lowest):',
           '1) SINGLE SUBJECT (one child; exactly ONE face with two eyes, one nose and one mouth; never a duplicated, overlapping or second face; exactly 2 arms/2 legs/2 shoes)',
-          '1b) SKIN TONE LOCK: every visible bit of skin (face, ears, hands, arms, legs) must exactly match the skin color of ' + (styleAnchorSource || 'NONE') + '; POSE is a body-shape guide only, so ignore its skin color, hair style and bangs',
+          '1b) SKIN TONE LOCK (most important appearance rule): every visible bit of skin (face, ears, hands, arms, legs) must exactly match the skin color of ' + (styleAnchorSource || 'NONE') + '; POSE shows a different child with a different skin color, so never copy its skin color, hair style, bangs or clothing colors; POSE is a body-shape guide only',
           '2) POSE LOCK (limbs/angles/contact)',
           '3) STYLE/IDENTITY LOCK (palette, line weight, facial schema, clothing, shoes, hair - from ' + (styleAnchorSource || 'NONE') + ')',
           '4) FRAMING & CONTACT (full body; pure white)',
@@ -444,7 +444,7 @@ export async function regeneratePoseResponse(
     }
 
     if (poseImg) {
-      parts.push({ text: 'POSE (pose lock). Use joints/contact only; ignore appearance.' });
+      parts.push({ text: 'POSE (pose lock). Use joints/contact only; ignore appearance. Its skin color, hair, bangs and clothing colors are WRONG for this child and must not appear in the output.' });
       parts.push({ 
         inlineData: { 
           mimeType: poseImg.mimeType, 

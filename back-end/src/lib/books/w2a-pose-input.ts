@@ -391,6 +391,38 @@ function buildCorrelationId(options: {
     .join('-');
 }
 
+function hexToRgbTriplet(hex: string): string | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
+// Measured median skin color of the fixed pose reference images, by book. The references are fully colored
+// characters, and the model drifts toward their skin unless told the exact color it must not copy.
+const POSE_REFERENCE_SKIN_RGB: Record<string, string> = {
+  'book-finding-our-inner-voice': '232,168,105',
+};
+
+function buildPoseSkinLock(
+  bookId: string,
+  skinToneHex: string | null,
+  skinToneLabel: string | null,
+): string {
+  const target = skinToneHex
+    ? `${skinToneLabel ?? 'the selected tone'} ${skinToneHex}${hexToRgbTriplet(skinToneHex) ? ` (RGB ${hexToRgbTriplet(skinToneHex)})` : ''}`
+    : 'the selected child settings';
+  const referenceRgb = POSE_REFERENCE_SKIN_RGB[bookId];
+  return [
+    `SKIN-TONE LOCK (most important rule): the skin in the final image must be the same color as BASE: ${target}.`,
+    referenceRgb
+      ? `The POSE image shows a different child with an orange-tan skin color (about RGB ${referenceRgb}), which is NOT the required skin color: do NOT copy it, and do not drift toward it.`
+      : 'The POSE image shows a different child with a different skin color: do NOT copy that skin color.',
+    'Do not lighten or darken the skin and do not shift it toward peach, orange or yellow; it must look visibly identical to BASE on the face, ears, hands, arms and legs.',
+    'Take hair (same style as BASE, no bangs unless BASE has them), clothing and shoes only from BASE. Use POSE for body position only.',
+  ].join(' ');
+}
+
 function buildPosePromptBlock(input: {
   childName: string | null;
   favoriteAnimal: string | null;
@@ -424,7 +456,7 @@ function buildPosePromptBlock(input: {
     'Show the full body, including hands and feet.',
     'Do not transfer props, textures, background details, or shoe designs from the pose reference.',
     EYEBROW_PROMPT_GUARDRAIL,
-    `SKIN-TONE LOCK: ${input.skinColorLock}`,
+    input.skinColorLock,
   );
 
   if (input.childName) {
@@ -462,7 +494,7 @@ function buildPosePromptBlock(input: {
     '- No extra limbs.',
     '- Exactly one face: two eyes, one nose and one mouth. Never a duplicated, overlapping or second face, and no extra eye marks.',
     '- Keep the hair the same size, volume and shape as BASE, close to the head. Never an oversized cloud or mass of hair.',
-    '- Skin tone must match BASE exactly on the face, ears, arms, hands and legs. The POSE reference is a body-shape guide only: ignore its skin color, hair style and bangs.',
+    '- Skin color, hair style and bangs come from BASE only. The POSE reference is a body-shape guide only.',
     '- Keep the soft painted finish of BASE: soft shading and subtle paper-grain texture on the character. Do not flatten it into clean vector art.',
     '- No crop above the feet.',
     '- No colored or textured background.',
@@ -726,9 +758,7 @@ export async function buildW2APoseInput(
     childName,
     favoriteAnimal,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,
-    skinColorLock: previewResolved.skinToneHex
-      ? `Target skin tone is ${previewResolved.skinToneLabel ?? 'selected tone'} ${previewResolved.skinToneHex}. Match it exactly and do not lighten or darken it.`
-      : 'Keep skin tone identical to the selected child settings and do not lighten or darken it.',
+    skinColorLock: buildPoseSkinLock(config.bookId, previewResolved.skinToneHex, previewResolved.skinToneLabel),
     poseNumber,
     pageLabel,
     pageType,
