@@ -13,6 +13,11 @@ OWN = 'docs/security/book-layout-source-evidence-2026-10-30'
 PARENT = 'docs/security/lhl-cron-source-evidence-2026-10-23'
 EFFECTS = ['canInstall', 'canExecute', 'liveAcceptanceRenewed', 'suiteExecutionRenewed']
 ADDED = {
+    'back-end/scripts/quote-inner-voice-print-test.ts',
+    'back-end/scripts/test-inner-voice-print-quote.ts',
+
+    'back-end/src/lib/books/gelato-file-digest.ts',
+    'back-end/scripts/test-gelato-large-artifact.ts',
     'back-end/src/lib/w3-calibration.ts',
     'back-end/src/lib/books/animal-placement.ts',
     'back-end/src/lib/books/configured-book-rendering.ts',
@@ -36,6 +41,9 @@ ADDED = {
     'back-end/scripts/test-book-layout-calibration-http.ts',
 }
 REBOUND = {
+    'back-end/src/lib/books/gelato-stored-file.ts',
+    'back-end/scripts/helpers/gelato-combined-local-journey.ts',
+    'back-end/scripts/test-gelato-local-journey.ts',
     'back-end/src/lib/books/gelato-submission.ts',
     'back-end/scripts/test-w2a-pose-input.ts',
     'back-end/scripts/test-w1-frozen-manifest-handoff.ts',
@@ -110,7 +118,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 168, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 172, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():

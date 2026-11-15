@@ -49,6 +49,10 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-quote-transport': 'back-end/scripts/quote-inner-voice-print-test.ts',
+    'changed-quote-boundary-test': 'back-end/scripts/test-inner-voice-print-quote.ts',
+    'changed-streaming-digest': 'back-end/src/lib/books/gelato-file-digest.ts',
+    'changed-large-artifact-test': 'back-end/scripts/test-gelato-large-artifact.ts',
     'changed-repair': 'back-end/scripts/helpers/gelato-setup-cleanup.ts',
     'changed-route': 'back-end/src/app/api/cron/amazon-orders/route.ts',
     'changed-new-regression': 'back-end/scripts/test-amazon-cron-auth-logging.ts',
@@ -75,7 +79,7 @@ original_cases = [
     'unsafe-path', 'changed-parent', 'changed-overlay', 'renewed-authority',
 ]
 added_cases = ['changed-v3-code', 'changed-v3-test', 'changed-v3-fixture', 'unauthorized-source-rebind',
-               'changed-placement-schema', 'changed-canonical-config']
+               'changed-placement-schema', 'changed-canonical-config', 'changed-streaming-digest', 'changed-large-artifact-test', 'changed-quote-transport', 'changed-quote-boundary-test']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

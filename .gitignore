@@ -186,3 +186,5 @@ docs/n8n-workflow-files/repo-centric/live-backups/**/*.json
 **/.dev.vars
 **/.dev.vars.*
 *.gitleaks-report.json
+# Local November 15 print-test artifacts; source preparer and receipts remain reviewable.
+/output/inner-voice-print-test-prep-20261115/

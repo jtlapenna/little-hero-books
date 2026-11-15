@@ -164,6 +164,7 @@
     "test:book-review-invalidation": "node --import tsx scripts/test-book-review-invalidation.ts",
     "test:gelato-release-application": "node --import tsx scripts/test-gelato-release-application.ts",
     "test:gelato-release-service": "node --import tsx scripts/test-gelato-release-service.ts",
+    "test:gelato-large-artifact": "node --import tsx scripts/test-gelato-large-artifact.ts",
     "test:w2a-pose-workflow-identity": "tsx scripts/test-w2a-pose-workflow-identity.ts",
     "test:exact-book-identity": "tsx scripts/test-exact-book-identity.ts",
     "test:inner-voice-final-art": "node --import tsx scripts/test-inner-voice-final-art.ts && node --import tsx scripts/test-immutable-asset-upload.ts && node --import tsx scripts/test-inner-voice-proof-export.ts",

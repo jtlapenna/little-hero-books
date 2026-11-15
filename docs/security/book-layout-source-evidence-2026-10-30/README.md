@@ -16,3 +16,11 @@ Run from the repository root after independent review:
 python3 docs/security/book-layout-source-evidence-2026-10-30/verify.py --source
 python3 docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py
 ```
+
+## November15 streaming print preparation rebind
+
+The previous manifest is preserved byte-for-byte in `history/manifest-before-print-test-streaming-2026-11-15.json`. Five existing source bindings changed after the reviewed streaming fix: the ordinary-release workflow, backend package script, combined-journey helper, local-journey test and stored-file verifier. The three newly rebound inherited paths are explicitly listed in the verifier; the other two were already in its reviewed rebind ledger. All other inherited hashes and the parent manifest are unchanged.
+
+The shared bounded file-digest module and its146MB Worker service/application regression are added explicitly, bringing current source coverage to172 paths. The corruption suite retains its prior27 cases and adds changes to each new bound source and both quote-boundary sources, for31 rejection cases plus the separate valid-snapshot check. The new test proves synthetic Worker memory/binding behavior; it does not establish live transfer throughput or authorize printing. All four execution/installation/acceptance flags remainfalse. Historical receipts, phase evidence and parent proofs are not renewed.
+
+Final review also binds the quote-only CLI and its regression. The helper forces manual redirect handling; the real quote client rejects all tested3xx responses, and different hosts/operations/methods fail before transport. No provider order operation was added.

@@ -1,0 +1,471 @@
+{
+  "schema": "lhb.inner-voice-v4-publication@v1",
+  "at": "2026-11-15T18:29:30.510123+00:00",
+  "bookId": "book-finding-our-inner-voice",
+  "version": 4,
+  "active": true,
+  "runtimeChecksum": "d242ae8ef7c22bf5846e84de03d6a7224f14d2bd37b3ed0ef5a2fec9f25eeb8f",
+  "releaseConfigSha256": "3761c354403b06ca4717da3af5a5ffc42cad9d4f78f8565180106dda27f4b075",
+  "sourceHead": "90584f5db07c198cf3bab4f6e8e0381b1d135946",
+  "approvedShadowRevision": 39,
+  "originalsRetained": true,
+  "runtimeShadowLayers": 0,
+  "newBackgroundFiles": 68,
+  "verifiedConfiguredAssets": 111,
+  "publicationMethod": "canonical immutable publisher and atomic activation RPC",
+  "previousVersion": {
+    "version": 3,
+    "retained": true,
+    "isActive": false,
+    "checksum": "8429257be1e2b634dcc33c2a7bbc871d90ca43a4be54bdff4cdb40ba1b2af89e"
+  },
+  "bindings": [
+    {
+      "role": "page-01",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-01.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-02",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-02.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-03",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766/page-03.png",
+      "sha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766",
+      "sourceSha256": "cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766"
+    },
+    {
+      "role": "page-04",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-04.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-05",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/74fc9b7e1bd1640f076eb3dce8ba2ad5b7cbb9a3d51e46cdbd046e2e24abd6fe/page-05.png",
+      "sha256": "74fc9b7e1bd1640f076eb3dce8ba2ad5b7cbb9a3d51e46cdbd046e2e24abd6fe",
+      "sourceSha256": "bd5f5ec127d222ef0ca573d5d9e121d42a8076172a3159dca5b9e4146fced012"
+    },
+    {
+      "role": "page-06",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/e6f9807444ba536d890ab38089ed0ca1b7b7f80662c592409cbd60e8c05fc245/page-06.png",
+      "sha256": "e6f9807444ba536d890ab38089ed0ca1b7b7f80662c592409cbd60e8c05fc245",
+      "sourceSha256": "8d3ae41b58b9f49e617681c9800eeb67386766913e2d6a981c1d0a52b30fa7fd"
+    },
+    {
+      "role": "page-07",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/029b8805532886ba507deb0e97af77933b70085a1465354689dc290020f3339f/page-07.png",
+      "sha256": "029b8805532886ba507deb0e97af77933b70085a1465354689dc290020f3339f",
+      "sourceSha256": "75d7eeac70e4ef1d8a693c31fe4d8f83bdc3dab6bc6bbdc5d50c694d6681aefd"
+    },
+    {
+      "role": "page-08",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28/page-08.png",
+      "sha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28",
+      "sourceSha256": "bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28"
+    },
+    {
+      "role": "page-09",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75/page-09.png",
+      "sha256": "b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75",
+      "sourceSha256": "dbe099c73cb4ff838c0d747ce750c5f542bab872176285ac5985451e7bf3d074"
+    },
+    {
+      "role": "page-10",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac/page-10.png",
+      "sha256": "8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac",
+      "sourceSha256": "8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac"
+    },
+    {
+      "role": "page-11",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be19d40cc5d9b9a64f34a92066ae91167579c9607caf8af40e452041ffea3fd5/page-11.png",
+      "sha256": "be19d40cc5d9b9a64f34a92066ae91167579c9607caf8af40e452041ffea3fd5",
+      "sourceSha256": "31323c7bbb4538999eb58ee664c7e0c0748e97c4db636603dd109177891e0e5e"
+    },
+    {
+      "role": "page-12",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c/page-12.png",
+      "sha256": "042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c",
+      "sourceSha256": "042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c"
+    },
+    {
+      "role": "page-13",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6/page-13.png",
+      "sha256": "d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6",
+      "sourceSha256": "18d60dc42a7ae4fcd5cb2e65ca2a139f756ba542b3982bc1de65cbebb8c0a447"
+    },
+    {
+      "role": "page-14",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/38e6780dfe7312b3be691552766242efc8d04e5cc1a81abca52dfca2bde0fb86/page-14.png",
+      "sha256": "38e6780dfe7312b3be691552766242efc8d04e5cc1a81abca52dfca2bde0fb86",
+      "sourceSha256": "bea60ec8f89a375328d34720d9c1f5a588f2ed9086f406d037774d2f7bb8394f"
+    },
+    {
+      "role": "page-15",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/4a3f8e375d5e3e0456f7e408859ca4b6c2217c5ca04e36b1f15a9f031405a734/page-15.png",
+      "sha256": "4a3f8e375d5e3e0456f7e408859ca4b6c2217c5ca04e36b1f15a9f031405a734",
+      "sourceSha256": "21b04510aceb05c95657494c8e9208aec250cb5098dc214bc843b1f0e778fc37"
+    },
+    {
+      "role": "page-16",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8/page-16.png",
+      "sha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8",
+      "sourceSha256": "9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8"
+    },
+    {
+      "role": "page-17",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/1e7a007b202e55383065d83b596ff8988661c49fa0b0c9f5e44a89ce08beeba4/page-17.png",
+      "sha256": "1e7a007b202e55383065d83b596ff8988661c49fa0b0c9f5e44a89ce08beeba4",
+      "sourceSha256": "3d9255b3af498c0118de8e1af4362a6a0b2f3318f5388aa6e8817aec46710b65"
+    },
+    {
+      "role": "page-18",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53/page-18.png",
+      "sha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53",
+      "sourceSha256": "df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53"
+    },
+    {
+      "role": "page-19",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/7f44c35f42034119cc1803e5872e3848dd4a12293cac773ee88edb4a68a62d39/page-19.png",
+      "sha256": "7f44c35f42034119cc1803e5872e3848dd4a12293cac773ee88edb4a68a62d39",
+      "sourceSha256": "147962a33d8f3f1bb0355b984a2ac01498098f4e3bab5ff4f4265078e5955755"
+    },
+    {
+      "role": "page-20",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807/page-20.png",
+      "sha256": "eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807",
+      "sourceSha256": "eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807"
+    },
+    {
+      "role": "page-21",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d/page-21.png",
+      "sha256": "416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d",
+      "sourceSha256": "416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d"
+    },
+    {
+      "role": "page-22",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72/page-22.png",
+      "sha256": "d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72",
+      "sourceSha256": "d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72"
+    },
+    {
+      "role": "page-23",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/b143bc0f0630d1953f8987a47167b5a2aa973fec5b896dab72956335d18cad09/page-23.png",
+      "sha256": "b143bc0f0630d1953f8987a47167b5a2aa973fec5b896dab72956335d18cad09",
+      "sourceSha256": "492b3e64a44dc05ee9dbd9c92aaf6f30dd66e81ea6e83d1b730c48a57733d62e"
+    },
+    {
+      "role": "page-24",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18/page-24.png",
+      "sha256": "8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18",
+      "sourceSha256": "8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18"
+    },
+    {
+      "role": "page-25",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356/page-25.png",
+      "sha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356",
+      "sourceSha256": "cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356"
+    },
+    {
+      "role": "page-26",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/76f493e7f75f0b0d7efd11636932d99108160e4a5a15629beb360ecc46eccaf0/page-26.png",
+      "sha256": "76f493e7f75f0b0d7efd11636932d99108160e4a5a15629beb360ecc46eccaf0",
+      "sourceSha256": "76f493e7f75f0b0d7efd11636932d99108160e4a5a15629beb360ecc46eccaf0"
+    },
+    {
+      "role": "page-27",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a/page-27.png",
+      "sha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a",
+      "sourceSha256": "ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a"
+    },
+    {
+      "role": "page-28",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/40733b58f94affb165c5115eb09793b19617f4ea2e796dee06510f095f1865c9/page-28.png",
+      "sha256": "40733b58f94affb165c5115eb09793b19617f4ea2e796dee06510f095f1865c9",
+      "sourceSha256": "2b738ba65218dffdb23f751b2c1b1ca4baef03f0050633e4d132d5f95c651dc1"
+    },
+    {
+      "role": "page-29",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-29.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-30",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7/page-30.png",
+      "sha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7",
+      "sourceSha256": "a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7"
+    },
+    {
+      "role": "page-31",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-31.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-32",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae/page-32.png",
+      "sha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae",
+      "sourceSha256": "be49e45bf447834ae88620ebbad39116d4996b9e0909e7133e7c1e90783c2cae"
+    },
+    {
+      "role": "page-09-cat",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75/page-09-cat.png",
+      "sha256": "b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75",
+      "sourceSha256": "dbe099c73cb4ff838c0d747ce750c5f542bab872176285ac5985451e7bf3d074"
+    },
+    {
+      "role": "page-09-dog",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d822abfe6584e2d227a4a6b18b695ef81b7ce1d143cf717684b50e06ca74c887/page-09-dog.png",
+      "sha256": "d822abfe6584e2d227a4a6b18b695ef81b7ce1d143cf717684b50e06ca74c887",
+      "sourceSha256": "dc037cbc10d45e98fc3ee24ea4dfced1a81ae209d2ac2cb91437c5daa7df79ae"
+    },
+    {
+      "role": "page-09-owl",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/2ed10fd7c61af6488587caf31c6355527047efb250228ddb13093602b57e59cf/page-09-owl.png",
+      "sha256": "2ed10fd7c61af6488587caf31c6355527047efb250228ddb13093602b57e59cf",
+      "sourceSha256": "ef74a21fc3832d22a489262fed92e1d8ad28973b5d667ebca331e9d207a1ea3c"
+    },
+    {
+      "role": "page-09-lion",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/b237de2537ad3d8cdf903c644dcaf34afac39d5f0d2c8ed5ea3371aab1311438/page-09-lion.png",
+      "sha256": "b237de2537ad3d8cdf903c644dcaf34afac39d5f0d2c8ed5ea3371aab1311438",
+      "sourceSha256": "a9f7ca973602641e474a648f53e89fa924da44e465fb26e5237342c4ff35e876"
+    },
+    {
+      "role": "page-09-tiger",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d8d53e59ceddf5760f3cad5eb3f72374170db91d1432ca4397887d0e92e12ba5/page-09-tiger.png",
+      "sha256": "d8d53e59ceddf5760f3cad5eb3f72374170db91d1432ca4397887d0e92e12ba5",
+      "sourceSha256": "0e645b355e802d82a8b6a9f617d931530f6e60bfafd88559b45afd8c5522fa81"
+    },
+    {
+      "role": "page-09-penguin",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/56dbd094c0def048c9c72a9348f0252b5c911d2805e22bee532a7045ec301efc/page-09-penguin.png",
+      "sha256": "56dbd094c0def048c9c72a9348f0252b5c911d2805e22bee532a7045ec301efc",
+      "sourceSha256": "98f7c40a96bc0a82be46bcc14e423de22841dfbb61a4aae36ecaa8d68edb49cd"
+    },
+    {
+      "role": "page-09-unicorn",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/9267000d6453128226243bc30cbf87985e96334c556fccd415e792a471edb9bf/page-09-unicorn.png",
+      "sha256": "9267000d6453128226243bc30cbf87985e96334c556fccd415e792a471edb9bf",
+      "sourceSha256": "5fa036f51350bf0529393d9758282b8d80a0e019efc2566defd4dfab9d1f8638"
+    },
+    {
+      "role": "page-09-t-rex",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/a5b4cbcd70d7988dc8388e1eec594fc0be5eb955ea1adffdb1538d2ee145bd1d/page-09-t-rex.png",
+      "sha256": "a5b4cbcd70d7988dc8388e1eec594fc0be5eb955ea1adffdb1538d2ee145bd1d",
+      "sourceSha256": "5732ec965a7ffccbd0ba81a3d6096201e19505f4c66ea37f12473de06c136253"
+    },
+    {
+      "role": "page-10-cat",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac/page-10-cat.png",
+      "sha256": "8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac",
+      "sourceSha256": "8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac"
+    },
+    {
+      "role": "page-10-dog",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d824d84f2198ec9698e6a5abdf1abd337ef91bc4378bc81bf745ab1f53f5757b/page-10-dog.png",
+      "sha256": "d824d84f2198ec9698e6a5abdf1abd337ef91bc4378bc81bf745ab1f53f5757b",
+      "sourceSha256": "d824d84f2198ec9698e6a5abdf1abd337ef91bc4378bc81bf745ab1f53f5757b"
+    },
+    {
+      "role": "page-10-owl",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9/page-10-owl.png",
+      "sha256": "58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9",
+      "sourceSha256": "58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9"
+    },
+    {
+      "role": "page-10-lion",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/c140bb4de73551b8e825677c3dea48c38b83202b92d678346a7e313824d2e740/page-10-lion.png",
+      "sha256": "c140bb4de73551b8e825677c3dea48c38b83202b92d678346a7e313824d2e740",
+      "sourceSha256": "c140bb4de73551b8e825677c3dea48c38b83202b92d678346a7e313824d2e740"
+    },
+    {
+      "role": "page-10-tiger",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/b134f343d832cfd6c233308e7266ea5c41724e0520ce1d5083f37e0d62b5968c/page-10-tiger.png",
+      "sha256": "b134f343d832cfd6c233308e7266ea5c41724e0520ce1d5083f37e0d62b5968c",
+      "sourceSha256": "b134f343d832cfd6c233308e7266ea5c41724e0520ce1d5083f37e0d62b5968c"
+    },
+    {
+      "role": "page-10-penguin",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/bc8979394a9617e44e73d971563c08de3a165b586f4f3a7d82f1833fe1ad21a5/page-10-penguin.png",
+      "sha256": "bc8979394a9617e44e73d971563c08de3a165b586f4f3a7d82f1833fe1ad21a5",
+      "sourceSha256": "bc8979394a9617e44e73d971563c08de3a165b586f4f3a7d82f1833fe1ad21a5"
+    },
+    {
+      "role": "page-10-unicorn",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/29000680e12b99a532ef8698a7115dc064b1f776a4e89f5d7583d54777674a19/page-10-unicorn.png",
+      "sha256": "29000680e12b99a532ef8698a7115dc064b1f776a4e89f5d7583d54777674a19",
+      "sourceSha256": "29000680e12b99a532ef8698a7115dc064b1f776a4e89f5d7583d54777674a19"
+    },
+    {
+      "role": "page-10-t-rex",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8860aedcd622031a6b85a275c46f107cb4a84644c01c76f7e98f52589e6dc92b/page-10-t-rex.png",
+      "sha256": "8860aedcd622031a6b85a275c46f107cb4a84644c01c76f7e98f52589e6dc92b",
+      "sourceSha256": "8860aedcd622031a6b85a275c46f107cb4a84644c01c76f7e98f52589e6dc92b"
+    },
+    {
+      "role": "page-12-cat",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c/page-12-cat.png",
+      "sha256": "042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c",
+      "sourceSha256": "042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c"
+    },
+    {
+      "role": "page-12-dog",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-dog.png",
+      "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311",
+      "sourceSha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+    },
+    {
+      "role": "page-12-owl",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/66b8cd029d33c5a91bea8af521cf72f9be9422667d88de33e290156c427c7934/page-12-owl.png",
+      "sha256": "66b8cd029d33c5a91bea8af521cf72f9be9422667d88de33e290156c427c7934",
+      "sourceSha256": "66b8cd029d33c5a91bea8af521cf72f9be9422667d88de33e290156c427c7934"
+    },
+    {
+      "role": "page-12-lion",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-lion.png",
+      "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311",
+      "sourceSha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+    },
+    {
+      "role": "page-12-tiger",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-tiger.png",
+      "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311",
+      "sourceSha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+    },
+    {
+      "role": "page-12-penguin",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/952432a430bbc6a67d202b9b4f83537aeb6c8115c9f4192374284141afa40425/page-12-penguin.png",
+      "sha256": "952432a430bbc6a67d202b9b4f83537aeb6c8115c9f4192374284141afa40425",
+      "sourceSha256": "952432a430bbc6a67d202b9b4f83537aeb6c8115c9f4192374284141afa40425"
+    },
+    {
+      "role": "page-12-unicorn",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d9cc928eabe71983624586a8500a7fb6bd3ebb580831e48038f7b8112e00a10c/page-12-unicorn.png",
+      "sha256": "d9cc928eabe71983624586a8500a7fb6bd3ebb580831e48038f7b8112e00a10c",
+      "sourceSha256": "d9cc928eabe71983624586a8500a7fb6bd3ebb580831e48038f7b8112e00a10c"
+    },
+    {
+      "role": "page-12-t-rex",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d2b8b8e886aabd309d3ac336bc669331030404f83389f7448bf8969440037fef/page-12-t-rex.png",
+      "sha256": "d2b8b8e886aabd309d3ac336bc669331030404f83389f7448bf8969440037fef",
+      "sourceSha256": "d2b8b8e886aabd309d3ac336bc669331030404f83389f7448bf8969440037fef"
+    },
+    {
+      "role": "page-13-cat",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6/page-13-cat.png",
+      "sha256": "d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6",
+      "sourceSha256": "18d60dc42a7ae4fcd5cb2e65ca2a139f756ba542b3982bc1de65cbebb8c0a447"
+    },
+    {
+      "role": "page-13-dog",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-dog.png",
+      "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e",
+      "sourceSha256": "e524d482cd64528af1189547b48bc8beae301e7b27da72bc48c051febae9cb3d"
+    },
+    {
+      "role": "page-13-owl",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/55ddd79de210b22ec8dd2fbf71a5041860da547ec81d708149e3a896a7d9a471/page-13-owl.png",
+      "sha256": "55ddd79de210b22ec8dd2fbf71a5041860da547ec81d708149e3a896a7d9a471",
+      "sourceSha256": "5b469942eb67a9bb9208c6d7cd3e08959e1bb438cf4c6b88bdcfcdade3420d5c"
+    },
+    {
+      "role": "page-13-lion",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-lion.png",
+      "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e",
+      "sourceSha256": "e524d482cd64528af1189547b48bc8beae301e7b27da72bc48c051febae9cb3d"
+    },
+    {
+      "role": "page-13-tiger",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-tiger.png",
+      "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e",
+      "sourceSha256": "e524d482cd64528af1189547b48bc8beae301e7b27da72bc48c051febae9cb3d"
+    },
+    {
+      "role": "page-13-penguin",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8bbcd91dae06f1a261c6fecb315c234dd86e61c44e4cba3ef6d39a3b511bf43a/page-13-penguin.png",
+      "sha256": "8bbcd91dae06f1a261c6fecb315c234dd86e61c44e4cba3ef6d39a3b511bf43a",
+      "sourceSha256": "94e42559a46ec65e2e9e975cf841a361094554246dd48ba6214f4dc6de8a19d2"
+    },
+    {
+      "role": "page-13-unicorn",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/58dab889e865e5b77f301503139c98eb0768c0adf29dfc22e99c1ec4439f7ea4/page-13-unicorn.png",
+      "sha256": "58dab889e865e5b77f301503139c98eb0768c0adf29dfc22e99c1ec4439f7ea4",
+      "sourceSha256": "8159154789e883563a5cf7e45330f085be0e76c69927b5bdeb33d00932965b50"
+    },
+    {
+      "role": "page-13-t-rex",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/4563077cf4ce04e292c16f1489c10ffae953b2829c2a0392def03ec0afdf5d2f/page-13-t-rex.png",
+      "sha256": "4563077cf4ce04e292c16f1489c10ffae953b2829c2a0392def03ec0afdf5d2f",
+      "sourceSha256": "aa6cc304a88a75aef047ef78596c43fbf358d13ae848c8c72ec3d9bab8ce94ee"
+    },
+    {
+      "role": "page-24-cat",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18/page-24-cat.png",
+      "sha256": "8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18",
+      "sourceSha256": "8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18"
+    },
+    {
+      "role": "page-24-dog",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/e22a2d7b3e083db574fd82023041444dfef669ea7f8006864aacad0f0b54f1b2/page-24-dog.png",
+      "sha256": "e22a2d7b3e083db574fd82023041444dfef669ea7f8006864aacad0f0b54f1b2",
+      "sourceSha256": "e22a2d7b3e083db574fd82023041444dfef669ea7f8006864aacad0f0b54f1b2"
+    },
+    {
+      "role": "page-24-owl",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/3bc1e4286b116b17cdb6c6e0fd4d37dd460e5d022ed3df8045968e92454f6ca5/page-24-owl.png",
+      "sha256": "3bc1e4286b116b17cdb6c6e0fd4d37dd460e5d022ed3df8045968e92454f6ca5",
+      "sourceSha256": "3bc1e4286b116b17cdb6c6e0fd4d37dd460e5d022ed3df8045968e92454f6ca5"
+    },
+    {
+      "role": "page-24-lion",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d62138d4438544f95066805d6a852abbbf9e35d6ffb2154dddaf927f5d218de2/page-24-lion.png",
+      "sha256": "d62138d4438544f95066805d6a852abbbf9e35d6ffb2154dddaf927f5d218de2",
+      "sourceSha256": "d62138d4438544f95066805d6a852abbbf9e35d6ffb2154dddaf927f5d218de2"
+    },
+    {
+      "role": "page-24-tiger",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/ea3157d9958a0bc0f561a743f22e0a72ed4b4adc5c106362203461e1c6295035/page-24-tiger.png",
+      "sha256": "ea3157d9958a0bc0f561a743f22e0a72ed4b4adc5c106362203461e1c6295035",
+      "sourceSha256": "ea3157d9958a0bc0f561a743f22e0a72ed4b4adc5c106362203461e1c6295035"
+    },
+    {
+      "role": "page-24-penguin",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/65667c7ae0455116483e3ee20969ee78649f27a6c1b65928f2190e870b34cba1/page-24-penguin.png",
+      "sha256": "65667c7ae0455116483e3ee20969ee78649f27a6c1b65928f2190e870b34cba1",
+      "sourceSha256": "65667c7ae0455116483e3ee20969ee78649f27a6c1b65928f2190e870b34cba1"
+    },
+    {
+      "role": "page-24-unicorn",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/d367f95e4b7c1897453111fbf45010345bda3d7fb233dc604aac226cd41887d3/page-24-unicorn.png",
+      "sha256": "d367f95e4b7c1897453111fbf45010345bda3d7fb233dc604aac226cd41887d3",
+      "sourceSha256": "d367f95e4b7c1897453111fbf45010345bda3d7fb233dc604aac226cd41887d3"
+    },
+    {
+      "role": "page-24-t-rex",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/a92c21a0072b0a2f04304f4430892077686fe2babfdc54ac44843e426a05b408/page-24-t-rex.png",
+      "sha256": "a92c21a0072b0a2f04304f4430892077686fe2babfdc54ac44843e426a05b408",
+      "sourceSha256": "a92c21a0072b0a2f04304f4430892077686fe2babfdc54ac44843e426a05b408"
+    },
+    {
+      "role": "cover-wrap",
+      "key": "book-finding-our-inner-voice/v4/backgrounds/49216613198ae313484ab88b977cbcacd92309441a22472faff96698fe66b47b/cover-wrap.png",
+      "sha256": "49216613198ae313484ab88b977cbcacd92309441a22472faff96698fe66b47b",
+      "sourceSha256": "9779e7779adf5bcf99d908c78965ec46f20551d41eee42fc48f9dd50c208988a"
+    }
+  ],
+  "liveTest": {
+    "orderId": "TEST-PRINT-20261115-A",
+    "w0Frozen": true,
+    "formatId": "amazon",
+    "messageSuppressed": true,
+    "hostedAdminVerified": false,
+    "printSubmitted": false
+  },
+  "scope": "artwork/config activation only; no application code deployment or paid release"
+}

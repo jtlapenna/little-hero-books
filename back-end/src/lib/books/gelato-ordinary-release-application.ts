@@ -51,7 +51,7 @@ async function candidate(action:z.infer<typeof Review>, d: OrdinaryReleaseDepend
     if (!row || !member.artifact_key || !member.provider_item_id) throw Error('release_application_identity_missing');
     return { childOrderId: member.child_order_id, itemReferenceId: member.item_reference_id, providerItemId: member.provider_item_id,
       bookId: row.print_book_id, formatId: row.print_format_id, configVersion: row.print_config_version,
-      key: member.artifact_key, sha256: createHash('sha256').update(await within(signal, () => d.artifact(member.artifact_key!))).digest('hex') };
+      key: member.artifact_key, sha256: await within(signal, () => d.artifactSha256(member.artifact_key!,signal)) };
   }));
   return AnyOrdinaryReleasePermitSchema.parse({ id: randomUUID(), submissionId, providerOrderId: context.submission.accepted_root_order_id,
     accountSha256: createHash('sha256').update(d.apiKey).digest('hex'), packetSha256: '0'.repeat(64),

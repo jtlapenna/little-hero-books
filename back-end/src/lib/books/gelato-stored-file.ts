@@ -1,5 +1,5 @@
 import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
-import { createHash } from 'node:crypto';
+import {digestGelatoFile,MAX_GELATO_FILE_BYTES} from './gelato-file-digest';
 import type { GelatoMember } from './gelato-submission-store';
 
 export type GelatoStoredFileVerifier = (member: GelatoMember, providerUrl: string, expectedUrl: string) => Promise<boolean>;
@@ -13,46 +13,18 @@ export function createGelatoStoredFileVerifier(dependencies: {
   maxFileBytes?: number;
   maxOperationBytes?: number;
 }): GelatoStoredFileVerifier {
-  const maxFileBytes = Math.min(256_000_000, dependencies.maxFileBytes ?? 256_000_000);
+  const maxFileBytes = Math.min(MAX_GELATO_FILE_BYTES, dependencies.maxFileBytes ?? MAX_GELATO_FILE_BYTES);
   const maxOperationBytes = Math.min(512_000_000, dependencies.maxOperationBytes ?? 512_000_000);
   let operationSignal: AbortSignal | undefined;
   let totalBytes = 0;
   const digests = new Map<string, Promise<string>>();
 
   async function digest(response: Response, signal: AbortSignal) {
-    // Workers supports manual redirects; every 3xx must fail without following Location.
-    if (!response.ok || !response.body) {
-      if (response.body) void response.body.cancel().catch(() => undefined);
-      throw new Error('Gelato file verification could not load bytes');
-    }
-    const size = Number(response.headers.get('content-length'));
-    if (size > maxFileBytes || size > maxOperationBytes - totalBytes) {
-      void response.body.cancel().catch(() => undefined);
-      throw new Error('Gelato file verification exceeds byte budget');
-    }
-    const hash = createHash('sha256');
-    const reader = response.body.getReader();
-    let bytes = 0;
-    try {
-      for (;;) {
-        signal.throwIfAborted();
-        const chunk = await new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
-          const abort = () => reject(new Error('Gelato file verification aborted'));
-          signal.addEventListener('abort', abort, { once: true });
-          reader.read().then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-        });
-        if (chunk.done) break;
-        bytes += chunk.value.byteLength;
-        totalBytes += chunk.value.byteLength;
-        if (bytes > maxFileBytes || totalBytes > maxOperationBytes) throw new Error('Gelato file verification exceeds byte budget');
-        hash.update(chunk.value);
-      }
-      if (!bytes) throw new Error('Gelato file verification received an empty file');
-      return hash.digest('hex');
-    } finally {
-      void reader.cancel().catch(() => undefined);
-      reader.releaseLock();
-    }
+    // Same per-operation transfer cap, with no accumulated PDF buffers.
+    return digestGelatoFile(response,{signal,maxFileBytes:Math.min(maxFileBytes,maxOperationBytes-totalBytes),onBytes:bytes=>{
+      totalBytes+=bytes;
+      if(totalBytes>maxOperationBytes)throw Error('Gelato file verification exceeds byte budget');
+    }});
   }
 
   return async (member, providerUrl, expectedUrl) => {

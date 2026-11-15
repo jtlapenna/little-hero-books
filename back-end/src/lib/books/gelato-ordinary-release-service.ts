@@ -8,7 +8,7 @@ import { composeOrdinaryReleaseRuntime } from './gelato-ordinary-release-runtime
 import type { OrdinaryReleaseDependencies } from './gelato-ordinary-release-core';
 import { createGelatoSubmissionStore } from './gelato-submission-store';
 import { createGelatoStoredFileVerifier, GELATO_STORED_FILE_HOST } from './gelato-stored-file';
-import { readGelatoArtifactBytes } from './gelato-artifact-bytes';
+import {loadGelatoFileDigest} from './gelato-file-digest';
 import {ESTIMATE_TEST_PRINT_POLICY,observeGelatoReleaseEstimate} from './gelato-release-estimate';
 
 export interface OrdinaryReleaseServiceSources {
@@ -65,7 +65,7 @@ export function composeOrdinaryReleaseServiceRuntime(sources: OrdinaryReleaseSer
       if(error)throw Error('Exact ordinary order lookup failed');
       return data as Record<string,unknown>|null;
     },
-    artifact:key=>readGelatoArtifactBytes(signal=>sources.loadArtifact(key,signal)),
+    artifactSha256:(key,signal)=>loadGelatoFileDigest(inner=>sources.loadArtifact(key,inner),signal),
     createStoredFileVerifier:signal=>createGelatoStoredFileVerifier({signal,fetcher:transport,
       loadArtifact:(key,fileSignal)=>sources.loadArtifact(key,fileSignal)}),
     pricingPolicy:sources.pricingPolicy,
