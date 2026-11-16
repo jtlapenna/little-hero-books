@@ -1,3 +1,5 @@
+import { generateKeyPair, exportJWK, SignJWT } from 'jose';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
 import { deflateRawSync } from 'node:zlib';
@@ -11,6 +13,13 @@ import { resolve, join } from 'node:path';
 import { Miniflare, convertV4MiniflareOptions, Response as WorkerResponse } from 'miniflare';
 
 async function main() {
+  const accessIssuer='https://compiled-worker.cloudflareaccess.com', accessAudience='a'.repeat(64);
+  const accessKeys=await generateKeyPair('RS256'), jwk=await exportJWK(accessKeys.publicKey);
+  Object.assign(jwk,{kid:'synthetic-compiled-kid',alg:'RS256',use:'sig'});
+  const accessJwt=await new SignJWT({email:'jeff@littleherolabs.com',type:'app'}).setProtectedHeader({alg:'RS256',kid:jwk.kid})
+    .setIssuer(accessIssuer).setAudience(accessAudience).setSubject('synthetic-operator').setIssuedAt().setExpirationTime('15m').sign(accessKeys.privateKey);
+  const testAccount=createHash('sha256').update('synthetic-compiled-gelato-key').digest('hex'),testExpiry=new Date(Date.now()+3600000).toISOString();
+  let scopeRegistrations=0;
   const settings = await readFile('wrangler.toml', 'utf8');
   const date = settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1];
   const flags = [...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(match => match[1]);
@@ -42,12 +51,25 @@ async function main() {
         ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com',
         N8N_W0_WEBHOOK_URL: 'https://compiled-worker-w0.example.test/hook',
         STRIPE_SECRET_KEY: 'sk_test_synthetic_compiled_body', STRIPE_WEBHOOK_SECRET: 'whsec_synthetic_compiled_body',
+        CF_ACCESS_ISSUER:accessIssuer,CF_ACCESS_AUDIENCE:accessAudience,ADMIN_ALLOWED_EMAILS:'jeff@littleherolabs.com,john@littleherolabs.com',
+        GELATO_API_KEY:'synthetic-compiled-gelato-key',
+        GELATO_WORKFLOW_TEST_SUBMISSION_ENABLED:'true',GELATO_WORKFLOW_TEST_SUBMISSION_ORDER_ID:'TEST-COMPILED-OPERATOR',
+        GELATO_WORKFLOW_TEST_SUBMISSION_ACCOUNT_SHA256:testAccount,GELATO_WORKFLOW_TEST_SUBMISSION_EXPIRES_AT:testExpiry,
+        GELATO_ORDINARY_RELEASE_ENABLED:'true',GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:testAccount,GELATO_ORDINARY_RELEASE_APPROVERS:'jeff@littleherolabs.com',
+        GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:'TEST-COMPILED-OPERATOR',GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:testExpiry,
         GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
         GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false',
       },
       serviceBindings: { ASSETS: async () => new WorkerResponse('Missing synthetic asset', { status: 404 }) },
       outboundService: async request => {
         const url = new URL(request.url);
+        if(url.href===accessIssuer+'/cdn-cgi/access/certs' && request.method==='GET') return WorkerResponse.json({keys:[jwk]});
+        if(url.origin==='https://compiled-worker-db.example.test' && url.pathname==='/rest/v1/rpc/register_admin_workflow_test_release_scope' && request.method==='POST') {
+          scopeRegistrations++;
+          assert.deepEqual(await request.json(),{p_order_id:'TEST-COMPILED-OPERATOR',p_actor:'jeff@littleherolabs.com',p_account_sha256:testAccount,p_expires_at:testExpiry});
+          return WorkerResponse.json(false);
+        }
+
         if (allowSyntheticIdempotency && url.origin === 'https://compiled-worker-db.example.test' && url.pathname === '/rest/v1/idempotency_keys' && ['GET', 'POST'].includes(request.method)) {
           syntheticIdempotency++;
           return new WorkerResponse(request.method === 'GET' ? 'null' : null, { status: request.method === 'GET' ? 200 : 201, headers: { 'content-type': 'application/json' } });
@@ -220,6 +242,11 @@ async function main() {
         assert.equal(bom.status, 401); assert.equal(syntheticIdempotency, before);
       }
       assert.equal(syntheticIdempotency, 4, 'only the two verified synthetic events may reach intercepted idempotency transport');
+      const scopedRelease=await compiledFetch(origin+'/api/admin/gelato-release',{method:'POST',headers:{'content-type':'application/json',origin,'cf-access-jwt-assertion':accessJwt},
+        body:JSON.stringify({action:'review',submissionId:'11111111-1111-4111-8111-111111111111',pricingPolicy:'disclosed_estimate_test_print_v1',maximumQuotedSubtotalCents:'2000'})});
+      assert.equal(scopedRelease.status,409,await scopedRelease.clone().text());
+      assert.deepEqual(await scopedRelease.json(),{state:'blocked',canSubmit:false,blockers:['exact_approved_test_draft_required'],providerMutationAttempted:false});
+      assert.equal(scopeRegistrations,1,'actual compiled runtime consumes exact order/account/actor/expiry bindings and fails closed on absent consumed approval');
       assert.equal(outbound, 0, 'compiled validation and rejected auth must not contact providers');
     } finally { await worker.dispose(); }
     // Verify the native Worker output ceiling independently of ZIP metadata.

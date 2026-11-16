@@ -1,0 +1,55 @@
+{
+  "schema": "lhb.inner-voice-operator-preparation@v1",
+  "observedAt": "2026-11-16T00:41:01.953430+00:00",
+  "environment": "production",
+  "schemaInstall": {
+    "transport": "authenticated Supabase SQL Editor; exact copied SQL verified before Run",
+    "prerequisitesVerified": true,
+    "files": [
+      {
+        "path": "database/20261115230112_admin_workflow_test_print_hold.sql",
+        "sha256": "307b76f085221bb1a093c0cc069781d692dce98ea2f8df44e2a34442a9b110fc"
+      },
+      {
+        "path": "database/20261115232824_admin_workflow_test_release_scope.sql",
+        "sha256": "3d1b5fb7b4c34c8fa6d6f8924ca7f9cdfda6f8303b402e48e30ed7e9bea537f0"
+      }
+    ],
+    "success": true,
+    "readback": {
+      "scopeRows": 0,
+      "broadPaidGate": false,
+      "scopeRls": true,
+      "anonScopeExecute": false,
+      "serviceScopeExecute": true,
+      "freshOrderRows": 0,
+      "priorOrderUpdatedAtUnchanged": true,
+      "priorOrderUnsubmitted": true,
+      "priorArtVersion4Preserved": true
+    }
+  },
+  "acceptance": {
+    "hostedNewAppDeployed": false,
+    "userCsvImported": false,
+    "providerOrderCreated": false,
+    "paidRelease": false,
+    "customerMessages": false,
+    "physicalPrint": false
+  },
+  "localChecks": {
+    "pagesBuild": "passed",
+    "compiledWorker": "passed, signed Access and exact scoped RPC arguments; simulated database rejection",
+    "operatorPersistentJourney": "passed, intercepted provider plus native PostgreSQL handoff",
+    "sourceBindings": 233,
+    "sourceCorruptionRejections": 38,
+    "secretFindings": 0,
+    "sourceTypeScriptErrors": 343,
+    "typecheck": "existing repository baseline remains failing; no new-file diagnostics",
+    "newRuntimeSourceLint": "0errors,2effect-ref cleanup warnings; shared existing files have pre-existing lint failures"
+  },
+  "limitations": [
+    "No independent PDF/X certification",
+    "Native SQL and synthetic transport are not hosted user acceptance",
+    "Linux native upload-descriptor check runs in hosted CI, unavailable on Darwin"
+  ]
+}

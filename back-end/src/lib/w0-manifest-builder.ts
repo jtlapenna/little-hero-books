@@ -1,3 +1,4 @@
+import { stripAdminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { assertCsvItemBookTuple, csvHasItemBookSelections, validateCsvItemBookContext } from '@/lib/csv-book-selection';
@@ -884,7 +885,7 @@ export function buildW0OrderUpsertPayload({
       toStringValue(shippingAddress.name) ??
       null,
     shipping_address: shippingAddress,
-    product_info: orderDetails,
+    product_info: stripAdminWorkflowTestAdmission(orderDetails),
     purchase_date:
       toStringValue(manifestOrder.purchaseDate) ??
       toStringValue(normalizedInput.orderDate) ??

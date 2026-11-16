@@ -11,7 +11,7 @@ import {
   type GelatoQuoteResponse,
 } from '../src/lib/books/gelato-api-contract';
 import { claimGelatoPrintRouting } from '../src/lib/books/claim-gelato-print-routing';
-import { createGelatoDraft, GelatoDraftOutcomeUnknownError, requestGelatoQuote } from '../src/lib/books/gelato-api-client';
+import { createGelatoDraft, GelatoDraftOutcomeUnknownError, requestGelatoQuote, searchGelatoOrders, cancelGelatoOrder } from '../src/lib/books/gelato-api-client';
 import type { FrozenPrintRouting } from '../src/lib/books/print-routing';
 
 const format = configFile.formats.standard;
@@ -73,6 +73,26 @@ for (const changed of [
     selectedQuote: selected, now: new Date('2026-10-11T12:01:00Z'), ...changed }), /differ from the validated quote request/);
 }
 async function testGelatoApiClient() {
+  // Redirects must never replay an authenticated operation outside this endpoint.
+  for (const status of [301, 302, 303, 307, 308]) {
+    for (const operation of ['quote', 'create', 'search', 'cancel'] as const) {
+      let sends = 0;
+      const fetcher: typeof fetch = async (input, init) => {
+        sends++;
+        const sent = new Request(input, init);
+        assert.equal(sent.redirect, 'manual');
+        assert.equal(sent.method, 'POST');
+        assert.equal(new URL(sent.url).origin, 'https://order.gelatoapis.com');
+        assert.equal(sent.headers.get('X-API-KEY'), 'synthetic-redirect-key');
+        return new Response(null, { status, headers: { location: 'https://denied.invalid/replayed' } });
+      };
+      const deps = { apiKey: 'synthetic-redirect-key', fetcher };
+      await assert.rejects(() => operation === 'quote' ? requestGelatoQuote(request, deps) :
+        operation === 'create' ? createGelatoDraft(draft, deps) :
+        operation === 'search' ? searchGelatoOrders('synthetic-reference', deps) : cancelGelatoOrder('synthetic-id', deps));
+      assert.equal(sends, 1);
+    }
+  }
   const calls: Array<{ url: string; apiKey: string | null; body: Record<string, unknown> }> = [];
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);

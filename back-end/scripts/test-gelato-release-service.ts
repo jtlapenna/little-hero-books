@@ -1,3 +1,4 @@
+import { createAdminWorkflowTestAdmission } from '../src/lib/admin-workflow-test';
 /** Actual service composition/SDK/store/application/core; every transport is intercepted.
  * No environment file, credential, hosted database, provider, purchase or print. */
 import assert from 'node:assert/strict';
@@ -27,14 +28,17 @@ async function main(){
   const {ordinaryEstimateServerRuntime}=await import('../src/lib/books/gelato-ordinary-release-server');
   const identity={ok:true as const,mode:'access' as const,actor:'local-owner@example.test'};
   const post=(body:unknown)=>new Request('https://admin.example.test/api/admin/gelato-release',{method:'POST',body:JSON.stringify(body),headers:{'content-type':'application/json'}});
-  async function setup(mode:'verified'|'estimate'='verified',quantity=1,children=1){
-   const f=await createOrdinaryReleaseFixture(children===1?'standard':'amazon',children,undefined,0,quantity);f.setRefreshQuoteMetadata(true);
+  async function setup(mode:'verified'|'estimate'='verified',quantity=1,children=1,scoped=false){
+   const f=await createOrdinaryReleaseFixture(scoped?'amazon':children===1?'standard':'amazon',children,undefined,0,quantity);f.setRefreshQuoteMetadata(true);
+   if(scoped)for(const row of f.f.rows.values())row.product_info={_overnight_test:true,_created_via_csv:true,_admin_workflow_test:{...createAdminWorkflowTestAdmission(identity.actor,2),preparePrintRequestedAt:new Date().toISOString()}};
    let enabled=true,activation=true,gateReads=0;
    const saved=new Map<string,{permit:unknown;packet:unknown;approval_actor:string}>(),reads:string[]=[],artifactKeys:string[]=[];
    const dbFetch:typeof fetch=async(input,init)=>{
     const request=new Request(input,init),u=new URL(request.url);assert.equal(u.origin,'https://local-release.invalid');
     if(u.pathname.startsWith('/rest/v1/rpc/')){
      assert.equal(request.method,'POST');const p=await request.json(),name=u.pathname.split('/').at(-1);
+     if(name==='register_admin_workflow_test_release_scope'){assert(scoped);assert.equal(p.p_order_id,f.f.context.members[0].child_order_key);assert.equal(p.p_actor,identity.actor);assert.equal(p.p_account_sha256,f.permit.accountSha256);return Response.json(enabled);}
+     if(name==='gelato_admin_test_release_scope_active'){assert(scoped);assert.equal(p.p_order_id,f.f.context.members[0].child_order_key);assert.equal(p.p_account_sha256,f.permit.accountSha256);gateReads++;return Response.json(enabled);}
      if(name==='register_gelato_ordinary_release'){
       assert.equal(saved.size,0);assert.equal(ordinaryReleaseDigest(p.p_packet),p.p_permit.packetSha256);
       assert.equal(p.p_actor,identity.actor);assert.match(p.p_evidence_sha256,/^[a-f0-9]{64}$/);
@@ -67,8 +71,9 @@ async function main(){
    const sources={database,apiKey:f.d.apiKey,expectedAccountSha256:createHash('sha256').update(f.d.apiKey).digest('hex'),
     approvers:new Set([identity.actor]),...(mode==='estimate'?{pricingPolicy:ESTIMATE_TEST_PRINT_POLICY}:{payableEvidence:f.d.payableEvidence}),activationApproved:async()=>activation,
     loadArtifact:async(key:string,signal:AbortSignal)=>{signal.throwIfAborted();artifactKeys.push(key);assert(f.f.blobs.has(key));return new Response(Uint8Array.from(f.f.blobs.get(key)!));},fetcher:f.d.fetcher,now:f.d.now};
-   const runtime=mode==='estimate'?await ordinaryEstimateServerRuntime({readEnvironment:async()=>({GELATO_ORDINARY_RELEASE_ENABLED:activation?'true':'false',
-    GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:sources.expectedAccountSha256,GELATO_ORDINARY_RELEASE_APPROVERS:identity.actor,GELATO_API_KEY:sources.apiKey}),
+   const scopeExpiresAt=new Date(f.d.now!().getTime()+3600000).toISOString();
+   const runtime=mode==='estimate'?await ordinaryEstimateServerRuntime({requireTestScope:scoped,actor:identity.actor,readEnvironment:async()=>({GELATO_ORDINARY_RELEASE_ENABLED:activation?'true':'false',
+    ...(scoped?{GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:f.f.context.members[0].child_order_key,GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:scopeExpiresAt}:{}),GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:sources.expectedAccountSha256,GELATO_ORDINARY_RELEASE_APPROVERS:identity.actor,GELATO_API_KEY:sources.apiKey}),
     loadServices:async()=>sources,now:f.d.now}):composeOrdinaryReleaseServiceRuntime(sources);
    assert.equal(runtime.kind,'ready');if(runtime.kind!=='ready')throw Error('Missing composition');
    const handler=createOrdinaryReleaseHttpHandler({authenticate:async()=>identity,runtime:async()=>runtime});
@@ -145,6 +150,28 @@ async function main(){
    const handler=createOrdinaryReleaseHttpHandler({authenticate:async()=>identity,runtime:ordinaryReleaseApplicationRuntime});
    const response=await handler(post({action:'review',submissionId:'11111111-1111-4111-8111-111111111111',maximumTotalCents:'2000'}));
    assert.equal(response.status,409);assert.equal((await response.json()).providerMutationAttempted,false);
+  });
+  await check('production scoped server composition reviews and releases one exact admitted test and rechecks scope revocation',async()=>{
+   const s=await setup('estimate',1,1,true),r=await s.review();assert.equal(r.packet.version,3);assert.equal((await s.approve(r)).status,200);
+   s.setEnabled(false);assert.equal((await s.execute(r)).state,'disabled');assert.equal(s.f.stats().patches,0);
+   s.setEnabled(true);assert.equal((await s.execute(r)).state,'converted');assert.equal(s.f.stats().patches,1);assert(s.gateReads()>0);
+  });
+  await check('production scoped server refuses missing or unbounded target configuration before service loading',async()=>{
+   const s=await setup('estimate');let loads=0;const base={GELATO_ORDINARY_RELEASE_ENABLED:'true',GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:s.sources.expectedAccountSha256,GELATO_ORDINARY_RELEASE_APPROVERS:identity.actor,GELATO_API_KEY:s.sources.apiKey};
+   for(const extra of [{},{GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:'bad/path',GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:new Date(Date.now()+3600000).toISOString()}])await assert.rejects(()=>ordinaryEstimateServerRuntime({requireTestScope:true,actor:identity.actor,readEnvironment:async()=>({...base,...extra}),loadServices:async()=>{loads++;return s.sources;}}));
+   for(const expiry of [new Date(Date.now()-1000).toISOString(),new Date(Date.now()+25*3600000).toISOString()])assert.equal((await ordinaryEstimateServerRuntime({requireTestScope:true,actor:identity.actor,readEnvironment:async()=>({...base,GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:'TEST-EXACT',GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:expiry}),loadServices:async()=>{loads++;return s.sources;}})).kind,'blocked');
+   const wrongActor=await ordinaryEstimateServerRuntime({requireTestScope:true,actor:'foreign@example.test',readEnvironment:async()=>base,loadServices:async()=>{loads++;return s.sources;}});
+   assert.equal(wrongActor.kind,'blocked');assert.equal(loads,0);
+  });
+  await check('production scoped server preserves a disabled existing scope result before provider or approval access',async()=>{
+   const s=await setup('estimate');let calls=0;
+   const database=createClient('https://scope-disabled.invalid','synthetic-only',{global:{fetch:async(input,init)=>{const r=new Request(input,init);assert.equal(new URL(r.url).pathname,'/rest/v1/rpc/register_admin_workflow_test_release_scope');calls++;return Response.json(false);}}});
+   const runtime=await ordinaryEstimateServerRuntime({requireTestScope:true,actor:identity.actor,now:s.sources.now,readEnvironment:async()=>({GELATO_ORDINARY_RELEASE_ENABLED:'true',GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:s.sources.expectedAccountSha256,GELATO_ORDINARY_RELEASE_APPROVERS:identity.actor,GELATO_API_KEY:s.sources.apiKey,GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:'TEST-EXACT',GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:new Date(s.sources.now!().getTime()+3600000).toISOString()}),loadServices:async()=>({...s.sources,database})});
+   assert.equal(runtime.kind,'blocked');assert.equal(calls,1);assert.equal(s.f.stats().patches,0);assert.equal(s.saved.size,0);
+  });
+  await check('production scoped server rejects another member and lost admission before provider mutation',async()=>{
+   for(const changed of ['member','admission']){const s=await setup('estimate',1,1,true);if(changed==='member')s.f.f.context.members[0].child_order_key='OTHER-ORDER';else s.f.f.rows.values().next().value!.product_info={};
+    const response=await s.handler(post({action:'review',submissionId:s.f.permit.submissionId,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,maximumQuotedSubtotalCents:'2000'}));assert.equal(response.status,409);assert.equal(s.f.stats().patches,0);}
   });
   await check('real partial-quote adapter permits explicitly acknowledged estimate, unknown final cost stays null',async()=>{
    const s=await setup('estimate'),r=await s.review();assert.equal(r.packet.version,3);

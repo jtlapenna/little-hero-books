@@ -1,3 +1,4 @@
+import { loadGelatoFileDigest } from './gelato-file-digest';
 import { createHash } from 'node:crypto';
 import { createGelatoStoredFileVerifier } from './gelato-stored-file';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
@@ -22,6 +23,8 @@ export function gelatoSubmissionRuntime(sources: RuntimeSources = {}): GelatoSub
   const loadManifest = sources.loadManifest ?? downloadManifest;
   return {
     store: gelatoSubmissionStore, backendUrl,
+    accountSha256: process.env.GELATO_API_KEY ? createHash('sha256').update(process.env.GELATO_API_KEY).digest('hex') : undefined,
+    artifactSha256: async key => loadGelatoFileDigest(signal => getObject(R2_ORDERS_BUCKET, key, { signal, redirect: 'manual', allowErrorResponse: true }), AbortSignal.timeout(30000)),
     verifyStoredFile: createGelatoStoredFileVerifier({ loadArtifact: (key, signal) => getObject(R2_ORDERS_BUCKET, key, { signal, redirect: 'manual', allowErrorResponse: true }) }),
     loadOrder,
     loadPrintInput: async (orderId) => {

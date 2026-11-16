@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import { requireAdminAuth } from '@/lib/admin-auth';
+import { hasAdminWorkflowTestMarker, adminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
@@ -443,6 +446,18 @@ async function sendToPrint(
       throw createNotFoundError(`Order ${orderId} not found`);
     }
 
+    if (hasAdminWorkflowTestMarker(currentOrder)) {
+      const auth = await requireAdminAuth(request);
+      if (!auth.ok) return auth.response;
+      const admission = adminWorkflowTestAdmission(currentOrder);
+      if (auth.mode !== 'access' || !admission || admission.createdBy !== auth.actor) return NextResponse.json({ error: 'Signed-in workflow-test owner required' }, { status: 403 });
+      assertExactOrderLookup(orderId, currentOrder, true);
+      await validateOrderReadinessForPrint(currentOrder, orderId);
+      const { data, error } = await supabase.rpc('request_admin_workflow_test_print_preparation', { p_order_id: currentOrder.id, p_actor: auth.actor });
+      if (error) return NextResponse.json({ error: 'Approve the book and customer preview before preparing the print file. Reload the order.' }, { status: 409 });
+      const queued = z.object({ orderId: z.literal(orderId), next_workflow: z.literal('4'), execution_status: z.literal('ready_for_processing'), queuedOrderIds: z.tuple([z.literal(orderId)]) }).parse(data);
+      return NextResponse.json({ success: true, preparationOnly: true, message: 'Print file and quote queued. Provider submission remains held for your review.', ...queued });
+    }
     const isReprint = String(currentOrder.lifecycle_status || '').toLowerCase() === 'recently_delivered';
     try { assertExactOrderLookup(orderId, currentOrder, !isReprint); }
     catch { throw createValidationError('Order lookup did not match the requested book or group'); }

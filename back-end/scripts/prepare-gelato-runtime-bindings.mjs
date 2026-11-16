@@ -1,3 +1,4 @@
+import { WORKFLOW_TEST_BINDING_DEFAULTS, workflowTestBindingValues, applyWorkflowTestBindings } from './prepare-workflow-test-bindings.mjs';
 import { ACCESS_RUNTIME_CONFIG, assertAccessBindingSourceFormat, applyAccessRuntimeBindings, discoveredRuntimeConfig, writePreparedRuntimeConfig, verifyPreparedRuntimeBindings } from './prepare-access-runtime-bindings.mjs';
 import fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
@@ -81,10 +82,10 @@ export async function prepareGelatoRuntimeBindingFile({ env, sourceSha, configPa
     requireValue(record(setting) && setting.type === 'plain_text' && typeof setting.value === 'string', 'Access runtime setting unavailable');
     access[name] = setting.value;
   }
-  let prepared;
-  try { prepared = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(configText, values), access); }
+  let prepared, operator;
+  try { operator=workflowTestBindingValues(settings); prepared = applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(configText, values), operator), access); }
   catch { throw new BindingPreparationError('Invalid Access runtime settings'); }
-  try { writePreparedRuntimeConfig(configPath, prepared, { ...values, ...access, ADMIN_ALLOWED_EMAILS: access.ADMIN_ALLOWED_EMAILS.split(',').map(value => value.trim().toLowerCase()).sort().join(',') }, sourceSha, configText); }
+  try { writePreparedRuntimeConfig(configPath, prepared, { ...values, ...operator, ...access, ADMIN_ALLOWED_EMAILS: access.ADMIN_ALLOWED_EMAILS.split(',').map(value => value.trim().toLowerCase()).sort().join(',') }, sourceSha, configText); }
   catch { throw new BindingPreparationError('Runtime binding configuration verification failed'); }
 }
 
@@ -119,10 +120,13 @@ export async function verifyReviewedRuntimeBindingFile({ configPath, sourceSha, 
     const receipt = JSON.parse(receiptBytes.toString('utf8'));
     const exactKeys = (value, keys) => record(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
     requireValue(exactKeys(receipt, ['sourceSha', 'configSha256', 'expected']) && receipt.sourceSha === sourceSha, 'Invalid binding receipt');
-    requireValue(exactKeys(receipt.expected, [...GELATO_RUNTIME_FLAGS, ...ACCESS_RUNTIME_CONFIG]), 'Invalid binding fields');
+    const operatorKeys=Object.keys(WORKFLOW_TEST_BINDING_DEFAULTS);
+    const hasOperator=operatorKeys.some(key=>Object.hasOwn(receipt.expected,key));
+    requireValue(exactKeys(receipt.expected, [...GELATO_RUNTIME_FLAGS, ...ACCESS_RUNTIME_CONFIG, ...(hasOperator?operatorKeys:[])]), 'Invalid binding fields');
+    const operator=hasOperator?Object.fromEntries(operatorKeys.map(key=>[key,receipt.expected[key]])):WORKFLOW_TEST_BINDING_DEFAULTS;
     const flags = Object.fromEntries(GELATO_RUNTIME_FLAGS.map(name => [name, receipt.expected[name]]));
     const access = Object.fromEntries(ACCESS_RUNTIME_CONFIG.map(name => [name, receipt.expected[name]]));
-    const reconstructed = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(committedConfigText, flags), access);
+    const reconstructed = applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(committedConfigText, flags), operator), access);
     requireValue(Buffer.from(reconstructed, 'utf8').equals(configBytes), 'Unreviewed configuration change');
     verifyPreparedRuntimeBindings(configPath, sourceSha);
     requireValue(configBytes.equals(await readInput(configPath)) && receiptBytes.equals(await readInput(receiptPath)), 'Changed verified inputs');

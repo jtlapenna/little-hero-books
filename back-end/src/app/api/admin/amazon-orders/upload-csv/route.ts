@@ -33,6 +33,7 @@ import { resolveCsvBookSelection, CsvBookSelectionError, csvBookSpecs, readCsvRo
   readCsvItemBookSelections, validateCsvItemBookChoiceCoverage, resolveCsvRootItemSelections, csvItemBookChoiceKey,
   csvItemBookSpecs, resolveCsvOriginalItemContext, type CsvResolvedItemSelection, type CsvItemBookChoice, type CsvUnitDescriptor } from '@/lib/csv-book-selection';
 import { ADMIN_BODY_LIMITS, readBoundedRequestFormData, RequestBodyError } from '@/lib/request-body';
+import { ADMIN_WORKFLOW_TEST_FORM_FIELD, ADMIN_WORKFLOW_TEST_MARKER, createAdminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +85,9 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file');
     // Explicit opt-in (default off): only the exact string 'true' marks created/updated orders as overnight
     // test orders, which suppresses every customer/buyer message for them (see lib/messaging/test-order-guard).
-    const overnightTest = formData.get(OVERNIGHT_TEST_FORM_FIELD) === 'true';
+    const workflowTest = formData.get(ADMIN_WORKFLOW_TEST_FORM_FIELD) === 'true';
+    if (workflowTest && adminAuth.mode !== 'access') return NextResponse.json({ error: 'Sign in as an administrator to upload a workflow test.' }, { status: 403 });
+    const overnightTest = workflowTest || formData.get(OVERNIGHT_TEST_FORM_FIELD) === 'true';
     console.log(`[CSV Upload] [${requestId}] File received: ${file && typeof file !== 'string' ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
 
     if (!file || typeof file === 'string') {
@@ -193,6 +196,11 @@ export async function POST(request: NextRequest) {
       }
     }
     const selection = itemChoices ? undefined : await resolveCsvBookSelection(formData);
+    if (workflowTest) {
+      const units = readCsvItemSelectionRows(headers, dataRows as string[][]);
+      if (itemChoices || selection?.bookId !== 'book-finding-our-inner-voice' || selection.formatId !== 'amazon' || units.length !== 1 || units[0].lineItem.quantity !== 1)
+        throw new CsvBookSelectionError('Workflow tests require one new Inner Voice order with quantity one.');
+    }
     const strictSelection = !!selection || !!itemChoices;
     const confirmedSelections: Array<CsvItemBookChoice & { configVersion: number }> = [];
     const itemPreflight = new Map<string, {
@@ -462,6 +470,7 @@ export async function POST(request: NextRequest) {
           const existing = strictSelection ? exactRows.get(effectiveOrderId) : await getOrderFromSupabase(effectiveOrderId);
           if (existing) {
             const existingRecord = existing as Record<string, unknown>;
+            if (workflowTest) throw new CsvBookSelectionError('This order already exists and was preserved. Use a new order ID for your workflow test.');
             if (!strictSelection && csvRowDeclaresInnerVoice(existingRecord)) {
               throw new CsvBookSelectionError('This Amazon root contains Inner Voice; use its complete selected-book intake');
             }
@@ -571,6 +580,12 @@ export async function POST(request: NextRequest) {
               line_items: unitSourceItems,
               ...(overnightTest ? { [OVERNIGHT_TEST_MARKER]: true } : {}),
             };
+
+            if (workflowTest) {
+              const info = orderRowRecord.product_info as Record<string, unknown>;
+              info._created_via_csv = true;
+              info[ADMIN_WORKFLOW_TEST_MARKER] = createAdminWorkflowTestAdmission(adminAuth.actor, selection!.configVersion);
+            }
 
             if (unitSelection) {
               const metadata = csvItemBookSpecs(unitSelection, characterSpecs);

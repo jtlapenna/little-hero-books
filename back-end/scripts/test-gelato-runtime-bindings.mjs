@@ -6,6 +6,7 @@ import { unstable_readConfig } from 'wrangler';
 
 const source = await fs.readFile(new URL('../wrangler.toml', import.meta.url), 'utf8');
 assert.match(source, /^GELATO_DRAFT_SUBMISSION_ENABLED = "false"$/m, 'Wrangler must declare closed draft binding');
+const { WORKFLOW_TEST_BINDING_DEFAULTS, applyWorkflowTestBindings } = await import('./prepare-workflow-test-bindings.mjs');
 const { GELATO_RUNTIME_FLAGS, prepareGelatoRuntimeBindingFile } = await import('./prepare-gelato-runtime-bindings.mjs');
 const sha = 'a'.repeat(40);
 const env = { DEPLOY_ENVIRONMENT: 'production', CLOUDFLARE_PAGES_PROJECT: 'little-hero-labs-admin',
@@ -79,6 +80,25 @@ try {
   for (const fetchImpl of [async () => { throw new Error('sensitive-value'); },
     async () => new Response('sensitive-value', { status: 403 }),
     async () => new Response('sensitive-value', { status: 200 })]) await reject(project(values), {}, source, fetchImpl);
+  const operator = { ...WORKFLOW_TEST_BINDING_DEFAULTS,
+    GELATO_WORKFLOW_TEST_SUBMISSION_ENABLED:'true',GELATO_WORKFLOW_TEST_SUBMISSION_ORDER_ID:'TEST-LOCAL-SCOPE',
+    GELATO_WORKFLOW_TEST_SUBMISSION_ACCOUNT_SHA256:'c'.repeat(64),GELATO_WORKFLOW_TEST_SUBMISSION_EXPIRES_AT:new Date(Date.now()+3600000).toISOString(),
+    GELATO_ORDINARY_RELEASE_ENABLED:'true',GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:'c'.repeat(64),
+    GELATO_ORDINARY_RELEASE_APPROVERS:'jeff@littleherolabs.com',GELATO_ORDINARY_RELEASE_TEST_ORDER_ID:'TEST-LOCAL-SCOPE',
+    GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:new Date(Date.now()+3600000).toISOString() };
+  const operatorSettings = v => Object.fromEntries(Object.entries(v).map(([key,value])=>[key,{type:'plain_text',value}]));
+  await prepare(project(operatorSettings(operator)));
+  const operatorConsumed = unstable_readConfig({config:configPath,env:'production'});
+  for(const [key,value] of Object.entries(operator)) assert.equal(operatorConsumed.vars[key],value);
+  const receipt=JSON.parse(await fs.readFile(path.join(directory,'.wrangler/lhl-runtime-bindings.json'),'utf8'));
+  for(const [key,value] of Object.entries(operator)) assert.equal(receipt.expected[key],value);
+  for(const delta of [
+    {GELATO_WORKFLOW_TEST_SUBMISSION_ORDER_ID:''}, {GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256:'d'.repeat(64)},
+    {GELATO_ORDINARY_RELEASE_APPROVERS:'stranger@example.test'}, {GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT:new Date(Date.now()-1).toISOString()},
+    {GELATO_WORKFLOW_TEST_SUBMISSION_EXPIRES_AT:new Date(Date.now()+90000000).toISOString()}, {GELATO_ORDINARY_RELEASE_ENABLED:'TRUE'},
+  ]) await reject(project(operatorSettings({...operator,...delta})));
+  await reject(project({GELATO_ORDINARY_RELEASE_ENABLED:{type:'secret_text',value:'true'}}));
+  assert.throws(()=>applyWorkflowTestBindings(source+'\nGELATO_ORDINARY_RELEASE_ENABLED = "false"\n',operator));
   assert.ok(fetches > 0);
   console.log('Gelato runtime binding preparation checks passed');
 } finally { await fs.rm(directory, { recursive: true, force: true }); }

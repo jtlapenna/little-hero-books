@@ -1,3 +1,4 @@
+import { adminWorkflowTestAdmission } from '../admin-workflow-test';
 /** Server composition for the real data/storage/provider contracts. No ambient
  * credentials, default fetch, policy inference or activation. The installed HTTP
  * runtime remains blocked until an explicitly reviewed payable policy is supplied. */
@@ -13,6 +14,8 @@ import {ESTIMATE_TEST_PRINT_POLICY,observeGelatoReleaseEstimate} from './gelato-
 
 export interface OrdinaryReleaseServiceSources {
   database: SupabaseClient;
+  /** Server-configured single test scope; never selected by the HTTP body. */
+  testScope?: { orderId: string; expiresAt: string };
   apiKey: string;
   expectedAccountSha256: string;
   approvers: ReadonlySet<string>;
@@ -51,18 +54,29 @@ export function composeOrdinaryReleaseServiceRuntime(sources: OrdinaryReleaseSer
     apiKey:key, fetcher:transport, now:sources.now, budgetMs:30000,
     enabled:async()=>{
       if(!await sources.activationApproved())return false;
+      if (sources.testScope) {
+        if (Date.parse(sources.testScope.expiresAt) <= (sources.now?.() ?? new Date()).getTime()) return false;
+        const { data, error } = await db.rpc('gelato_admin_test_release_scope_active', { p_order_id: sources.testScope.orderId, p_account_sha256: sources.expectedAccountSha256 }).abortSignal(AbortSignal.timeout(5000));
+        if (error) throw Error('Exact test release scope unavailable');
+        return data === true;
+      }
       const {data,error}=await db.from('gelato_ordinary_release_gate').select('enabled').eq('id',true)
         .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
       if(error)throw Error('Ordinary release gate unavailable');
       return data?.enabled===true;
     },
-    context:id=>createGelatoSubmissionStore(db,AbortSignal.timeout(5000)).load(z.string().uuid().parse(id)),
+    context:async id=>{
+      const context=await createGelatoSubmissionStore(db,AbortSignal.timeout(5000)).load(z.string().uuid().parse(id));
+      if (sources.testScope && (context.members.length!==1 || context.members[0].child_order_key!==sources.testScope.orderId)) throw Error('Release outside activated test order');
+      return context;
+    },
     order:async key=>{
       // Child keys from the sealed context only; no numeric/root/prefix fallback.
       z.string().min(1).max(200).parse(key);
       const {data,error}=await db.from('orders').select('*').eq('orderId',key)
         .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
       if(error)throw Error('Exact ordinary order lookup failed');
+      if (sources.testScope && (!data || key!==sources.testScope.orderId || !adminWorkflowTestAdmission(data))) throw Error('Activated workflow test changed');
       return data as Record<string,unknown>|null;
     },
     artifactSha256:(key,signal)=>loadGelatoFileDigest(inner=>sources.loadArtifact(key,inner),signal),

@@ -49,6 +49,14 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-workflow-admission': 'back-end/src/lib/admin-workflow-test.ts',
+    'changed-hold-api': 'back-end/src/app/api/admin/workflow-test-print/route.ts',
+    'changed-test-hold-sql': 'database/20261115230112_admin_workflow_test_print_hold.sql',
+    'changed-release-scope-sql': 'database/20261115232824_admin_workflow_test_release_scope.sql',
+    'changed-print-profiles': 'back-end/src/lib/books/print-profiles/gracol.json',
+    'changed-paid-review': 'back-end/src/components/stages/gelato-release-review.tsx',
+    'changed-pdf-preflight': 'back-end/scripts/verify-gelato-print-preflight.py',
+
     'changed-quote-transport': 'back-end/scripts/quote-inner-voice-print-test.ts',
     'changed-quote-boundary-test': 'back-end/scripts/test-inner-voice-print-quote.ts',
     'changed-streaming-digest': 'back-end/src/lib/books/gelato-file-digest.ts',
@@ -80,6 +88,7 @@ original_cases = [
 ]
 added_cases = ['changed-v3-code', 'changed-v3-test', 'changed-v3-fixture', 'unauthorized-source-rebind',
                'changed-placement-schema', 'changed-canonical-config', 'changed-streaming-digest', 'changed-large-artifact-test', 'changed-quote-transport', 'changed-quote-boundary-test']
+added_cases += ['changed-workflow-admission', 'changed-hold-api', 'changed-test-hold-sql', 'changed-release-scope-sql', 'changed-print-profiles', 'changed-paid-review', 'changed-pdf-preflight']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:
@@ -141,7 +150,8 @@ for case in original_cases + added_cases:
             manifest['canExecute'] = True
             expected = 'Unexpected execution authority'
         elif case == 'unauthorized-source-rebind':
-            path = root / 'back-end/src/lib/books/gelato-api-client.ts'
+            # Keep this probe on an inherited path outside the reviewed rebind ledger.
+            path = root / 'back-end/src/lib/books/gelato-provider-snapshot.ts'
             path.write_text(path.read_text() + '\n# SYNTHETIC CORRUPTION\n')
             next(item for item in manifest['files'] if item['path'] == str(path.relative_to(root)))['sha256'] = sha(path)
             sources = [item for item in manifest['files'] if item['kind'] == 'source']

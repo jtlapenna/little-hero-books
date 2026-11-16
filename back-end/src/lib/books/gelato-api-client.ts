@@ -55,7 +55,7 @@ async function postGelato<T>(path: string, body: unknown, dependencies: GelatoCl
   let response: Response;
   try {
     response = await fetcher(`${GELATO_API_BASE}${path}`, {
-      method: 'POST',
+      method: 'POST', redirect: 'manual',
       headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       body: JSON.stringify(body),
       signal: dependencies.signal ? AbortSignal.any([dependencies.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
@@ -151,7 +151,7 @@ export async function cancelGelatoOrder(id: string, dependencies: GelatoClientDe
   let response: Response;
   try {
     response = await (dependencies.fetcher ?? fetch)(`${GELATO_API_BASE}/orders/${encodeURIComponent(safeId)}:cancel`, {
-      method: 'POST', headers: { 'X-API-KEY': apiKey },
+      method: 'POST', redirect: 'manual', headers: { 'X-API-KEY': apiKey },
       signal: dependencies.signal ? AbortSignal.any([dependencies.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
   } catch { throw new Error('Gelato cancellation outcome requires refresh'); }

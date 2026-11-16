@@ -22,6 +22,7 @@ export interface OrderBookPagePlanEntry {
 }
 
 export interface OrderBookContext {
+  printTrimMm?: { w: number; h: number };
   poseReferenceKeys?: Record<string, string>;
   bookId?: string | null;
   formatId?: string | null;
@@ -115,6 +116,9 @@ export interface Order {
   workflowStep?: string;
   nextWorkflow?: string; // next_workflow from Supabase (2A, 2B, 3, etc.)
   currentWorkflow?: string; // current_workflow from Supabase (2A, 2B, 3, etc.)
+  isWorkflowTest?: boolean;
+  printPreparationRequested?: boolean;
+  customerMessagesSuppressed?: boolean;
   printProvider?: 'lulu' | 'gelato';
   printSubmissionId?: string;
   gelatoStatus?: string;
@@ -151,7 +155,7 @@ export interface Order {
     expiresAt?: string;
     usedAt?: string;
     notification?: {
-      status: 'sent' | 'failed' | 'not_sent';
+      status: 'sent' | 'failed' | 'not_sent' | 'suppressed';
       channel?: 'email' | 'amazon_message';
       sentAt?: string;
       createdAt?: string;

@@ -9,7 +9,7 @@ import type { CsvItemBookChoice } from '@/lib/csv-book-selection';
 
 type ItemBookId = CsvItemBookChoice['bookId'];
 type PreviewItem = { key: string; rootOrderId: string; source: CsvItemBookChoice['source']; rowNumber: number; title: string; sku: string; quantity: number };
-type UploadSnapshot = { file: File; fileName: string; bookId: string; items?: readonly CsvItemBookChoice[]; itemJson?: string };
+type UploadSnapshot = { file: File; fileName: string; bookId: string; workflowTest: boolean; items?: readonly CsvItemBookChoice[]; itemJson?: string };
 function itemSelectionKey(item: Pick<CsvItemBookChoice, 'rootOrderId' | 'source'>): string {
   return JSON.stringify([item.rootOrderId, item.source.kind, item.source.value]);
 }
@@ -94,7 +94,8 @@ export default function CsvUploadPage() {
   const [retryable, setRetryable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [bookId, setBookId] = useState('book-mvp-simple-adventure');
-  const [submission, setSubmission] = useState<{ fileName: string; bookId: string } | null>(null);
+  const [workflowTest, setWorkflowTest] = useState(false);
+  const [submission, setSubmission] = useState<{ fileName: string; bookId: string; workflowTest: boolean } | null>(null);
   const inFlight = useRef<number | null>(null);
   const sequence = useRef(0);
   const bookTitle = bookId === 'per-item' ? 'Choose books by item' : bookId === 'book-finding-our-inner-voice' ? 'Finding Our Inner Voice' : 'Adventure Compass';
@@ -205,7 +206,7 @@ export default function CsvUploadPage() {
     let snapshot: UploadSnapshot;
     try {
       const saved = retryable ? retrySnapshot.current : null;
-      if (saved && saved.file === file && saved.bookId === bookId) snapshot = saved;
+      if (saved && saved.file === file && saved.bookId === bookId && saved.workflowTest === workflowTest) snapshot = saved;
       else {
         if (!['book-mvp-simple-adventure', 'book-finding-our-inner-voice', 'per-item'].includes(bookId)) throw new Error('Choose a supported book.');
         const items = bookId === 'per-item' ? Object.freeze(previewItems.map(item => {
@@ -216,13 +217,13 @@ export default function CsvUploadPage() {
           return Object.freeze({ rootOrderId: item.rootOrderId, source: item.source, bookId: selected, formatId: 'amazon' as const,
             ...(configVersion !== undefined ? { configVersion } : {}) });
         })) : undefined;
-        snapshot = { file, fileName: file.name, bookId, ...(items ? { items, itemJson: JSON.stringify({ schemaVersion: 1, items }) } : {}) };
+        snapshot = { file, fileName: file.name, bookId, workflowTest, ...(items ? { items, itemJson: JSON.stringify({ schemaVersion: 1, items }) } : {}) };
       }
     } catch (error) { setError(error instanceof Error ? error.message : 'Book choices could not be read.'); return; }
     retrySnapshot.current = snapshot;
     const requestNumber = ++sequence.current;
     inFlight.current = requestNumber;
-    const submitted = { fileName: snapshot.fileName, bookId: snapshot.bookId };
+    const submitted = { fileName: snapshot.fileName, bookId: snapshot.bookId, workflowTest: snapshot.workflowTest };
     setSubmission(submitted);
 
     console.log('[CSV Upload UI] Starting upload...');
@@ -235,6 +236,7 @@ export default function CsvUploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', snapshot.file);
+      if (snapshot.workflowTest) formData.append('admin_workflow_test', 'true');
       if (submitted.bookId === 'per-item') {
         if (!snapshot.itemJson) throw new Error('Missing source item book choices.');
         formData.append('itemBookSelections', snapshot.itemJson);
@@ -358,7 +360,7 @@ export default function CsvUploadPage() {
             <div className="mb-5">
               <label htmlFor="csv-book" className="block text-sm font-medium text-gray-900">Book in this file</label>
               <select id="csv-book" value={bookId} disabled={uploading}
-                onChange={event => { if (inFlight.current === null) { retrySnapshot.current = null; setKnownVersions({}); setBookId(event.target.value); setError(null); setRetryable(false); } }}
+                onChange={event => { if (inFlight.current === null) { retrySnapshot.current = null; setKnownVersions({}); setBookId(event.target.value); setWorkflowTest(false); setError(null); setRetryable(false); } }}
                 className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:opacity-60">
                 <option value="book-mvp-simple-adventure">Adventure Compass</option>
                 <option value="book-finding-our-inner-voice">Finding Our Inner Voice</option>
@@ -368,6 +370,14 @@ export default function CsvUploadPage() {
               {bookId === 'book-finding-our-inner-voice' && (
                 <p className="mt-2 text-sm text-gray-600">Each item needs an order-item-id or customization link. New orders need a working customization link containing the child's name and age.</p>
               )}
+              {bookId === 'book-finding-our-inner-voice' && <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+                <label className="flex items-start gap-3 text-sm font-medium text-gray-900">
+                  <input type="checkbox" checked={workflowTest} disabled={uploading} aria-describedby="workflow-test-help"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-400" onChange={event => { setWorkflowTest(event.target.checked); retrySnapshot.current = null; setRetryable(false); }} />
+                  Run a workflow test
+                </label>
+                <p id="workflow-test-help" className="mt-2 text-sm text-gray-600">Upload one new order with quantity one. Generate the book and advance its reviews normally. Customer messages are suppressed, and printing pauses for your separate approval.</p>
+              </div>}
             </div>
             <div
               aria-disabled={uploading}

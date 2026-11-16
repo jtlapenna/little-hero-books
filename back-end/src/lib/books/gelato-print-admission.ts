@@ -1,3 +1,4 @@
+import { adminWorkflowTestPreparationRequested } from '../admin-workflow-test';
 /** Shared admission checks; no network, environment reads, authorization minting or provider effects. */
 export function gelatoApprovalBlocker(order: Record<string, unknown>): string | null {
   if (order.customer_approval_required != null && typeof order.customer_approval_required !== 'boolean') return 'invalid_customer_approval_requirement';
@@ -17,7 +18,7 @@ export function ordinaryPrintRoutingBlocker(order: Record<string, unknown>, gela
   if (!['4', '4-aggregate'].includes(String(order.next_workflow ?? ''))) return null;
   if (order.print_provider !== 'gelato' && order.print_provider !== 'lulu') return 'print_provider_unassigned';
   if (order.print_provider !== 'gelato') return null;
-  if (!gelatoDraftsEnabled) return 'gelato_draft_submission_disabled';
+  if (!gelatoDraftsEnabled && !adminWorkflowTestPreparationRequested(order)) return 'gelato_draft_submission_disabled';
   if (hasGelatoPrintSubmission(order)) return 'existing_gelato_submission_requires_inspection';
   return gelatoApprovalBlocker(order);
 }

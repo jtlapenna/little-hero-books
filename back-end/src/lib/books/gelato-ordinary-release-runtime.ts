@@ -1,4 +1,4 @@
-/** Deployment composition. Source installation gate stays OFF pending release/activation review. */
+/** Deployment composition. Source installation is reviewed separately from exact-order runtime and SQL activation. */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { AnyOrdinaryReleasePermitSchema, AnyOrdinaryReleasePacketSchema, type OrdinaryReleaseDependencies } from './gelato-ordinary-release-core';
 import { createOrdinaryReleaseStore, registerReviewedOrdinaryRelease } from './gelato-ordinary-release-store';
@@ -24,12 +24,11 @@ export function composeOrdinaryReleaseRuntime(database: SupabaseClient, release:
   } };
 }
 
-export const ORDINARY_ESTIMATE_INSTALLATION_ENABLED=false;
-/** Estimate policy implemented, but this source gate deliberately prevents any
- * credential/service loading or payment even when environment flags are true. */
-export async function ordinaryReleaseApplicationRuntime(): Promise<OrdinaryReleaseRuntime> {
+export const ORDINARY_ESTIMATE_INSTALLATION_ENABLED=true;
+/** Installed scope still requires independently pinned account, actor, exact order, expiry, consumed pre-create approval and a separate exact paid-release packet. */
+export async function ordinaryReleaseApplicationRuntime(actor?: string): Promise<OrdinaryReleaseRuntime> {
   if(!ORDINARY_ESTIMATE_INSTALLATION_ENABLED)return { kind: 'blocked', blockers: ['estimate_policy_requires_reviewed_publication_and_activation',
     'specific_paid_order_and_activation_approval_required'] };
   const {productionOrdinaryEstimateRuntime}=await import('./gelato-ordinary-release-server');
-  return productionOrdinaryEstimateRuntime();
+  try { return await productionOrdinaryEstimateRuntime(actor); } catch { return {kind:'blocked',blockers:['single_test_print_release_configuration_required']}; }
 }

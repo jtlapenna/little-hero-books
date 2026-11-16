@@ -1,6 +1,7 @@
 import type { GelatoFinancialObservation, GelatoMonetaryQuote } from './gelato-financial-observation';
 
 export type GelatoPrintInspection = {
+  releaseAttempt?: { state: string; attempted: boolean } | null;
   submissionId: string | null; state: string; canRefresh: boolean; canRecover: boolean; canCancel?: boolean; canRetry?: boolean;
   orders: Array<{ id: string; status: string; orderType: string | null; actionReason: string | null;
     updatedAt?: string | null; lastCheckedAt?: string | null; financial?: GelatoFinancialObservation | null;

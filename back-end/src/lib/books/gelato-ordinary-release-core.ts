@@ -1,3 +1,4 @@
+import { canonicalJsonSha256 as ordinaryReleaseDigest } from '../canonical-json-sha256';
 /** Local-first ordinary release core. No route, scheduler or default HTTP transport is installed; the store is explicitly injected. */
 import { createHash } from 'node:crypto';
 import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
@@ -71,12 +72,7 @@ export interface OrdinaryReleaseDependencies {
  approvedPacket?: (permitId:string) => Promise<unknown>;
  now?: () => Date; budgetMs?: number;
 }
-function canonical(value: unknown): string {
- if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
- if (value && typeof value === 'object') return '{' + Object.entries(value).filter(([,v])=>v!==undefined).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>JSON.stringify(k)+':'+canonical(v)).join(',') + '}';
- return JSON.stringify(value);
-}
-export const ordinaryReleaseDigest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
+export { canonicalJsonSha256 as ordinaryReleaseDigest } from '../canonical-json-sha256';
 const manualTransport = (d:OrdinaryReleaseDependencies):typeof fetch => (input,init)=>d.fetcher(input,{...init,redirect:'manual'});
 const keyDigest = (value: string) => createHash('sha256').update(value).digest('hex');
 const now = (d: OrdinaryReleaseDependencies) => (d.now ?? (()=>new Date()))();
@@ -208,7 +204,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   if(finalReview.blockers.some(reason=>!preparationOnly.has(reason)))throw Error('release_final_authority_changed');
   await assertPrinterSendAuthority(saved.request.items,now(d)); assertPermit(permit,d); signal.throwIfAborted();
  };
- return {packet,packetSha256:ordinaryReleaseDigest(packet),currentObservation:money,currentAuthority};
+ return {packet,packetSha256:ordinaryReleaseDigest(packet),recipient:saved.request.shippingAddress,currentObservation:money,currentAuthority};
 }
 async function bounded<T>(signal: AbortSignal, work:()=>Promise<T>):Promise<T>{
  signal.throwIfAborted();

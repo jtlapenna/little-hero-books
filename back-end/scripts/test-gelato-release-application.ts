@@ -50,7 +50,7 @@ async function main() {
       const handler = createOrdinaryReleaseHttpHandler({ authenticate: async () => identity, runtime: ordinaryReleaseApplicationRuntime });
       const response = await handler(post({ action: 'review', submissionId: '11111111-1111-4111-8111-111111111111', maximumTotalCents: '2000' }));
       assert.equal(response.status, 409); const result = await response.json(); assert.equal(result.canSubmit, false);
-      assert(result.blockers.includes('estimate_policy_requires_reviewed_publication_and_activation')); assert.equal(result.providerMutationAttempted, false);
+      assert(result.blockers.includes('single_test_print_release_configuration_required')); assert.equal(result.providerMutationAttempted, false);
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
       delete process.env.GELATO_ORDINARY_RELEASE_ENABLED;
       const source = await readFile('src/app/api/admin/gelato-release/route.ts', 'utf8');

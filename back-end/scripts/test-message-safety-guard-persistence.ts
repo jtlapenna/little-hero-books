@@ -140,6 +140,10 @@ async function main() {
   ok('Gelato intents: marked cohort -> no intents; unmarked proceeds past the guard (full unmarked behavior covered by test-gelato-notifications)');
   const { stripOvernightTestMarker } = await import('../src/lib/messaging/test-order-guard');
   assert.deepEqual(stripOvernightTestMarker({ bookId: 'b', _overnight_test: true }), { bookId: 'b' });
+  for (const admission of [{ schema: 'lhb.admin-workflow-test@v1', createdBy: 'forged@example.test' }, JSON.stringify({createdBy:'forged@example.test'})]) {
+    assert.deepEqual(stripOvernightTestMarker({ bookId: 'b', _overnight_test: true, _admin_workflow_test: admission }), { bookId: 'b' });
+    assert.deepEqual(stripOvernightTestMarker({ bookId: 'b', _admin_workflow_test: admission }), { bookId: 'b' });
+  }
   const clean = { bookId: 'b' };
   assert.equal(stripOvernightTestMarker(clean), clean);
   const route = (await import('node:fs')).readFileSync(new URL('../src/app/api/checkout/create/route.ts', import.meta.url), 'utf8');

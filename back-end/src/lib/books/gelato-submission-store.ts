@@ -6,8 +6,11 @@ import { GelatoFinancialObservationSchema } from './gelato-financial-observation
 export const GelatoSubmissionSchema = z.object({
   id: z.string().uuid(), provider: z.literal('gelato'), order_reference_id: z.string().min(1),
   root_order_id: z.string().min(1), workflow_job_idempotency_key: z.string(), claim_token: z.string().uuid(),
-  lease_expires_at: z.string(), request_state: z.enum(['claimed','submitting','outcome_unknown','submitted','failed']),
+  lease_expires_at: z.string(), request_state: z.enum(['claimed','operator_review','submitting','outcome_unknown','submitted','failed']),
   owning_execution_id: z.string().nullable(), send_started_at: z.string().nullable(), accepted_root_order_id: z.string().nullable(),
+  operator_review_packet: z.unknown().nullable().optional(), operator_review_packet_sha256: z.string().nullable().optional(),
+  operator_reviewed_at: z.string().nullable().optional(), operator_approval_actor: z.string().nullable().optional(),
+  operator_approval_expires_at: z.string().nullable().optional(), operator_approval_consumed_at: z.string().nullable().optional(),
   quote_snapshot: z.unknown().nullable(), request_snapshot: z.unknown().nullable(),
   quote_id: z.string().nullable(), shipment_method_uid: z.string().nullable(), shipment_policy_version: z.number().nullable(),
   quoted_at: z.string().nullable(), quote_request_fingerprint: z.string().nullable(),

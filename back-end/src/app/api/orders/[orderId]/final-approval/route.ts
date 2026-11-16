@@ -477,7 +477,7 @@ async function handleFinalApproval(
 
   if (mappedOrder?.customerPreview) {
     mappedOrder.customerPreview.notification = {
-      status: notificationResult.sent
+      status: notificationResult.skipped ? 'suppressed' : notificationResult.sent
         ? 'sent'
         : notificationResult.reason
           ? 'failed'
