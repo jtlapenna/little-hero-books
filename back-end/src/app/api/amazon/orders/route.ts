@@ -10,6 +10,7 @@ import { downloadAndExtractCustomizationZip } from '@/lib/zip-downloader';
 import { parseAmazonCustomization } from '@/lib/amazon-customization-parser';
 import { buildSiblingOrderId, buildSiblingOrderRow } from '@/lib/sibling-order-helpers';
 import { buildPendingW0Payload } from '@/lib/w0-payload';
+import { postW0Webhook } from '@/lib/w0-webhook-transport';
 import { readAmazonReplacementAuthority, readAmazonReplacementItems, buildFreshAmazonReplacementChoices,
   assertAmazonUnclassifiedStubAdmission, readCsvRootRows, resolveCsvRootItemSelections, reconcileCsvRoot,
   resolveCsvOriginalItemContext, updateExactCsvRow, assertCompleteCsvRootUnits, validateCsvItemBookRow,
@@ -316,8 +317,7 @@ async function postAmazonOrder(request: NextRequest) {
     const webhook = process.env.N8N_W0_WEBHOOK_URL;
     let succeeded = 0;
     if (webhook) for (const payload of payloads) {
-      const response = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(30_000) });
+      const response = await postW0Webhook(webhook, payload);
       if (!response.ok) refuse('Amazon W0 dispatch failed; saved books remain pending');
       succeeded++;
     }

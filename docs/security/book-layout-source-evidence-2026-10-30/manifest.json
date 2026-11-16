@@ -2,8 +2,8 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "fb3cea215f1a0069932d47795091a323b4d7a591abc81ee4550b1e5733ca4cc8",
-  "preparedAgainstHead": "e295c4e0e90df3c408cb8941e190e0e66f30c4e8",
+  "sourceSnapshotSha256": "056ed05b32c2bdf42f915b8a0a791edb17e9436991329f253adfeef9b976a585",
+  "preparedAgainstHead": "19876129260dc60fcc58ecbe52af4f6e4c91c250",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
@@ -47,6 +47,7 @@
     "back-end/scripts/test-inner-voice-print-test.ts",
     "back-end/scripts/test-message-safety-guard-persistence.ts",
     "back-end/scripts/test-message-safety-guard.ts",
+    "back-end/scripts/test-n8n-transport-worker.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
     "back-end/scripts/test-workflow-attempt-fencing.ts",
@@ -138,6 +139,7 @@
     "back-end/src/lib/order-mapper.ts",
     "back-end/src/lib/order-reset.ts",
     "back-end/src/lib/supabase-client.ts",
+    "back-end/src/lib/w0-webhook-transport.ts",
     "back-end/src/lib/w2a-completed-recovery.ts",
     "back-end/src/lib/w2a-execution-failure.ts",
     "back-end/src/lib/w2a-failure-recovery.ts",
@@ -218,7 +220,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "638cbaa0868f70ae47daafcf59957132771659dc69d2c75cc5d007255f1ac4fe"
+      "sha256": "7ad1ee231bd3cfac50ec6e42b5861154a06d8311a6c8d5ccaf0841e871c6ab97"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -721,6 +723,11 @@
       "sha256": "7dce37399bbf70bb1849924e31c25be95bc540f895b11b72843a42f6e00bf440"
     },
     {
+      "path": "back-end/scripts/test-n8n-transport-worker.ts",
+      "kind": "source",
+      "sha256": "1e6406bd0ac6e4bbbf089a994de0251bfde4d560506412fa74a400b9743b32b6"
+    },
+    {
       "path": "back-end/scripts/test-pages-upload-identity.ts",
       "kind": "source",
       "sha256": "d88900cbaa426f9c4625114fefdc9b8787b6255194deec6361fb981643c163a2"
@@ -783,7 +790,7 @@
     {
       "path": "back-end/scripts/test-w2a-failure-recovery.ts",
       "kind": "source",
-      "sha256": "2fbe2ae4bbe4b1919eff6a536430b18e8fd7c7abfae3a8234f34bb2842b79a6b"
+      "sha256": "3a1c6f615453aa790722821ff1d072b3e84a8e8673d72620ebc9da59d3c4c867"
     },
     {
       "path": "back-end/scripts/test-w2a-frozen-generation-input.ts",
@@ -903,7 +910,7 @@
     {
       "path": "back-end/src/app/api/cron/amazon-orders/route.ts",
       "kind": "source",
-      "sha256": "2c96092cb3634bdbe5269b12cb41f4fcc8a15cde4055d442e6d4385a9e4d9b36"
+      "sha256": "b8aa361c5bb0d11eb9405594b0c6e17346487955d2ae282e635992ab8895ed31"
     },
     {
       "path": "back-end/src/app/api/cron/health-monitor/route.ts",
@@ -1423,7 +1430,7 @@
     {
       "path": "back-end/src/lib/n8n-recovery-client.ts",
       "kind": "source",
-      "sha256": "966461c1db058a3691b05c3b5833b39a0d2bbb89bf55ee029a65a755f269dc20"
+      "sha256": "2ad8d115630ad637bd6f7e6f9eb187e930f92073d76e19819dd4dde1cb42c4ad"
     },
     {
       "path": "back-end/src/lib/order-mapper.ts",
@@ -1459,6 +1466,11 @@
       "path": "back-end/src/lib/w0-payload.ts",
       "kind": "source",
       "sha256": "b481c786b9e6f6c34e8fe0596742e13c7270593898df5537be1183ee5f3d84c3"
+    },
+    {
+      "path": "back-end/src/lib/w0-webhook-transport.ts",
+      "kind": "source",
+      "sha256": "7531069beec4454fe99e8195111f70ac9d265a53653ea1884197f51ffceb82bc"
     },
     {
       "path": "back-end/src/lib/w2a-completed-recovery.ts",
@@ -1673,17 +1685,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "0a20cce32e3407b406158c04c07266e33fa3b85d9f218ecf821f1af6629023e5"
+      "sha256": "0f572e81573f96cd5f6b7e28210332d09ac4cea1015c18823bb2787bf4bfe7b9"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "a70ab30950a5770b97577ba33818cb5ea6c58aa0057f434fefd368bcd9c5d48c"
+      "sha256": "2a186a11b4a094846217a4f31868fa3511152edd58a5db4108fe3ab2054a22a3"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "3e349151bcd04ae1e9da3432493651974349260effe9756f8290505653b63d7b"
+      "sha256": "49dd9466f7c57e64f8fdf127a433155127ba8ac59b0cdeb42b89b72d626c1c4c"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

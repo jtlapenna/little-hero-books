@@ -50,7 +50,8 @@ async function main() {
     }
     if (url.pathname.endsWith('/cdn-cgi/access/certs')) return Response.json({ keys: [jwk] });
     if (url.hostname === 'w2a-n8n.example.test') {
-      assert.equal(request.method, 'GET', 'recovery must not dispatch n8n'); assert.equal(init?.redirect, 'error');
+      assert.equal(request.method, 'GET', 'recovery must not dispatch n8n'); assert.equal(init?.redirect, 'manual');
+      assert.equal(request.headers.get('Cache-Control'), 'no-store');
       assert.equal(request.headers.get('X-N8N-API-KEY'), 'synthetic-n8n-key'); assert.ok(!url.pathname.includes('/api/v1/api/v1'));
       if (url.pathname === '/api/v1/executions') {
         assert.equal(url.searchParams.get('workflowId'), W2A_ORCHESTRATOR_ID);

@@ -58,6 +58,8 @@ source_cases = {
     'changed-w1-sibling': 'docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json',
     'changed-qa-handoff': 'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'changed-reviewed-message-guard': 'back-end/scripts/test-message-safety-guard.ts',
+    'changed-native-n8n-worker': 'back-end/scripts/test-n8n-transport-worker.ts',
+    'changed-w0-native-transport': 'back-end/src/lib/w0-webhook-transport.ts',
     'changed-auto-csv-ui': 'back-end/src/app/admin/csv-upload/page.tsx',
     'changed-auto-csv-selection': 'back-end/src/lib/csv-book-selection.ts',
     'changed-auto-csv-fields': 'back-end/src/lib/csv-upload-helpers.ts',
@@ -106,6 +108,8 @@ added_cases += ['changed-workflow-admission', 'changed-hold-api', 'changed-test-
 added_cases += ['changed-auto-csv-ui', 'changed-auto-csv-selection', 'changed-auto-csv-fields', 'changed-csv-envelope-test', 'changed-csv-archive-test']
 added_cases += ['changed-w2a-failure-owner', 'changed-w2a-parent-claim', 'changed-completed-recovery', 'changed-provider-claim', 'changed-callback-owner', 'changed-operator-guard', 'changed-w1-sibling', 'changed-qa-handoff']
 added_cases += ['changed-reviewed-message-guard']
+added_cases += ['changed-native-n8n-worker']
+added_cases += ['changed-w0-native-transport']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

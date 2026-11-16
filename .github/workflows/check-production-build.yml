@@ -85,6 +85,7 @@ jobs:
         working-directory: back-end
         run: |
           npm run test:w2a-failure-recovery
+          node --import tsx scripts/test-n8n-transport-worker.ts
           npm run test:workflow-readiness
       - name: Verify shared v3 layout and calibration contracts
         working-directory: back-end

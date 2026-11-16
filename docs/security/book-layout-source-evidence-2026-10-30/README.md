@@ -42,3 +42,7 @@ The prior240-path manifest is retained byte-for-byte in `history/manifest-before
 ## November16 Linux CI fixture successor
 
 The prior294-path audit manifest is preserved byte-for-byte in `history/manifest-before-ci-fixture-2026-11-16.json`. The actual notification suppression test now supplies a completed, explicitly reviewed book and intercepted current preview before calling final approval, so it exercises messaging after the canonical admission guard. Runtime approval requirements remain strict. Current coverage is295 source paths and52 corruption rejections plus the separate valid snapshot. Parent evidence and false authority flags remain unchanged; this is not live-message or provider acceptance.
+
+## November16 native Worker transport successor
+
+The prior295-path manifest is retained byte exact in `history/manifest-before-worker-transport-2026-11-16.json`. Current297-source bindings include the native n8n/W0 transport regression and canonical W0 POST transport;54 corruption rejections plus the valid snapshot are required. The two Amazon dispatch callers retain their existing non-2xx refusal. Prior history, parents and four false authority flags remain unchanged; synthetic runtime proof is not provider or physical print acceptance.
