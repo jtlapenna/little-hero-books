@@ -1,3 +1,4 @@
+import { invalidateBookReview, BookReviewConflict } from '@/lib/book-review-invalidation';
 import { NextRequest, NextResponse } from 'next/server';
 import { getObject, putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
 import { buildManifestKeyCandidates } from '@/lib/order-paths';
@@ -117,6 +118,9 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Retire existing review/approval before writing the manifest; a failed display-count mirror must never restore approval.
+    await invalidateBookReview(orderId, stage);
 
     // Handle postPdf stage (pages) separately
     if (stage === 'postPdf' && pageNumber !== undefined) {
@@ -356,6 +360,7 @@ export async function POST(
     });
 
   } catch (error: any) {
+    if (error instanceof BookReviewConflict) return NextResponse.json({ error: error.message }, { status: 409 });
     console.error('[Flag API] Error:', error);
     console.error('[Flag API] Error stack:', error?.stack);
     console.error('[Flag API] Error details:', {

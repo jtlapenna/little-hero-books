@@ -1,3 +1,4 @@
+import { hasCompletedW3Assembly } from '@/lib/books/w3-assembly-state';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
@@ -96,16 +97,7 @@ function shouldSkipCompletedW3Replay(
     return false;
   }
 
-  const workflowStep = toTrimmedString(orderRow.workflow_step);
-  const executionStatus = toTrimmedString(orderRow.execution_status);
-  const status = toTrimmedString(orderRow.status);
-  const manifest3Url = toTrimmedString(orderRow.manifest_3_url);
-
-  return Boolean(
-    manifest3Url ||
-      workflowStep === 'book_assembly_completed' ||
-      (executionStatus === 'done' && status === 'pending_assembly_review'),
-  );
+  return hasCompletedW3Assembly(orderRow);
 }
 
 async function lookupReplayGuardOrderRow(

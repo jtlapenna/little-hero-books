@@ -360,12 +360,12 @@ async function testW2AReplayReusePath() {
   assertEqual(
     missingArtifactResult.workflowReplay,
     null,
-    'W2A replay path should fall back to live generation when the stored artifact is missing',
+    'W2A replay path should remain held when the stored artifact is missing',
   );
   assertEqual(
     missingArtifactResult.workflowClaimed,
     false,
-    'W2A replay fallback should leave the item unclaimed so the existing live path can continue',
+    'W2A replay fallback should leave the item unclaimed so the provider consumer stops without ownership',
   );
   assert(
     missingArtifactEvents.some((event) => event.eventType === 'replay-missing-artifact'),
@@ -406,13 +406,12 @@ async function testW2AReplayReusePath() {
     configuredHold instanceof Error && /replay is on hold/i.test(configuredHold.message),
     'Configured W2A replay must stay on hold for a repeated request',
   );
-  const configuredRetry = await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt: 1 } as never, { replayArtifactExists: async () => true }, configuredRepository as never);
-  assertEqual(configuredRetry.workflowReplay, null, 'Configured W2A retry after a QA rejection must not replay a stored pose');
-  let tooManyRetries: unknown = null;
-  try {
-    await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt: 4 } as never, { replayArtifactExists: async () => true }, configuredRepository as never);
-  } catch (error) { tooManyRetries = error; }
-  assert(tooManyRetries instanceof Error && /replay is on hold/i.test(tooManyRetries.message), 'Configured W2A retries beyond the bound must stay on hold');
+  for (const retryAttempt of [1,4]) {
+    let rejected = false;
+    try { await claimAndStartW2APoseJob({ ...configuredBase, retryAttempt } as never, { replayArtifactExists: async () => true }, configuredRepository as never); }
+    catch { rejected = true; }
+    assert(rejected, 'A caller retry counter alone cannot authorize another configured image');
+  }
 }
 
 async function testWorkflowJobEventRoute() {

@@ -1,8 +1,10 @@
+import { finalizeCompletedW2ARecovery } from '@/lib/w2a-completed-recovery';
 import { NextRequest, NextResponse } from 'next/server';
+import { recordW2AExecutionFailure, queueEarlyW2ARetry } from '@/lib/w2a-failure-recovery';
+import { readBoundedRequestText, RequestBodyError } from '@/lib/request-body';
 import { z } from 'zod';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import {
-  finalizeW2ARecoveryOrder,
   inspectW2ARecoveryOrder,
   listRecentW2ARecoveryCandidates,
   replayW2ARecoveryOrder,
@@ -17,7 +19,11 @@ const QuerySchema = z.object({
 });
 
 const ActionSchema = z.object({
-  action: z.enum(['replay', 'finalize']),
+  action: z.enum(['replay', 'finalize', 'record_failure', 'retry']),
+  executionId: z.string().regex(/^\d{1,30}$/).optional(),
+  claimStartedAt: z.string().min(1).optional(),
+  updatedAt: z.string().min(1).optional(),
+  resolvedCause: z.boolean().optional(),
   orderId: z.string().trim().min(1),
   waitSeconds: z.coerce.number().int().min(0).max(30).optional(),
 });
@@ -103,7 +109,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const payload = ActionSchema.parse(await request.json());
+    const payload = ActionSchema.strict().parse(JSON.parse(await readBoundedRequestText(request, 4096)));
+    if (payload.action === 'retry' && adminAuth.mode !== 'access') return NextResponse.json({ error: 'An authenticated administrator must confirm the cause is resolved' }, { status: 403 });
     const before = await inspectW2ARecoveryOrder(payload.orderId, {
       adminBaseUrl: request.nextUrl.origin,
       executionLimit: 40,
@@ -112,12 +119,22 @@ export async function POST(request: NextRequest) {
     });
 
     let actionResult: unknown;
-    if (payload.action === 'finalize') {
-      actionResult = await finalizeW2ARecoveryOrder(payload.orderId, {
-        adminBaseUrl: request.nextUrl.origin,
-        executionLimit: 40,
-        staleMinutes: 30,
-      });
+    if (payload.action === 'record_failure' || payload.action === 'retry') {
+      if (!payload.executionId || !payload.claimStartedAt || !payload.updatedAt ||
+          before.orderId !== payload.orderId || before.failure?.executionId !== payload.executionId ||
+          before.failure.claimStartedAt !== payload.claimStartedAt || before.failureRevision !== payload.updatedAt) throw new Error('Failure changed; refresh recovery before continuing');
+      if (payload.action === 'record_failure') {
+        if (!before.canRecordFailure) throw new Error('This failure cannot be synced to the current order');
+        const recorded = await recordW2AExecutionFailure(payload.executionId, { orderId: payload.orderId, updatedAt: payload.updatedAt });
+        if (!recorded.recorded) throw new Error('Order ownership changed; failure was not synced. Refresh recovery.');
+        actionResult = recorded;
+      } else {
+        if (!before.safeToRetry) throw new Error('This early failure cannot be safely queued');
+        actionResult = await queueEarlyW2ARetry({ orderId: payload.orderId, executionId: payload.executionId, claimStartedAt: payload.claimStartedAt, updatedAt: payload.updatedAt, resolvedCause: payload.resolvedCause === true, actor: adminAuth.actor });
+      }
+    } else if (payload.action === 'finalize') {
+      if (!before.safeToFinalize || !payload.executionId || !payload.claimStartedAt || !payload.updatedAt) throw Error('A freshly verified completed failure revision is required');
+      actionResult = await finalizeCompletedW2ARecovery({ orderId: payload.orderId, executionId: payload.executionId, claimStartedAt: payload.claimStartedAt, updatedAt: payload.updatedAt }, adminAuth.actor);
     } else {
       actionResult = await replayW2ARecoveryOrder(payload.orderId, {
         executionLimit: 40,
@@ -145,7 +162,7 @@ export async function POST(request: NextRequest) {
       {
         error: error instanceof Error ? error.message : 'Internal Server Error',
       },
-      { status: 400 },
+      { status: error instanceof RequestBodyError ? error.status : 400 },
     );
   }
 }

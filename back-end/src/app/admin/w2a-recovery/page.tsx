@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, startTransition, useEffect, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -14,7 +14,7 @@ import {
   Wrench,
 } from 'lucide-react';
 
-type RecoveryAction = 'finalize' | 'replay' | 'inspect' | 'monitor' | 'none';
+type RecoveryAction = 'record_failure' | 'retry' | 'finalize' | 'replay' | 'inspect' | 'monitor' | 'none';
 
 type RecoveryCandidate = {
   orderRowId: number;
@@ -46,6 +46,9 @@ type RecoveryCandidate = {
 };
 
 type RecoveryInspection = RecoveryCandidate & {
+  failure?: { executionId: string; claimStartedAt: string; failedAt: string; message: string; code: string; resolvedAt?: string };
+  failureRecorded?: boolean; canRecordFailure?: boolean; safeToRetry?: boolean;
+  failureLookupError?: string | null; failureRevision?: string | null;
   resolvedVia: string;
   manifestReachableUrl: string | null;
   safeToFinalize: boolean;
@@ -85,7 +88,7 @@ type RecoveryResponse = {
 
 type ActionResponse = {
   success?: boolean;
-  action?: 'replay' | 'finalize';
+  action?: RecoveryAction;
   error?: string;
 };
 
@@ -120,6 +123,8 @@ function summarizeStatuses(statuses: Record<string, number>): string {
 
 function actionLabel(action: RecoveryAction): string {
   switch (action) {
+    case 'record_failure': return 'Sync Failure';
+    case 'retry': return 'Awaiting Resolved Cause';
     case 'finalize':
       return 'Finalize 2A';
     case 'replay':
@@ -148,10 +153,19 @@ function actionClasses(action: RecoveryAction): string {
   }
 }
 
-function W2ARecoveryPageContent() {
+function W2ARecoveryPageScope() {
+  const selectedOrderId = useSearchParams().get('orderId')?.trim() ?? '';
+  return <W2ARecoveryPageContent key={selectedOrderId} selectedOrderId={selectedOrderId} />;
+}
+
+function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const selectedOrderId = searchParams.get('orderId')?.trim() ?? '';
+  const mounted = useRef(false);
+  const actionInFlight = useRef(false);
+  const readSequence = useRef(0);
+  const readController = useRef<AbortController | null>(null);
+  const [verified, setVerified] = useState(false);
+  const [resolvedRevision, setResolvedRevision] = useState<string | null>(null);
 
   const [draftOrderId, setDraftOrderId] = useState(selectedOrderId);
   const [data, setData] = useState<RecoveryResponse | null>(null);
@@ -162,7 +176,13 @@ function W2ARecoveryPageContent() {
     null,
   );
 
-  const fetchData = async (orderId: string) => {
+  const fetchData = useCallback(async (orderId: string) => {
+    if (!mounted.current) return;
+    readController.current?.abort();
+    const controller = new AbortController(); readController.current = controller;
+    const sequence = ++readSequence.current;
+    const deadline = window.setTimeout(() => controller.abort(), 25000);
+    const current = () => mounted.current && sequence === readSequence.current;
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -173,35 +193,41 @@ function W2ARecoveryPageContent() {
         params.set('orderId', orderId);
       }
 
-      const response = await fetch(`/api/admin/w2a-recovery?${params.toString()}`);
+      const response = await fetch(`/api/admin/w2a-recovery?${params.toString()}`, { cache: 'no-store', signal: controller.signal });
       const payload = (await response.json()) as RecoveryResponse;
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || 'Failed to load W2A recovery data');
       }
 
+      if (!current()) return;
+      if (payload.inspectedOrder && payload.inspectedOrder.orderId !== selectedOrderId) throw new Error('Recovery returned a different order; refresh before continuing');
+      setVerified(!payload.inspectionError);
       setData(payload);
       setLastRefresh(new Date());
     } catch (error) {
+      if (!current()) return;
+      setVerified(false);
       console.error('Failed to load W2A recovery data:', error);
       setBanner({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load W2A recovery data',
+        message: controller.signal.aborted ? 'Recovery inspection timed out. Refresh before taking any action.' : error instanceof Error ? error.message : 'Failed to load W2A recovery data',
       });
     } finally {
-      setLoading(false);
+      window.clearTimeout(deadline);
+      if (current()) { setLoading(false); readController.current = null; }
     }
-  };
+  }, [selectedOrderId]);
 
   useEffect(() => {
-    setDraftOrderId(selectedOrderId);
-    fetchData(selectedOrderId);
+    mounted.current = true;
+    queueMicrotask(() => { if (mounted.current) void fetchData(selectedOrderId); });
 
     const interval = window.setInterval(() => {
-      fetchData(selectedOrderId);
+      if (!actionInFlight.current && !readController.current) void fetchData(selectedOrderId);
     }, 60000);
 
-    return () => window.clearInterval(interval);
-  }, [selectedOrderId]);
+    return () => { mounted.current = false; readController.current?.abort(); window.clearInterval(interval); };
+  }, [selectedOrderId, fetchData]);
 
   const setOrderIdInUrl = (orderId: string) => {
     const trimmed = orderId.trim();
@@ -220,50 +246,44 @@ function W2ARecoveryPageContent() {
     setOrderIdInUrl(draftOrderId);
   };
 
-  const runAction = async (action: 'replay' | 'finalize') => {
-    if (!selectedOrderId) {
-      return;
-    }
-
-    setActing(true);
-    setBanner(null);
+  const inspectedOrder = data?.inspectedOrder ?? null;
+  const failureRevision = inspectedOrder?.failure && inspectedOrder.failureRevision
+    ? `${selectedOrderId}:${inspectedOrder.failure.executionId}:${inspectedOrder.failure.claimStartedAt}:${inspectedOrder.failureRevision}` : null;
+  const causeResolved = Boolean(failureRevision && resolvedRevision === failureRevision);
+  const runAction = async (action: 'replay' | 'finalize' | 'record_failure' | 'retry') => {
+    if (!selectedOrderId || !verified || loading || actionInFlight.current || inspectedOrder?.orderId !== selectedOrderId) return;
+    const snapshot = inspectedOrder;
+    if (action === 'retry' && (!snapshot.safeToRetry || !causeResolved)) return;
+    if (action === 'record_failure' && !snapshot.canRecordFailure) return;
+    actionInFlight.current = true;
+    readController.current?.abort(); readSequence.current++;
+    setActing(true); setVerified(false); setBanner(null); setResolvedRevision(null);
     try {
       const response = await fetch('/api/admin/w2a-recovery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          orderId: selectedOrderId,
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, orderId: selectedOrderId,
           waitSeconds: action === 'replay' ? 8 : undefined,
+          ...(['retry', 'record_failure', 'finalize'].includes(action) ? { executionId: snapshot.failure?.executionId,
+            claimStartedAt: snapshot.failure?.claimStartedAt, updatedAt: snapshot.failureRevision,
+            ...(action === 'retry' ? { resolvedCause: true } : {}) } : {}),
         }),
       });
       const payload = (await response.json()) as ActionResponse;
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || `Failed to ${action} order`);
-      }
-
-      setBanner({
-        tone: 'success',
-        message:
-          action === 'finalize'
-            ? `Finalized ${selectedOrderId} through the existing 2A completion path.`
-            : `Replayed ${selectedOrderId} through the live 2a-start-repo route.`,
-      });
-      await fetchData(selectedOrderId);
+      if (!mounted.current) return;
+      if (!response.ok || !payload.success) throw new Error(payload.error || `Failed to ${action} order`);
+      const message = action === 'record_failure' ? 'Failure synced. Generation remains on hold.'
+        : action === 'retry' ? 'W2A queued for the workflow router.'
+        : action === 'finalize' ? `Finalized ${selectedOrderId} through the existing 2A completion path.`
+        : `Replayed ${selectedOrderId} through the live 2a-start-repo route.`;
+      setBanner({ tone: 'success', message });
     } catch (error) {
-      console.error(`Failed to ${action} order:`, error);
-      setBanner({
-        tone: 'error',
-        message: error instanceof Error ? error.message : `Failed to ${action} order`,
-      });
+      if (!mounted.current) return;
+      setBanner({ tone: 'error', message: `${error instanceof Error ? error.message : 'Action outcome is uncertain'}. Checking current order state before another action.` });
     } finally {
-      setActing(false);
+      if (mounted.current) { await fetchData(selectedOrderId); setActing(false); }
+      actionInFlight.current = false;
     }
   };
-
-  const inspectedOrder = data?.inspectedOrder ?? null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -274,10 +294,9 @@ function W2ARecoveryPageContent() {
               <LifeBuoy className="h-4 w-4" />
               W2A Recovery Console
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Replay and finalize stale 2A runs</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Recover character generation</h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-600">
-              This page flags partial `W2A` runs, shows when all pose jobs finished but the parent stage
-              did not close, and gives operators a safe one-click recovery path.
+              Review stopped character generation, sync missing errors, and resume after resolving the cause.
             </p>
           </div>
 
@@ -316,7 +335,7 @@ function W2ARecoveryPageContent() {
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.finalizeReady}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Orders where every `W2A` job succeeded but the parent row still needs closure.
+                Orders with complete approved images that can return to review without generation.
               </p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
@@ -325,7 +344,7 @@ function W2ARecoveryPageContent() {
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.replayReady}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Orders where partial `W2A` child jobs need a safe replay instead of a full restart.
+                Partial runs remain held until verified resume is available.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -404,7 +423,7 @@ function W2ARecoveryPageContent() {
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => runAction('finalize')}
-                    disabled={!inspectedOrder.safeToFinalize || acting}
+                    disabled={!inspectedOrder.safeToFinalize || acting || loading || !verified}
                     className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -412,7 +431,7 @@ function W2ARecoveryPageContent() {
                   </button>
                   <button
                     onClick={() => runAction('replay')}
-                    disabled={!inspectedOrder.safeToReplay || acting}
+                    disabled={!inspectedOrder.safeToReplay || acting || loading || !verified}
                     className="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
@@ -428,6 +447,18 @@ function W2ARecoveryPageContent() {
               </div>
             </div>
 
+            {inspectedOrder.failure && !inspectedOrder.failure.resolvedAt && <div className="m-5 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950" role="status">
+              <h3 className="font-semibold">Character generation stopped</h3>
+              <p className="mt-2">{inspectedOrder.failure.message}</p>
+              <p className="mt-2">Execution {inspectedOrder.failure.executionId} · {formatTimestamp(inspectedOrder.failure.failedAt)}</p>
+              {inspectedOrder.canRecordFailure && <button disabled={acting || loading || !verified} onClick={() => runAction('record_failure')} className="mt-3 rounded bg-orange-800 px-3 py-2 font-medium text-white disabled:opacity-50">Sync failure to order</button>}
+              {inspectedOrder.failureRecorded && <p className="mt-2 font-medium">Failure saved. Generation is on hold.</p>}
+              {inspectedOrder.safeToRetry && <div className="mt-4 border-t border-orange-200 pt-3">
+                <label className="flex items-start gap-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={causeResolved} disabled={acting || loading || !verified} onChange={event => setResolvedRevision(event.target.checked ? failureRevision : null)} />I have resolved the underlying cause and want to resume generation.</label>
+                <button disabled={acting || loading || !verified || !causeResolved} onClick={() => runAction('retry')} className="mt-3 rounded bg-orange-800 px-3 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">Queue W2A again</button>
+              </div>}
+            </div>}
+            {inspectedOrder.failureLookupError && <p role="alert" className="m-5 rounded bg-red-50 p-3 text-sm text-red-900">{inspectedOrder.failureLookupError}</p>}
             <div className="grid gap-5 px-5 py-5 xl:grid-cols-[1.2fr_0.8fr]">
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-3">
@@ -665,7 +696,7 @@ export default function W2ARecoveryPage() {
         </div>
       }
     >
-      <W2ARecoveryPageContent />
+      <W2ARecoveryPageScope />
     </Suspense>
   );
 }

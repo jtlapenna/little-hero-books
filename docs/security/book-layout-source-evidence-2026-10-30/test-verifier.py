@@ -49,6 +49,14 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-w2a-failure-owner': 'back-end/src/lib/w2a-failure-recovery.ts',
+    'changed-w2a-parent-claim': 'back-end/src/lib/w2a-parent-claim.ts',
+    'changed-completed-recovery': 'back-end/src/lib/w2a-completed-recovery.ts',
+    'changed-provider-claim': 'back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts',
+    'changed-callback-owner': 'back-end/src/app/api/internal/workflow-jobs/log-event/route.ts',
+    'changed-operator-guard': 'back-end/src/lib/book-review-ownership.ts',
+    'changed-w1-sibling': 'docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json',
+    'changed-qa-handoff': 'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'changed-auto-csv-ui': 'back-end/src/app/admin/csv-upload/page.tsx',
     'changed-auto-csv-selection': 'back-end/src/lib/csv-book-selection.ts',
     'changed-auto-csv-fields': 'back-end/src/lib/csv-upload-helpers.ts',
@@ -95,6 +103,7 @@ added_cases = ['changed-v3-code', 'changed-v3-test', 'changed-v3-fixture', 'unau
                'changed-placement-schema', 'changed-canonical-config', 'changed-streaming-digest', 'changed-large-artifact-test', 'changed-quote-transport', 'changed-quote-boundary-test']
 added_cases += ['changed-workflow-admission', 'changed-hold-api', 'changed-test-hold-sql', 'changed-release-scope-sql', 'changed-print-profiles', 'changed-paid-review', 'changed-pdf-preflight']
 added_cases += ['changed-auto-csv-ui', 'changed-auto-csv-selection', 'changed-auto-csv-fields', 'changed-csv-envelope-test', 'changed-csv-archive-test']
+added_cases += ['changed-w2a-failure-owner', 'changed-w2a-parent-claim', 'changed-completed-recovery', 'changed-provider-claim', 'changed-callback-owner', 'changed-operator-guard', 'changed-w1-sibling', 'changed-qa-handoff']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

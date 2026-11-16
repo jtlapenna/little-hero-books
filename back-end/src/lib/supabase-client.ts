@@ -1,3 +1,4 @@
+import { W2A_FAILURE_KEY, failureRecord, heldW2AFailure } from './w2a-execution-failure';
 import { stripAdminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 import { getSupabaseServerConfig } from './supabase-server-config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -346,7 +347,11 @@ export async function upsertOrderByPerBookId(
     orderId: payload.orderId ?? perBookId,
   };
 
-  if (Object.hasOwn(normalizedPayload, 'product_info')) normalizedPayload.product_info = stripAdminWorkflowTestAdmission(normalizedPayload.product_info);
+  if (Object.hasOwn(normalizedPayload, 'product_info')) {
+    normalizedPayload.product_info = stripAdminWorkflowTestAdmission(normalizedPayload.product_info);
+    const info = failureRecord(normalizedPayload.product_info);
+    if (info) { const clean = { ...info }; delete clean[W2A_FAILURE_KEY]; delete clean._w2a_parent_claim; normalizedPayload.product_info = clean; }
+  }
 
   const byOrderId = await supabase
     .from('orders')
@@ -372,9 +377,14 @@ export async function upsertOrderByPerBookId(
   if (typeof existingId === 'number') {
     const existingRecord = (byOrderId.data as Record<string, unknown> | null)
       ?? (byOrderIdSnake?.data as Record<string, unknown> | null);
+    if (heldW2AFailure(existingRecord)) return { data: null, error: new Error('W2A failure requires acknowledged recovery before intake can overwrite this order'), wasInsert: false };
+
     // A W0/intake rewrite of product_info must not drop an explicit overnight-test marker.
     if (existingRecord && Object.hasOwn(normalizedPayload, 'product_info')) {
       normalizedPayload.product_info = preserveOvernightTestMarker(existingRecord, normalizedPayload.product_info);
+      const existingInfo = failureRecord(existingRecord.product_info);
+      if (existingInfo?._w2a_parent_claim) normalizedPayload.product_info = {...failureRecord(normalizedPayload.product_info),_w2a_parent_claim:existingInfo._w2a_parent_claim};
+      if (existingInfo?.[W2A_FAILURE_KEY]) normalizedPayload.product_info = { ...failureRecord(normalizedPayload.product_info), [W2A_FAILURE_KEY]: existingInfo[W2A_FAILURE_KEY] };
     }
     if (existingRecord) {
       try {
@@ -390,7 +400,9 @@ export async function upsertOrderByPerBookId(
       const missing = Object.fromEntries(FROZEN_PRINT_FIELDS.filter((field) => record[field] == null && normalizedPayload[field] != null)
         .map((field) => [field, normalizedPayload[field]]));
       if (Object.keys(missing).length) {
-        const frozen = await supabase.from('orders').update(missing).eq('id', existingId).select().single();
+        let frozenUpdate = supabase.from('orders').update(missing).eq('id', existingId);
+        frozenUpdate = record.updated_at != null ? frozenUpdate.eq('updated_at', record.updated_at) : frozenUpdate.is('updated_at', null);
+        const frozen = await frozenUpdate.select().single();
         if (frozen.error) return { data: null, error: new Error(frozen.error.message), wasInsert: false };
         return { data: frozen.data, error: null, wasInsert: false };
       }
@@ -402,7 +414,9 @@ export async function upsertOrderByPerBookId(
     }
     let update = supabase.from('orders').update(normalizedPayload).eq('id', existingId);
     if (options.preserveFrozenIntake) update = update.eq('execution_status', 'pending_w0');
+    update = existingRecord?.updated_at != null ? update.eq('updated_at', existingRecord.updated_at) : update.is('updated_at', null);
     const updated = await update.select().maybeSingle();
+    if (!options.preserveFrozenIntake && !updated.error && !updated.data) return { data: null, error: new Error('Order revision changed; refresh before rewriting intake'), wasInsert: false };
     if (options.preserveFrozenIntake && ((!updated.error && !updated.data) || (updated.error?.code === 'PGRST116' && updated.error.details?.includes('0 rows')))) {
       const current = await supabase.from('orders').select('*').eq('id', existingId).single();
       if (current.error) return { data: null, error: new Error(current.error.message), wasInsert: false };

@@ -1,3 +1,7 @@
+import { assertBookReviewOwnership, compareAndSetBookReview } from '@/lib/book-review-invalidation';
+import { buildCustomerPreviewFiles, customerPreviewHasReviewFlags } from '@/lib/customer-preview-files';
+import { downloadManifest } from '@/lib/r2-service';
+import { extractManifestKey, resolveOrderPathContext, buildManifestKeyHintOptionsFromOrderLike } from '@/lib/order-paths';
 import { customerRevisionsRemaining } from '@/lib/customer-corrections';
 // Fix: Remove await before .catch() in notification logging
 // Fix: Include actual error reason when Amazon messaging fails
@@ -7,7 +11,6 @@ import { withErrorHandling } from '@/lib/api-wrapper';
 import { createNotFoundError, createValidationError } from '@/lib/error-handler';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { ensureActivePreviewToken } from '@/lib/preview-tokens';
-import { updateOrderStatus } from '@/lib/status-service';
 import { ReviewStageStatus } from '@/constants/statuses';
 import { mapSupabaseOrderToOrder } from '@/lib/order-mapper';
 import { sendAmazonPreviewMessage, getAmazonOrderIdForMessaging } from '@/lib/notifications/amazon-message-center';
@@ -144,6 +147,29 @@ async function handleFinalApproval(
     throw createNotFoundError(`Order ${orderId} not found`);
   }
 
+  if (String(orderRecord.orderId ?? orderRecord.order_id ?? '') !== orderId && String(orderRecord.id) !== orderId) return NextResponse.json({ error: 'An exact per-book order is required' }, { status: 404 });
+
+  try { assertBookReviewOwnership(orderRecord, 'postPdf'); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Book ownership could not be verified' }, { status: 409 }); }
+  const stages = toRecord(orderRecord.review_stages);
+  const flags = toRecord(orderRecord.flags);
+  if (!orderRecord.manifest_3_url || orderRecord.execution_status !== 'done' ||
+      !['book_assembly_completed', 'customer_approval'].includes(String(orderRecord.workflow_step)) ||
+      toRecord(stages.preBria ?? stages.pre_bria).status !== 'approved' || toRecord(stages.postBria ?? stages.post_bria).status !== 'approved' ||
+      toRecord(stages.postPdf ?? stages.post_pdf).status !== 'approved' ||
+      orderRecord.has_flags === true || Object.values(flags).some(count => Number(count) > 0) || orderRecord.customer_approval_status === 'approved') {
+    return NextResponse.json({ error: 'Complete and review the current unflagged book before creating customer approval.' }, { status: 409 });
+  }
+  try {
+    const key = extractManifestKey(String(orderRecord.manifest_3_url));
+    const { orderPrefix } = resolveOrderPathContext(String(orderRecord.orderId ?? orderRecord.order_id), buildManifestKeyHintOptionsFromOrderLike(orderRecord));
+    if (key !== orderPrefix + '/manifests/3-manifest.json') throw new Error('Current manifest identity changed');
+    const manifest = await downloadManifest(key);
+    if (customerPreviewHasReviewFlags(manifest)) throw new Error('Resolve flagged preview pages before approval');
+    const preview = await buildCustomerPreviewFiles(manifest, orderPrefix, new Date(Date.now() + 60000).toISOString());
+    if (!preview.ready) throw new Error('Current preview is incomplete');
+  } catch { return NextResponse.json({ error: 'The current complete book preview could not be verified.' }, { status: 409 }); }
+
   const nowIso = new Date().toISOString();
   const existingRequestedAt: string | undefined =
     orderRecord.customer_approval_requested_at || undefined;
@@ -167,7 +193,9 @@ async function handleFinalApproval(
     }
   };
 
-  await updateOrderStatus(orderId, {
+  const committed = await compareAndSetBookReview(orderRecord, {
+    updated_at: nowIso, status: 'pending_customer_approval',
+    human_approved: true, human_reviewed_at: nowIso, human_reviewer: reviewer,
     review_stages: updatedReviewStages,
     workflow_step: 'customer_approval',
     customer_approval_required: true,
@@ -178,6 +206,8 @@ async function handleFinalApproval(
     started_at: null,
     current_workflow: null,
   });
+
+  if (!committed) return NextResponse.json({ error: 'Book changed during approval; refresh and review it again.' }, { status: 409 });
 
   const { record: previewToken, created: tokenCreated } =
     await ensureActivePreviewToken(orderId);

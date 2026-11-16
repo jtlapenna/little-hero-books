@@ -55,6 +55,10 @@ function assertIdentity(context: GelatoSubmissionContext, identity: GelatoSubmis
   if (s.id !== identity.submissionId || s.claim_token !== identity.claimToken || (claimed && (s.request_state !== 'claimed' || Date.parse(s.lease_expires_at) <= now.getTime())) ||
       (identity.mode === 'single' ? members.length !== 1 : members.length < 2)) throw new Error('Gelato submission claim or membership is stale');
 }
+export function gelatoShippingTierFromOrder(row: Record<string, unknown>): string {
+  return string(row.shipping_tier).toLowerCase() || 'standard';
+}
+
 export function gelatoRecipientFromOrder(row: Record<string, unknown>, merchantEmail?: string) {
   const address = object(row.shipping_address);
   const name = string(address.name ?? address.recipient_name ?? row.customer_name).split(/\s+/);
@@ -81,7 +85,7 @@ async function buildRequest(context: GelatoSubmissionContext, identity: GelatoSu
     assertGelatoCustomerApproval(row);
     const quantity = z.number().int().positive().parse(row.quantity ?? object(row.product_info).quantity ?? 1);
     // Amazon CSV orders carry no saved tier; they ship USPS Ground Advantage ("standard"). D2C checkout saves its own tier.
-    const tier = string(row.shipping_tier).toLowerCase() || 'standard';
+    const tier = gelatoShippingTierFromOrder(row);
     inputs.push({ input, member, row, quantity, recipient: gelatoRecipientFromOrder(row, dependencies.merchantEmail), tier });
   }
   const first = inputs[0];

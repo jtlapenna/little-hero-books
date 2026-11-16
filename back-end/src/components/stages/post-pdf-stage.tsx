@@ -1,5 +1,6 @@
 'use client';
 
+import { bookReviewOwnershipIssue } from '@/lib/book-review-ownership';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   CheckCircle,
@@ -311,7 +312,7 @@ export function PostPdfStage({
       ? 'bg-amber-100 text-amber-800'
       : 'bg-gray-100 text-gray-700';
   const approvalSendDisabled =
-    finalApprovalIsLoading || ((previewJustSent || hasExistingPreview) && (notificationWasSent || notificationSuppressed));
+    Boolean(bookReviewOwnershipIssue(order)) || finalApprovalIsLoading || ((previewJustSent || hasExistingPreview) && (notificationWasSent || notificationSuppressed));
   const approvalSendLabel = notificationSuppressed
     ? hasExistingPreview || previewJustSent ? 'Test Preview Ready' : 'Create Test Preview'
     : notificationFailed

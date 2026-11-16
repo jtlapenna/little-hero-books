@@ -1,9 +1,11 @@
+import { heldW2AFailure } from './w2a-execution-failure';
 import type { AnalyticsOrderLike } from '@/lib/analytics-helpers';
 import { getExplicitAnalyticsTestMarkerReason } from '@/lib/analytics-helpers';
 import { hasAdminWorkflowTestMarker, adminWorkflowTestMayRoute } from './admin-workflow-test';
 
 export interface CronGuardOrderLike extends AnalyticsOrderLike {
   product_info?: unknown;
+  error_type?: string | null;
   id?: number | string | null;
   next_workflow?: string | number | null;
   current_workflow?: string | number | null;
@@ -54,6 +56,7 @@ function getOrderIdentityCandidates(order: CronGuardOrderLike): string[] {
 export function getCronExcludedOrderReason(
   order: CronGuardOrderLike,
 ): string | null {
+  if (heldW2AFailure(order)) return 'w2a_failure_hold';
   if (hasAdminWorkflowTestMarker(order)) return adminWorkflowTestMayRoute(order) ? null : 'admin_workflow_test_hold';
   const analyticsReason = getExplicitAnalyticsTestMarkerReason(order);
   if (analyticsReason) {

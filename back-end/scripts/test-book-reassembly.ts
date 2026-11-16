@@ -31,13 +31,13 @@ async function main() {
     const orderId = 'LOCAL-BOOK-REASSEMBLY', bookId = 'book-mvp-simple-adventure', prefix = bookId + '/orders/' + orderId;
     const characterHash = 'synthetic-character';
     row = { id: 1, orderId, root_order_id: orderId, amazon_order_id: orderId, one_manifest_url: prefix + '/manifests/1-manifest.json',
-      workflow_step: 'order_intake', current_workflow: '2A', started_at: '2026-10-29T00:00:00Z', execution_status: 'processing',
+      updated_at:'2026-10-29T00:00:00Z',workflow_step: 'order_intake', current_workflow: '2A', started_at: '2026-10-29T00:00:00Z', execution_status: 'processing',
       customer_approval_required: true, customer_approval_status: 'not_requested',
       review_stages: { preBria: { status: 'in-review' }, postBria: { status: 'pending' }, postPdf: { status: 'pending' } } };
     manifest = { orderId, order: { orderId, rootOrderId: orderId, amazonOrderId: orderId }, characterHash };
     const completion = await complete2A(new NextRequest('https://admin.littleherolabs.com/api/webhooks/workflow-2a-complete', {
       method: 'POST', headers: { authorization: 'Bearer ' + process.env.BACKEND_API_TOKEN, 'content-type': 'application/json' },
-      body: JSON.stringify({ orderId, manifestUrl: prefix + '/manifests/2a-manifest.json', characterHash, needsReview: true }),
+      body: JSON.stringify({ workflowParentClaim:{orderRowId:1,orderId,startedAt:row.started_at,executionId:'9001'}, orderId, manifestUrl: prefix + '/manifests/2a-manifest.json', characterHash, needsReview: true }),
     }));
     assert.equal(completion.status, 200, await completion.clone().text()); assert.equal(row.execution_status, 'processing');
     assert.equal(row.current_workflow, null); assert.equal(row.started_at, null); checks++;

@@ -1,3 +1,4 @@
+import { verifyCompletedW2ARecovery } from './w2a-completed-recovery';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import {
@@ -5,6 +6,9 @@ import {
   buildManifestKeyHintOptionsFromOrderLike,
 } from '@/lib/order-paths';
 import { supabase } from '@/lib/supabase-client';
+import { listN8NExecutions as listExecutions, readN8NExecution as getExecution, readN8NWorkflow as fetchWorkflow, n8nRecoveryBaseUrl as getN8NBaseUrl } from './n8n-recovery-client';
+import { inspectW2AFailure, W2A_FAILURE_ORDER_FIELDS, type W2AFailureInspection } from './w2a-failure-recovery';
+import { heldW2AFailure, claimTime, W2A_ORCHESTRATOR_ID } from './w2a-execution-failure';
 import {
   resolveW2APoseWorkflowReplay,
   type WorkflowJobRecord,
@@ -28,7 +32,7 @@ type WorkflowResponse = {
   isArchived?: boolean;
 };
 
-export type W2ARecoveryAction = 'finalize' | 'replay' | 'inspect' | 'monitor' | 'none';
+export type W2ARecoveryAction = 'finalize' | 'replay' | 'inspect' | 'monitor' | 'none' | 'record_failure' | 'retry';
 
 export type W2ARecoveryOrderRow = {
   id: number;
@@ -43,6 +47,10 @@ export type W2ARecoveryOrderRow = {
   updated_at?: string | null;
   manifest_2a_url?: string | null;
   one_manifest_url?: string | null;
+  product_info?: unknown;
+  error_type?: string | null;
+  error_message?: string | null;
+  last_error_at?: string | null;
 };
 
 export type W2ARecoveryJobCounts = {
@@ -77,7 +85,7 @@ export type W2ARecoveryCandidate = {
   recommendedReason: string;
 };
 
-export type W2ARecoveryInspection = W2ARecoveryCandidate & {
+export type W2ARecoveryInspection = W2ARecoveryCandidate & W2AFailureInspection & {
   resolvedVia: 'id' | 'orderId' | 'order_id' | 'root_order_id' | 'amazon_order_id' | 'none';
   manifestReachableUrl: string | null;
   safeToFinalize: boolean;
@@ -122,8 +130,7 @@ export type W2AFinalizeActionResult = {
   completionResponse: unknown;
 };
 
-const DEFAULT_N8N_BASE = 'https://thepeakbeyond.app.n8n.cloud';
-const TOP_WORKFLOW_ID = 'HduzTWm0ekmrvwrn';
+const TOP_WORKFLOW_ID = W2A_ORCHESTRATOR_ID;
 const EXPECTED_WEBHOOK_PATH = '2a-start-repo';
 
 function toTrimmedString(value: unknown): string | null {
@@ -349,6 +356,12 @@ function buildCandidateSummary(
 
   if (jobCounts.total === 0) {
     recommendedReason = 'no_2a_jobs_recorded';
+    if (heldW2AFailure(orderRow)) {
+      recommendedAction = 'inspect'; recommendedReason = 'w2a_failed_before_pose_jobs';
+    } else if (orderRow.current_workflow === '2A' && orderRow.execution_status === 'processing' &&
+        (minutesSince(claimTime(orderRow.started_at)) ?? 0) >= staleMinutesThreshold) {
+      recommendedAction = 'inspect'; recommendedReason = 'w2a_has_no_pose_jobs_after_expected_start';
+    }
   } else if (allSucceeded && !alreadyCompleted) {
     recommendedAction = toTrimmedString(orderRow.manifest_2a_url) ? 'finalize' : 'inspect';
     recommendedReason = toTrimmedString(orderRow.manifest_2a_url)
@@ -382,7 +395,7 @@ function buildCandidateSummary(
     workflowStep: toTrimmedString(orderRow.workflow_step),
     manifest2aUrl: toTrimmedString(orderRow.manifest_2a_url),
     oneManifestUrl: toTrimmedString(orderRow.one_manifest_url),
-    startedAt: toIsoString(orderRow.started_at),
+    startedAt: claimTime(orderRow.started_at),
     updatedAt: toIsoString(orderRow.updated_at),
     latestJobUpdateAt: latestJobAt,
     minutesSinceLatestJobUpdate: latestMinutes,
@@ -410,81 +423,6 @@ function requireEnv(name: string): string {
     throw new Error(`Missing ${name}`);
   }
   return value;
-}
-
-function getN8NBaseUrl(): string {
-  return (
-    process.env.N8N_API_URL?.trim() ||
-    process.env.N8N_BASE_URL?.trim() ||
-    DEFAULT_N8N_BASE
-  );
-}
-
-async function listExecutions(
-  executionLimit: number,
-  workflowId?: string | null,
-): Promise<ExecutionListEntry[]> {
-  const url = new URL(`${getN8NBaseUrl()}/api/v1/executions`);
-  url.searchParams.set('limit', String(executionLimit));
-  if (workflowId) {
-    url.searchParams.set('workflowId', workflowId);
-  }
-
-  const response = await fetch(
-    url.toString(),
-    {
-      headers: {
-        'X-N8N-API-KEY': requireEnv('N8N_API_KEY'),
-      },
-    },
-  );
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `listExecutions(${workflowId}) failed: ${response.status} ${text.slice(0, 300)}`,
-    );
-  }
-
-  const parsed = JSON.parse(text) as { data?: ExecutionListEntry[] };
-  return parsed.data ?? [];
-}
-
-async function getExecution(executionId: string): Promise<unknown> {
-  const response = await fetch(
-    `${getN8NBaseUrl()}/api/v1/executions/${executionId}?includeData=true`,
-    {
-      headers: {
-        'X-N8N-API-KEY': requireEnv('N8N_API_KEY'),
-      },
-    },
-  );
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `getExecution(${executionId}) failed: ${response.status} ${text.slice(0, 300)}`,
-    );
-  }
-
-  return JSON.parse(text);
-}
-
-async function fetchWorkflow(workflowId: string): Promise<WorkflowResponse> {
-  const response = await fetch(`${getN8NBaseUrl()}/api/v1/workflows/${workflowId}`, {
-    headers: {
-      'X-N8N-API-KEY': requireEnv('N8N_API_KEY'),
-    },
-  });
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `fetchWorkflow(${workflowId}) failed: ${response.status} ${text.slice(0, 300)}`,
-    );
-  }
-
-  return JSON.parse(text) as WorkflowResponse;
 }
 
 async function findExecutionWithPayload(
@@ -684,7 +622,17 @@ export async function listRecentW2ARecoveryCandidates(options: {
   }
 
   const orderRows = await fetchOrderRowsByPerBookIds([...jobsByOrderId.keys()]);
-  const summaries = orderRows
+  const threshold = new Date(Date.now() - Math.max(1, options.hours ?? 72) * 3600000).toISOString();
+  const [processing, failed] = await Promise.all([
+    supabase.from('orders').select(W2A_FAILURE_ORDER_FIELDS).eq('current_workflow', '2A').eq('execution_status', 'processing')
+      .gte('updated_at', threshold).order('updated_at', { ascending: false }).limit(100),
+    supabase.from('orders').select(W2A_FAILURE_ORDER_FIELDS).like('error_type', 'w2a_%').in('execution_status', ['error', 'error_requires_manual_review'])
+      .gte('updated_at', threshold).order('updated_at', { ascending: false }).limit(100),
+  ]);
+  if (processing.error || failed.error) throw Error('Early W2A recovery candidates could not be loaded');
+  const byPhysicalId = new Map(orderRows.map(row => [row.id, row]));
+  for (const row of [...(processing.data ?? []), ...(failed.data ?? [])]) byPhysicalId.set(row.id, row as W2ARecoveryOrderRow);
+  const summaries = [...byPhysicalId.values()]
     .map((orderRow) => {
       const orderId = cleanOrderId(orderRow);
       if (!orderId) {
@@ -698,6 +646,8 @@ export async function listRecentW2ARecoveryCandidates(options: {
     .filter((entry) => entry.recommendedAction !== 'none' && entry.recommendedAction !== 'monitor');
 
   const severityOrder: Record<W2ARecoveryAction, number> = {
+    record_failure: 0,
+    retry: 1,
     finalize: 0,
     replay: 1,
     inspect: 2,
@@ -727,8 +677,7 @@ export async function inspectW2ARecoveryOrder(
     includeExecutionLookup?: boolean;
   } = {},
 ): Promise<W2ARecoveryInspection> {
-  const select =
-    'id, orderId, order_id, root_order_id, amazon_order_id, workflow_step, execution_status, current_workflow, started_at, updated_at, manifest_2a_url, one_manifest_url';
+  const select = W2A_FAILURE_ORDER_FIELDS + ',order_id';
   const lookup = await fetchOrderRowByAnyId<W2ARecoveryOrderRow>(supabase, rawOrderId, select);
   if (!lookup.row) {
     throw new Error(`W2A recovery: order not found for ${rawOrderId}`);
@@ -764,9 +713,22 @@ export async function inspectW2ARecoveryOrder(
   let matchedExecution: W2ARecoveryInspection['matchedExecution'] = null;
   let payloadRecoverable = false;
   let executionLookupError: string | null = null;
+  let failureInspection: W2AFailureInspection = { failure: null, failureRecorded: false, canRecordFailure: false,
+    safeToRetry: false, failureLookupError: null, failureRevision: lookup.row.updated_at ?? null };
 
   if (options.includeExecutionLookup !== false) {
     try {
+      if (jobs.length === 0 || heldW2AFailure(lookup.row)) {
+        failureInspection = await inspectW2AFailure({ ...lookup.row });
+        workflow = summarizeWorkflow(await fetchWorkflow(TOP_WORKFLOW_ID));
+        const failure = failureInspection.failure;
+        if (failure) {
+          matchedExecution = { id: failure.executionId, workflowId: TOP_WORKFLOW_ID, status: 'error',
+            startedAt: failure.claimStartedAt, stoppedAt: failure.failedAt, finished: false };
+          payloadRecoverable = true;
+        }
+        executionLookupError = failureInspection.failureLookupError;
+      } else {
       const matched = await findExecutionWithPayload(
         orderId,
         Math.max(5, options.executionLimit ?? 40),
@@ -791,18 +753,21 @@ export async function inspectW2ARecoveryOrder(
           }
         : null;
       payloadRecoverable = Boolean(matched);
+      }
     } catch (error) {
       executionLookupError =
         error instanceof Error ? error.message : 'Unknown n8n lookup failure';
     }
   }
 
-  const safeToFinalize =
-    !candidate.alreadyCompleted && candidate.allSucceeded && Boolean(manifestReachableUrl);
-  const safeToReplay =
-    candidate.hasIncompleteJobs &&
-    Boolean(workflow?.active ?? true) &&
-    payloadRecoverable;
+  let safeToFinalize = false;
+  let completionHoldReason: string | null = null;
+  if (candidate.allSucceeded && heldW2AFailure(lookup.row)) {
+    try { await verifyCompletedW2ARecovery({ ...lookup.row }, jobs); safeToFinalize = true; }
+    catch (error) { completionHoldReason = error instanceof Error ? error.message : 'Completion proof unavailable'; }
+  }
+  // Full webhook replay also reruns SW0 and cannot safely resume partial published work.
+  const safeToReplay = false;
 
   let recommendedAction = candidate.recommendedAction;
   if (safeToFinalize) {
@@ -814,10 +779,14 @@ export async function inspectW2ARecoveryOrder(
   ) {
     recommendedAction = 'inspect';
   }
+  if (failureInspection.canRecordFailure) recommendedAction = 'record_failure';
+  else if (failureInspection.safeToRetry) recommendedAction = 'retry';
 
   return {
     ...candidate,
-    recommendedAction,
+    ...failureInspection,
+    recommendedAction: safeToFinalize ? 'finalize' : recommendedAction === 'replay' || recommendedAction === 'finalize' ? 'inspect' : recommendedAction,
+    recommendedReason: safeToFinalize ? 'All frozen poses are approved and available. Finalize into manual review without generation.' : completionHoldReason ?? (candidate.hasIncompleteJobs ? 'Partial W2A resume is held. Configured poses require verified generation provenance; full replay would rerun the base character. Inspect the failure before recovery.' : candidate.recommendedReason),
     resolvedVia: lookup.used,
     manifestReachableUrl,
     safeToFinalize,
@@ -828,75 +797,6 @@ export async function inspectW2ARecoveryOrder(
     executionLookupError,
     replayableLogicalKeys,
     pendingLogicalKeys,
-  };
-}
-
-async function postWorkflow2AComplete(options: {
-  orderId: string;
-  rootOrderId: string | null;
-  manifestUrl: string;
-  posesGenerated: number;
-  adminBaseUrl: string;
-}): Promise<unknown> {
-  const response = await fetch(
-    `${options.adminBaseUrl.replace(/\/+$/, '')}/api/webhooks/workflow-2a-complete`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${requireEnv('BACKEND_API_TOKEN')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        orderId: options.orderId,
-        manifestUrl: options.manifestUrl,
-        amazonOrderId: options.rootOrderId ?? undefined,
-        posesGenerated: options.posesGenerated,
-        needsReview: false,
-      }),
-    },
-  );
-
-  const text = await response.text();
-  const parsed = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(
-      `workflow-2a-complete failed for ${options.orderId}: ${response.status} ${text.slice(0, 500)}`,
-    );
-  }
-  return parsed;
-}
-
-export async function finalizeW2ARecoveryOrder(
-  rawOrderId: string,
-  options: {
-    adminBaseUrl?: string;
-    executionLimit?: number;
-    staleMinutes?: number;
-  } = {},
-): Promise<W2AFinalizeActionResult> {
-  const inspection = await inspectW2ARecoveryOrder(rawOrderId, {
-    adminBaseUrl: options.adminBaseUrl,
-    executionLimit: options.executionLimit,
-    staleMinutes: options.staleMinutes,
-    includeExecutionLookup: false,
-  });
-
-  if (!inspection.safeToFinalize || !inspection.manifestReachableUrl) {
-    throw new Error(
-      `W2A recovery finalize refused for ${inspection.orderId}: order is not safe to finalize`,
-    );
-  }
-
-  const completionResponse = await postWorkflow2AComplete({
-    orderId: inspection.orderId,
-    rootOrderId: inspection.rootOrderId,
-    manifestUrl: inspection.manifestReachableUrl,
-    posesGenerated: inspection.jobCounts.total,
-    adminBaseUrl: resolveCanonicalBackendBaseUrl(options.adminBaseUrl),
-  });
-
-  return {
-    completionResponse,
   };
 }
 

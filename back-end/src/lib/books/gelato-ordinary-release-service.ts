@@ -16,6 +16,7 @@ export interface OrdinaryReleaseServiceSources {
   database: SupabaseClient;
   /** Server-configured single test scope; never selected by the HTTP body. */
   testScope?: { orderId: string; expiresAt: string };
+  merchantEmail?: string;
   apiKey: string;
   expectedAccountSha256: string;
   approvers: ReadonlySet<string>;
@@ -51,7 +52,7 @@ export function composeOrdinaryReleaseServiceRuntime(sources: OrdinaryReleaseSer
     return sources.fetcher(request);
   };
   const release:Omit<OrdinaryReleaseDependencies,'store'>={
-    apiKey:key, fetcher:transport, now:sources.now, budgetMs:30000,
+    merchantEmail:sources.merchantEmail, apiKey:key, fetcher:transport, now:sources.now, budgetMs:30000,
     enabled:async()=>{
       if(!await sources.activationApproved())return false;
       if (sources.testScope) {

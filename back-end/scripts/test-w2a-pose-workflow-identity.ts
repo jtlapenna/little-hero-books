@@ -29,6 +29,7 @@ for (const [a, b] of [
   ['Pin Keys (base & pose)', 'TESTING - Prepare Gemini (POSE)'],
 ]) edge(a, b);
 const fixture = (n: number) => ({
+  workflowClaimed: true, workflowAttemptId: 7, workflowAttempt: 1,
   poseIdentityContract: 'configured-recipe@v1',
   renderSnapshot: { schema: 'lhb.book-render-snapshot@v1' },
   poseNumber: n, currentPoseNumber: n, poseNN: `pose${String(n).padStart(2, '0')}`,
@@ -55,7 +56,9 @@ async function main() {
   const produced = await build();
   assert.equal(produced.renderSnapshot, undefined);
   assert.equal(produced.poseIdentityContract, 'configured-recipe@v1');
-  const producedPath = await path(produced);
+  await assert.rejects(() => path(produced), /no owned attempt/i);
+  const ownedProduced = { ...produced, workflowClaimed:true, workflowAttemptId:7, workflowAttempt:1 };
+  const producedPath = await path(ownedProduced);
   assert.equal(producedPath.after.poseNumber, 13);
   assert.equal(producedPath.after.poseRefKey, produced.poseRefKey);
   // The previously deployed resolver clamps to 12 without consulting backend metadata.
@@ -64,7 +67,7 @@ async function main() {
   assert.equal(oldWorkflowClamp(produced.poseNumber), 12);
   assert.equal(produced.poseRefKey.endsWith('/custom-run.png'), true);
   // A new workflow receiving an old backend response fails before the provider path.
-  await assert.rejects(() => path({ ...produced, poseIdentityContract: undefined }), /identity contract/i);
+  await assert.rejects(() => path({ ...ownedProduced, poseIdentityContract: undefined }), /identity contract/i);
   for (const bad of [{ poseNumber: 13.5 }, { poseNumber: '13.5' }, { currentPoseNumber: 12 }, { nextPoseNumber: 12 }]) {
     await assert.rejects(() => build(bad), /pose/i);
   }
@@ -73,10 +76,10 @@ async function main() {
   const attempts = new Map<number, any>();
   let headCalls = 0;
   const repository: any = {
-    enqueueWorkflowJob: async (i: any) => { const job = { id: jobs.size + 1, status: 'queued', idempotency_key: i.idempotencyKey, attempt_count: 0, normalized_input_snapshot: i.normalizedInputSnapshot, result_snapshot: {} }; jobs.set(job.id, job); return job; },
+    enqueueWorkflowJob: async (i: any) => { const job = { order_id:i.orderId,book_id:i.bookId,stage:i.stage,job_type:i.jobType,logical_key:i.logicalKey,id: jobs.size + 1, status: 'queued', idempotency_key: i.idempotencyKey, attempt_count: 0, normalized_input_snapshot: i.normalizedInputSnapshot, result_snapshot: {} }; jobs.set(job.id, job); return job; },
     getWorkflowJobById: async (id: number) => jobs.get(id),
     getWorkflowJobByIdempotencyKey: async (key: string) => [...jobs.values()].find(j => j.idempotency_key === key),
-    claimWorkflowJob: async (id: number) => jobs.get(id),
+    claimWorkflowJob: async (id: number, options:any) => { const job=jobs.get(id); job.status='claimed'; if(options.reserveAttemptCount)job.attempt_count++; if(options.normalizedInputSnapshot)job.normalized_input_snapshot=options.normalizedInputSnapshot; return job; },
     incrementWorkflowJobAttemptCount: async (id: number) => { const j = jobs.get(id); j.attempt_count++; return j; },
     createWorkflowJobAttempt: async (input: any) => {
       const attempt = { id: 7, job_id: input.jobId, attempt: input.attempt, status: input.status, worker_kind: 'n8n', lease_owner: null, started_at: '2026-01-01T00:00:00.000Z', ended_at: null, duration_ms: null, error_message: null, error_details: null, provider_request_id: null, provider_status_url: null, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' };
@@ -97,6 +100,9 @@ async function main() {
   const frozen = await buildW2APoseInput({ ...queued, characterHash: 'abcdef123456', characterSpecs: { childName: 'Ada' } }, { loadConfig: async () => { throw new Error('must use frozen config'); } });
   const claimed = await claimAndStartW2APoseJob({ ...frozen, workflowJobId: queued.workflowJobId }, {}, repository);
   assert.equal(claimed.workflowClaimed, true);
+  const actualClaimedPath=await path({...frozen,...claimed});
+  assert.equal(actualClaimedPath.after.poseRefKey,frozen.poseRefKey);
+  assert.equal(actualClaimedPath.after.poseNumber,13);
   const deps: any = { ...repository, getWorkflowJobAttemptById: async (id: number) => attempts.get(id) ?? null, finishWorkflowJobAttempt: async () => null,
     markWorkflowJobSucceeded: async (id: number, input: any) => { const j = jobs.get(id); j.status = 'succeeded'; j.result_snapshot = input.resultSnapshot; return j; } };
   await run('Log Workflow Job Complete', { ...frozen, ...claimed }, {}, async request => recordWorkflowJobEventResponse(request.body, deps));

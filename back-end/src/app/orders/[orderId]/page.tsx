@@ -1,5 +1,6 @@
 'use client';
 
+import { bookReviewOwnershipIssue } from '@/lib/book-review-ownership';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Order, ReviewStage } from '@/types/order';
@@ -193,6 +194,8 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [workflowRefreshWarning, setWorkflowRefreshWarning] = useState<string | null>(null);
+  const workflowPollInFlight = useRef<object | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<ReviewStage>('preBria' as unknown as ReviewStage);
   const activeStageTab = useRef<HTMLButtonElement>(null);
@@ -255,7 +258,7 @@ export default function OrderDetailPage() {
     : null;
 
   // Fetch order data from API
-  const fetchOrder = useCallback(async (orderId: string) => {
+  const fetchOrder = useCallback(async (orderId: string, background = false) => {
     if (!detailActiveRef.current || currentRouteOrderRef.current !== orderId) return undefined;
     const sequence = ++orderReadSequenceRef.current;
     const isCurrentRead = () => detailActiveRef.current && currentRouteOrderRef.current === orderId && orderReadSequenceRef.current === sequence;
@@ -263,6 +266,7 @@ export default function OrderDetailPage() {
       // Add cache-busting to ensure we get fresh data after manifest deletions
       const response = await fetch(`/api/orders/${orderId}?t=${Date.now()}`, {
         cache: 'no-store',
+        signal: AbortSignal.timeout(20000),
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -288,6 +292,7 @@ export default function OrderDetailPage() {
         console.error(`[OrderDetailPage] API error (${response.status}):`, errorMessage);
         throw new Error(errorMessage);
       }
+      setWorkflowRefreshWarning(null);
       setOrder(data);
       setLoadError(null);
       setPrintRefreshWarning(null);
@@ -306,6 +311,7 @@ export default function OrderDetailPage() {
     } catch (error) {
       if (!isCurrentRead()) return undefined;
       console.error('Error fetching order:', error);
+      if (background) { setWorkflowRefreshWarning('Could not refresh workflow status. Showing the last verified state.'); return null; }
       setOrder(null);
       setLoadError(
         error instanceof Error && error.message
@@ -316,6 +322,19 @@ export default function OrderDetailPage() {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    if (!order || !['processing', 'ready_for_processing', 'pending_w0', 'queued'].includes(order.executionStatus || '')) return;
+    const orderId = order.orderId;
+    let active = true;
+    const pollOwner = {};
+    const interval = window.setInterval(async () => {
+      if (!active || workflowPollInFlight.current === pollOwner || printRequestInProgressRef.current) return;
+      workflowPollInFlight.current = pollOwner;
+      try { await fetchOrder(orderId, true); } finally { if (workflowPollInFlight.current === pollOwner) workflowPollInFlight.current = null; }
+    }, 15000);
+    return () => { active = false; if (workflowPollInFlight.current === pollOwner) workflowPollInFlight.current = null; window.clearInterval(interval); };
+  }, [order?.orderId, order?.executionStatus, fetchOrder]);
 
   // Callback to update order state and sync flagCounts
   const handleOrderUpdate = useCallback((updates: Partial<Order>) => {
@@ -357,6 +376,7 @@ export default function OrderDetailPage() {
     if (orderId) {
       setLoading(true);
       setOrder(null);
+      setWorkflowRefreshWarning(null);
       setPrintFeedback(null);
       setPrintRefreshWarning(null);
       setPrintOutcomeOrderId(null);
@@ -1291,7 +1311,7 @@ export default function OrderDetailPage() {
                 <button
                   type="button"
                   onClick={handleResetOrder}
-                  disabled={resetting}
+                  disabled={resetting || order.errorType?.startsWith('w2a_')}
                   className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                   title="Reset order to initial state (development only)"
                 >
@@ -1330,6 +1350,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
+        {workflowRefreshWarning && <p role="status" className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{workflowRefreshWarning}</p>}
         {/* Manual Review Alert */}
         {order && (
           <ManualReviewAlert
@@ -1339,6 +1360,7 @@ export default function OrderDetailPage() {
             retryCount={order.retryCount}
             workflowStep={order.workflowStep}
             currentWorkflow={order.currentWorkflow}
+            recoveryHref={`/admin/w2a-recovery?orderId=${encodeURIComponent(order.orderId)}`}
           />
         )}
 
@@ -1511,7 +1533,7 @@ export default function OrderDetailPage() {
                     e.stopPropagation();
                     handleResetOrderRecovery();
                   }}
-                  disabled={resettingOrder}
+                  disabled={resettingOrder || order.errorType?.startsWith('w2a_')}
                   className="inline-flex items-center px-3 py-1.5 border border-yellow-300 rounded-md text-sm font-medium text-yellow-800 bg-white hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   title={order.executionStatus === 'processing' 
                     ? 'Reset order stuck in processing state' 
@@ -1644,7 +1666,7 @@ export default function OrderDetailPage() {
                 Clear workflow status fields and trigger regeneration. This will recreate assets even if they already exist.
               </p>
               <div className="flex flex-wrap gap-2">
-                <button
+                <button disabled={order.errorType?.startsWith('w2a_')}
                   onClick={async () => {
                     if (!confirm('This will clear 2A assets and regenerate. Continue?')) return;
                     try {
@@ -1671,7 +1693,7 @@ export default function OrderDetailPage() {
                 >
                   Regenerate 2A
                 </button>
-                <button
+                <button disabled={order.errorType?.startsWith('w2a_')}
                   onClick={async () => {
                     if (!confirm('This will clear 2B assets and regenerate. Continue?')) return;
                     try {
@@ -1690,6 +1712,8 @@ export default function OrderDetailPage() {
                   Regenerate 2B
                 </button>
                 <button
+                  disabled={Boolean(bookReviewOwnershipIssue(order))}
+                  title={bookReviewOwnershipIssue(order) ?? undefined}
                   onClick={async () => {
                     if (!confirm('This will clear 3 (Book Assembly) assets and regenerate. Continue?')) return;
                     try {
@@ -1755,7 +1779,7 @@ export default function OrderDetailPage() {
                       alert(`Error: ${error.message}`);
                     }
                   }}
-                  disabled={order.printProvider === 'gelato' && Boolean(order.printSubmissionId || order.gelatoOrderId)}
+                  disabled={order.errorType?.startsWith('w2a_') || order.printProvider === 'gelato' && Boolean(order.printSubmissionId || order.gelatoOrderId)}
                   title={order.printProvider === 'gelato' && (order.printSubmissionId || order.gelatoOrderId) ? 'Use Print Status to inspect or recover the existing Gelato submission.' : undefined}
                   className="px-3 py-1.5 text-xs font-medium bg-yellow-600 text-white rounded hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

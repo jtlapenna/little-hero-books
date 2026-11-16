@@ -716,6 +716,84 @@
               "name": "=hairRefPublicUrl",
               "value": "={{ $json.hairRefPublicUrl ?? {} }}",
               "type": "string"
+            },
+            {
+              "id": "818426f0-6b53-4f3c-bf78-3c8a2cf6032e",
+              "name": "workflowParentClaim",
+              "type": "object",
+              "value": "={{ $('When Executed by Another Workflow').first().json.workflowParentClaim }}"
+            },
+            {
+              "id": "a555f1d3-c084-4f02-b06c-b4ddfb736ea1",
+              "name": "workflowJobId",
+              "type": "number",
+              "value": "={{ $('When Executed by Another Workflow').first().json.workflowJobId }}"
+            },
+            {
+              "id": "0dac8df3-a62e-4a39-9652-a6564cd503d8",
+              "name": "workflowAttemptId",
+              "type": "number",
+              "value": "={{ $('When Executed by Another Workflow').first().json.workflowAttemptId }}"
+            },
+            {
+              "id": "3b237d18-c802-4aa1-bdee-61dd203639de",
+              "name": "workflowAttempt",
+              "type": "number",
+              "value": "={{ $('When Executed by Another Workflow').first().json.workflowAttempt }}"
+            },
+            {
+              "id": "413b3c2a-ac26-417f-b52d-17c1e6af8136",
+              "name": "workflowJobIdempotencyKey",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.workflowJobIdempotencyKey }}"
+            },
+            {
+              "id": "c7a91f39-a2e0-4f9f-be24-2f31a8a4aad1",
+              "name": "uploadKey",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.uploadKey }}"
+            },
+            {
+              "id": "44165096-62de-414b-9f6b-5dad13072614",
+              "name": "oneManifestKey",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.oneManifestKey }}"
+            },
+            {
+              "id": "02147e9c-8d80-443d-b06c-182ee1e29b18",
+              "name": "oneManifestUrl",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.oneManifestUrl }}"
+            },
+            {
+              "id": "ba3c2a68-b7dd-43bf-9dbc-8c4974b56bc1",
+              "name": "bookId",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.bookId }}"
+            },
+            {
+              "id": "05f950cc-561b-417d-ac01-1887558593e8",
+              "name": "formatId",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.formatId }}"
+            },
+            {
+              "id": "6d3da4dc-ecf1-410c-a9b5-9a4ab4e153e3",
+              "name": "configVersion",
+              "type": "number",
+              "value": "={{ $('When Executed by Another Workflow').first().json.configVersion }}"
+            },
+            {
+              "id": "ed08f64a-15f4-44d4-a5b5-23912ea36453",
+              "name": "renderSnapshot",
+              "type": "object",
+              "value": "={{ $('When Executed by Another Workflow').first().json.renderSnapshot }}"
+            },
+            {
+              "id": "d9171992-43a8-47ef-be90-b88e5c168c18",
+              "name": "poseIdentityContract",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').first().json.poseIdentityContract }}"
             }
           ]
         },

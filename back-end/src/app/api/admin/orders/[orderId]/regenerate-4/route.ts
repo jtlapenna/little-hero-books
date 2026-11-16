@@ -1,3 +1,5 @@
+import { BookReviewConflict } from '@/lib/book-review-invalidation';
+import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
 import { hasExistingGelatoSubmission } from '@/lib/books/gelato-consumer-policy';
@@ -32,7 +34,7 @@ class ExistingGelatoSubmissionError extends Error {}
  * Update order row while tolerating schema drift between environments.
  * If a column doesn't exist (e.g. `lulu_carrier`), drop it and retry.
  */
-async function updateOrderRowResilientById(orderRowId: number, updateData: Record<string, unknown>) {
+async function updateOrderRowResilientById(orderRowId: number, updateData: Record<string, unknown>, expectedRevision: string) {
   // PSEUDOCODE
   // - Try UPDATE by primary key `id` (avoids amazon_order_id vs numeric id ambiguity)
   // - If PostgREST reports an unknown column, drop it and retry (schema drift tolerance)
@@ -46,10 +48,11 @@ async function updateOrderRowResilientById(orderRowId: number, updateData: Recor
       .from('orders')
       .update(dataToUpdate)
       .eq('id', orderRowId)
+      .eq('updated_at', expectedRevision)
       .select('id'); // avoid `.single()` response-shape issues
 
     if (!error) {
-      if (!data || data.length === 0) throw new Error(`Order not found for update (id=${orderRowId})`);
+      if (!data || data.length === 0) throw new BookReviewConflict('Order revision changed; refresh before regeneration');
       return;
     }
 
@@ -222,6 +225,8 @@ export async function POST(
       console.log(`[Regenerate 4] Restored order ${orderId} from archived_orders`);
     }
 
+    if (heldW2AFailure(currentOrder)) return NextResponse.json({ error: 'Resolve the W2A failure in W2A Recovery before regeneration' }, { status: 409 });
+
     const orderRecord = currentOrder as Regenerate4OrderRecord;
     if (hasExistingGelatoSubmission(orderRecord as Record<string, unknown>)) {
       return NextResponse.json(
@@ -325,7 +330,7 @@ export async function POST(
             reprint_note: reprintNote,
           }
         : {}),
-    });
+    }, String((currentOrder as Record<string, unknown>).updated_at ?? ''));
 
     const source = wasArchived ? 'restored from archive' : 'active orders';
     console.log(`[Regenerate 4] Queued order ${amazonOrderId} (id=${orderRowId}, ${source}) for W4 regeneration`);
@@ -339,6 +344,7 @@ export async function POST(
       wasArchived,
     });
   } catch (error: unknown) {
+    if (error instanceof BookReviewConflict) return NextResponse.json({error:error.message},{status:409});
     if (error instanceof ExistingGelatoSubmissionError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }

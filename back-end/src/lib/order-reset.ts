@@ -1,3 +1,4 @@
+import { heldW2AFailure } from './w2a-execution-failure';
 import { ReviewStageStatus, OrderStatus } from '@/constants/statuses';
 import {
   getOrderFromSupabase,
@@ -60,6 +61,8 @@ export async function resetOrderToInitialState(orderId: string) {
   if (!existingOrder) {
     throw new OrderResetError('ORDER_NOT_FOUND');
   }
+
+  if (heldW2AFailure(existingOrder)) throw new OrderResetError('W2A_FAILURE_HOLD');
 
   // Clear preview tokens so a fresh token can be generated
   try {

@@ -29,6 +29,10 @@ async function order(orderId:string){
   execution_status:approval?'ready_for_processing':'done',next_workflow:approval?'4':null,workflow_step:approval||noPreview?'customer_approval':'print_prepared',
   current_workflow:null,started_at:null,customer_approval_required:true,customer_approval_status:noPreview?'not_requested':approval?'approved':'approved',
   review_stages:{preBria:{status:'approved'},postBria:{status:'approved'},postPdf:{status:'approved'}},one_manifest_url:origin+'/api/manifests/book-finding-our-inner-voice/orders/'+orderId+'/manifests/1-manifest.json',manifest_3_url:origin+'/api/manifests/book-finding-our-inner-voice/orders/'+orderId+'/manifests/3-manifest.json',gelato_order_type:orderId==='UI-DRAFT'?(releaseExecuted?'order':'draft'):undefined,gelato_status:orderId==='UI-DRAFT'?(releaseExecuted?'created':'draft'):approval||noPreview?null:'prepared'};
+ if(orderId.startsWith('UI-W2A-')){
+  const count=Number(state.get(orderId+'-reads')??0)+1; state.set(orderId+'-reads',String(count));
+  Object.assign(row,{execution_status:orderId==='UI-W2A-POLL'&&count===1?'processing':'error_requires_manual_review',current_workflow:orderId==='UI-W2A-POLL'&&count===1?'2A':null,next_workflow:'2A',workflow_step:'order_intake',print_submission_id:null,manifest_3_url:null,customer_approval_status:null,review_stages:{preBria:{status:'pending'},postBria:{status:'pending'},postPdf:{status:'pending'}},error_type:'w2a_provider_billing',error_message:'Gemini image generation is blocked because its prepaid credits are depleted. Restore the project balance, then queue W2A again.',started_at:orderId==='UI-W2A-POLL'&&count===1?new Date().toISOString():null});
+ }
  const result=await mapSupabaseOrderToOrder(row,{includeStatus:false});
  result.totalSiblings=1;result.siblingOrders=[{orderId,childName:'Alex',status:result.status} as never];
  if(!noPreview)result.customerPreview={token:'synthetic-preview',url:origin+'/approve/synthetic-preview',notification:{status:'suppressed'}};
@@ -60,6 +64,22 @@ const server=createServer(async(req,res)=>{
  const json=(body:unknown,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(body));};
  try{
   if(url.pathname.startsWith('/api/')){
+   if(url.pathname==='/api/admin/w2a-recovery'){
+    let id=url.searchParams.get('orderId')??'';
+    if(req.method==='POST'){
+     const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(chunk);
+     const body=JSON.parse(Buffer.concat(chunks).toString());id=body.orderId;
+     console.log(JSON.stringify({w2aUiAction:body.action,orderId:id,resolvedCause:body.resolvedCause===true}));
+     await new Promise(resolve=>setTimeout(resolve,500));
+     state.set(id,body.action==='record_failure'?'recorded':'queued');
+     return json({success:id!=='UI-W2A-UNCERTAIN',action:body.action,...(id==='UI-W2A-UNCERTAIN'?{error:'Response was not confirmed'}:{})},id==='UI-W2A-UNCERTAIN'?503:200);
+    }
+    if(id==='UI-W2A-LOOKUP-ERROR')return json({error:'Workflow inspection is unavailable'},503);
+    if(id==='UI-W2A-SLOW')await new Promise(resolve=>setTimeout(resolve,2000));
+    const missing=id==='UI-W2A-MISSING'&&state.get(id)!=='recorded',queued=state.get(id)==='queued';
+    const candidate={orderRowId:9001,orderId:id,rootOrderId:id,executionStatus:queued?'ready_for_processing':missing?'processing':'error_requires_manual_review',currentWorkflow:missing?'2A':null,workflowStep:'order_intake',manifest2aUrl:null,oneManifestUrl:'/synthetic/1-manifest.json',updatedAt:'2026-11-16T07:00:00Z',latestJobUpdateAt:null,minutesSinceLatestJobUpdate:null,alreadyCompleted:false,allSucceeded:false,hasIncompleteJobs:false,recommendedAction:queued?'monitor':missing?'record_failure':'retry',recommendedReason:queued?'queued_for_router':'generation_stopped_before_pose_jobs',jobCounts:{total:0,statuses:{},activeCount:0,succeededCount:0,failedCount:0,retryWaitingCount:0,deadLetteredCount:0,canceledCount:0}};
+    return json({success:true,summary:{candidateCount:id?1:0,finalizeReady:0,replayReady:0,inspectNeeded:id?1:0},candidates:id?[candidate]:[],inspectionError:null,inspectedOrder:id?{...candidate,resolvedVia:'orderId',safeToFinalize:false,safeToReplay:false,payloadRecoverable:true,workflow:{id:'synthetic',name:'W2A',active:true,isArchived:false},matchedExecution:{id:'101',status:'error',startedAt:'2026-11-16T05:50:28Z',finished:false,stoppedAt:'2026-11-16T05:50:34Z'},executionLookupError:null,replayableLogicalKeys:[],pendingLogicalKeys:[],failure:{executionId:'101',claimStartedAt:'2026-11-16T05:50:28.244000Z',failedAt:'2026-11-16T05:50:34.758000Z',code:'w2a_provider_billing',message:'Gemini image generation is blocked because its prepaid credits are depleted. Restore the project balance, then queue W2A again.',...(queued?{resolvedAt:'2026-11-16T07:00:00Z'}:{})},failureRecorded:!missing&&!queued,canRecordFailure:missing,safeToRetry:!missing&&!queued,failureLookupError:null,failureRevision:'2026-11-16T07:00:00Z'}:null});
+   }
    if(url.pathname==='/api/admin/amazon-orders/upload-csv'&&req.method==='POST'){
     const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(chunk);
     const form=await new Request(origin+url.pathname,{method:'POST',headers:{'content-type':req.headers['content-type']??''},body:Buffer.concat(chunks)}).formData();
@@ -114,8 +134,8 @@ const server=createServer(async(req,res)=>{
 });
 server.on('upgrade', (request, socket, head) => {
  const upstream = connect(3009, '127.0.0.1', () => {
-  const headers = Object.entries(request.headers).filter(([key]) => key !== 'authorization').map(([key, value]) => `${key}: ${value}`).join('\r\n');
-  upstream.write(`${request.method} ${request.url} HTTP/1.1\r\n${headers}\r\nauthorization: Bearer ${token}\r\n\r\n`);
+  const headers = Object.entries(request.headers).filter(([key]) => !['authorization','host','origin'].includes(key)).map(([key, value]) => `${key}: ${value}`).join('\r\n');
+  upstream.write(`${request.method} ${request.url} HTTP/1.1\r\n${headers}\r\nhost: localhost:3009\r\norigin: http://localhost:3009\r\nauthorization: Bearer ${token}\r\n\r\n`);
   if (head.length) upstream.write(head); socket.pipe(upstream); upstream.pipe(socket);
  });
  upstream.on('error', () => socket.destroy()); socket.on('error', () => upstream.destroy());

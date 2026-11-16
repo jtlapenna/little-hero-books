@@ -152,6 +152,11 @@ export async function recordWorkflowJobEventResponse(
   if (typeof payload.attemptId === 'number' && (!attempt || attempt.job_id !== job.id)) {
     throw new Error('Workflow job attempt not found or does not belong to job');
   }
+  const staleAttempt = Boolean(attempt && Number.isSafeInteger(job.attempt_count) && attempt.attempt !== job.attempt_count);
+  const missingGenerationAttempt = !attempt && ['2a', '2b'].includes(job.stage) && job.attempt_count > 0;
+  const terminalAttemptConflict = Boolean(attempt?.ended_at && (payload.attemptStatus && payload.attemptStatus !== attempt.status || payload.jobStatus && payload.jobStatus !== attempt.status));
+  const historyOnly = staleAttempt || missingGenerationAttempt || terminalAttemptConflict;
+  const expectedAttemptCount = Number.isSafeInteger(job.attempt_count) ? job.attempt_count : undefined;
   const context = toJsonRecord(payload.context);
   const eventPayload: JsonRecord = {
     ...(payload.payload ?? {}),
@@ -199,7 +204,7 @@ export async function recordWorkflowJobEventResponse(
     !isTerminalAttemptStatus(payload.attemptStatus) &&
     (!!attempt.ended_at || isTerminalAttemptStatus(attempt.status));
 
-  if (payload.attemptId && payload.attemptStatus) {
+  if (!historyOnly && payload.attemptId && payload.attemptStatus) {
     if (ignoreAttemptStatusRegression) {
       // Late poll ticks can arrive after a terminal completion path has already
       // ended the attempt. Preserve the terminal attempt state instead of
@@ -233,12 +238,13 @@ export async function recordWorkflowJobEventResponse(
     !!payload.jobStatus &&
     !isTerminalJobStatus(payload.jobStatus) &&
     isTerminalJobStatus(job.status);
-  if (ignoreJobStatusRegression) {
+  if (historyOnly || ignoreJobStatusRegression) {
     // Preserve terminal job state when late non-terminal workflow log events
     // arrive after completion.
   } else if (payload.jobStatus === 'running') {
     updatedJob =
       (await dependencies.markWorkflowJobRunning(job.id, {
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -246,6 +252,7 @@ export async function recordWorkflowJobEventResponse(
   } else if (payload.jobStatus === 'polling') {
     updatedJob =
       (await dependencies.markWorkflowJobPolling(job.id, {
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -253,6 +260,7 @@ export async function recordWorkflowJobEventResponse(
   } else if (payload.jobStatus === 'succeeded') {
     updatedJob =
       (await dependencies.markWorkflowJobSucceeded(job.id, {
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -261,6 +269,7 @@ export async function recordWorkflowJobEventResponse(
   } else if (payload.jobStatus === 'failed') {
     updatedJob =
       (await dependencies.markWorkflowJobFailed(job.id, {
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -273,6 +282,7 @@ export async function recordWorkflowJobEventResponse(
     updatedJob =
       (await dependencies.scheduleWorkflowJobRetry(job.id, {
         nextRetryAt: payload.nextRetryAt,
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -281,6 +291,7 @@ export async function recordWorkflowJobEventResponse(
   } else if (payload.jobStatus === 'dead_lettered') {
     updatedJob =
       (await dependencies.deadLetterWorkflowJob(job.id, {
+        expectedAttemptCount,
         externalProvider: payload.externalProvider,
         externalRequestId: payload.externalRequestId,
         externalStatusUrl: payload.externalStatusUrl,
@@ -298,6 +309,7 @@ export async function recordWorkflowJobEventResponse(
 
   return {
     success: true,
+    historyOnly,
     jobId: updatedJob.id,
     attemptId: payload.attemptId ?? null,
     currentStatus: updatedJob.status,

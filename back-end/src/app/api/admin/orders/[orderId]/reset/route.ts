@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { createClient } from '@supabase/supabase-js';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
 
@@ -75,7 +76,7 @@ export async function POST(
     // Try both orderId and amazon_order_id fields since they might be different
     const { data: order, error: fetchError } = await supabase
       .from('orders')
-      .select('id, amazon_order_id, orderId, next_workflow, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, execution_status, current_workflow, started_at')
+      .select('id, amazon_order_id, orderId, next_workflow, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, workflow_step, review_stages, updated_at, error_type, execution_status, current_workflow, started_at, product_info')
       .or(`amazon_order_id.eq.${orderId},orderId.eq.${orderId}`)
       .single();
 
@@ -86,6 +87,8 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    if (heldW2AFailure(order)) return NextResponse.json({ error: 'Resolve this failure in W2A Recovery before retrying.' }, { status: 409 });
 
     console.log('[Reset Order] Found order:', {
       id: order.id,
@@ -151,6 +154,8 @@ export async function POST(
       .from('orders')
       .update(updateData)
       .eq('id', order.id)
+      .eq('updated_at', order.updated_at)
+      .eq('execution_status', order.execution_status)
       .select('execution_status, next_workflow, current_workflow, started_at');
 
     console.log('[Reset Order] Update result:', {
@@ -160,6 +165,7 @@ export async function POST(
       rowsAffected: updateDataResult?.length || 0
     });
 
+    if (!updateError && !updateDataResult?.length) return NextResponse.json({ error: 'Order changed; refresh before resetting.' }, { status: 409 });
     if (updateError) {
       console.error('[Reset Order] Failed to update Supabase:', {
         error: updateError,

@@ -81,6 +81,11 @@ jobs:
           node --import tsx scripts/test-publish-book-config-immutability.ts
           node --import tsx scripts/test-book-config-semantics.ts
           node --import tsx scripts/test-frozen-book-handoff.ts
+      - name: Verify saved W2A errors and human-confirmed recovery without providers
+        working-directory: back-end
+        run: |
+          npm run test:w2a-failure-recovery
+          npm run test:workflow-readiness
       - name: Verify shared v3 layout and calibration contracts
         working-directory: back-end
         run: |

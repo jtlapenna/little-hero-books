@@ -15,6 +15,7 @@ const hash=(value:Uint8Array|string)=>createHash('sha256').update(value).digest(
 export async function buildGelatoReleaseReview(context: GelatoSubmissionContext, inputs: {
   accountKeySha256:string; intendedAccountKeySha256:string; cohortSubmissionIds:readonly string[];
   artifactSha256:ReadonlyMap<string,string>; loadArtifactSha256:(key:string)=>Promise<string>;
+  merchantEmail?:string;
   loadOrder:(key:string)=>Promise<Record<string,unknown>|null>; now?:Date;
 }) {
  const blockers=new Set<string>();
@@ -30,7 +31,7 @@ export async function buildGelatoReleaseReview(context: GelatoSubmissionContext,
   const row=await inputs.loadOrder(member.child_order_key);const item=saved.request.items.find(i=>i.itemReferenceId===member.item_reference_id);
   if(!row||row.id!==member.child_order_id||row.print_provider!=='gelato'||row.print_submission_id!==context.submission.id||gelatoApprovalBlocker(row)||row.human_approved!==true)blockers.add('current_approval_or_ownership_missing');
   if(!item||item.quantity!==Number(row?.quantity??1)||item.pageCount!==saved.config.apiPageCount||item.productUid!==saved.config.productUid||member.pdf_page_count!==saved.config.expectedPdfPageCount)blockers.add('product_quantity_or_pages_mismatch');
-  if (row) { try { if (!isDeepStrictEqual(JSON.parse(JSON.stringify(gelatoRecipientFromOrder(row))),JSON.parse(JSON.stringify(saved.request.shippingAddress)))) blockers.add('recipient_changed'); } catch { blockers.add('recipient_changed'); } }
+  if (row) { try { if (!isDeepStrictEqual(JSON.parse(JSON.stringify(gelatoRecipientFromOrder(row, inputs.merchantEmail))),JSON.parse(JSON.stringify(saved.request.shippingAddress)))) blockers.add('recipient_changed'); } catch { blockers.add('recipient_changed'); } }
   const expected=member.artifact_key?inputs.artifactSha256.get(member.artifact_key):undefined;
   const validKey=member.artifact_key?.match(/^([A-Za-z0-9_-]+)\/orders\/([A-Za-z0-9_-]+)\/gelato\/print\/v([1-9]\d*)\/([a-f0-9]{24})\.pdf$/);
   const actual=member.artifact_key && expected && validKey && validKey[2]===member.child_order_key && validKey[4]===member.artifact_fingerprint ? await inputs.loadArtifactSha256(member.artifact_key):null;

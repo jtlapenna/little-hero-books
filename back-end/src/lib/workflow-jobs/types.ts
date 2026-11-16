@@ -176,9 +176,14 @@ export interface ClaimWorkflowJobOptions {
   leaseOwner: string;
   leaseMs?: number;
   now?: Date;
+  normalizedInputSnapshot?: Record<string, unknown>;
+  /** Generation claims reserve the next callback owner atomically with the lease. */
+  reserveAttemptCount?: boolean;
 }
 
 export interface UpdateWorkflowJobExternalStateInput {
+  /** Server-read ownership fence; never taken from an event body. */
+  expectedAttemptCount?: number;
   externalProvider?: string | null;
   externalRequestId?: string | null;
   externalStatusUrl?: string | null;
