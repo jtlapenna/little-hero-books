@@ -186,6 +186,7 @@ async function testAmazonReplacementApi(bridgeOnly = false): Promise<string[]> {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'SYNTHETIC-REPLACEMENT-ONLY';
   let records: Row[] = [], writes: Row[] = [], dispatches: Row[] = [], calls = 0, nextId = 1, zipReads = 0, orderReads = 0, configReads = 0;
   let zipBytes: Buffer;
+  let webhookRedirect = 0;
   let mode = 'active', failInsert = 0, insertCount = 0, finalRace = false, mutated = false, alterInsert = false;
   let configBase: Row, checksum: (config: any) => string;
   globalThis.fetch = async (input, init) => {
@@ -193,7 +194,9 @@ async function testAmazonReplacementApi(bridgeOnly = false): Promise<string[]> {
     const request = input instanceof Request ? input : new Request(input, init), url = new URL(request.url);
     if (url.origin === 'https://replacement-w0.example.test') {
       assert.equal(url.pathname, '/intake'); assert.equal(request.method, 'POST');
-      assert.equal(request.redirect, 'error'); dispatches.push(await request.json()); return Response.json({ accepted: true });
+      assert.equal(request.redirect, 'manual'); dispatches.push(await request.json());
+      if (webhookRedirect) return new Response(null,{status:webhookRedirect,headers:{Location:'https://forbidden.example.test/never-follow'}});
+      return Response.json({ accepted: true });
     }
     if (url.origin === 'https://replacement-zip.example.test') {
       assert.equal(url.pathname, '/line-a.zip'); assert.equal(request.method, 'GET'); zipReads++;
@@ -280,7 +283,7 @@ async function testAmazonReplacementApi(bridgeOnly = false): Promise<string[]> {
           itemResponses: { requestedOrderId: ROOT, items: { payload: { AmazonOrderId: ROOT, OrderItems: original } }, buyerInfo: { payload: buyerInfo } } } };
     };
     const reset = () => {
-      records = []; writes = []; dispatches = []; nextId = 1; calls = 0; zipReads = 0; orderReads = 0; configReads = 0; mode = 'active'; failInsert = 0; insertCount = 0; finalRace = false; mutated = false; alterInsert = false;
+      webhookRedirect = 0; records = []; writes = []; dispatches = []; nextId = 1; calls = 0; zipReads = 0; orderReads = 0; configReads = 0; mode = 'active'; failInsert = 0; insertCount = 0; finalRace = false; mutated = false; alterInsert = false;
       process.env.AMAZON_INNER_VOICE_CUTOVER_AT = CUTOFF; process.env.N8N_W0_WEBHOOK_URL = 'https://replacement-w0.example.test/intake';
     };
     const invoke = async (body: Row) => {
@@ -455,6 +458,11 @@ async function testAmazonReplacementApi(bridgeOnly = false): Promise<string[]> {
       assert.equal((await response.json()).success, false);
       assert.equal(calls, 0); assert.deepEqual(records, []);
       assert.equal(writes.length, 0); assert.equal(dispatches.length, 0);
+    });
+    for (const status of [301,302,303,307,308]) await check('W0-dispatch-redirect-'+status+'-held', async () => {
+      webhookRedirect = status; const response = await invoke(payload());
+      assert.equal(response.status,409); assert.equal(dispatches.length,1); assert.equal(records.length,1);
+      assert.equal(records[0].execution_status,'pending_w0'); assert.equal(records[0].one_manifest_url == null,true);
     });
     await check('fresh-single-configured-32-pages', async () => {
       const response = await invoke(payload()); assert.equal(response.status, 201); assert.equal(records.length, 1); assert.equal(dispatches.length, 1);
@@ -680,7 +688,7 @@ async function testAmazonReplacementApi(bridgeOnly = false): Promise<string[]> {
         assert.deepEqual(records, before, 'Trigger override must preserve every progressed member byte-for-byte in JSON');
       });
     }
-    assert.equal(names.length, 47, 'All retained and added actual API cases must run');
+    assert.equal(names.length, 52, 'All retained and added actual API cases must run');
     assert.equal(new Set(names).size, names.length);
     return names;
   } finally {

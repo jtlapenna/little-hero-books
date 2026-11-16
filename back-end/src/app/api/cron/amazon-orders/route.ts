@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { postW0Webhook } from '@/lib/w0-webhook-transport';
 import { isDeepStrictEqual } from 'node:util';
 import { readCsvRootRows, csvRowDeclaresInnerVoice, csvRowHasProgress, assertCompleteCsvRootUnits, csvRootNeedsCompleteUnits } from '@/lib/csv-book-selection';
 import { buildSelectedAmazonPendingW0Payload } from '@/lib/w0-payload';
@@ -238,9 +239,7 @@ export async function processAmazonOrders(
         for (const item of prepared) {
           try {
             if (!n8nW0WebhookUrl) throw new Error('W0 webhook is not configured');
-            const response = await fetch(n8nW0WebhookUrl, { method: 'POST',
-              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.payload),
-              redirect: 'error', signal: AbortSignal.timeout(30_000) });
+            const response = await postW0Webhook(n8nW0WebhookUrl, item.payload);
             if (!response.ok) throw new Error(`W0 retry failed: ${response.status}`);
             processedOrders.push(item.orderId);
             metrics.ordersProcessed++;

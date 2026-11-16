@@ -9,7 +9,7 @@ async function read(path: string): Promise<unknown> {
   const key = process.env.N8N_API_KEY?.trim();
   if (!key) throw Error('n8n recovery credentials are unavailable');
   const response = await fetch(n8nRecoveryBaseUrl() + '/api/v1/' + path, {
-    headers: { 'X-N8N-API-KEY': key }, redirect: 'error', signal: AbortSignal.timeout(10000), cache: 'no-store',
+    headers: { 'X-N8N-API-KEY': key, 'Cache-Control': 'no-store' }, redirect: 'manual', signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) { await response.body?.cancel(); throw Error(`n8n recovery lookup failed (HTTP ${response.status})`); }
   const reader = response.body?.getReader();

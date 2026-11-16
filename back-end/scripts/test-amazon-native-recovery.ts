@@ -18,7 +18,7 @@ async function main(): Promise<string[]> {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'SYNTHETIC-REPLACEMENT-ONLY';
   let records: Row[] = [], writes: Row[] = [], dispatches: Row[] = [], calls = 0, nextId = 1, zipReads = 0, orderReads = 0, configReads = 0;
   let mutationAttempts: Row[] = [];
-  let discoveryOrders: Row[] = [], providerCalls: string[] = [], unexpected: string[] = [], webhookFailure = false;
+  let discoveryOrders: Row[] = [], providerCalls: string[] = [], unexpected: string[] = [], webhookFailure = false, webhookRedirect = 0;
   let zipBytes: Buffer;
   let mode = 'active', failInsert = 0, insertCount = 0, finalRace = false, mutated = false, alterInsert = false;
   let configBase: Row, checksum: (config: any) => string;
@@ -43,7 +43,9 @@ async function main(): Promise<string[]> {
     }
     if (url.origin === 'https://replacement-w0.example.test') {
       assert.equal(url.pathname, '/intake'); assert.equal(request.method, 'POST');
-      assert.equal(request.redirect, 'error'); dispatches.push(await request.json()); return Response.json(webhookFailure ? { error: 'Synthetic unavailable' } : { accepted: true }, { status: webhookFailure ? 503 : 200 });
+      assert.equal(request.redirect, 'manual'); dispatches.push(await request.json());
+      if (webhookRedirect) return new Response(null, { status: webhookRedirect, headers: {Location:'https://forbidden.example.test/never-follow'} });
+      return Response.json(webhookFailure ? { error: 'Synthetic unavailable' } : { accepted: true }, { status: webhookFailure ? 503 : 200 });
     }
     if (url.origin === 'https://replacement-zip.example.test') {
       assert.equal(url.pathname, '/line-a.zip'); assert.equal(request.method, 'GET'); zipReads++;
@@ -132,7 +134,7 @@ async function main(): Promise<string[]> {
           itemResponses: { requestedOrderId: ROOT, items: { payload: { AmazonOrderId: ROOT, OrderItems: original } }, buyerInfo: { payload: buyerInfo } } } };
     };
     const reset = () => {
-      discoveryOrders = []; providerCalls = []; unexpected = []; mutationAttempts = []; webhookFailure = false; records = []; writes = []; dispatches = []; nextId = 1; calls = 0; zipReads = 0; orderReads = 0; configReads = 0; mode = 'active'; failInsert = 0; insertCount = 0; finalRace = false; mutated = false; alterInsert = false;
+      discoveryOrders = []; providerCalls = []; unexpected = []; mutationAttempts = []; webhookFailure = false; webhookRedirect = 0; records = []; writes = []; dispatches = []; nextId = 1; calls = 0; zipReads = 0; orderReads = 0; configReads = 0; mode = 'active'; failInsert = 0; insertCount = 0; finalRace = false; mutated = false; alterInsert = false;
       process.env.AMAZON_INNER_VOICE_CUTOVER_AT = CUTOFF; process.env.N8N_W0_WEBHOOK_URL = 'https://replacement-w0.example.test/intake';
     };
     const invoke = async (body: Row) => {
@@ -257,6 +259,12 @@ async function main(): Promise<string[]> {
       assert.equal((await invoke(payload())).status, 201); webhookFailure = true; const result = await recover();
       assert.equal(result.ordersProcessed, 0); assert.equal(result.errors![0].error, 'W0 retry failed: 503'); assert.equal(dispatches.length, 1);
     });
+    for (const status of [301,302,303,307,308]) await check('W0-redirect-'+status+'-preserves-pending-source', async () => {
+      assert.equal((await invoke(payload())).status, 201); webhookRedirect = status;
+      const before = clone(records), result = await recover();
+      assert.equal(result.ordersProcessed, 0); assert.equal(result.errors![0].error, 'W0 retry failed: '+status);
+      assert.equal(dispatches.length, 1); assert.deepEqual(records, before);
+    });
     for (const authorization of [undefined, 'Bearer WRONG-SYNTHETIC']) await check('direct-GET-auth-' + (authorization ? 'wrong' : 'missing'), async () => {
       const before = clone(records); calls = 0; providerCalls = []; writes = []; dispatches = [];
       const response = await native.GET(new NextRequest('https://admin.example.test/api/cron/amazon-orders', { headers: authorization ? { authorization } : {} }));
@@ -271,7 +279,7 @@ async function main(): Promise<string[]> {
       const result = await recover(); assert.equal(result.ordersProcessed, 0); assert.equal(result.errors?.length, 1);
       assert.equal(result.errors![0].error, 'Unclassified Amazon intake requires authenticated operator assignment'); assert.deepEqual(dispatches, []);
     });
-    assert.equal(names.length, 18); assert.equal(new Set(names).size, 18);
+    assert.equal(names.length, 23); assert.equal(new Set(names).size, 23);
     return names;
   } finally {
     globalThis.fetch = savedFetch;
