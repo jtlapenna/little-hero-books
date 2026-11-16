@@ -2,8 +2,8 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "b6c43bf40a89bbfbf736e4b581f12b70fe9d585c7c3b7a66b254cf9921a766fd",
-  "preparedAgainstHead": "f0f1dc9a3d8c19c937c4cc5035ac284872150460",
+  "sourceSnapshotSha256": "fb3cea215f1a0069932d47795091a323b4d7a591abc81ee4550b1e5733ca4cc8",
+  "preparedAgainstHead": "e295c4e0e90df3c408cb8941e190e0e66f30c4e8",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
@@ -46,6 +46,7 @@
     "back-end/scripts/test-inner-voice-print-quote.ts",
     "back-end/scripts/test-inner-voice-print-test.ts",
     "back-end/scripts/test-message-safety-guard-persistence.ts",
+    "back-end/scripts/test-message-safety-guard.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
     "back-end/scripts/test-workflow-attempt-fencing.ts",
@@ -713,6 +714,11 @@
       "path": "back-end/scripts/test-message-safety-guard-persistence.ts",
       "kind": "source",
       "sha256": "4ddf6419758ba51ee549d9d1281cedeb89dbc076a5551bf73e4f7f1c50f22e4d"
+    },
+    {
+      "path": "back-end/scripts/test-message-safety-guard.ts",
+      "kind": "source",
+      "sha256": "7dce37399bbf70bb1849924e31c25be95bc540f895b11b72843a42f6e00bf440"
     },
     {
       "path": "back-end/scripts/test-pages-upload-identity.ts",
@@ -1667,17 +1673,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "2e606f8891b0e5d1ee44691c23335a51ff7753ff4ac2169dc126b9d132df975c"
+      "sha256": "0a20cce32e3407b406158c04c07266e33fa3b85d9f218ecf821f1af6629023e5"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "cc6ecba54e57b2c2c547ae4fa84eb425c4123e31d239c51e6c838aa2cd77743e"
+      "sha256": "a70ab30950a5770b97577ba33818cb5ea6c58aa0057f434fefd368bcd9c5d48c"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "46829f5cc0d5dd9e480b334da1da9ad16ed6360225b82710f8282ed06f0339d7"
+      "sha256": "3e349151bcd04ae1e9da3432493651974349260effe9756f8290505653b63d7b"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

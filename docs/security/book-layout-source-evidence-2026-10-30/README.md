@@ -38,3 +38,7 @@ The previous236-path manifest is retained unchanged in `history/manifest-before-
 ## November16 workflow audit successor
 
 The prior240-path manifest is retained byte-for-byte in `history/manifest-before-workflow-audit-2026-11-16.json`. Current coverage is294 source paths: failure reporting, guarded early retry, paid-provider claim denial, accountable QA attempts and late-event fencing, exact sibling intake, reviewed assembly/approval transitions, and consistent print quote defaults. Newly added and changed inherited paths are explicit in ADDED/REBOUND. The valid snapshot remains separate from51 corruption rejections. Parent manifests and all four false authority flags remain unchanged. This binds local source; it does not activate workflows, spend provider credits, renew hosted acceptance, certify PDF/X, or establish physical print quality.
+
+## November16 Linux CI fixture successor
+
+The prior294-path audit manifest is preserved byte-for-byte in `history/manifest-before-ci-fixture-2026-11-16.json`. The actual notification suppression test now supplies a completed, explicitly reviewed book and intercepted current preview before calling final approval, so it exercises messaging after the canonical admission guard. Runtime approval requirements remain strict. Current coverage is295 source paths and52 corruption rejections plus the separate valid snapshot. Parent evidence and false authority flags remain unchanged; this is not live-message or provider acceptance.

@@ -49,6 +49,7 @@ ADDED = {
     'back-end/scripts/test-inner-voice-print-quote.ts',
     'back-end/scripts/test-inner-voice-print-test.ts',
     'back-end/scripts/test-message-safety-guard-persistence.ts',
+    'back-end/scripts/test-message-safety-guard.ts',
     'back-end/scripts/test-w2a-failure-recovery.ts',
     'back-end/scripts/test-w2a-pose-workflow-identity.ts',
     'back-end/scripts/test-workflow-attempt-fencing.ts',
@@ -245,7 +246,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 294, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 295, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():
