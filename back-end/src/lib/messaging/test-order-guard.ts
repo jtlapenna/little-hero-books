@@ -13,6 +13,7 @@
  * order does not look notified and nothing is retried into a send.
  */
 
+import { ADMIN_WORKFLOW_TEST_MARKER } from '../admin-workflow-test';
 export const OVERNIGHT_TEST_MARKER = '_overnight_test';
 /** Admin CSV upload form field that sets the marker (exact value 'true'; default off). */
 export const OVERNIGHT_TEST_FORM_FIELD = 'overnight_test';
@@ -42,8 +43,13 @@ export function anyOvernightTestOrder(orders: readonly unknown[]): boolean {
 export function preserveOvernightTestMarker(existingRow: unknown, nextProductInfo: unknown): unknown {
   if (!isOvernightTestOrder(existingRow)) return nextProductInfo;
   const next = parseObject(nextProductInfo);
-  if (!next || next[OVERNIGHT_TEST_MARKER] === true) return nextProductInfo;
-  return { ...next, [OVERNIGHT_TEST_MARKER]: true };
+  const original = parseObject(parseObject(existingRow)?.product_info);
+  if (!next) {
+    if (original?.[ADMIN_WORKFLOW_TEST_MARKER]) throw new Error('Workflow-test product metadata must remain an object');
+    return nextProductInfo;
+  }
+  return { ...next, [OVERNIGHT_TEST_MARKER]: true,
+    ...(original?.[ADMIN_WORKFLOW_TEST_MARKER] ? { _created_via_csv: original._created_via_csv, [ADMIN_WORKFLOW_TEST_MARKER]: original[ADMIN_WORKFLOW_TEST_MARKER] } : {}) };
 }
 
 type QueryResult = { data?: unknown; error?: unknown };
@@ -83,7 +89,7 @@ export async function lookupOvernightTestOrder(
 
 /** Public intake must never let a caller set the marker; only the admin CSV upload may. */
 export function stripOvernightTestMarker<T extends Record<string, unknown>>(productInfo: T): T {
-  if (!Object.prototype.hasOwnProperty.call(productInfo, OVERNIGHT_TEST_MARKER)) return productInfo;
-  const { [OVERNIGHT_TEST_MARKER]: _dropped, ...rest } = productInfo;
+  if (![OVERNIGHT_TEST_MARKER, ADMIN_WORKFLOW_TEST_MARKER].some(key => Object.prototype.hasOwnProperty.call(productInfo, key))) return productInfo;
+  const { [OVERNIGHT_TEST_MARKER]: _dropped, [ADMIN_WORKFLOW_TEST_MARKER]: _admission, ...rest } = productInfo;
   return rest as T;
 }

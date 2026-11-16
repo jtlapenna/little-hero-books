@@ -1,3 +1,4 @@
+import { adminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 import { canCancelGelatoOrder } from '@/lib/books/gelato-status';
 import { gelatoLifecycleRuntime } from '@/lib/books/gelato-lifecycle-runtime';
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,6 +23,16 @@ async function inspect(orderId: string) {
     supabase.from('gelato_scheduled_status').select('enabled,registered_at,last_attempt_at,last_success_at,next_attempt_at,last_result,last_error_class,active_interval_seconds,terminal_interval_seconds,terminal_until').eq('submission_id', context.submission.id).maybeSingle(),
   ]);
   if (notificationError || activeError || jobError) throw new Error('Gelato inspection details unavailable');
+  let releaseAttempt: { state: string; attempted: boolean } | null = null;
+  if (adminWorkflowTestAdmission(order)) {
+    const { data: root, error: rootError } = await supabase.from('gelato_ordinary_release_roots').select('owner_permit_id,consumed_at').eq('submission_id', context.submission.id).maybeSingle();
+    if (rootError) throw new Error('Print release inspection unavailable');
+    if (root?.owner_permit_id) {
+      const { data: permit, error: permitError } = await supabase.from('gelato_ordinary_release_permits').select('state').eq('id', root.owner_permit_id).maybeSingle();
+      if (permitError || !permit) throw new Error('Print release receipt unavailable');
+      releaseAttempt = { state: permit.state, attempted: true };
+    } else if (root?.consumed_at) releaseAttempt = { state: 'outcome_unknown', attempted: true };
+  }
   const activeIds = new Set((active ?? []).map((entry) => entry.id));
   const saved = context.submission.request_snapshot ?? context.submission.quote_snapshot;
   const monetaryQuote = saved ? GelatoSavedSnapshotSchema.parse(saved).monetaryQuote ?? null : null;
@@ -40,7 +51,7 @@ async function inspect(orderId: string) {
       context.members.every((entry) => !entry.action_reason && canCancelGelatoOrder('order', [entry.status ?? '', ...(entry.progress_status ? [entry.progress_status] : [])])),
     canRecover: ['claimed', 'submitting', 'outcome_unknown'].includes(context.submission.request_state) && Date.parse(context.submission.lease_expires_at) <= Date.now(),
     canRetry: canRetryFailedUnsentPrint({ state: context.submission.request_state, providerOrderCount: context.providerOrders.length, itemProviderOrderIds: context.members.map((member) => member.provider_order_id) }),
-    monetaryQuote, polling,
+    monetaryQuote, polling, releaseAttempt,
     orders: context.providerOrders.map((entry) => ({ id: entry.provider_order_id, status: entry.status, orderType: entry.order_type, actionReason: entry.action_reason, updatedAt: entry.last_event_at,
       lastCheckedAt: entry.last_checked_at ?? null, financial: entry.financial_observation ?? null,
       financialObservedAt: entry.financial_observed_at ?? null, financialActionReason: entry.financial_action_reason ?? null })),

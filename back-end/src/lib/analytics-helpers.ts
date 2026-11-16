@@ -1,3 +1,4 @@
+import { hasAdminWorkflowTestMarker } from './admin-workflow-test';
 /**
  * Analytics helper functions
  */
@@ -5,6 +6,7 @@
 export type AnalyticsOrderClassification = 'production' | 'test' | 'unknown';
 
 export interface AnalyticsOrderLike {
+  product_info?: unknown;
   platform?: string | null;
   amazon_order_id?: string | null;
   orderId?: string | null;
@@ -111,6 +113,7 @@ function hasExplicitTestMarker(order: AnalyticsOrderLike): string | null {
 export function getExplicitAnalyticsTestMarkerReason(
   order: AnalyticsOrderLike,
 ): string | null {
+  if (hasAdminWorkflowTestMarker(order)) return 'admin_workflow_test';
   const marker = hasExplicitTestMarker(order);
   return marker ? `explicit_${marker}_marker` : null;
 }

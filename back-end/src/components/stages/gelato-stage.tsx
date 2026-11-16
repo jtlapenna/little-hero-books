@@ -1,5 +1,8 @@
 'use client';
 
+import { GelatoReleaseReview } from './gelato-release-review';
+import { WorkflowTestPrintReview } from './workflow-test-print-review';
+
 import { useEffect, useRef, useState } from 'react';
 import type { Order } from '@/types/order';
 import { gelatoStatusLabel } from '@/lib/books/gelato-status';
@@ -8,31 +11,43 @@ import { GelatoObservationDetails } from './gelato-observation-details';
 
 type Inspection = GelatoPrintInspection;
 
-export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () => Promise<void> }) {
+export function GelatoStage(props: { order: Order; onRefresh: () => Promise<void> }) {
+  return <ScopedGelatoStage key={`${props.order.orderId}:${props.order.printSubmissionId ?? 'none'}`} {...props} />;
+}
+function ScopedGelatoStage({ order, onRefresh }: { order: Order; onRefresh: () => Promise<void> }) {
   const [details, setDetails] = useState<Inspection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
+  const scope = useRef<AbortController | null>(null);
+  const inFlight = useRef(false);
   const [cancelResults, setCancelResults] = useState<Array<{ providerOrderId: string; verifiedStatus: string | null }>>([]);
   const url = `/api/admin/gelato-print?orderId=${encodeURIComponent(order.orderId)}`;
   useEffect(() => {
     const controller = new AbortController();
+    scope.current = controller;
     setDetails(null); setError(''); setMessage('');
     fetch(url, { signal: controller.signal }).then(async (response) => {
       if (!response.ok) throw new Error('Print details unavailable. Reload to try again.');
-      setDetails(await response.json());
+      const loaded = await response.json();
+      if (!controller.signal.aborted) setDetails(loaded);
     }).catch((failure) => { if (!controller.signal.aborted) setError(failure.message); });
     return () => controller.abort();
   }, [url]);
   async function update(action: 'refresh' | 'recover' | 'reload' | 'cancel' | 'retry') {
+    const controller = scope.current;
+    if (!controller || controller.signal.aborted || inFlight.current) return;
+    inFlight.current = true;
+    if (action === 'reload') setDetails(null);
     setBusy(true); setError(''); setMessage(''); setCancelResults([]);
     let resultMessage = '';
     try {
       if (action !== 'reload') {
-        const response = await fetch('/api/admin/gelato-print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.orderId, action }) });
+        const response = await fetch('/api/admin/gelato-print', { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.orderId, action }) });
         if (!response.ok) throw new Error('Gelato update was not confirmed. Reload details before retrying.');
         const result = await response.json();
+        if (controller.signal.aborted) return;
         if (action === 'cancel') {
           setCancelResults(result.providerOrders ?? []);
           resultMessage = result.canceled ? 'All connected print orders are confirmed canceled.' : 'Cancellation is incomplete or unconfirmed. Review each order below.';
@@ -40,19 +55,22 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
           resultMessage = 'The failed print attempt was cleared. The order is queued for print again: the router will pick it up on its next run, or use Send to Print.';
         } else if (result.needsAttention) resultMessage = 'Gelato details updated. Review is still needed.';
       }
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error('Print details unavailable. Reload to try again.');
-      setDetails(await response.json());
+      const loaded = await response.json();
+      if (controller.signal.aborted) return;
+      setDetails(loaded);
       await onRefresh();
+      if (controller.signal.aborted) return;
       setMessage(resultMessage || (action === 'reload' ? 'Details reloaded.' : 'Gelato details updated.'));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Print update failed.'); }
-    finally { setBusy(false); }
+    } catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Print update failed.'); }
+    finally { inFlight.current = false; if (!controller.signal.aborted) setBusy(false); }
   }
   const tracking = order.gelatoTracking ?? [];
-  return <section className="space-y-5" aria-label="Gelato print status">
+  return <section className="space-y-5 text-gray-900" aria-label="Gelato print status">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="text-lg font-semibold text-gray-900">Gelato print status</h2>
-        <p className="mt-1 text-sm text-gray-600">{gelatoStatusLabel(order.gelatoStatus, order.gelatoOrderType, order.gelatoActionReason)}</p></div>
+        <p className="mt-1 text-sm text-gray-600">{order.isWorkflowTest && order.gelatoStatus === 'prepared' ? 'Print file and quote ready for review' : gelatoStatusLabel(order.gelatoStatus, order.gelatoOrderType, order.gelatoActionReason)}</p></div>
       <div className="flex flex-wrap gap-2">
         <button className="rounded-md border px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50" disabled={busy} onClick={() => update('reload')}>Reload details</button>
         {details?.canRefresh && <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50" disabled={busy} onClick={() => update('refresh')}>{busy ? 'Updating…' : 'Refresh Gelato status'}</button>}
@@ -68,12 +86,15 @@ export function GelatoStage({ order, onRefresh }: { order: Order; onRefresh: () 
       <button className="rounded-md bg-red-700 px-3 py-2 text-sm text-white" onClick={() => { dialog.current?.close(); void update('cancel'); }}>Request cancellation</button></div>
     </dialog>
     {cancelResults.length > 0 && <ul className="space-y-2 text-sm" aria-label="Cancellation results">{cancelResults.map((result) => <li key={result.providerOrderId} className="break-all">{result.providerOrderId}: {result.verifiedStatus === 'canceled' ? 'Confirmed canceled' : `Not confirmed canceled (${result.verifiedStatus ?? 'status unavailable'})`}</li>)}</ul>}
-    {order.gelatoOrderType === 'draft' && <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">Draft saved for review. Printing has not started.</p>}
+    {order.isWorkflowTest && details?.submissionId && details.state === 'operator_review' && <WorkflowTestPrintReview key={`${order.orderId}:${details.submissionId}`} orderId={order.orderId} submissionId={details.submissionId} onRefresh={() => update('reload')} />}
+    {order.isWorkflowTest && details?.submissionId && details.state === 'submitted' && !details.releaseAttempt?.attempted && details.orders.length === 1 && details.orders[0].orderType === 'draft' && <GelatoReleaseReview key={`${order.orderId}:${details.submissionId}`} orderId={order.orderId} submissionId={details.submissionId} onRefresh={() => update('refresh')} />}
+    {details?.releaseAttempt?.attempted && <p role="status" className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">{details.releaseAttempt.state === 'converted' ? 'Print release was confirmed. Refresh Gelato status to see the latest fulfillment progress.' : 'A print release is already recorded. Refresh Gelato status to confirm its outcome. Another release is blocked.'}</p>}
+    {order.gelatoOrderType === 'draft' && <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">Gelato reports a draft. Review the latest provider and financial status before authorizing fulfillment.</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="text-sm text-gray-600">{message}</p>}
     {!details && !error && <p role="status" className="text-sm text-gray-600">Loading print details…</p>}
-    {details && <GelatoObservationDetails details={details} />}
-    {details && details.orders.length === 0 && <p className="text-sm text-gray-600">{details.state === 'not_submitted' ? 'No Gelato submission yet.' : 'Provider acceptance is not confirmed. Check the saved submission before creating another draft.'}</p>}
+    {details && details.state !== 'operator_review' && <GelatoObservationDetails details={details} />}
+    {details && details.orders.length === 0 && <p className="text-sm text-gray-600">{details.state === 'operator_review' ? 'Print preparation is held here for your review.' : details.state === 'not_submitted' ? 'No Gelato submission yet.' : 'Provider acceptance is not confirmed. Check the saved submission before creating another draft.'}</p>}
     {details?.orders.map((entry) => <div key={entry.id} className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm font-medium text-gray-900">{gelatoStatusLabel(entry.status, entry.orderType, entry.actionReason)}</p>
       <p className="mt-1 break-all text-xs text-gray-500">{entry.id}</p>

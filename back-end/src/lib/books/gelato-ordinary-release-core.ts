@@ -1,3 +1,4 @@
+import { canonicalJsonSha256 as ordinaryReleaseDigest } from '../canonical-json-sha256';
 /** Local-first ordinary release core. No route, scheduler or default HTTP transport is installed; the store is explicitly injected. */
 import { createHash } from 'node:crypto';
 import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
@@ -60,7 +61,7 @@ export interface OrdinaryReleaseDependencies {
  apiKey: string; enabled?: () => Promise<boolean>; store: OrdinaryReleaseStore;
  context(id: string): Promise<GelatoSubmissionContext>;
  order(key: string): Promise<Record<string, unknown> | null>;
- artifact(key: string): Promise<Uint8Array>;
+ artifactSha256(key: string, signal:AbortSignal): Promise<string>;
  // Fresh cache lifetime for each observation phase; never share across send/recovery.
  createStoredFileVerifier(signal:AbortSignal): GelatoStoredFileVerifier;
  // Required injection: there is no global fetch fallback or provider entry point.
@@ -71,12 +72,7 @@ export interface OrdinaryReleaseDependencies {
  approvedPacket?: (permitId:string) => Promise<unknown>;
  now?: () => Date; budgetMs?: number;
 }
-function canonical(value: unknown): string {
- if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
- if (value && typeof value === 'object') return '{' + Object.entries(value).filter(([,v])=>v!==undefined).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>JSON.stringify(k)+':'+canonical(v)).join(',') + '}';
- return JSON.stringify(value);
-}
-export const ordinaryReleaseDigest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
+export { canonicalJsonSha256 as ordinaryReleaseDigest } from '../canonical-json-sha256';
 const manualTransport = (d:OrdinaryReleaseDependencies):typeof fetch => (input,init)=>d.fetcher(input,{...init,redirect:'manual'});
 const keyDigest = (value: string) => createHash('sha256').update(value).digest('hex');
 const now = (d: OrdinaryReleaseDependencies) => (d.now ?? (()=>new Date()))();
@@ -165,7 +161,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   return {...row,quantity};
  };
  const review=await buildGelatoReleaseReview(projected,{accountKeySha256:permit.accountSha256,intendedAccountKeySha256:permit.accountSha256,
-  cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifact:d.artifact,loadOrder:boundOrder,now:now(d)});
+  cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,now:now(d)});
  const blockers=review.blockers.filter(reason=>!preparationOnly.has(reason));
  if(blockers.length)throw Error('release_review_blocked:'+blockers.join(','));
  if(review.productsCents!==money.productsCents || review.shippingCents!==money.shippingCents)throw Error('release_payable_components_mismatch');
@@ -204,11 +200,11 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   const binding=(c:GelatoSubmissionContext)=>({submission:c.submission,members:c.members,providerOrders:c.providerOrders});
   if(ordinaryReleaseDigest(binding(latest))!==ordinaryReleaseDigest(binding(context)))throw Error('release_context_changed');
   const finalReview=await buildGelatoReleaseReview(projected,{accountKeySha256:permit.accountSha256,intendedAccountKeySha256:permit.accountSha256,
-   cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifact:d.artifact,loadOrder:boundOrder,now:now(d)});
+   cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,now:now(d)});
   if(finalReview.blockers.some(reason=>!preparationOnly.has(reason)))throw Error('release_final_authority_changed');
   await assertPrinterSendAuthority(saved.request.items,now(d)); assertPermit(permit,d); signal.throwIfAborted();
  };
- return {packet,packetSha256:ordinaryReleaseDigest(packet),currentObservation:money,currentAuthority};
+ return {packet,packetSha256:ordinaryReleaseDigest(packet),recipient:saved.request.shippingAddress,currentObservation:money,currentAuthority};
 }
 async function bounded<T>(signal: AbortSignal, work:()=>Promise<T>):Promise<T>{
  signal.throwIfAborted();
@@ -286,7 +282,7 @@ async function performOrdinaryReleaseObservation(permitValue:unknown,d:OrdinaryR
  if(actual.id!==permit.providerOrderId || actual.shipment?.shipmentMethodUid!==saved.request.shipmentMethodUid || actual.connectedOrderIds.length || actual.items.some(item=>!permit.artifacts.some(a=>a.itemReferenceId===item.itemReferenceId&&a.providerItemId===item.id)))throw Error('release_recovery_provider_identity_changed');
  for(const member of context.members){
   const artifact=permit.artifacts.find(a=>a.childOrderId===member.child_order_id && a.itemReferenceId===member.item_reference_id && a.providerItemId===member.provider_item_id && a.key===member.artifact_key);
-  if(!artifact || member.submission_id!==permit.submissionId || member.provider_order_id!==permit.providerOrderId || keyDigestBytes(await d.artifact(artifact.key))!==artifact.sha256)throw Error('release_recovery_artifact_changed');
+  if(!artifact || member.submission_id!==permit.submissionId || member.provider_order_id!==permit.providerOrderId || await d.artifactSha256(artifact.key,signal)!==artifact.sha256)throw Error('release_recovery_artifact_changed');
  }
  const verifyStoredFile=d.createStoredFileVerifier(signal);
  const orders=await validateGelatoConnectedOrdersWithFiles([actual],saved.request,(ref,url,expected)=>{
@@ -294,4 +290,3 @@ async function performOrdinaryReleaseObservation(permitValue:unknown,d:OrdinaryR
  });
  signal.throwIfAborted();return {converted:actual.orderType==='order',orders};
 }
-function keyDigestBytes(value:Uint8Array){return createHash('sha256').update(value).digest('hex');}

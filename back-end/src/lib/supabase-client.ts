@@ -1,3 +1,4 @@
+import { stripAdminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
 import { getSupabaseServerConfig } from './supabase-server-config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { assertPrintAssignmentCompatible, FROZEN_PRINT_FIELDS } from '@/lib/books/print-assignment';
@@ -344,6 +345,8 @@ export async function upsertOrderByPerBookId(
     ...payload,
     orderId: payload.orderId ?? perBookId,
   };
+
+  if (Object.hasOwn(normalizedPayload, 'product_info')) normalizedPayload.product_info = stripAdminWorkflowTestAdmission(normalizedPayload.product_info);
 
   const byOrderId = await supabase
     .from('orders')

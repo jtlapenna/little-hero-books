@@ -1,3 +1,4 @@
+import { ESTIMATE_TEST_PRINT_POLICY, observeGelatoReleaseEstimate } from '../../src/lib/books/gelato-release-estimate';
 /** Test-only bridge: real assembled artifacts -> disposable SQL release ledger -> real scheduler/admin handlers.
  * No hosted URL, credential, provider transport or production entry point is installed.
  */
@@ -9,7 +10,7 @@ import {createClient} from '@supabase/supabase-js';
 import {NextRequest} from 'next/server';
 import {LocalPreviewDatabase,quote} from '../../../scripts/testing/local-preview-database';
 import {createOrdinaryReleaseStore,registerReviewedOrdinaryRelease,reconcileStoredOrdinaryRelease} from '../../src/lib/books/gelato-ordinary-release-store';
-import {executeOrdinaryRelease,prepareOrdinaryRelease,ordinaryReleaseDigest,type OrdinaryReleaseDependencies,type OrdinaryReleasePermit} from '../../src/lib/books/gelato-ordinary-release-core';
+import {executeOrdinaryRelease,prepareOrdinaryRelease,ordinaryReleaseDigest,type OrdinaryReleaseDependencies,type AnyOrdinaryReleasePermit} from '../../src/lib/books/gelato-ordinary-release-core';
 import {createGelatoSubmissionStore,type GelatoSubmissionContext} from '../../src/lib/books/gelato-submission-store';
 import {GelatoSavedSnapshotSchema} from '../../src/lib/books/gelato-submission';
 import {createGelatoStoredFileVerifier} from '../../src/lib/books/gelato-stored-file';
@@ -22,7 +23,7 @@ type Raw=Row&{id:string;items:Array<Row&{id:string}>};
 const hash=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
 const json=(v:unknown)=>quote(JSON.stringify(v))+'::jsonb';
 const service=(sql:string)=>'SET ROLE service_role; '+sql;
-export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionContext;raw:unknown;rows:Row[];blobs:Map<string,Buffer>;label:string}){
+export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionContext;raw:unknown;rows:Row[];blobs:Map<string,Buffer>;label:string;operatorTest?:boolean}){
  const db=new LocalPreviewDatabase(),root=path.resolve(__dirname,'../../..'),prior=globalThis.fetch;
  const context=structuredClone(f.context),saved=GelatoSavedSnapshotSchema.parse(context.submission.request_snapshot);
  let raw=structuredClone(f.raw) as Raw;
@@ -36,7 +37,7 @@ export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionConte
  const sqlAsync=(sql:string)=>sessions[nextSession++%sessions.length].query(sql);
  let patches=0,providerReads=0,fileReads=0,fault='',unknownMoney=false,blockReadback=false,loseAck='';
  const rpcAllow=new Set(['register_gelato_ordinary_release','acquire_gelato_ordinary_release','authorize_gelato_ordinary_release','finish_gelato_ordinary_release','begin_gelato_ordinary_observation','register_gelato_scheduled_status','claim_gelato_scheduled_status','finish_gelato_scheduled_status','apply_gelato_scheduled_snapshots','hold_gelato_scheduled_refresh']);
- const tableAllow=new Set(['orders','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications','gelato_scheduled_status']);
+ const tableAllow=new Set(['gelato_ordinary_release_roots','gelato_ordinary_release_permits','orders','print_provider_submissions','print_provider_submission_items','print_provider_submission_orders','print_provider_submission_notifications','gelato_scheduled_status']);
  const value=(sql:string)=>JSON.parse(db.sql(sql));
  const insert=(table:string,row:Row)=>{
   assert(tableAllow.has(table));const columns=new Set<string>(value('SELECT jsonb_agg(column_name) FROM information_schema.columns WHERE table_schema=\'public\' AND table_name='+quote(table)));
@@ -108,7 +109,8 @@ export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionConte
  try{
   db.start(root,true);
   // Mirror existing service order-update rights for the actual lifecycle writer; no hosted grants change.
-  db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS quantity integer,ADD COLUMN IF NOT EXISTS shipping_tier text,ADD COLUMN IF NOT EXISTS customer_email text,ADD COLUMN IF NOT EXISTS customer_name text; GRANT UPDATE(id,gelato_status,gelato_order_type,gelato_action_reason,gelato_tracking,gelato_updated_at) ON public.orders TO service_role');
+  db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS queued_at timestamptz,ADD COLUMN IF NOT EXISTS quantity integer,ADD COLUMN IF NOT EXISTS shipping_tier text,ADD COLUMN IF NOT EXISTS customer_email text,ADD COLUMN IF NOT EXISTS customer_name text; GRANT UPDATE(id,gelato_status,gelato_order_type,gelato_action_reason,gelato_tracking,gelato_updated_at) ON public.orders TO service_role');
+  if(f.operatorTest)db.sql(readFileSync(path.join(root,'database/20261115230112_admin_workflow_test_print_hold.sql'),'utf8'));
   // Replace only the two colliding synthetic bootstrap IDs; retain other local sentinels for isolation proof.
   db.sql('DELETE FROM public.orders WHERE id IN (1,2)');
   const sentinel=db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o');
@@ -118,38 +120,49 @@ export async function proveCombinedLocalJourney(f:{context:GelatoSubmissionConte
   for(const row of context.members)insert('print_provider_submission_items',row);
   for(const row of f.rows)db.sql('UPDATE public.orders SET print_submission_id='+quote(context.submission.id)+'::uuid,print_claim_token='+quote(context.submission.claim_token)+'::uuid WHERE id='+Number(row.id));
   db.sql(readFileSync(path.join(root,'database/20261019081857_gelato_ordinary_release_store.sql'),'utf8'));
+  if(f.operatorTest)for(const file of ['20261030035034_gelato_disclosed_estimate_release.sql','20261115232824_admin_workflow_test_release_scope.sql'])db.sql(readFileSync(path.join(root,'database',file),'utf8'));
   if(process.env.GELATO_LOCAL_ISOLATION_SCHEMA==='1'){const files=readdirSync(path.join(root,'database')).filter(f=>f.endsWith('_gelato_engineering_isolation.sql'));assert.equal(files.length,1);db.sql(readFileSync(path.join(root,'database',files[0]),'utf8'));assert.equal(value('SELECT count(*) FROM public.gelato_isolation_scopes'),0);}
   functionTypes=value('SELECT jsonb_object_agg(name,args) FROM (SELECT p.proname AS name,jsonb_object_agg(p.proargnames[i],format_type(p.proargtypes[i-1],NULL)) AS args FROM pg_proc p,generate_series(1,p.pronargs) i WHERE p.pronamespace=\'public\'::regnamespace AND p.proname IN('+[...rpcAllow].map(quote).join(',')+') GROUP BY p.proname) f');
   for(let i=0;i<4;i++)sessions.push(await db.openSession());
   const loader=createGelatoSubmissionStore(database),store=createOrdinaryReleaseStore(database);
-  const permit:OrdinaryReleasePermit={id:randomUUID(),submissionId:context.submission.id,providerOrderId:raw.id,accountSha256:accountHash,packetSha256:'0'.repeat(64),requestSnapshotSha256:ordinaryReleaseDigest(saved),artifacts:context.members.map(m=>({childOrderId:m.child_order_id,itemReferenceId:m.item_reference_id,providerItemId:m.provider_item_id!,bookId:'book-finding-our-inner-voice',formatId:String(f.rows[0].print_format_id),configVersion:2,key:m.artifact_key!,sha256:hash(f.blobs.get(m.artifact_key!)!)})),currency:'USD',maximumTotalCents:'10000',approvedAt:quotedAt,expiresAt:new Date(Date.parse(quotedAt)+900000).toISOString()};
-  const d:OrdinaryReleaseDependencies={apiKey,budgetMs:30000,enabled:async()=>value(service('SELECT to_jsonb(enabled) FROM public.gelato_ordinary_release_gate WHERE id')),store,context:id=>loader.load(id),order:async key=>value(service('SELECT to_jsonb(o) FROM public.orders o WHERE "orderId"='+quote(key))),artifact:async key=>f.blobs.get(key)!,fetcher:transport,
+  const permit:AnyOrdinaryReleasePermit={id:randomUUID(),submissionId:context.submission.id,providerOrderId:raw.id,accountSha256:accountHash,packetSha256:'0'.repeat(64),requestSnapshotSha256:ordinaryReleaseDigest(saved),artifacts:context.members.map(m=>({childOrderId:m.child_order_id,itemReferenceId:m.item_reference_id,providerItemId:m.provider_item_id!,bookId:'book-finding-our-inner-voice',formatId:String(f.rows[0].print_format_id),configVersion:2,key:m.artifact_key!,sha256:hash(f.blobs.get(m.artifact_key!)!)})),currency:'USD',...(f.operatorTest?{pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,maximumQuotedSubtotalCents:'10000'}:{maximumTotalCents:'10000'}),approvedAt:quotedAt,expiresAt:new Date(Date.parse(quotedAt)+900000).toISOString()};
+  const d:OrdinaryReleaseDependencies={apiKey,budgetMs:30000,enabled:async()=>value(service(f.operatorTest?'SELECT to_jsonb(public.gelato_admin_test_release_scope_active('+quote(context.members[0].child_order_key)+','+quote(accountHash)+'))':'SELECT to_jsonb(enabled) FROM public.gelato_ordinary_release_gate WHERE id')),store,context:id=>loader.load(id),order:async key=>value(service('SELECT to_jsonb(o) FROM public.orders o WHERE "orderId"='+quote(key))),artifactSha256:async(key,signal)=>{signal.throwIfAborted();return hash(f.blobs.get(key)!);},fetcher:transport,
    createStoredFileVerifier:signal=>createGelatoStoredFileVerifier({loadArtifact:async key=>new Response(Uint8Array.from(f.blobs.get(key)!)),fetcher:transport,signal,budgetMs:2000}),
-   payableEvidence:async q=>{
-    if(unknownMoney)return {};const selection=validateGelatoQuote({response:q,request:{orderReferenceId:saved.request.orderReferenceId,customerReferenceId:saved.request.customerReferenceId,currency:saved.request.currency,recipient:saved.request.shippingAddress,allowMultipleQuotes:false,products:saved.request.items},config:saved.config,shippingTier:saved.shippingTier,quotedAt,now:new Date()});
+   pricingPolicy:f.operatorTest?ESTIMATE_TEST_PRINT_POLICY:undefined,
+   approvedPacket:async id=>value(service('SELECT packet FROM public.gelato_ordinary_release_permits WHERE id='+quote(id)+'::uuid')),
+   payableEvidence:async(q,quoteContext)=>{
+    if(unknownMoney)return {};if(f.operatorTest){assert(quoteContext);return observeGelatoReleaseEstimate(q,quoteContext);}const selection=validateGelatoQuote({response:q,request:{orderReferenceId:saved.request.orderReferenceId,customerReferenceId:saved.request.customerReferenceId,currency:saved.request.currency,recipient:saved.request.shippingAddress,allowMultipleQuotes:false,products:saved.request.items},config:saved.config,shippingTier:saved.shippingTier,quotedAt,now:new Date()});
     const products=1218*saved.request.items.reduce((n,i)=>n+i.quantity,0);
     return {source:'verified_provider_payable',accountSha256:accountHash,quoteId:selection.quoteId,requestFingerprint:selection.requestFingerprint,quotedAt,currency:'USD',productsCents:String(products),shippingCents:'500',taxesCents:'100',feesCents:'0',discountCents:'0',totalCents:String(products+600),quoteResponseSha256:ordinaryReleaseDigest(q),responseSha256:hash('SYNTHETIC COMPLETE PAYABLE ONLY')};
    }};
+  const approvalActor=f.operatorTest?String(((f.rows[0].product_info as Row)._admin_workflow_test as Row).createdBy):'synthetic-local-reviewer';
+  if(f.operatorTest){
+   assert(context.submission.operator_approval_consumed_at);assert.equal(context.submission.operator_approval_actor,approvalActor);
+   assert.equal((context.submission.operator_review_packet as Row).accountSha256,accountHash);
+   assert.equal(value(service('SELECT to_jsonb(public.register_admin_workflow_test_release_scope('+quote(context.members[0].child_order_key)+','+quote(approvalActor)+','+quote(accountHash)+",clock_timestamp()+interval '1 hour'))")),true);
+   db.sql(service('UPDATE public.gelato_admin_test_release_scopes SET enabled=false WHERE submission_id='+quote(context.submission.id)+'::uuid'));
+  }
+  const setEnabled=(enabled:boolean)=>db.sql(service(f.operatorTest?'UPDATE public.gelato_admin_test_release_scopes SET enabled='+enabled+' WHERE submission_id='+quote(context.submission.id)+'::uuid':'UPDATE public.gelato_ordinary_release_gate SET enabled='+enabled));
   let before=rpcCalls.length;assert.equal((await executeOrdinaryRelease(permit.id,d)).state,'disabled');assert.equal(rpcCalls.length,before);mark('OFF before work RPC/provider access; gate SELECT allowed');
   unknownMoney=true;await assert.rejects(()=>prepareOrdinaryRelease(permit,d,AbortSignal.timeout(30000)));unknownMoney=false;assert.equal(patches,0);mark('unknown complete payable rejected without send');
   for(const bad of ['expired','quote-error']){fault=bad;quoted=providerQuote();await assert.rejects(()=>prepareOrdinaryRelease(permit,d,AbortSignal.timeout(30000)));assert.equal(patches,0);mark(bad+' quote rejected before approval');}
   fault='';quoted=providerQuote();
   if(context.members.length===2){fault='swap';await assert.rejects(()=>prepareOrdinaryRelease(permit,d,AbortSignal.timeout(30000)));fault='';assert.equal(patches,0);mark('assembled sibling PDFs cannot be exchanged');}
   const prepared=await prepareOrdinaryRelease(permit,d,AbortSignal.timeout(30000));permit.packetSha256=prepared.packetSha256;
-  await registerReviewedOrdinaryRelease(database,{permit,packet:prepared.packet,actor:'synthetic-local-reviewer',approvalEvidenceSha256:hash('LOCAL FIXTURE APPROVAL NOT HUMAN SPEND AUTHORITY')});
-  db.sql(service('UPDATE public.gelato_ordinary_release_gate SET enabled=true'));
+  await registerReviewedOrdinaryRelease(database,{permit,packet:prepared.packet,actor:approvalActor,approvalEvidenceSha256:hash('LOCAL FIXTURE APPROVAL NOT HUMAN SPEND AUTHORITY')});
+  setEnabled(true);
   const second={...permit,id:randomUUID()};const p2=await prepareOrdinaryRelease(second,d,AbortSignal.timeout(30000));second.packetSha256=p2.packetSha256;
-  await registerReviewedOrdinaryRelease(database,{permit:second,packet:p2.packet,actor:'synthetic-local-reviewer',approvalEvidenceSha256:hash('SECOND SYNTHETIC APPROVAL')});
+  await registerReviewedOrdinaryRelease(database,{permit:second,packet:p2.packet,actor:approvalActor,approvalEvidenceSha256:hash('SECOND SYNTHETIC APPROVAL')});
   if(f.label==='amazon-siblings')loseAck='finish_gelato_ordinary_release';
   const race=await Promise.all([executeOrdinaryRelease(permit.id,d),executeOrdinaryRelease(second.id,d)]);assert.equal(patches,1);mark('two approvals race on real SQL root: exactly one synthetic conversion');
-  db.sql(service('UPDATE public.gelato_ordinary_release_gate SET enabled=false'));
+  setEnabled(false);
   if(blockReadback){assert(race.some(r=>r.state==='outcome_unknown'));blockReadback=false;const id=value('SELECT to_jsonb(id) FROM public.gelato_ordinary_release_permits WHERE state=\'outcome_unknown\'') as string;const recovered=await reconcileStoredOrdinaryRelease(database,id,d);assert.equal(recovered.state,'converted');assert.equal(recovered.persistenceConfirmed,true);assert.equal(patches,1);mark('lost mutation response and read outage recovered with release OFF, no resend');}
   assert.equal(value('SELECT count(*)::int FROM public.gelato_ordinary_release_permits WHERE state=\'converted\''),1);
-  db.sql(service('UPDATE public.gelato_ordinary_release_gate SET enabled=true'));
+  setEnabled(true);
   const restarted={...d,store:createOrdinaryReleaseStore(createClient(origin,'synthetic-restarted-client',{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:transport}}))};
   await executeOrdinaryRelease(permit.id,restarted);await executeOrdinaryRelease(second.id,restarted);assert.equal(patches,1);
   if(f.label==='amazon-siblings'){assert(race.some(r=>'persistenceConfirmed' in r&&r.persistenceConfirmed===false));mark('lost finish acknowledgement preserves committed SQL closure');}
-  db.sql(service('UPDATE public.gelato_ordinary_release_gate SET enabled=false'));mark('new store instance/retry cannot send consumed root');
+  setEnabled(false);mark('new store instance/retry cannot send consumed root');
   const snapshotBefore=JSON.stringify((await loader.load(context.submission.id)).submission.request_snapshot);
   const options={enabled:true,apiKey,budgetMs:10000,candidateBudgetMs:4000,cleanupBudgetMs:1000,lifecycle:(signal:AbortSignal)=>({...gelatoLifecycleRuntime(signal,database),get:async(id:string)=>(await import('../../src/lib/books/gelato-api-client')).getGelatoOrder(id,{apiKey,fetcher:transport,signal})})};
   globalThis.fetch=transport;

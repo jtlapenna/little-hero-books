@@ -84,7 +84,7 @@ function expire(id:string){
 async function main(){
  globalThis.fetch=async()=>{throw Error('Global external access forbidden');};
  db.start(root,true);
- db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS quantity integer,ADD COLUMN IF NOT EXISTS shipping_tier text,ADD COLUMN IF NOT EXISTS customer_email text,ADD COLUMN IF NOT EXISTS customer_name text');
+ db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS queued_at timestamptz,ADD COLUMN IF NOT EXISTS quantity integer,ADD COLUMN IF NOT EXISTS shipping_tier text,ADD COLUMN IF NOT EXISTS customer_email text,ADD COLUMN IF NOT EXISTS customer_name text');
  // Existing service clients can update orders; row locks need UPDATE on at least one column.
  db.sql('GRANT UPDATE(id) ON public.orders TO service_role');
  const legacy=db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o');
@@ -209,8 +209,8 @@ async function main(){
   assert(Date.parse(prepared.packet.estimate.quotedAt)<=Date.now(),'SQL fixture quote must not be future-dated');
   return {permit,packet:prepared.packet};
  }
- const registerEstimate=async(x:Fixture,p:Awaited<ReturnType<typeof estimated>>)=>registerReviewedOrdinaryRelease(database,{
-  permit:p.permit,packet:p.packet,actor:'local-estimate-reviewer',approvalEvidenceSha256:ordinaryReleaseDigest({approveExactOrder:true,acknowledgeFinalChargeMayDiffer:true,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,packetSha256:p.permit.packetSha256})});
+ const registerEstimate=async(x:Fixture,p:Awaited<ReturnType<typeof estimated>>,actor?:string)=>registerReviewedOrdinaryRelease(database,{
+  permit:p.permit,packet:p.packet,actor:actor ?? 'local-estimate-reviewer',approvalEvidenceSha256:ordinaryReleaseDigest({approveExactOrder:true,acknowledgeFinalChargeMayDiffer:true,pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,packetSha256:p.permit.packetSha256})});
  {
   const x=await fresh(),p=await estimated(x);await registerEstimate(x,p);
   const results=await Promise.all([executeOrdinaryRelease(p.permit.id,x.d),executeOrdinaryRelease(p.permit.id,x.d)]);
@@ -245,6 +245,33 @@ async function main(){
   x.setFault('');enabled(false);assert.equal((await reconcileStoredOrdinaryRelease(database,p.permit.id,x.d)).state,'converted');
   assert.equal(x.stats().patches,1);enabled(true);
   mark('version3 uncertain acceptance reconciles read-only with local gate OFF and no second PATCH');
+ }
+
+ // Forward upgrade with a populated store: source and ordinary global gate stay unchanged.
+ db.sql('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS queued_at timestamptz');
+ for (const file of ['20261115230112_admin_workflow_test_print_hold.sql','20261115232824_admin_workflow_test_release_scope.sql']) {
+  const migration=readFileSync(path.join(root,'database',file),'utf8');db.sql(migration);db.sql(migration);
+ }
+ enabled(false);
+ {
+  const actor='operator@example.test',x=await fresh('amazon'),member=x.f.context.members[0],account=x.permit.accountSha256;
+  const info={_overnight_test:true,_created_via_csv:true,_admin_workflow_test:{schema:'lhb.admin-workflow-test@v1',createdBy:actor,createdAt:new Date().toISOString(),bookId:'book-finding-our-inner-voice',formatId:'amazon',configVersion:x.permit.artifacts[0].configVersion,preparePrintRequestedAt:new Date().toISOString()}};
+  db.sql('UPDATE public.orders SET product_info='+json(info)+' WHERE id='+member.child_order_id);
+  db.sql('UPDATE public.print_provider_submissions SET operator_approval_actor='+quote(actor)+',operator_approval_consumed_at=clock_timestamp(),operator_review_packet='+json({accountSha256:account})+' WHERE id='+quote(x.permit.submissionId)+'::uuid');
+  db.sql('INSERT INTO public.gelato_admin_test_release_scopes(order_id,submission_id,account_sha256,approval_actor,expires_at,enabled) VALUES('+quote(member.child_order_key)+','+quote(x.permit.submissionId)+'::uuid,'+quote(account)+','+quote(actor)+",clock_timestamp()+interval '1 hour',true)");
+  const active=()=>value(service('SELECT to_jsonb(public.gelato_admin_test_release_scope_active('+quote(member.child_order_key)+','+quote(account)+'))'));
+  assert.equal(active(),true);x.d.enabled=async()=>active();
+  const p=await estimated(x);await registerEstimate(x,p,actor);
+  const foreign=await fresh('amazon');foreign.d.enabled=async()=>true;const foreignPacket=await estimated(foreign);await registerEstimate(foreign,foreignPacket,actor);
+  assert.equal((await store.acquire(foreignPacket.permit.id,account,new Date().toISOString())).kind,'disabled');
+  db.sql("UPDATE public.gelato_admin_test_release_scopes SET enabled=false WHERE order_id="+quote(member.child_order_key));
+  assert.equal((await store.acquire(p.permit.id,account,new Date().toISOString())).kind,'disabled');
+  db.sql("UPDATE public.gelato_admin_test_release_scopes SET enabled=true WHERE order_id="+quote(member.child_order_key));
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'converted');assert.equal(x.stats().patches,1);
+  assert.equal((await executeOrdinaryRelease(p.permit.id,x.d)).state,'already_attempted');assert.equal(x.stats().patches,1);
+  assert.equal(db.sql('SELECT enabled FROM public.gelato_ordinary_release_gate WHERE id'),'f');
+  db.sql("UPDATE public.gelato_admin_test_release_scopes SET expires_at=clock_timestamp()-interval '1 second' WHERE order_id="+quote(member.child_order_key));assert.equal(active(),false);
+  mark('exact admitted test/account/operator scope permits one synthetic conversion with general gate OFF; foreign and revoked scopes refuse; expiry and replay remain fenced');
  }
  enabled(false);assert.equal(db.sql('SELECT count(*) FROM public.print_provider_submission_notifications'),'0');
  assert.equal(db.sql('SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM public.orders o WHERE id<=4'),legacy);

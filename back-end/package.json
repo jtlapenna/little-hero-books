@@ -164,6 +164,7 @@
     "test:book-review-invalidation": "node --import tsx scripts/test-book-review-invalidation.ts",
     "test:gelato-release-application": "node --import tsx scripts/test-gelato-release-application.ts",
     "test:gelato-release-service": "node --import tsx scripts/test-gelato-release-service.ts",
+    "test:gelato-large-artifact": "node --import tsx scripts/test-gelato-large-artifact.ts",
     "test:w2a-pose-workflow-identity": "tsx scripts/test-w2a-pose-workflow-identity.ts",
     "test:exact-book-identity": "tsx scripts/test-exact-book-identity.ts",
     "test:inner-voice-final-art": "node --import tsx scripts/test-inner-voice-final-art.ts && node --import tsx scripts/test-immutable-asset-upload.ts && node --import tsx scripts/test-inner-voice-proof-export.ts",
@@ -171,7 +172,9 @@
     "test:inner-voice-workflow-e2e": "node --import tsx scripts/test-inner-voice-workflow-e2e.ts",
     "test:inner-voice-local-assets": "node --import tsx scripts/test-inner-voice-local-assets.ts",
     "test:inner-voice-pose-chain": "node --import tsx scripts/test-inner-voice-pose-chain.ts",
-    "test:configured-pose": "node --import tsx scripts/test-configured-pose-pipeline.ts && node --import tsx scripts/test-configured-pose-boundaries.ts && node --import tsx scripts/test-configured-pose-revisions.ts"
+    "test:configured-pose": "node --import tsx scripts/test-configured-pose-pipeline.ts && node --import tsx scripts/test-configured-pose-boundaries.ts && node --import tsx scripts/test-configured-pose-revisions.ts",
+    "test:admin-workflow-test": "tsx scripts/test-admin-workflow-csv.ts && tsx scripts/test-admin-workflow-print-service.ts",
+    "test:admin-workflow-print-store": "tsx scripts/test-admin-workflow-print-store.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

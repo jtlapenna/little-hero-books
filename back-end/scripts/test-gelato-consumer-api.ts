@@ -4,6 +4,7 @@ import { gelatoCustomerStatusMessage } from '../src/lib/books/gelato-consumer-st
 import { NextRequest } from 'next/server';
 
 async function main() {
+  process.env.BACKEND_API_TOKEN = 'synthetic-consumer-machine-token';
   process.env.SUPABASE_URL = 'https://db.example.test';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-consumer-proof';
   process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3117';
@@ -34,7 +35,7 @@ async function main() {
     const { POST: regenerate } = await import('../src/app/api/admin/orders/[orderId]/regenerate-4/route');
     const root = '111-2222222-3333333';
     const fresh = () => [1, 2].map((id) => ({ id, orderId: `${root}-item-${id}`, root_order_id: root, platform: 'amazon', print_provider: 'gelato' }));
-    const request = (path: string) => new NextRequest(`http://localhost:3117${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body: '{}' });
+    const request = (path: string) => new NextRequest(`http://localhost:3117${path}`, { method: 'POST', headers: { authorization: 'Bearer synthetic-consumer-machine-token', 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body: '{}' });
     for (const scenario of ['selected', 'mixed', 'sibling-submission', 'sibling-provider-order']) {
       rows = fresh();
       if (scenario === 'selected') rows[0].print_submission_id = 'existing';

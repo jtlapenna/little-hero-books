@@ -120,7 +120,7 @@ async function main() {
     process.env.BACKEND_API_TOKEN = machine;
 
     // Inventory direct and delegated handlers; denied auth must not touch business transport.
-    const delegatedRoutes = new Set([join(process.cwd(), 'src/app/api/admin/w3-calibration/route.ts')]);
+    const delegatedRoutes = new Set(['src/app/api/admin/w3-calibration/route.ts','src/app/api/admin/gelato-release/route.ts'].map(path => join(process.cwd(),path)));
     const routes = new Set<string>();
     function walk(dir: string) {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -131,7 +131,9 @@ async function main() {
     }
     walk(join(process.cwd(), 'src/app/api'));
     for (const path of delegatedRoutes) assert.ok(routes.has(path), `Delegated protected route must be inventoried: ${path}`);
-    assert.equal(routes.size, 18);
+    assert.ok(routes.has(join(process.cwd(),'src/app/api/admin/workflow-test-print/route.ts')), 'Workflow test review must be inventoried');
+    assert.ok(routes.has(join(process.cwd(),'src/app/api/admin/gelato-print/route.ts')), 'Canonical print inspection must be inventoried');
+    assert.equal(routes.size, 21);
     let handlers = 0;
     for (const path of routes) {
       const module = await import(path);
@@ -143,14 +145,14 @@ async function main() {
         assert.equal(dbCalls, before); handlers++;
       }
     }
-    assert.equal(handlers, 26);
+    assert.equal(handlers, 30);
     const { POST: acknowledge } = await import('../src/app/api/admin/workflow-alerts/[alertId]/acknowledge/route');
     for (const [headers, expected] of [[{ ...jwtHeader, origin }, 'john@example.test'], [{ authorization: `Bearer ${machine}` }, 'backend-automation']] as const) {
       const response = await acknowledge(req({ ...headers, 'x-admin-email': 'forged@example.test', 'x-admin-user': 'another-forged-actor' }, 'POST'), { params: Promise.resolve({ alertId: '1' }) });
       assert.equal(response.status, 200); assert.equal(actor, expected);
     }
     assert.equal(keyCalls, 1, 'verified issuer JWKS should be cached across requests');
-    console.log('Admin identity: signed claims, CSRF, machine compatibility, 26 actual handler denials, async gating and verified actor attribution passed');
+    console.log('Admin identity: signed claims, CSRF, machine compatibility, 30 actual handler denials, async gating and verified actor attribution passed');
   } finally {
     globalThis.fetch = originalFetch;
     for (const key of Object.keys(process.env)) if (!(key in env)) delete process.env[key];

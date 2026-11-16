@@ -1,3 +1,4 @@
+import { assertWorkflowTestSend, holdWorkflowTestPrint, workflowTestRows } from './gelato-workflow-test';
 import { assertGelatoCustomerApproval } from './gelato-print-admission';
 import { createPrinterFileUrl, newPrinterFileWindow, PrinterFileWindowSchema, PRINTER_FILE_SEND_MARGIN_SECONDS, verifyPrinterFileUrl, type PrinterFileWindow } from '../printer-file-grants';
 import { GelatoNotificationTargetSchema, gelatoNotificationTarget } from './gelato-notification-target';
@@ -37,6 +38,10 @@ export interface GelatoSubmissionDependencies {
   get?: (id: string) => Promise<GelatoProviderOrder>;
   now?: () => Date;
   draftsEnabled: boolean;
+  artifactSha256?: (key: string) => Promise<string>;
+  accountSha256?: string;
+  /** Only the Access-only operator handler supplies this after durable exact approval. */
+  workflowTestSend?: { actor: string; packetSha256: string };
   engineeringDraftsAllowed?: (identity: GelatoSubmissionIdentity) => Promise<boolean>;
   merchantEmail?: string;
 }
@@ -125,10 +130,14 @@ function assertSavedProviderQuoteFresh(snapshot: GelatoSavedSnapshot, now: Date)
   if (expiresAt && Date.parse(expiresAt) <= now.getTime()) throw new Error('Gelato provider quote expired; obtain a fresh quote');
 }
 export async function submitGelatoDraft(identity: GelatoSubmissionIdentity, dependencies: GelatoSubmissionDependencies) {
-  if (!dependencies.draftsEnabled && !(await dependencies.engineeringDraftsAllowed?.(identity))) throw new Error('Gelato draft submission is disabled');
   const context = await dependencies.store.load(identity.submissionId);
   assertIdentity(context, identity, (dependencies.now ?? (() => new Date()))(), false);
   if (context.submission.request_state === 'submitted') return { submissionId: identity.submissionId, outcome: 'draft', reused: true };
+  if (await workflowTestRows(context, dependencies)) {
+    if (!dependencies.workflowTestSend && await holdWorkflowTestPrint(context, identity, dependencies)) return { submissionId: identity.submissionId, outcome: 'operator_review', held: true };
+    await assertWorkflowTestSend(context, dependencies);
+  }
+  if (!dependencies.draftsEnabled && !dependencies.workflowTestSend && !(await dependencies.engineeringDraftsAllowed?.(identity))) throw new Error('Gelato draft submission is disabled');
   const s = context.submission;
   const snapshot = GelatoSavedSnapshotSchema.parse(s.quote_snapshot);
   assertSavedProviderQuoteFresh(snapshot, (dependencies.now ?? (() => new Date()))());

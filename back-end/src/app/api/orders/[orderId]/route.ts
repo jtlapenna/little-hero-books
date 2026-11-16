@@ -1,5 +1,5 @@
 import { readDurableCustomerCorrection } from '@/lib/customer-corrections';
-import { normalizeW0Manifest } from '@/lib/books/normalize-w0-manifest';
+import { normalizeW0Manifest, type NormalizedW0Manifest } from '@/lib/books/normalize-w0-manifest';
 import { frozenPoseReferenceKeys, orderReviewPoseNumbers } from '@/lib/books/order-pose-context';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCharacterAssets, downloadManifest } from '@/lib/r2-service';
@@ -23,6 +23,8 @@ import {
   buildManifestKeyHintOptionsFromOrderLike,
   resolveOrderPathContext,
 } from '@/lib/order-paths';
+
+function printTrimMm(snapshot: NormalizedW0Manifest | null | undefined) { return snapshot?.print?.provider === 'gelato' ? snapshot.print.printGeometryMm.trim : undefined; }
 
 function isTableMissingError(error: any, tableName: string) {
   if (!error) return false;
@@ -238,6 +240,7 @@ async function getOrder(
 
   order.bookContext = {
     poseReferenceKeys: frozenPoseReferenceKeys(intakeSnapshot),
+    printTrimMm: printTrimMm(intakeSnapshot),
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {
@@ -323,7 +326,9 @@ async function getOrder(
       }
 
       const latestNotification = notificationRows?.[0] as PreviewNotificationLogRow | undefined;
-      order.customerPreview.notification = latestNotification
+      order.customerPreview.notification = order.customerMessagesSuppressed
+        ? { status: 'suppressed' }
+        : latestNotification
         ? {
             status: latestNotification.status === 'sent' ? 'sent' : 'failed',
             channel:
@@ -575,6 +580,7 @@ async function getOrder(
 
   order.bookContext = {
     poseReferenceKeys: frozenPoseReferenceKeys(postBriaManifestSnapshot?.oneManifestSnapshot ?? intakeSnapshot),
+    printTrimMm: printTrimMm(postBriaManifestSnapshot?.oneManifestSnapshot ?? intakeSnapshot),
     bookId: reviewPageContext.bookId,
     formatId: reviewPageContext.formatId,
     orderPrefix: resolveOrderPathContext(order.orderId, {

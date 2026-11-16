@@ -1,3 +1,5 @@
+import { adminWorkflowTestAdmission } from './admin-workflow-test';
+import { isOvernightTestOrder } from './messaging/test-order-guard';
 import { OrderStatus, ReviewStageStatus } from '@/constants/statuses';
 import { Order, ReviewStage } from '@/types/order';
 import { calculateOrderStatus } from './status-service';
@@ -214,6 +216,9 @@ export async function mapSupabaseOrderToOrder(
     workflowStep: record.workflow_step || undefined,
     nextWorkflow: record.next_workflow || undefined,
     currentWorkflow: record.current_workflow || undefined,
+    isWorkflowTest: Boolean(adminWorkflowTestAdmission(record)),
+    printPreparationRequested: Boolean(adminWorkflowTestAdmission(record)?.preparePrintRequestedAt),
+    customerMessagesSuppressed: isOvernightTestOrder(record),
     printProvider: record.print_provider || undefined,
     printSubmissionId: record.print_submission_id || undefined,
     gelatoStatus: record.gelato_status || undefined,

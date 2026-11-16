@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import { observeGelatoFinance, observeGelatoMonetaryQuote, gelatoDecimal, bindGelatoFinancialGraph } from '../src/lib/books/gelato-financial-observation';
 import { GelatoProviderOrderSchema } from '../src/lib/books/gelato-provider-snapshot';
 import { buildGelatoLifecycleResults, refreshGelatoSubmission } from '../src/lib/books/gelato-lifecycle';
@@ -22,7 +23,7 @@ async function main() {
     const reviewTime=f.d.now!();
     const reviewInputs={accountKeySha256:f.a.account_key_sha256,intendedAccountKeySha256:f.a.account_key_sha256,
       cohortSubmissionIds:[f.context.submission.id],artifactSha256:new Map(f.a.artifacts.map(a=>[a.artifact_key,a.sha256])),
-      loadArtifact:async(key:string)=>f.blobs.get(key)!,loadOrder:async(key:string)=>f.rows.get(key)??null,now:reviewTime};
+      loadArtifactSha256:async(key:string)=>createHash('sha256').update(f.blobs.get(key)!).digest('hex'),loadOrder:async(key:string)=>f.rows.get(key)??null,now:reviewTime};
     monetary.providerExpiresAt=new Date(reviewTime.getTime()+60000).toISOString();
     assert(!(await buildGelatoReleaseReview(f.context,reviewInputs)).blockers.includes('fresh_bound_quote_required'));
     monetary.providerExpiresAt=new Date(reviewTime.getTime()-1).toISOString();

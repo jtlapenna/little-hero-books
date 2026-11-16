@@ -1,7 +1,9 @@
+import { printColorProfiles, PRINT_PROFILE_SHA256 } from './print-profiles';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { assertW4GelatoPrintInput, type W4GelatoPrintInput } from './w4-gelato-print-input';
 
+export const GELATO_PDF_ASSEMBLER_REVISION = 'icc-trim-v2';
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const POINTS_PER_MM = 72 / 25.4;
 const MIN_PRINT_DPI = 300;
@@ -218,14 +220,14 @@ export async function readGelatoPngResponse(response: Response): Promise<Uint8Ar
 function pngObjectBody(image: PngImage): Uint8Array {
   const colors = image.colorType === 0 ? 1 : 3;
   return concatBytes([
-    pdfText(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace ${image.colorType === 0 ? '/DeviceGray' : '/DeviceRGB'} /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors ${colors} /BitsPerComponent 8 /Columns ${image.width} >> /Length ${image.idat.byteLength} >>\nstream\n`),
+    pdfText(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace ${image.colorType === 0 ? '/DeviceGray' : '[/ICCBased 3 0 R]'} /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors ${colors} /BitsPerComponent 8 /Columns ${image.width} >> /Length ${image.idat.byteLength} >>\nstream\n`),
     image.idat,
     pdfText('\nendstream'),
   ]);
 }
 
-function pdfStream(pages: PageSpec[], loadImage: Dependencies['loadImage']): ReadableStream<Uint8Array> {
-  let nextObjectId = 3;
+function pdfStream(pages: PageSpec[], loadImage: Dependencies['loadImage'], fingerprint: string, generatedAt: string | null, bleedMm: number): ReadableStream<Uint8Array> {
+  let nextObjectId = 8;
   const objects = pages.map((page) => {
     const imageId = page.key ? nextObjectId++ : null;
     const contentId = nextObjectId++;
@@ -249,9 +251,20 @@ function pdfStream(pages: PageSpec[], loadImage: Dependencies['loadImage']): Rea
       };
 
       try {
-          await write(pdfText('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n'));
-          await writeObject(1, pdfText('<< /Type /Catalog /Pages 2 0 R >>'));
+          await write(pdfText('%PDF-1.6\n%\xe2\xe3\xcf\xd3\n'));
+          await writeObject(1, pdfText('<< /Type /Catalog /Pages 2 0 R /OutputIntents [5 0 R] /Metadata 6 0 R >>'));
           await writeObject(2, pdfText(`<< /Type /Pages /Kids [${objects.map((entry) => `${entry.pageId} 0 R`).join(' ')}] /Count ${pages.length} >>`));
+
+          const profiles = printColorProfiles();
+          for (const [id, data, channels] of [[3, profiles.srgb, 3], [4, profiles.gracol, 4]] as const) {
+            await writeObject(id, concatBytes([pdfText(`<< /N ${channels} /Filter /FlateDecode /Length ${data.byteLength} >>\nstream\n`), data, pdfText('\nendstream')]));
+          }
+          await writeObject(5, pdfText('<< /Type /OutputIntent /S /GTS_PDFX /OutputConditionIdentifier (GRACoL2006_Coated1v2) /OutputCondition (GRACoL 2006 Coated) /RegistryName (http://www.color.org) /Info (GRACoL2006_Coated1v2) /DestOutputProfile 4 0 R >>'));
+          const date = Number.isFinite(Date.parse(generatedAt ?? '')) ? new Date(generatedAt!).toISOString() : '1970-01-01T00:00:00.000Z';
+          const metadata = pdfText(`<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" pdfxid:GTS_PDFXVersion="PDF/X-4" xmp:CreatorTool="Little Hero Labs" xmp:CreateDate="${date}" xmp:ModifyDate="${date}"><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Little Hero Labs print book</rdf:li></rdf:Alt></dc:title></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`);
+          await writeObject(6, concatBytes([pdfText(`<< /Type /Metadata /Subtype /XML /Length ${metadata.byteLength} >>\nstream\n`), metadata, pdfText('\nendstream')]));
+          const pdfDate = date.replace(/[-:T]/g, '').slice(0, 14) + 'Z';
+          await writeObject(7, pdfText(`<< /Title (Little Hero Labs print book) /Creator (Little Hero Labs) /Producer (Little Hero Labs ${GELATO_PDF_ASSEMBLER_REVISION}) /CreationDate (D:${pdfDate}) /ModDate (D:${pdfDate}) /Trapped /False /GTS_PDFXVersion (PDF/X-4) >>`));
 
           for (const entry of objects) {
             const widthPt = mmToPt(entry.page.widthMm);
@@ -272,7 +285,7 @@ function pdfStream(pages: PageSpec[], loadImage: Dependencies['loadImage']): Rea
             ]));
 
             const resources = entry.imageId ? ` /Resources << /XObject << /Im1 ${entry.imageId} 0 R >> >>` : ' /Resources << >>';
-            await writeObject(entry.pageId, pdfText(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${widthPt.toFixed(6)} ${heightPt.toFixed(6)}]${resources} /Contents ${entry.contentId} 0 R >>`));
+            await writeObject(entry.pageId, pdfText(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${widthPt.toFixed(6)} ${heightPt.toFixed(6)}] /BleedBox [0 0 ${widthPt.toFixed(6)} ${heightPt.toFixed(6)}] /TrimBox [${mmToPt(bleedMm).toFixed(6)} ${mmToPt(bleedMm).toFixed(6)} ${(widthPt-mmToPt(bleedMm)).toFixed(6)} ${(heightPt-mmToPt(bleedMm)).toFixed(6)}]${resources} /Contents ${entry.contentId} 0 R >>`));
           }
 
           const xrefOffset = offset;
@@ -280,7 +293,7 @@ function pdfStream(pages: PageSpec[], loadImage: Dependencies['loadImage']): Rea
           for (let id = 1; id < nextObjectId; id += 1) {
             await write(pdfText(`${String(offsets[id]).padStart(10, '0')} 00000 n \n`));
           }
-          await write(pdfText(`trailer\n<< /Size ${nextObjectId} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`));
+          await write(pdfText(`trailer\n<< /Size ${nextObjectId} /Root 1 0 R /Info 7 0 R /ID [<${fingerprint.padEnd(32, "0")}> <${fingerprint.padEnd(32, "0")}>] >>\nstartxref\n${xrefOffset}\n%%EOF\n`));
           await writer.close();
       } catch (error) {
         await writer.abort(error);
@@ -299,6 +312,9 @@ function normalizeKey(key: string, orderPrefix: string, label: string): string {
 
 function artifactFingerprint(input: W4GelatoPrintInput, imageDigests: string[]): string {
   const source = [
+    GELATO_PDF_ASSEMBLER_REVISION,
+    PRINT_PROFILE_SHA256.srgb,
+    PRINT_PROFILE_SHA256.gracol,
     input.orderPrefix,
     input.bookConfigVersion,
     input.runStamp,
@@ -370,7 +386,7 @@ export async function buildGelatoPrintPdf(
   if (await dependencies.headObject?.(key)) {
     for (const imageKey of digestByKey.keys()) await loadVerifiedImage(imageKey);
   } else {
-    await dependencies.putObject(key, pdfStream(pages, loadVerifiedImage));
+    await dependencies.putObject(key, pdfStream(pages, loadVerifiedImage, fingerprint, input.generatedAt, geometry.bleed));
   }
 
   const encodedKey = key.split('/').map(encodeURIComponent).join('/');

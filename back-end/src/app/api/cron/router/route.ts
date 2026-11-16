@@ -358,7 +358,7 @@ export async function GET(request: NextRequest) {
     const w0RetriggerStart = Date.now();
     const { data: stuckPendingW0 } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,platform,marketplace_id,book_specs,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
+      .select('id,"orderId",next_workflow,current_workflow,workflow_step,execution_status,one_manifest_url,amazon_order_id,platform,marketplace_id,book_specs,character_specs,shipping_address,customer_email,customer_name,purchase_date,dedication_text,product_info,character_hash,root_order_id,created_at')
       .eq('execution_status', 'pending_w0')
       .is('next_workflow', null)
       .is('one_manifest_url', null)
@@ -417,7 +417,7 @@ export async function GET(request: NextRequest) {
     const w0CleanupStart = Date.now();
     const { data: w0CompletedOrders } = await supabase
       .from('orders')
-      .select('id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages,customer_approval_required,customer_approval_status')
+      .select('id,"orderId",amazon_order_id,root_order_id,product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,customer_email,customer_name,one_manifest_url,manifest_2a_url,manifest_2b_url,manifest_3_url,workflow_step,execution_status,next_workflow,review_stages,customer_approval_required,customer_approval_status')
       .eq('execution_status', 'pending_w0')
       .not('one_manifest_url', 'is', null);
     
@@ -500,7 +500,7 @@ export async function GET(request: NextRequest) {
     // CRITICAL DUPLICATE-PREVENTION:
     // Some orders may incorrectly remain execution_status='ready_for_processing' even while a workflow is running.
     // If started_at or current_workflow are set, treat the order as in-flight and DO NOT route it again.
-    const routeOrderSelect = 'id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,started_at,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier,print_provider,print_book_id,print_format_id,print_config_version,print_submission_id,print_claim_token,gelato_order_id,gelato_status';
+    const routeOrderSelect = 'product_info,book_specs,review_stages,id,"orderId",amazon_order_id,root_order_id,customer_email,customer_name,character_hash,next_workflow,dedication_text,one_manifest_url,one_manifest_key,manifest_2b_url,manifest_3_url,character_specs,execution_status,started_at,current_workflow,priority,queued_at,updated_at,shipping_address,lulu_status,lulu_job_id,customer_approval_required,customer_approval_status,amazon_shipment_service_level,shipping_tier,print_provider,print_book_id,print_format_id,print_config_version,print_submission_id,print_claim_token,gelato_order_id,gelato_status';
     const ordersFetchStart = Date.now();
     const { data: orders, error: ordersError } = await supabase
       .from('orders')

@@ -1,3 +1,5 @@
+import { calculateCharacterHash } from '../src/lib/character-hash';
+import { createAdminWorkflowTestAdmission } from '../src/lib/admin-workflow-test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import { readFileSync, realpathSync } from 'node:fs';
@@ -56,7 +58,7 @@ async function main() {
   if(u.searchParams.get('execution_status')==='eq.pending_w0'&&u.searchParams.get('one_manifest_url')==='is.null') {
    assert.equal(r.method,'GET');assert.equal(u.searchParams.get('next_workflow'),'is.null');assert.equal(u.searchParams.get('created_at'),'gte.'+cutoff);assert.equal(u.searchParams.get('limit'),'5');
    const fields=u.searchParams.get('select')!.split(',').map(key=>key.replaceAll('"',''));
-   assert.deepEqual(fields,['id','orderId','amazon_order_id','platform','marketplace_id','book_specs','character_specs','shipping_address','customer_email','customer_name','purchase_date','dedication_text','product_info','character_hash','root_order_id','created_at']);
+   assert.deepEqual(fields,['id','orderId','next_workflow','current_workflow','workflow_step','execution_status','one_manifest_url','amazon_order_id','platform','marketplace_id','book_specs','character_specs','shipping_address','customer_email','customer_name','purchase_date','dedication_text','product_info','character_hash','root_order_id','created_at']);
    rows=pending.filter(row=>row.execution_status==='pending_w0'&&row.next_workflow==null&&row.one_manifest_url==null&&typeof row.created_at==='string'&&originalDate.parse(row.created_at)>=originalDate.parse(cutoff)).slice(0,5);
    rows=rows.map(row=>Object.fromEntries(fields.map(key=>[key,clone(row[key]??null)])));
    pendingReads.push({url:r.url,method:r.method,rows:clone(rows)});
@@ -64,7 +66,8 @@ async function main() {
    if(refreshProgress)pending[0].manifest_2a_url='synthetic-progress/2a.json';
   } else if(u.searchParams.get('execution_status')==='eq.ready_for_processing'&&u.searchParams.has('next_workflow')) {
    const selected=u.searchParams.get('select')!; for(const key of ['print_provider','print_submission_id','print_claim_token','gelato_status','started_at']) assert(selected.includes(key),'Actual router must select '+key);
-   rows=candidates;
+   const fields=selected.split(',').map(key=>key.replaceAll('"',''));
+   rows=candidates.map(row=>Object.fromEntries(fields.map(key=>[key,clone(row[key]??null)])));
   } else if(r.method==='GET'&&['201','2'].includes(u.searchParams.get('limit')??'')&&['root_order_id','amazon_order_id','orderId','order_id'].some(key=>u.searchParams.get(key)?.startsWith('eq.'))) {
    assert.equal(u.searchParams.get('select'),'*');
    const exact=['root_order_id','amazon_order_id','orderId','order_id'].filter(key=>u.searchParams.get(key)?.startsWith('eq.'));
@@ -352,6 +355,21 @@ async function main() {
   w0Failure=true;await invokePending('failed-W0-send-continues-next-row',producerPair,producerPair);w0Failure=false;
   await invokePending('missing-cron-auth',[single],[],5,false);await invokePending('at-capacity',[single],[],0);
   assert.equal(pendingChecks,27);assert.equal(checks,24);
+
+  const admitted=clone(single);
+  admitted.orderId='TEST-NEW-OPERATOR';admitted.amazon_order_id=admitted.orderId;admitted.root_order_id=admitted.orderId;admitted.character_hash=calculateCharacterHash(admitted.character_specs as Record<string,unknown>,String(admitted.orderId));
+  admitted.product_info={...(admitted.product_info as Row),_overnight_test:true,_created_via_csv:true,_admin_workflow_test:createAdminWorkflowTestAdmission('operator@example.test',2)};
+  await invokePending('admitted-operator-test-W0-recovery',[admitted],[admitted]);
+  const invalid=clone(admitted);(invalid.product_info as Row)._admin_workflow_test={schema:'invalid'};
+  await invokePending('malformed-admission-held',[invalid],[]);
+  await invokePending('legacy-marked-test-held',[{...admitted,product_info:{_overnight_test:true}}],[]);
+  const generation:Row={...admitted,one_manifest_url:'book-finding-our-inner-voice/orders/TEST-NEW-OPERATOR/manifests/1-manifest.json',print_provider:'gelato',print_book_id:'book-finding-our-inner-voice',print_format_id:'amazon',print_config_version:2,execution_status:'ready_for_processing',current_workflow:null,started_at:null};
+  pending=[];siblings=[];slots=5;
+  for(const next of ['2A','2B','3']){candidates=[{...generation,next_workflow:next}];await run([Number(generation.id)]);}
+  const approval={...generation,next_workflow:'4',customer_approval_status:'approved',review_stages:{postPdf:{status:'approved'}}};
+  candidates=[approval];await run([]);
+  candidates=[{...approval,product_info:{...(admitted.product_info as Row),_admin_workflow_test:{...((admitted.product_info as Row)._admin_workflow_test as Row),preparePrintRequestedAt:now}}}];await run([Number(generation.id)]);
+
   console.log=log;log(JSON.stringify({passed:true,checks,pendingChecks,pendingObservations,liveRequests:0,customerMessages:0,scope:'Existing actual cron GET route with frozen producer rows, projected query filtering, stored selection and per-row handoff; synthetic transports and frozen clock only. No real DB concurrency, provider or installed n8n acceptance.'}));
  } catch(failure){log(JSON.stringify({passed:false,pendingChecks,pendingObservations,pendingReads,w0,input:clone(pending),message:String(failure)}));throw failure;} finally {globalThis.fetch=original;globalThis.Date=originalDate;console.log=log;console.warn=warn;console.error=error;}
 }

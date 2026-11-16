@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import configFile from '../src/lib/books/configs/book-finding-our-inner-voice/v2.json';
 import { buildGelatoPrintPdf, MAX_GELATO_PNG_SOURCE_BYTES, readGelatoPngResponse } from '../src/lib/books/build-gelato-print-pdf';
@@ -258,10 +260,19 @@ async function main(): Promise<void> {
 
   const pdf = Buffer.concat(uploaded.map((part) => Buffer.from(part))).toString('latin1');
   if (process.env.GELATO_TEST_PDF_PATH) writeFileSync(process.env.GELATO_TEST_PDF_PATH, Buffer.from(pdf, 'latin1'));
+  if (process.env.GELATO_TEST_PREFLIGHT_DIR) {
+    const dir=resolve(process.env.GELATO_TEST_PREFLIGHT_DIR);mkdirSync(dir,{recursive:true});
+    const digest=(value:Uint8Array)=>createHash('sha256').update(value).digest('hex');
+    const file=resolve(dir,'canonical.pdf'),cover=resolve(dir,'cover.png'),inner=resolve(dir,'inner.png');
+    const bytes=Buffer.from(pdf,'latin1');writeFileSync(file,bytes,{flag:'wx'});writeFileSync(cover,coverPng,{flag:'wx'});writeFileSync(inner,pagePng,{flag:'wx'});
+    const sources=[{label:'cover',file:cover,sha256:digest(coverPng)},...Array.from({length:32},(_,i)=>({label:`p${String(i).padStart(2,'0')}`,file:inner,sha256:digest(pagePng)}))];
+    writeFileSync(resolve(dir,'receipt.json'),JSON.stringify({pdf:file,sha256:digest(bytes),sources}),{flag:'wx'});
+    writeFileSync(resolve(dir,'w4-input.json'),JSON.stringify(input),{flag:'wx'});
+  }
   assert.equal(result.pageCount, 35);
   assert.ok(result.sourceImageBytes > 0);
   assert.match(result.url, /\/api\/pdf\/book-finding-our-inner-voice\/orders\/GELATO-PDF-TEST\/gelato\/print\/v2\//);
-  assert.match(pdf, /^%PDF-1\.4/);
+  assert.match(pdf, /^%PDF-1\.6/);
   assert.match(pdf, /\/Count 35/);
   assert.equal((pdf.match(/\/Type \/Page\b/g) ?? []).length, 35);
   assert.match(pdf, /\/MediaBox \[0 0 1159\.455118 583\.937008\]/);

@@ -25,7 +25,7 @@ export type OrdinaryReleaseRuntime = { kind: 'ready'; application: OrdinaryRelea
 export type ReleaseIdentity = { ok: true; mode: 'access' | 'token'; actor: string } | { ok: false; response: Response };
 export interface ReleaseHttpPorts {
   authenticate(request: Request): Promise<ReleaseIdentity>;
-  runtime(): Promise<OrdinaryReleaseRuntime>;
+  runtime(actor: string): Promise<OrdinaryReleaseRuntime>;
   budgetMs?: number;
 }
 const headers = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' };
@@ -51,7 +51,7 @@ async function candidate(action:z.infer<typeof Review>, d: OrdinaryReleaseDepend
     if (!row || !member.artifact_key || !member.provider_item_id) throw Error('release_application_identity_missing');
     return { childOrderId: member.child_order_id, itemReferenceId: member.item_reference_id, providerItemId: member.provider_item_id,
       bookId: row.print_book_id, formatId: row.print_format_id, configVersion: row.print_config_version,
-      key: member.artifact_key, sha256: createHash('sha256').update(await within(signal, () => d.artifact(member.artifact_key!))).digest('hex') };
+      key: member.artifact_key, sha256: await within(signal, () => d.artifactSha256(member.artifact_key!,signal)) };
   }));
   return AnyOrdinaryReleasePermitSchema.parse({ id: randomUUID(), submissionId, providerOrderId: context.submission.accepted_root_order_id,
     accountSha256: createHash('sha256').update(d.apiKey).digest('hex'), packetSha256: '0'.repeat(64),
@@ -72,7 +72,7 @@ export function createOrdinaryReleaseHttpHandler(ports: ReleaseHttpPorts) {
     catch { return json({ error: 'Invalid release request' }, 400); }
     const parsed = Action.safeParse(input);
     if (!parsed.success) return json({ error: 'Invalid release request' }, 400);
-    const runtime = await ports.runtime();
+    const runtime = await ports.runtime(identity.actor);
     if (runtime.kind === 'blocked') return json({ state: 'blocked', canSubmit: false, blockers: runtime.blockers, providerMutationAttempted: false }, 409);
     const app = runtime.application, d = app.release;
     if (!app.approvers.has(identity.actor)) return json({ error: 'This operator cannot authorize a print release' }, 403);
@@ -99,7 +99,7 @@ export function createOrdinaryReleaseHttpHandler(ports: ReleaseHttpPorts) {
       const prepared = await prepareOrdinaryRelease(permit, d, controller.signal, action.action === 'approve' ? action.reviewedPacket : undefined);
       if (action.action === 'review') {
         return json({ state: 'review_required', canSubmit: false, permit: { ...permit, packetSha256: prepared.packetSha256 },
-          packet: prepared.packet, packetSha256: prepared.packetSha256, providerMutationAttempted: false,
+          packet: prepared.packet, recipient: prepared.recipient, packetSha256: prepared.packetSha256, providerMutationAttempted: false,
           ...('pricingPolicy' in permit?{requiredAcknowledgement:'final_charge_may_differ',providerChargeCapEnforced:false}:{} ) });
       }
       if (permit.packetSha256 !== action.approvedPacketSha256 || prepared.packetSha256 !== action.approvedPacketSha256) {

@@ -79,7 +79,7 @@ export async function createOrdinaryReleaseFixture(format:'standard'|'amazon'='s
   };
   const fetcher:typeof fetch=async(input,init)=>{try{return await intercept(input,init);}catch(error){if(!(error instanceof Error&&['Synthetic timeout','Synthetic lost mutation response'].includes(error.message)))violations.push(String(error));throw error;}};
   const d:OrdinaryReleaseDependencies={apiKey:'synthetic-release-account',enabled:async()=>enabled,now:()=>new Date(time),budgetMs:2000,
-   context:async id=>{assert.equal(id,f.context.submission.id);return structuredClone(f.context);},order:async key=>f.rows.get(key)??null,artifact:async key=>f.blobs.get(key)!,fetcher,
+   context:async id=>{assert.equal(id,f.context.submission.id);return structuredClone(f.context);},order:async key=>f.rows.get(key)??null,artifactSha256:async(key,signal)=>{signal.throwIfAborted();return hash(f.blobs.get(key)!); },fetcher,
    payableEvidence:async()=>payable,createStoredFileVerifier:signal=>{verifierPhases++;return createGelatoStoredFileVerifier({loadArtifact:async key=>new Response(Uint8Array.from(f.blobs.get(key)!)),fetcher,signal,budgetMs:1000});},
    store:{acquire:async(requested,account)=>{assert.equal(requested,permit.id);assert.equal(account,permit.accountSha256);claims++;
     if(state!=='ready')return{kind:state==='preparing'?'busy':'already_attempted'};state='preparing';owner=randomUUID();version++;return{kind:'acquired',permit:structuredClone(permit),ownerToken:owner};},

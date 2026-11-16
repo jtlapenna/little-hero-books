@@ -70,6 +70,7 @@ interface FinalApprovalStateProps {
   notification?: {
     attempted: boolean;
     sent: boolean;
+    skipped?: boolean;
     reason?: string;
     response?: unknown;
     channel?: 'email' | 'amazon_message';
@@ -281,9 +282,10 @@ export function PostPdfStage({
   const notificationWasSent =
     Boolean(finalApprovalResult?.notification?.sent) ||
     order.customerPreview?.notification?.status === 'sent';
-  const notificationFailed =
+  const notificationSuppressed = Boolean(order.customerMessagesSuppressed || finalApprovalResult?.notification?.skipped || order.customerPreview?.notification?.status === 'suppressed');
+  const notificationFailed = !notificationSuppressed && (
     Boolean(finalApprovalResult?.notification && !finalApprovalResult.notification.sent) ||
-    order.customerPreview?.notification?.status === 'failed';
+    order.customerPreview?.notification?.status === 'failed');
   const customerApprovalStatus = order.customerApprovalStatus ?? '';
   const orderStatus = order.status ?? '';
   const revisionCount = typeof order.revisionCount === 'number' ? order.revisionCount : 0;
@@ -293,7 +295,7 @@ export function PostPdfStage({
       ? notificationWasSent
         ? 'sent, awaiting customer'
         : hasExistingPreview || previewJustSent
-          ? 'link created, notification not sent'
+          ? notificationSuppressed ? 'test preview ready, messages suppressed' : 'link created, notification not sent'
           : 'not sent'
       : customerApprovalStatus
         ? customerApprovalStatus.replace(/_/g, ' ')
@@ -309,8 +311,10 @@ export function PostPdfStage({
       ? 'bg-amber-100 text-amber-800'
       : 'bg-gray-100 text-gray-700';
   const approvalSendDisabled =
-    finalApprovalIsLoading || (previewJustSent && notificationWasSent);
-  const approvalSendLabel = notificationFailed
+    finalApprovalIsLoading || ((previewJustSent || hasExistingPreview) && (notificationWasSent || notificationSuppressed));
+  const approvalSendLabel = notificationSuppressed
+    ? hasExistingPreview || previewJustSent ? 'Test Preview Ready' : 'Create Test Preview'
+    : notificationFailed
     ? 'Retry Customer Notification'
     : finalApprovalIsLoading
     ? 'Sending for Customer Approval...'
@@ -324,13 +328,16 @@ export function PostPdfStage({
 
   // Production handoff should follow explicit customer approval, not revision count.
   // A clean first-pass approval still needs a visible Send to Print action.
+  const isGelatoBook = order.printProvider === 'gelato';
+  const trimMm = order.bookContext?.printTrimMm;
+  const printFormatLabel = isGelatoBook ? trimMm ? `${trimMm.w} × ${trimMm.h} mm Softcover` : 'See frozen print format' : '8.5\" × 8.5\" Softcover';
   const showPrintAction = isApproved && customerApprovedPreview;
   const existingGelato = order.printProvider === 'gelato' && Boolean(order.printSubmissionId);
   const printBookCount = String(order.lifecycle_status || '').toLowerCase() === 'recently_delivered' ? 1 : order.totalSiblings ?? 1;
-  const printActionLabel = order.printProvider === 'gelato'
+  const printActionLabel = order.isWorkflowTest ? 'Prepare Print File' : order.printProvider === 'gelato'
     ? printBookCount > 1 ? `Create ${printBookCount} Held Gelato Drafts` : 'Create Held Gelato Draft'
     : printBookCount > 1 ? `Send ${printBookCount} Books to Print` : 'Send to Print';
-  const actionCardTitle = existingGelato ? 'Review Gelato Submission' : showPrintAction ? printActionLabel : 'Send for Customer Approval';
+  const actionCardTitle = existingGelato ? 'Review Gelato Submission' : showPrintAction ? printActionLabel : notificationSuppressed ? 'Create Test Preview' : 'Send for Customer Approval';
   const reviewPageContext = resolveReviewPageContext({
     bookId: order.bookContext?.bookId ?? order.project ?? null,
     formatId: order.bookContext?.formatId ?? null,
@@ -2339,7 +2346,7 @@ export function PostPdfStage({
         {workflow3Completed && (
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Final Compiled PDF</h3>
+              <h3 className="text-lg font-medium text-gray-900">{isGelatoBook ? 'Complete Book Preview' : 'Final Compiled PDF'}</h3>
               <p className="text-sm text-gray-600 mt-1">
                 Review the complete personalized book before sending for customer approval
               </p>
@@ -2743,8 +2750,8 @@ export function PostPdfStage({
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="text-gray-500">File Size:</span>
-              <span className="ml-1 text-gray-900">219 MB</span>
+              <span className="text-gray-500">{isGelatoBook ? 'Print PDF:' : 'File Size:'}</span>
+              <span className="ml-1 text-gray-900">{isGelatoBook ? 'Prepared at print step' : 'Not measured'}</span>
             </div>
             <div>
               <span className="text-gray-500">Pages:</span>
@@ -2752,7 +2759,7 @@ export function PostPdfStage({
             </div>
             <div>
               <span className="text-gray-500">Format:</span>
-              <span className="ml-1 text-gray-900">8.5" × 8.5" Softcover</span>
+              <span className="ml-1 text-gray-900">{printFormatLabel}</span>
             </div>
             <div>
               <span className="text-gray-500">Status:</span>
@@ -2781,8 +2788,8 @@ export function PostPdfStage({
             <ul className="space-y-1">
               <li>• Images are high quality and properly positioned</li>
               <li>• No layout issues or text overflow</li>
-              <li>• Print margins are correct for 8.5" × 8.5" format</li>
-              <li>• PDF is optimized for print production</li>
+              <li>• Print margins match the configured book format</li>
+              <li>{isGelatoBook ? '• Inspect the prepared print PDF before release' : '• PDF is optimized for print production'}</li>
             </ul>
           </div>
         </div>
@@ -2794,13 +2801,15 @@ export function PostPdfStage({
             <h4 className="text-lg font-medium text-gray-900">{actionCardTitle}</h4>
             <p className="text-sm text-gray-600 mt-1">
               {existingGelato ? 'This book has a saved Gelato submission. Check its status before taking further action.' : showPrintAction
-                ? (order?.printProvider === 'gelato' ? `The customer approved the preview. Create ${printBookCount > 1 ? `${printBookCount} held drafts` : 'a held draft'} for review before printing.` : `The customer approved the preview. Queue ${printBookCount > 1 ? `all ${printBookCount} books` : 'this order'} for print production.`)
+                ? (order.isWorkflowTest ? 'The customer approved the preview. Prepare the print PDF and quote; submission stays held for your separate review.' : order?.printProvider === 'gelato' ? `The customer approved the preview. Create ${printBookCount > 1 ? `${printBookCount} held drafts` : 'a held draft'} for review before printing.` : `The customer approved the preview. Queue ${printBookCount > 1 ? `all ${printBookCount} books` : 'this order'} for print production.`)
                 : isApproved && notificationWasSent
                 ? 'Customer preview was sent. Wait for customer approval before printing.'
+                : isApproved && hasExistingPreview && notificationSuppressed
+                ? 'Test preview is ready. Open the link to review and approve it; customer messages are suppressed.'
                 : isApproved && hasExistingPreview
                 ? 'Preview link exists, but the customer notification has not been sent.'
                 : isApproved
-                ? 'Internal PDF review is approved. Send the customer preview before printing.'
+                ? notificationSuppressed ? 'Page review is approved. Create a test preview to review and approve it before printing; customer messages are suppressed.' : 'Internal PDF review is approved. Send the customer preview before printing.'
                 : requiresPdfWarning
                 ? 'The compiled PDF must be generated before sending for customer approval.'
                 : !isPostBriaApproved
@@ -2811,9 +2820,9 @@ export function PostPdfStage({
                 ? 'First approve this stage, then send for customer approval.'
                 : 'Review the compiled PDF and approve when ready for production.'}
             </p>
-            {devPdfNotice && (
+            {(devPdfNotice || isGelatoBook) && (
               <p className="text-xs text-gray-500 mt-2">
-                PDF not detected ({pdfAsset.error || 'unavailable'}); approval is enabled for testing. Ensure a compiled PDF exists and R2 credentials are configured before sending to real customers.                 
+                {isGelatoBook ? 'This stage reviews page previews. The combined print PDF and fulfillment quote are prepared at the print step.' : `PDF not detected (${pdfAsset.error || 'unavailable'}). Verify the compiled PDF before customer approval.`}
               </p>
             )}
           </div>
@@ -2961,7 +2970,9 @@ export function PostPdfStage({
                   <div className="space-y-1">
                     <p className="font-medium text-gray-900">Preview Link</p>
                     <p className="text-xs text-gray-600">
-                      {notificationWasSent
+                      {notificationSuppressed
+                        ? 'Test messages are suppressed. Open the preview link to review and approve the book.'
+                        : notificationWasSent
                         ? 'Preview generated and awaiting customer response.'
                         : previewJustSent || hasExistingPreview
                         ? 'Preview link generated. Customer notification has not been sent.'
@@ -2970,6 +2981,7 @@ export function PostPdfStage({
                   </div>
                   {previewUrl && (
                     <div className="flex items-center gap-2">
+                      {/^https?:\/\//.test(previewUrl) && <a className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-blue-700 underline" href={previewUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open preview</a>}
                       <button
                         onClick={() => {
                           if (!previewUrl) return;
@@ -3051,7 +3063,9 @@ export function PostPdfStage({
 
                 {(previewJustSent || hasExistingPreview) && order.customerApprovalStatus === 'pending' && (
                   <p className="text-xs text-gray-500">
-                    {notificationWasSent
+                    {notificationSuppressed
+                        ? 'Test messages are suppressed. Open the preview link to review and approve the book.'
+                        : notificationWasSent
                       ? 'Use the copy button above if you need to resend manually.'
                       : 'Use Send Customer Notification after fixing configuration, or copy the link manually.'}
                   </p>
@@ -3069,7 +3083,9 @@ export function PostPdfStage({
                       {latestNotification.channel === 'email' ? 'Email' : 'Amazon Message Center'}
                     </p>
                     <p className="text-gray-700">
-                      {notificationWasSent
+                      {notificationSuppressed
+                        ? 'Test messages are suppressed. Open the preview link to review and approve the book.'
+                        : notificationWasSent
                         ? (latestNotification.channel === 'email'
                           ? 'Preview link sent via email.'
                           : 'Preview link sent via Amazon Message Center.')

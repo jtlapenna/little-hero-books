@@ -1,7 +1,9 @@
 import type { AnalyticsOrderLike } from '@/lib/analytics-helpers';
 import { getExplicitAnalyticsTestMarkerReason } from '@/lib/analytics-helpers';
+import { hasAdminWorkflowTestMarker, adminWorkflowTestMayRoute } from './admin-workflow-test';
 
 export interface CronGuardOrderLike extends AnalyticsOrderLike {
+  product_info?: unknown;
   id?: number | string | null;
   next_workflow?: string | number | null;
   current_workflow?: string | number | null;
@@ -52,6 +54,7 @@ function getOrderIdentityCandidates(order: CronGuardOrderLike): string[] {
 export function getCronExcludedOrderReason(
   order: CronGuardOrderLike,
 ): string | null {
+  if (hasAdminWorkflowTestMarker(order)) return adminWorkflowTestMayRoute(order) ? null : 'admin_workflow_test_hold';
   const analyticsReason = getExplicitAnalyticsTestMarkerReason(order);
   if (analyticsReason) {
     return `analytics_${analyticsReason}`;

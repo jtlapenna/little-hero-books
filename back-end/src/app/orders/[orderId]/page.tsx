@@ -163,6 +163,7 @@ interface FinalApprovalResult {
   notification?: {
     attempted: boolean;
     sent: boolean;
+    skipped?: boolean;
     reason?: string;
     response?: unknown;
     channel?: 'email' | 'amazon_message';
@@ -181,6 +182,7 @@ type FinalApprovalApiResponse = {
 } & Record<string, unknown>;
 
 function isPrintWorkflowQueued(order: Order): boolean {
+  if (order.isWorkflowTest && !order.printPreparationRequested && !order.printSubmissionId) return false;
   const workflow = order.currentWorkflow || order.nextWorkflow;
   return ['4', '4.1', '4-aggregate'].includes(String(workflow || '')) &&
     ['ready_for_processing', 'processing'].includes(String(order.executionStatus || ''));
@@ -402,7 +404,7 @@ export default function OrderDetailPage() {
       }
       const siblingCount = members.length;
       const groupedSiblingPrint = !isDelivered && siblingCount > 1;
-      const confirmed = window.confirm(
+      const confirmed = order.isWorkflowTest || window.confirm(
         order.printProvider === 'gelato'
           ? groupedSiblingPrint
             ? `Create held Gelato drafts for all ${siblingCount} books? Printing will not start.`
@@ -744,6 +746,7 @@ export default function OrderDetailPage() {
     order.executionStatus === 'processing' || Boolean(order.currentWorkflow && order.startedAt);
   const isWorkflowQueued =
     !isWorkflowProcessing &&
+    !(order.isWorkflowTest && !order.printPreparationRequested && order.nextWorkflow === '4') &&
     (order.executionStatus === 'ready_for_processing' || order.status === 'queued_for_processing');
   const workflowPanelTone = isWorkflowProcessing ? 'blue' : 'amber';
   const workflowPanelClasses =
@@ -984,7 +987,7 @@ export default function OrderDetailPage() {
           notification: result.notification
         });
 
-        if (result.notification && !result.notification.sent) {
+        if (result.notification && !result.notification.sent && !result.notification.skipped) {
           setFinalApprovalError(
             result.notification.reason ||
               'Preview link was generated, but the customer notification was not sent.',
@@ -1319,7 +1322,7 @@ export default function OrderDetailPage() {
                 ) : (
                   <>
                     <Printer className="h-4 w-4 mr-2" />
-                    {order.printProvider === 'gelato' ? order.printSubmissionId || order.gelatoOrderId ? 'View Print Status' : 'Create Gelato Draft' : 'Send to Print'}
+                    {order.printProvider === 'gelato' ? order.printSubmissionId || order.gelatoOrderId ? 'View Print Status' : order.isWorkflowTest ? 'Prepare Print File' : 'Create Gelato Draft' : 'Send to Print'}
                   </>
                 )}
               </button>

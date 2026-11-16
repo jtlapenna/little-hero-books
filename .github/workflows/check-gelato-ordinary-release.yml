@@ -30,6 +30,14 @@ jobs:
           env -i PATH="$PATH" node --import tsx scripts/test-book-reassembly.ts
           env -i PATH="$PATH" node --import tsx scripts/test-gelato-release-application.ts
           env -i PATH="$PATH" node --import tsx scripts/test-gelato-release-service.ts
+      - name: Verify large print-artifact review without buffering in the Worker engine
+        working-directory: back-end
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/test-inner-voice-print-quote.ts
+          env -i HOME="$HOME" PATH="$PATH" npm run test:gelato-large-artifact
+      - name: Verify operator CSV admission and pre-create print boundary offline
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" npm run test:admin-workflow-test
       - name: Load the reviewed disposable PostgreSQL 17 image
         run: |
           docker pull postgres:17@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317
@@ -38,6 +46,9 @@ jobs:
       - name: Verify durable ownership and recovery in disposable PostgreSQL
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-ordinary-release-store.ts
+      - name: Verify operator preparation hold in disposable PostgreSQL
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 npm run test:admin-workflow-print-store
       - name: Verify exact-cohort queue and polling with normal controls OFF
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 node --import tsx scripts/test-gelato-isolation.ts
@@ -50,6 +61,9 @@ jobs:
       - name: Generate visible dummy book rasters using locked Sharp
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" node --import tsx scripts/create-gelato-local-rasters.ts "$RUNNER_TEMP/gelato-combined-rasters" "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Verify operator preparation and approval through the actual handlers and durable scoped release
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" GELATO_LOCAL_CASE=amazon-single GELATO_LOCAL_OPERATOR_TEST=1 GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 node --import tsx scripts/test-gelato-local-journey.ts
       - name: Verify one ordinary placeholder revision through the actual approval and draft routes
         working-directory: back-end
         run: |

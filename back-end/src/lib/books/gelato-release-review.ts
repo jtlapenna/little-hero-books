@@ -14,7 +14,7 @@ function cents(value: string | null): bigint | null {
 const hash=(value:Uint8Array|string)=>createHash('sha256').update(value).digest('hex');
 export async function buildGelatoReleaseReview(context: GelatoSubmissionContext, inputs: {
   accountKeySha256:string; intendedAccountKeySha256:string; cohortSubmissionIds:readonly string[];
-  artifactSha256:ReadonlyMap<string,string>; loadArtifact:(key:string)=>Promise<Uint8Array>;
+  artifactSha256:ReadonlyMap<string,string>; loadArtifactSha256:(key:string)=>Promise<string>;
   loadOrder:(key:string)=>Promise<Record<string,unknown>|null>; now?:Date;
 }) {
  const blockers=new Set<string>();
@@ -33,7 +33,7 @@ export async function buildGelatoReleaseReview(context: GelatoSubmissionContext,
   if (row) { try { if (!isDeepStrictEqual(JSON.parse(JSON.stringify(gelatoRecipientFromOrder(row))),JSON.parse(JSON.stringify(saved.request.shippingAddress)))) blockers.add('recipient_changed'); } catch { blockers.add('recipient_changed'); } }
   const expected=member.artifact_key?inputs.artifactSha256.get(member.artifact_key):undefined;
   const validKey=member.artifact_key?.match(/^([A-Za-z0-9_-]+)\/orders\/([A-Za-z0-9_-]+)\/gelato\/print\/v([1-9]\d*)\/([a-f0-9]{24})\.pdf$/);
-  const actual=member.artifact_key && expected && validKey && validKey[2]===member.child_order_key && validKey[4]===member.artifact_fingerprint ? hash(await inputs.loadArtifact(member.artifact_key)):null;
+  const actual=member.artifact_key && expected && validKey && validKey[2]===member.child_order_key && validKey[4]===member.artifact_fingerprint ? await inputs.loadArtifactSha256(member.artifact_key):null;
   if(!expected||!/^[a-f0-9]{64}$/.test(expected)||actual!==expected)blockers.add('artifact_hash_mismatch');
   artifacts.push({childOrderId:member.child_order_id,itemReferenceId:member.item_reference_id,providerItemId:member.provider_item_id,sha256:actual,pdfPageCount:member.pdf_page_count});
  }
