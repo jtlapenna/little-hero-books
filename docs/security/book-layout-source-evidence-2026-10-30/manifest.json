@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "dafda1e65b4631bd2757c5e81d3daf120efde817a019024c03d42159badf597b",
+  "sourceSnapshotSha256": "f1aaf2a096e6025e8b3410dd861b0e4137471d622a68e07de5046b143d582e2b",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -19,6 +19,7 @@
     "back-end/scripts/release-inner-voice-print-test.ts",
     "back-end/scripts/serve-admin-workflow-ui.ts",
     "back-end/scripts/stage-inner-voice-print-test-csv.ts",
+    "back-end/scripts/test-admin-auth.ts",
     "back-end/scripts/test-admin-workflow-csv.ts",
     "back-end/scripts/test-admin-workflow-print-service.ts",
     "back-end/scripts/test-admin-workflow-print-store.ts",
@@ -26,6 +27,8 @@
     "back-end/scripts/test-book-layout-calibration-v3.ts",
     "back-end/scripts/test-book-layout-v3.ts",
     "back-end/scripts/test-gelato-api-contract.ts",
+    "back-end/scripts/test-gelato-consumer-api-group-reuse.ts",
+    "back-end/scripts/test-gelato-consumer-api.ts",
     "back-end/scripts/test-gelato-financial-observation.ts",
     "back-end/scripts/test-gelato-large-artifact.ts",
     "back-end/scripts/test-gelato-ordinary-release-store.ts",
@@ -372,6 +375,11 @@
       "sha256": "84500f43fb6eb36fa886cfe4910e9b7beff9a8b0113b203e5016274ec2498e76"
     },
     {
+      "path": "back-end/scripts/test-admin-auth.ts",
+      "kind": "source",
+      "sha256": "021d2e10fd9e673621f61cce52211cf677d832393b70a6405296fd30bc2f51c5"
+    },
+    {
       "path": "back-end/scripts/test-admin-workflow-csv.ts",
       "kind": "source",
       "sha256": "1cc3b743a5b07577276d105a3256edc2069dbf7c44638ba28541dd51fe2fa1a8"
@@ -445,6 +453,16 @@
       "path": "back-end/scripts/test-gelato-api-contract.ts",
       "kind": "source",
       "sha256": "d86b7d001c014eeb953295d93aad36b4a69469cc54b571da013e3c27500771b7"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-consumer-api-group-reuse.ts",
+      "kind": "source",
+      "sha256": "1e5db2252202a54a58cbc2488995e084b20f729b80882cb2e0dbce5f3d49dca5"
+    },
+    {
+      "path": "back-end/scripts/test-gelato-consumer-api.ts",
+      "kind": "source",
+      "sha256": "537a0a5d2b5b19804a508035989fd2466abc415ef8dc470d02a04c3741313111"
     },
     {
       "path": "back-end/scripts/test-gelato-credential-auth.ts",
@@ -779,7 +797,7 @@
     {
       "path": "back-end/src/app/api/orders/[orderId]/print/route.ts",
       "kind": "source",
-      "sha256": "2f0316a1dffa89947a3f9f726e06739733603118071df8cb362f878ca1a86556"
+      "sha256": "d63c9a436f26996a724491bfc9b07061643072ee771dd4c93027ce5cdb15b617"
     },
     {
       "path": "back-end/src/app/api/orders/[orderId]/route.ts",
@@ -1299,7 +1317,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "d37c96074121135b533923cd1cf0e7a13a8e2f764781ee71fa4e7a3151c5dd67"
+      "sha256": "240afeafae50a2f42cd1ad680487bc8b2dfbd2734f7ed403ff767eb36fc962b7"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
@@ -1309,7 +1327,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "53ce1e24c898e28ee1ba499b73bbe9b99f6e075e2dd4468072388c3aeeb77c7e"
+      "sha256": "e6a4024d43f7b5554a1f7999d5d7e6933c13b351dc46a9913559784b583fb810"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

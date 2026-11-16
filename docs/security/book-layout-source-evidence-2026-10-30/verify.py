@@ -22,6 +22,7 @@ ADDED = {
     'back-end/scripts/release-inner-voice-print-test.ts',
     'back-end/scripts/serve-admin-workflow-ui.ts',
     'back-end/scripts/stage-inner-voice-print-test-csv.ts',
+    'back-end/scripts/test-admin-auth.ts',
     'back-end/scripts/test-admin-workflow-csv.ts',
     'back-end/scripts/test-admin-workflow-print-service.ts',
     'back-end/scripts/test-admin-workflow-print-store.ts',
@@ -29,6 +30,8 @@ ADDED = {
     'back-end/scripts/test-book-layout-calibration-v3.ts',
     'back-end/scripts/test-book-layout-v3.ts',
     'back-end/scripts/test-gelato-api-contract.ts',
+    'back-end/scripts/test-gelato-consumer-api-group-reuse.ts',
+    'back-end/scripts/test-gelato-consumer-api.ts',
     'back-end/scripts/test-gelato-financial-observation.ts',
     'back-end/scripts/test-gelato-large-artifact.ts',
     'back-end/scripts/test-gelato-ordinary-release-store.ts',
@@ -182,7 +185,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 233, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 236, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():

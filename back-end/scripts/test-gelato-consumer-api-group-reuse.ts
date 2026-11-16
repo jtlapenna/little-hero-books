@@ -6,6 +6,7 @@ import { gelatoCustomerStatusMessage } from '../src/lib/books/gelato-consumer-st
 import { NextRequest } from 'next/server';
 
 async function main() {
+  process.env.BACKEND_API_TOKEN = 'synthetic-consumer-machine-token';
   process.env.SUPABASE_URL = 'https://db.example.test';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-consumer-proof';
   process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3117';
@@ -72,11 +73,11 @@ async function main() {
     const { POST: regenerate } = await import('../src/app/api/admin/orders/[orderId]/regenerate-4/route');
     const root = '111-2222222-3333333';
     const fresh = () => [1, 2].map((id) => ({ id, orderId: `${root}-item-${id}`, root_order_id: root, platform: 'amazon', print_provider: 'gelato' }));
-    const request = (path: string) => new NextRequest(`http://localhost:3117${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body: '{}' });
+    const request = (path: string) => new NextRequest(`http://localhost:3117${path}`, { method: 'POST', headers: { authorization: 'Bearer synthetic-consumer-machine-token', 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body: '{}' });
     const invokePrint = async (entry: string, expected?: unknown) => {
       calls = [];
       const body = expected === undefined ? '{}' : JSON.stringify({ expected_order_ids: expected });
-      const req = new NextRequest('http://localhost:3117/api/orders/' + entry + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body });
+      const req = new NextRequest('http://localhost:3117/api/orders/' + entry + '/print', { method: 'POST', headers: { authorization: 'Bearer synthetic-consumer-machine-token', 'Content-Type': 'application/json', Origin: 'http://localhost:3117' }, body });
       const response = await print(req, { params: Promise.resolve({ orderId: entry }) });
       assert.deepEqual(transportViolations,[],caseId+' swallowed consumer transport assertion');
       observations.push({ kind: 'print-case', id: caseId, request: { url: req.url, body }, response: { status: response.status, body: await response.clone().text() }, calls: structuredClone(calls), rows: structuredClone(rows), archived: structuredClone(archived), writes, changedIds: [...changedIds] });

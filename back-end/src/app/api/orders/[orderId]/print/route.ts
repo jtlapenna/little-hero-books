@@ -421,6 +421,8 @@ async function sendToPrint(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> },
 ) {
+  const auth = await requireAdminAuth(request);
+  if (!auth.ok) return auth.response;
   const { orderId } = await params;
 
   if (!orderId || typeof orderId !== 'string') {
@@ -447,8 +449,6 @@ async function sendToPrint(
     }
 
     if (hasAdminWorkflowTestMarker(currentOrder)) {
-      const auth = await requireAdminAuth(request);
-      if (!auth.ok) return auth.response;
       const admission = adminWorkflowTestAdmission(currentOrder);
       if (auth.mode !== 'access' || !admission || admission.createdBy !== auth.actor) return NextResponse.json({ error: 'Signed-in workflow-test owner required' }, { status: 403 });
       assertExactOrderLookup(orderId, currentOrder, true);
