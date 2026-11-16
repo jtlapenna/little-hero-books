@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
     const { data: stuckOrdersRaw, error: stuckError } = await supabase
       .from('orders')
-      .select('product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,next_workflow,current_workflow,workflow_step,one_manifest_url,id,"orderId",amazon_order_id,root_order_id,current_workflow,started_at,retry_count,error_message,customer_email,customer_name')
+      .select('execution_status,error_type,product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,next_workflow,current_workflow,workflow_step,one_manifest_url,id,"orderId",amazon_order_id,root_order_id,current_workflow,started_at,retry_count,error_message,customer_email,customer_name')
       .eq('execution_status', 'processing')
       .lt('started_at', stuckThreshold.toISOString())
       // Exclude orders that are legitimately idle (approval, done, post-fulfillment)
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
     const retryQueryStart = Date.now();
     const { data: retryOrdersRaw, error: retryError } = await supabase
       .from('orders')
-      .select('product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,next_workflow,current_workflow,workflow_step,one_manifest_url,id,"orderId",amazon_order_id,root_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at,customer_email,customer_name')
+      .select('execution_status,error_type,product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,next_workflow,current_workflow,workflow_step,one_manifest_url,id,"orderId",amazon_order_id,root_order_id,next_workflow,retry_count,error_message,error_type,character_specs,character_hash,one_manifest_url,next_retry_at,customer_email,customer_name')
       .eq('execution_status', 'error')
       .lte('next_retry_at', new Date().toISOString())
       .lt('retry_count', 3)

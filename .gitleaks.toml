@@ -270,3 +270,17 @@ condition = "AND"
 paths = ["(?:^|/)scripts/submit\\-sibling\\-orders\\-to\\-lulu\\.js$"]
 regexTarget = "match"
 regexes = ["^interiorKey2\\ =\\ second\\.interiorPdfR2Key\\ $"]
+
+[[allowlists]]
+description = "Reviewed W2A failure classification constant; not a credential"
+condition = "AND"
+paths = ['(?:^|/)back-end/src/lib/w2a-execution-failure\.ts$']
+regexTarget = "secret"
+regexes = ['^w2a_generation_failed$']
+
+[[allowlists]]
+description = "Invalid synthetic R2 secret used only by the intercepted W2A handler test"
+condition = "AND"
+paths = ['(?:^|/)back-end/scripts/test-w2a-failure-recovery\.ts$']
+regexTarget = "secret"
+regexes = ['^synthetic-w2a-secret$']

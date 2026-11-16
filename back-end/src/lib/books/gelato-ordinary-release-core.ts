@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { parsePrinterFileUrl, verifyPrinterFileUrl } from '../printer-file-grants';
 import { z } from 'zod';
 import { buildGelatoReleaseReview } from './gelato-release-review';
-import { type GelatoSavedSnapshot, GelatoSavedSnapshotSchema, assertPrinterSendAuthority } from './gelato-submission';
+import { type GelatoSavedSnapshot, GelatoSavedSnapshotSchema, gelatoShippingTierFromOrder, assertPrinterSendAuthority } from './gelato-submission';
 import { getGelatoOrder, requestGelatoQuote } from './gelato-api-client';
 import { validateGelatoQuote } from './gelato-api-contract';
 import { observeGelatoMonetaryQuote } from './gelato-financial-observation';
@@ -58,6 +58,8 @@ export interface OrdinaryReleaseStore {
  finish(id: string, ownerToken: string, outcome: OrdinaryReleaseOutcome, orders?: GelatoProviderOrder[]): Promise<boolean>;
 }
 export interface OrdinaryReleaseDependencies {
+ /** Trusted server contact policy, shared with quote creation. */
+ merchantEmail?: string;
  apiKey: string; enabled?: () => Promise<boolean>; store: OrdinaryReleaseStore;
  context(id: string): Promise<GelatoSubmissionContext>;
  order(key: string): Promise<Record<string, unknown> | null>;
@@ -153,7 +155,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   const quantity=row?.quantity??(info as {quantity?:unknown}|undefined)?.quantity??1;
   const item=saved.request.items.find(item=>item.itemReferenceId===a?.itemReferenceId);
   const stages=row?.review_stages as {postPdf?:{status?:unknown}}|undefined;
-  if(!row || !a || !Number.isSafeInteger(quantity) || quantity!==item?.quantity || row.orderId!==key || row.print_claim_token!==context.submission.claim_token || row.shipping_tier!==saved.shippingTier ||
+  if(!row || !a || !Number.isSafeInteger(quantity) || quantity!==item?.quantity || row.orderId!==key || row.print_claim_token!==context.submission.claim_token || gelatoShippingTierFromOrder(row)!==saved.shippingTier ||
    (row.root_order_id??row.amazon_order_id??row.orderId)!==context.submission.root_order_id || row.print_book_id!==a.bookId || row.print_format_id!==a.formatId ||
    row.print_config_version!==a.configVersion || row.print_product_uid!==saved.config.productUid || row.print_inner_page_count!==saved.config.innerPageCount ||
    row.print_api_page_count!==saved.config.apiPageCount || row.print_expected_pdf_page_count!==saved.config.expectedPdfPageCount ||
@@ -161,7 +163,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   return {...row,quantity};
  };
  const review=await buildGelatoReleaseReview(projected,{accountKeySha256:permit.accountSha256,intendedAccountKeySha256:permit.accountSha256,
-  cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,now:now(d)});
+  cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,merchantEmail:d.merchantEmail,now:now(d)});
  const blockers=review.blockers.filter(reason=>!preparationOnly.has(reason));
  if(blockers.length)throw Error('release_review_blocked:'+blockers.join(','));
  if(review.productsCents!==money.productsCents || review.shippingCents!==money.shippingCents)throw Error('release_payable_components_mismatch');
@@ -200,7 +202,7 @@ async function performOrdinaryReleasePreparation(permitValue: unknown, d: Ordina
   const binding=(c:GelatoSubmissionContext)=>({submission:c.submission,members:c.members,providerOrders:c.providerOrders});
   if(ordinaryReleaseDigest(binding(latest))!==ordinaryReleaseDigest(binding(context)))throw Error('release_context_changed');
   const finalReview=await buildGelatoReleaseReview(projected,{accountKeySha256:permit.accountSha256,intendedAccountKeySha256:permit.accountSha256,
-   cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,now:now(d)});
+   cohortSubmissionIds:[permit.submissionId],artifactSha256:new Map(permit.artifacts.map(a=>[a.key,a.sha256])),loadArtifactSha256:key=>d.artifactSha256(key,signal),loadOrder:boundOrder,merchantEmail:d.merchantEmail,now:now(d)});
   if(finalReview.blockers.some(reason=>!preparationOnly.has(reason)))throw Error('release_final_authority_changed');
   await assertPrinterSendAuthority(saved.request.items,now(d)); assertPermit(permit,d); signal.throwIfAborted();
  };

@@ -234,8 +234,7 @@
           "id": "7jdcfc9T2O9vensv",
           "name": "Google Gemini(PaLM) Api account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -249,8 +248,7 @@
         112
       ],
       "id": "61e10c38-4fba-4019-ba36-640aef230995",
-      "name": "Process Gemini API response and extract generated image1",
-      "onError": "continueRegularOutput"
+      "name": "Process Gemini API response and extract generated image1"
     },
     {
       "parameters": {
@@ -658,7 +656,8 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "saveDataErrorExecution": "all"
   },
   "versionId": "57d6c25d-0860-46bc-9edd-81d1021fb006",
   "meta": null,

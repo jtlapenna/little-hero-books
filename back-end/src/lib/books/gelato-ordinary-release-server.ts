@@ -29,7 +29,7 @@ export async function ordinaryEstimateServerRuntime(ports:EstimateServerPorts):P
   const {data,error}=await services.database.rpc('register_admin_workflow_test_release_scope',{p_order_id:testScope.orderId,p_actor:ports.actor!,p_account_sha256:account,p_expires_at:testScope.expiresAt}).abortSignal(AbortSignal.timeout(5000));
   if(error || data!==true) return {kind:'blocked',blockers:['exact_approved_test_draft_required']};
  }
- return composeOrdinaryReleaseServiceRuntime({...services,testScope,apiKey,expectedAccountSha256:account,approvers:new Set(emails),
+ return composeOrdinaryReleaseServiceRuntime({...services,testScope,apiKey,merchantEmail:env.GELATO_MERCHANT_CONTACT_EMAIL == null || env.GELATO_MERCHANT_CONTACT_EMAIL === '' ? undefined : z.string().trim().pipe(z.email()).parse(env.GELATO_MERCHANT_CONTACT_EMAIL),expectedAccountSha256:account,approvers:new Set(emails),
   pricingPolicy:ESTIMATE_TEST_PRINT_POLICY,now:ports.now,
   activationApproved:async()=>{ const current=await ports.readEnvironment(); return current.GELATO_ORDINARY_RELEASE_ENABLED==='true' && current.GELATO_ORDINARY_RELEASE_ACCOUNT_SHA256===account && (!testScope || (current.GELATO_ORDINARY_RELEASE_TEST_ORDER_ID===testScope.orderId && current.GELATO_ORDINARY_RELEASE_TEST_EXPIRES_AT===testScope.expiresAt)); }});
 }

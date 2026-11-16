@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -123,6 +124,17 @@ export async function POST(request: NextRequest) {
       .in('id', orderIds).eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
     if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
     if (owned?.length) return NextResponse.json({ error: 'Gelato print claims require provider recovery' }, { status: 409 });
+    const { data: failures, error: failureError } = await supabase.from('orders').select('id,orderId,product_info,execution_status,error_type,updated_at').in('id', orderIds);
+    if (failureError) throw new Error('W2A recovery ownership lookup failed');
+    if (failures?.some(heldW2AFailure)) return NextResponse.json({ error: 'W2A failures require W2A Recovery after resolving the cause' }, { status: 409 });
+    const revisions = new Map((failures ?? []).map(row => [row.id, row]));
+    if (revisions.size !== orderIds.length) return NextResponse.json({ error: 'Some orders could not be verified; refresh recovery' }, { status: 409 });
+    const updateOwned = async (id: number, data: Record<string, unknown>) => {
+      const previous = revisions.get(id);
+      const { data: changed, error } = await supabase.from('orders').update(data).eq('id', id)
+        .eq('updated_at', previous!.updated_at).eq('execution_status', previous!.execution_status).select('id');
+      if (error || !changed?.length) throw new Error('Order changed during recovery; refresh before continuing');
+    };
     let updateData: any = {};
 
     switch (action) {
@@ -149,8 +161,7 @@ export async function POST(request: NextRequest) {
         })) || [];
         
         for (const update of updates) {
-          const { error } = await supabase.from('orders').update({ ...updateData, retry_count: update.retry_count }).eq('id', update.id);
-          if (error) throw new Error(error.message);
+          await updateOwned(update.id, { ...updateData, retry_count: update.retry_count });
         }
         break;
 
@@ -162,8 +173,7 @@ export async function POST(request: NextRequest) {
           error_type: 'orphaned_order'
         };
         {
-          const { error } = await supabase.from('orders').update(updateData).in('id', orderIds);
-          if (error) throw new Error(error.message);
+          for (const id of orderIds) await updateOwned(id, updateData);
         }
         break;
 
@@ -179,8 +189,7 @@ export async function POST(request: NextRequest) {
           started_at: null
         };
         {
-          const { error } = await supabase.from('orders').update(updateData).in('id', orderIds);
-          if (error) throw new Error(error.message);
+          for (const id of orderIds) await updateOwned(id, updateData);
         }
         break;
     }

@@ -1,0 +1,131 @@
+{
+  "baseline": "f0f1dc9a3d8c19c937c4cc5035ac284872150460",
+  "findings": [
+    {
+      "id": "W2A-01",
+      "claim": "Generic admin reset bypasses a W2A provider hold",
+      "source": "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
+      "disposition": "fixed-independent-review-clean",
+      "proof": "Actual reset/orphan handlers refuse held order; failure suite passes"
+    },
+    {
+      "id": "W2A-02",
+      "claim": "Admin sync can report success for stale no-op callback",
+      "source": "back-end/src/app/api/admin/w2a-recovery/route.ts",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "W2A-03",
+      "claim": "Old order polling request can suppress polling after navigation",
+      "source": "back-end/src/app/orders/[orderId]/page.tsx",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "W2A-04",
+      "claim": "New hold strands post-pose failures by disabling all healing controls",
+      "source": "back-end/src/lib/w2a-recovery.ts",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "IR-01",
+      "claim": "W1 W2B sibling identity association uses shared root before exact match",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "IR-02",
+      "claim": "Dedication Message collides with broad age substring",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "GR-01",
+      "claim": "Early retry cannot pass existing R2 bootstrap",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "GR-02",
+      "claim": "Denied child claims reach paid provider paths; bounded QA retry lacks transition",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "GR-03",
+      "claim": "Configured partial replay advertised despite intentional provenance hold",
+      "disposition": "safety-hold-preserved-guidance-corrected-partial-resume-deferred"
+    },
+    {
+      "id": "AR-01",
+      "claim": "Regenerate3 rewrites active/print-owned books",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "AR-02",
+      "claim": "Final approval can clear active W3 owner",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "AR-03",
+      "claim": "Ordinary trigger requeues completed book then W3 skips without clearing claim",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "CRP-01",
+      "claim": "Amazon null shipping tier differs from quote standard at release",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "CRP-02",
+      "claim": "Quote merchant email fallback absent from release recipient validation",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "AR-04",
+      "claim": "Manifest flags bypass stale DB display counts",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "AR-05",
+      "claim": "Final approval promotes invalidated in-review stage without explicit review",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "AR-06",
+      "claim": "Automatic stage-approval queue bypasses new guarded assembly queue",
+      "disposition": "fixed-independent-review-clean"
+    },
+    {
+      "id": "GEN-C1",
+      "claim": "Late job-only event changes ended attempt state",
+      "disposition": "fixed-independent-review-clean",
+      "review": "checkpoint-generation-review.md"
+    },
+    {
+      "id": "GEN-C2",
+      "claim": "Normal claim leaves old callback owner until separate increment",
+      "disposition": "fixed-independent-review-clean",
+      "review": "checkpoint-generation-review.md"
+    },
+    {
+      "id": "FINAL-G1",
+      "claim": "Duplicate parent error takes over legitimate owner",
+      "disposition": "fixed-independent-review-clean",
+      "review": "final-generation-consequences.md"
+    },
+    {
+      "id": "FINAL-G2",
+      "claim": "Intake ready-read race erases newly recorded hold",
+      "disposition": "fixed-independent-review-clean",
+      "review": "final-generation-consequences.md"
+    },
+    {
+      "id": "FINAL-O1",
+      "claim": "Force action late write erases newly recorded hold",
+      "disposition": "fixed-independent-review-clean",
+      "review": "final-operator-consequences.md"
+    },
+    {
+      "id": "FINAL-O2",
+      "claim": "Reset/orphan projections omit durable hold identity",
+      "disposition": "fixed-independent-review-clean",
+      "review": "final-operator-consequences.md"
+    }
+  ]
+}

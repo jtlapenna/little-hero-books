@@ -347,6 +347,7 @@ export async function resolveW2APoseWorklistResponse(
   const poseWorkItemsWithContext = poseWorklist.map<W2APoseWorkItemLike>(
     (item) => ({
       ...item,
+      workflowParentClaim: body.workflowParentClaim ?? orderContext.workflowParentClaim,
       orderId: orderId ?? "",
       rootOrderId,
       amazonOrderId,

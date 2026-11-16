@@ -2,14 +2,15 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "303742113173a1d2c81ca0df04d3daa9d58e1e7c8c9dcef6883ad5d816c48e7c",
-  "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
+  "sourceSnapshotSha256": "fb3cea215f1a0069932d47795091a323b4d7a591abc81ee4550b1e5733ca4cc8",
+  "preparedAgainstHead": "e295c4e0e90df3c408cb8941e190e0e66f30c4e8",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
   "liveAcceptanceRenewed": false,
   "suiteExecutionRenewed": false,
   "addedSourcePaths": [
+    ".gitleaks.toml",
     "back-end/scripts/assemble-inner-voice-print-test.ts",
     "back-end/scripts/helpers/book-layout-v3-fixture.ts",
     "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
@@ -26,6 +27,8 @@
     "back-end/scripts/test-book-layout-calibration-http.ts",
     "back-end/scripts/test-book-layout-calibration-v3.ts",
     "back-end/scripts/test-book-layout-v3.ts",
+    "back-end/scripts/test-book-operator-transitions.ts",
+    "back-end/scripts/test-book-reassembly.ts",
     "back-end/scripts/test-csv-request-boundary.ts",
     "back-end/scripts/test-customization-zip-consumers.ts",
     "back-end/scripts/test-gelato-api-contract.ts",
@@ -36,31 +39,65 @@
     "back-end/scripts/test-gelato-ordinary-release-store.ts",
     "back-end/scripts/test-gelato-print-pdf.ts",
     "back-end/scripts/test-gelato-release-application.ts",
+    "back-end/scripts/test-gelato-release-defaults.ts",
     "back-end/scripts/test-gelato-release-service.ts",
     "back-end/scripts/test-gelato-runtime-bindings.mjs",
     "back-end/scripts/test-inner-voice-print-csv.ts",
     "back-end/scripts/test-inner-voice-print-quote.ts",
     "back-end/scripts/test-inner-voice-print-test.ts",
     "back-end/scripts/test-message-safety-guard-persistence.ts",
+    "back-end/scripts/test-message-safety-guard.ts",
+    "back-end/scripts/test-w2a-failure-recovery.ts",
+    "back-end/scripts/test-w2a-pose-workflow-identity.ts",
+    "back-end/scripts/test-workflow-attempt-fencing.ts",
+    "back-end/scripts/test-workflow-jobs.ts",
+    "back-end/scripts/test-workflow-readiness-intake.ts",
     "back-end/scripts/verify-gelato-print-preflight.py",
     "back-end/scripts/verify-inner-voice-print-pixels.ts",
     "back-end/src/app/admin/csv-upload/page.tsx",
+    "back-end/src/app/admin/w2a-recovery/page.tsx",
     "back-end/src/app/admin/w3-calibration/page.tsx",
     "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
     "back-end/src/app/api/admin/gelato-print/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/regenerate-2b/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/regenerate-4/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
+    "back-end/src/app/api/admin/orphaned-orders/route.ts",
+    "back-end/src/app/api/admin/w2a-recovery/route.ts",
     "back-end/src/app/api/admin/w3-calibration/route.ts",
     "back-end/src/app/api/admin/workflow-test-print/route.ts",
     "back-end/src/app/api/cron/health-monitor/route.ts",
+    "back-end/src/app/api/internal/w2a/build-base-input/route.ts",
+    "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
+    "back-end/src/app/api/internal/w2a/report-failure/route.ts",
+    "back-end/src/app/api/internal/w2b/build-pose-input/route.ts",
+    "back-end/src/app/api/internal/w3/build-assembly-input/route.ts",
+    "back-end/src/app/api/internal/workflow-jobs/log-event/route.ts",
+    "back-end/src/app/api/orders/[orderId]/approve/route.ts",
     "back-end/src/app/api/orders/[orderId]/final-approval/route.ts",
+    "back-end/src/app/api/orders/[orderId]/flag/route.ts",
     "back-end/src/app/api/orders/[orderId]/print/route.ts",
+    "back-end/src/app/api/orders/[orderId]/queue-workflow-3/route.ts",
+    "back-end/src/app/api/orders/[orderId]/reset/route.ts",
     "back-end/src/app/api/orders/[orderId]/route.ts",
+    "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts",
+    "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
     "back-end/src/app/orders/[orderId]/page.tsx",
     "back-end/src/components/stages/gelato-release-review.tsx",
     "back-end/src/components/stages/gelato-stage.tsx",
+    "back-end/src/components/stages/post-bria-stage.tsx",
     "back-end/src/components/stages/post-pdf-stage.tsx",
     "back-end/src/components/stages/workflow-test-print-review.tsx",
+    "back-end/src/components/ui/manual-review-alert.tsx",
     "back-end/src/lib/admin-workflow-test.ts",
+    "back-end/src/lib/amazon-customization-parser.ts",
     "back-end/src/lib/analytics-helpers.ts",
+    "back-end/src/lib/approval-store.ts",
+    "back-end/src/lib/book-assembly-queue.ts",
+    "back-end/src/lib/book-review-invalidation.ts",
+    "back-end/src/lib/book-review-ownership.ts",
     "back-end/src/lib/books/animal-placement.ts",
     "back-end/src/lib/books/book-layout-geometry.ts",
     "back-end/src/lib/books/book-layout-review.ts",
@@ -89,20 +126,38 @@
     "back-end/src/lib/books/print-profiles/README.md",
     "back-end/src/lib/books/print-profiles/gracol.json",
     "back-end/src/lib/books/print-profiles/srgb.json",
+    "back-end/src/lib/books/w2a-bootstrap-retry.ts",
+    "back-end/src/lib/books/w3-assembly-state.ts",
     "back-end/src/lib/canonical-json-sha256.ts",
     "back-end/src/lib/cron-order-guards.ts",
     "back-end/src/lib/csv-book-selection.ts",
     "back-end/src/lib/csv-upload-helpers.ts",
+    "back-end/src/lib/customer-preview-files.ts",
     "back-end/src/lib/messaging/test-order-guard.ts",
+    "back-end/src/lib/n8n-recovery-client.ts",
     "back-end/src/lib/order-mapper.ts",
+    "back-end/src/lib/order-reset.ts",
     "back-end/src/lib/supabase-client.ts",
+    "back-end/src/lib/w2a-completed-recovery.ts",
+    "back-end/src/lib/w2a-execution-failure.ts",
+    "back-end/src/lib/w2a-failure-recovery.ts",
+    "back-end/src/lib/w2a-parent-claim.ts",
+    "back-end/src/lib/w2a-recovery.ts",
     "back-end/src/lib/w3-calibration-http.ts",
     "back-end/src/lib/w3-calibration.ts",
     "back-end/src/lib/workers/w3-manifest-publish.ts",
+    "back-end/src/lib/workflow-jobs/repository.ts",
+    "back-end/src/lib/workflow-jobs/types.ts",
+    "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts",
+    "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts",
     "back-end/src/types/order.ts",
     "back-end/wrangler.toml",
     "database/20261115230112_admin_workflow_test_print_hold.sql",
-    "database/20261115232824_admin_workflow_test_release_scope.sql"
+    "database/20261115232824_admin_workflow_test_release_scope.sql",
+    "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json"
   ],
   "reboundSourcePaths": [
     ".github/workflows/check-gelato-local-launch.yml",
@@ -134,6 +189,8 @@
     "back-end/src/app/api/checkout/create/route.ts",
     "back-end/src/app/api/cron/amazon-orders/route.ts",
     "back-end/src/app/api/cron/router/route.ts",
+    "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts",
+    "back-end/src/app/api/internal/w2a/resolve-pose-worklist/route.ts",
     "back-end/src/lib/books/build-gelato-print-pdf.ts",
     "back-end/src/lib/books/gelato-api-client.ts",
     "back-end/src/lib/books/gelato-print-admission.ts",
@@ -161,7 +218,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "e24dabe92ea16e2ce6c9aa050cd49108555ca93e8dd2ee5d5ad8505a28323aa1"
+      "sha256": "638cbaa0868f70ae47daafcf59957132771659dc69d2c75cc5d007255f1ac4fe"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -174,6 +231,11 @@
       "sha256": "e19a974e54d0bd25c499c111765792dd3dd9f3183cdd40d34793eaeff113ae33"
     },
     {
+      "path": ".gitleaks.toml",
+      "kind": "source",
+      "sha256": "228775dcdbe70a55fb600afde3f17beb9f809639b902c3f59eb17cd8d794931f"
+    },
+    {
       "path": "back-end/package-lock.json",
       "kind": "source",
       "sha256": "7e90264484dd4d2a898983d875f0a9697b1cd2b97326fe36f9b7a15920fd468d"
@@ -181,7 +243,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "a921b4589a0e636184670c5ced8cfff07269b6785dea47b2f71ed229d0f1ca0a"
+      "sha256": "666de1fe03b9426db55ada7d731c564290064765596f94a4c2c9099e4005df6c"
     },
     {
       "path": "back-end/scripts/assemble-inner-voice-print-test.ts",
@@ -371,7 +433,7 @@
     {
       "path": "back-end/scripts/serve-admin-workflow-ui.ts",
       "kind": "source",
-      "sha256": "85bddf28bb899b033a65157b3577a8e5f5db0a561aefcf599a4811831c68143b"
+      "sha256": "8cd9cc6d2f3838934b6a60911d21f425c90c928fbc08da25fd742c2f9c9bbb02"
     },
     {
       "path": "back-end/scripts/stage-inner-voice-print-test-csv.ts",
@@ -386,7 +448,7 @@
     {
       "path": "back-end/scripts/test-admin-workflow-csv.ts",
       "kind": "source",
-      "sha256": "fc409717964a323c5658d1b537db0c0102246ecee9f91edac723d809bebc4499"
+      "sha256": "fa359cb2c9beecb58ea86110e5c2f7208719de49a95395efcfe84c8eb55f009d"
     },
     {
       "path": "back-end/scripts/test-admin-workflow-print-service.ts",
@@ -422,6 +484,16 @@
       "path": "back-end/scripts/test-book-layout-v3.ts",
       "kind": "source",
       "sha256": "5e6f7508f665bc003040aff582cee7d0a4fc3a35c5defa9b35c748743ee6799d"
+    },
+    {
+      "path": "back-end/scripts/test-book-operator-transitions.ts",
+      "kind": "source",
+      "sha256": "52958fcca23667788d88932e7aca96a9b8241406e7a12025deaadfc8a736371b"
+    },
+    {
+      "path": "back-end/scripts/test-book-reassembly.ts",
+      "kind": "source",
+      "sha256": "818b5c256d05be74f4d62fb7bf9ed9b6b099f89c4ebb2bff8f56758fb5115158"
     },
     {
       "path": "back-end/scripts/test-checkout-validation.ts",
@@ -599,6 +671,11 @@
       "sha256": "31e24e7272b58039ff4d007b3f6673eb122a1e3ceda39c3b324456bea7fa2dc5"
     },
     {
+      "path": "back-end/scripts/test-gelato-release-defaults.ts",
+      "kind": "source",
+      "sha256": "5208b15ce2db2eb61d5e9dee5718ba6207845e5fc10edb5961f094813408b8b0"
+    },
+    {
       "path": "back-end/scripts/test-gelato-release-service.ts",
       "kind": "source",
       "sha256": "2dce104e9f5df21a3b560a5f3eac2f95c078b3a4940b7c904d5b78406987d56b"
@@ -637,6 +714,11 @@
       "path": "back-end/scripts/test-message-safety-guard-persistence.ts",
       "kind": "source",
       "sha256": "4ddf6419758ba51ee549d9d1281cedeb89dbc076a5551bf73e4f7f1c50f22e4d"
+    },
+    {
+      "path": "back-end/scripts/test-message-safety-guard.ts",
+      "kind": "source",
+      "sha256": "7dce37399bbf70bb1849924e31c25be95bc540f895b11b72843a42f6e00bf440"
     },
     {
       "path": "back-end/scripts/test-pages-upload-identity.ts",
@@ -691,12 +773,17 @@
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
       "kind": "source",
-      "sha256": "4882ea8238865194f8165931fb20a4e7018bfa621f92885d499210dd9cb7c688"
+      "sha256": "c764591ccc514117f0ade8dc44e3644ad5cd274bd5fd9299e0dcaedce3f84472"
     },
     {
       "path": "back-end/scripts/test-w2a-base-input.ts",
       "kind": "source",
       "sha256": "853c890a9513a2f261a5541369a1b5729888cc043d30a59b49df75e77cac3822"
+    },
+    {
+      "path": "back-end/scripts/test-w2a-failure-recovery.ts",
+      "kind": "source",
+      "sha256": "2fbe2ae4bbe4b1919eff6a536430b18e8fd7c7abfae3a8234f34bb2842b79a6b"
     },
     {
       "path": "back-end/scripts/test-w2a-frozen-generation-input.ts",
@@ -707,6 +794,26 @@
       "path": "back-end/scripts/test-w2a-pose-input.ts",
       "kind": "source",
       "sha256": "108470725987f82714f42026b53a0c2380d43009a6bc740970e261bc3cad24ef"
+    },
+    {
+      "path": "back-end/scripts/test-w2a-pose-workflow-identity.ts",
+      "kind": "source",
+      "sha256": "7a95d4ca1eaeb2c62a543cbb3f79571e82de4c99570e2f8a863a872a9edd2959"
+    },
+    {
+      "path": "back-end/scripts/test-workflow-attempt-fencing.ts",
+      "kind": "source",
+      "sha256": "e7e1c85c38e3e0bf30d13fb6682d014f153c77d5ffc39dbc0397d11f4729cda3"
+    },
+    {
+      "path": "back-end/scripts/test-workflow-jobs.ts",
+      "kind": "source",
+      "sha256": "2e0235125394da529a59f55f52fd0a5153a96838c36ed39558153bcab95baf8a"
+    },
+    {
+      "path": "back-end/scripts/test-workflow-readiness-intake.ts",
+      "kind": "source",
+      "sha256": "54c5644a0b20fe162eb65994a3ce57d22ce5947f53793758a3025630cc877271"
     },
     {
       "path": "back-end/scripts/verify-gelato-print-preflight.py",
@@ -724,6 +831,11 @@
       "sha256": "3cd7f778aa8a14c08ca4473ed00a3262c6c55a5411c1958f9e93ca2a15b81421"
     },
     {
+      "path": "back-end/src/app/admin/w2a-recovery/page.tsx",
+      "kind": "source",
+      "sha256": "2371f2d3f5c7c234953faddf816dd21977b9f0b1ffa2ec75cdfa344880b78685"
+    },
+    {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
       "kind": "source",
       "sha256": "8730cd944559af3116fa5d2827ade6bacfdc05b004029d8311b76c1454bf7ba8"
@@ -737,6 +849,41 @@
       "path": "back-end/src/app/api/admin/gelato-print/route.ts",
       "kind": "source",
       "sha256": "63bc4b01c11bc21fe2876de52fca1cace48e36d7db6c16828434f6ee90d71537"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts",
+      "kind": "source",
+      "sha256": "7cb3b783309d6f9b06dcc07f384b0dafb3e3a016f46af81c3035ba961651f409"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-2b/route.ts",
+      "kind": "source",
+      "sha256": "636cb360610fcac0466eb11f6b53e46461c226d4674e0d768cbad4daa3b7720f"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts",
+      "kind": "source",
+      "sha256": "c0391bfa649bcbe161bc4148a6d2ea6c383a70a89bdce10c2e2c500675366eda"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-4/route.ts",
+      "kind": "source",
+      "sha256": "70a1f1bbbe31462a86cdbd36606b311f3a9d0bf18a3af8ae257ace3fc9f259fb"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
+      "kind": "source",
+      "sha256": "3cf04e611d305f9c339b3f88818617a46c2884a6752449a953843e967f322385"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orphaned-orders/route.ts",
+      "kind": "source",
+      "sha256": "241f3f9de98aba7bd9aef99356c1abf1ad14b808647389fb8189eee9f1828076"
+    },
+    {
+      "path": "back-end/src/app/api/admin/w2a-recovery/route.ts",
+      "kind": "source",
+      "sha256": "71b072c1fa401934551c18bfc08a82f6026bc34ced0e73c9e4d9229bf9a98bfd"
     },
     {
       "path": "back-end/src/app/api/admin/w3-calibration/route.ts",
@@ -761,7 +908,7 @@
     {
       "path": "back-end/src/app/api/cron/health-monitor/route.ts",
       "kind": "source",
-      "sha256": "f07e8866a0752d7405797e2260c87ab69568dd14375bc83fcaa8b133ce014a4c"
+      "sha256": "99740d4f94fc292e1341e53bfa781065d875122a111c74349db9f767baf841e7"
     },
     {
       "path": "back-end/src/app/api/cron/router/route.ts",
@@ -776,12 +923,37 @@
     {
       "path": "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts",
       "kind": "source",
-      "sha256": "77c856aa4e967a9b675268a8118e13f6a3f85828fe893bbf489009824a05ad01"
+      "sha256": "3b66e998d4e2e427f9778d05012843085771b2791498f67696bd8b045d0c5251"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2a/build-base-input/route.ts",
+      "kind": "source",
+      "sha256": "2fecd221ab6c2bc7d47ccacc96485cc02ae440c87d7a0cbce61768061ab74d96"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
+      "kind": "source",
+      "sha256": "c6707347c4c08200c2ddd8753473e470fcc0f6bd6ba198dd758f68c5ca3eec9d"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2a/report-failure/route.ts",
+      "kind": "source",
+      "sha256": "7297c019d1e7f01f44ad11e06d525c848a7357ab5a3824f44c1f38d5a2726d95"
     },
     {
       "path": "back-end/src/app/api/internal/w2a/resolve-pose-worklist/route.ts",
       "kind": "source",
-      "sha256": "70e0fb1145b82077a50e46f366c2c3fba6a7c2f5e5f1b8eb7b64f72715d1aee4"
+      "sha256": "1a598d2eb2e7a69eff13124f561fc985878f8498bc69fd5e2dc0805e8bea079e"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2b/build-pose-input/route.ts",
+      "kind": "source",
+      "sha256": "93ea0d5ec69244ca3e84b854bc4d876534b8d89c2c38bfcc1f53a146edaef400"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w3/build-assembly-input/route.ts",
+      "kind": "source",
+      "sha256": "41df72f0481182dc27f1b9b9090e09b3e125579463f1f23bd37ad8666dbb3068"
     },
     {
       "path": "back-end/src/app/api/internal/w4/engineering-automation/route.ts",
@@ -804,9 +976,24 @@
       "sha256": "258925913d33664a65b6138c40c42f50694f24e23e8c16fd4ac230ee1dfdc0c3"
     },
     {
+      "path": "back-end/src/app/api/internal/workflow-jobs/log-event/route.ts",
+      "kind": "source",
+      "sha256": "b54c555fd73077a955dba34eec38eca8bf5da910300e906edb0e0efebbf48b6f"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/approve/route.ts",
+      "kind": "source",
+      "sha256": "242cd82e759ae061e33487c71733cdd7c67b337efd36547456820a625b34acbd"
+    },
+    {
       "path": "back-end/src/app/api/orders/[orderId]/final-approval/route.ts",
       "kind": "source",
-      "sha256": "a355fcb5e3066f253b19551e354aebce49033ba55dba9a7c64d5304922dad4d3"
+      "sha256": "4f0c2814e00a1c5fdaecf97bcc92b6b10bb32d7914a87b73958c8914429031c5"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/flag/route.ts",
+      "kind": "source",
+      "sha256": "a742443abe56670fa16941e0ff4c02ab2217c0a191fdb0396203386b87a01913"
     },
     {
       "path": "back-end/src/app/api/orders/[orderId]/print/route.ts",
@@ -814,14 +1001,34 @@
       "sha256": "d63c9a436f26996a724491bfc9b07061643072ee771dd4c93027ce5cdb15b617"
     },
     {
+      "path": "back-end/src/app/api/orders/[orderId]/queue-workflow-3/route.ts",
+      "kind": "source",
+      "sha256": "ca7b88a79a55c73f185925810a414c4a3410d636e2de8f0be1f6c03a0f68b39b"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/reset/route.ts",
+      "kind": "source",
+      "sha256": "5b5ffadd6e830fa61df00a4d410d7f3cf5e0073cf02c72e84e448ece25971b6a"
+    },
+    {
       "path": "back-end/src/app/api/orders/[orderId]/route.ts",
       "kind": "source",
       "sha256": "031992bf649534bfb2999bc007ca0639fb44e6758db8fa26b95bf9c576c68487"
     },
     {
+      "path": "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts",
+      "kind": "source",
+      "sha256": "e54b74c1a713cd280d2351a5caef8aaddae18a05356af540890280cb9604d109"
+    },
+    {
+      "path": "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
+      "kind": "source",
+      "sha256": "221275b96422f3df825b14f1605f03f0ec1f9a09723d6c7145195e89365d4333"
+    },
+    {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
       "kind": "source",
-      "sha256": "52794f2ca1b7722c3d818f825ceafeb328903c2d0f22e2c5273ccd859d83933a"
+      "sha256": "59e348a9a49a379a0705278c4610e506aa008498b148ad622ccee50e3e94522f"
     },
     {
       "path": "back-end/src/components/stages/gelato-release-review.tsx",
@@ -834,9 +1041,14 @@
       "sha256": "c5916926841e1ee500e21abd20d8d82d0fae0088859fd917ba1f93ff518196ff"
     },
     {
+      "path": "back-end/src/components/stages/post-bria-stage.tsx",
+      "kind": "source",
+      "sha256": "dc19aa5604a63784bed19111c351f1a27beecf65115dde8e2ce6a9a7cbfc978f"
+    },
+    {
       "path": "back-end/src/components/stages/post-pdf-stage.tsx",
       "kind": "source",
-      "sha256": "0951708e34b23891d4aaa748eff8ee0c12f65c2cbae81d3366785a36cdc1f636"
+      "sha256": "b42f3751c1dca5e0fa79abe5d11da39660b43149d6bd758e9ca8e6f53752fd2b"
     },
     {
       "path": "back-end/src/components/stages/workflow-test-print-review.tsx",
@@ -844,14 +1056,44 @@
       "sha256": "60d9494c641e109184dd72b7c8e21f21bd858780d1596214a5749dbaa79c26b8"
     },
     {
+      "path": "back-end/src/components/ui/manual-review-alert.tsx",
+      "kind": "source",
+      "sha256": "2013cd4bc0d210adfc152b6d3fdadbe685fcd6ffd57c86896a396e6cf8a68e8a"
+    },
+    {
       "path": "back-end/src/lib/admin-workflow-test.ts",
       "kind": "source",
       "sha256": "00d90af1e3ea56c05e273697820f6fea22d2fc1921f87eb457689c174cbadbaf"
     },
     {
+      "path": "back-end/src/lib/amazon-customization-parser.ts",
+      "kind": "source",
+      "sha256": "0283c88ed4da391abb01c30f954cbb64c6d4080c4ac42c840e43af86310ced41"
+    },
+    {
       "path": "back-end/src/lib/analytics-helpers.ts",
       "kind": "source",
       "sha256": "f0b97b9e7e5a70aedd19417c74ebd157f4d718c11b02583d83710e1d0f2b8e4b"
+    },
+    {
+      "path": "back-end/src/lib/approval-store.ts",
+      "kind": "source",
+      "sha256": "935fea9a0f8939786bf668a2e38090a4cd1d8f01a81e04e0af24faab44f56873"
+    },
+    {
+      "path": "back-end/src/lib/book-assembly-queue.ts",
+      "kind": "source",
+      "sha256": "c76dd29976a503cf948c8dd05c11ec6274145ee4c76b26aa851fb3a94869e886"
+    },
+    {
+      "path": "back-end/src/lib/book-review-invalidation.ts",
+      "kind": "source",
+      "sha256": "4191495834e766c8cc325980bca24da45abdaf54bcd672f1759feccb3141bdce"
+    },
+    {
+      "path": "back-end/src/lib/book-review-ownership.ts",
+      "kind": "source",
+      "sha256": "cc54f7696d75b434ec8599ebed0da7c16c79e510cb6269cb2fc595ddaf94bb8e"
     },
     {
       "path": "back-end/src/lib/books/animal-placement.ts",
@@ -991,7 +1233,7 @@
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
       "kind": "source",
-      "sha256": "0fec529a1d40aab80745cb74fb1dc1b88b90648ed98e99c8b5e23ccecf64d345"
+      "sha256": "f21d1b320d65b53b7f40c0ffdbce18e578aac394d963e4b0719098398b892161"
     },
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-runtime.ts",
@@ -1001,12 +1243,12 @@
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-server.ts",
       "kind": "source",
-      "sha256": "637e99625d74b5e0935088d3e4042b1a7e4ef6cfd097b5185c81769fae1c52be"
+      "sha256": "55e34f9965e792815cda1e641d7525d1ac66276f494f1a0fac176a2430732bb6"
     },
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-service.ts",
       "kind": "source",
-      "sha256": "960cb92c6a636d848ef6ba139e156a62580c025ef4fa5a8285bfc021fce48913"
+      "sha256": "e354c544466bf62e429fa867fd154d935fca80f96f2eb741aac230b1c68a0ce5"
     },
     {
       "path": "back-end/src/lib/books/gelato-print-admission.ts",
@@ -1021,7 +1263,7 @@
     {
       "path": "back-end/src/lib/books/gelato-release-review.ts",
       "kind": "source",
-      "sha256": "f65bd5f90147f36e5665450b9617b6bc642b4802c36624e084f111f4701ba1b7"
+      "sha256": "a75cdc4cacbc44587116119d9829f502b6ec4a1227761894020dd356a23ba385"
     },
     {
       "path": "back-end/src/lib/books/gelato-runtime-key-proof.ts",
@@ -1051,7 +1293,7 @@
     {
       "path": "back-end/src/lib/books/gelato-submission.ts",
       "kind": "source",
-      "sha256": "62f29790d8ce890015bbcc3c7d77fdadd4ef405abbdbd6e990b1c82b2f972a2e"
+      "sha256": "259123de50710c94cdced137aee29fb828b9b4a9af0ea5c49ecf6455579a3b25"
     },
     {
       "path": "back-end/src/lib/books/gelato-test-safety.ts",
@@ -1119,6 +1361,11 @@
       "sha256": "75b221e00bd0dd51c948a41ffb0452592dd0184c5680ace2e6905e8fbae52334"
     },
     {
+      "path": "back-end/src/lib/books/w2a-bootstrap-retry.ts",
+      "kind": "source",
+      "sha256": "ee0f4d35ceb2cba4671201f1cdf09016b6c90c6c3befa520b13b962af55430da"
+    },
+    {
       "path": "back-end/src/lib/books/w2a-frozen-input.ts",
       "kind": "source",
       "sha256": "0202b9aeaa656c23f604ee45476e72b05b6a9eb13b34bc30c7c98a194484a839"
@@ -1127,6 +1374,11 @@
       "path": "back-end/src/lib/books/w2a-manifest.ts",
       "kind": "source",
       "sha256": "efefc27c7e897c96bb0f05fbbef568bef52c76ab8f432cff8e31da01df758b5f"
+    },
+    {
+      "path": "back-end/src/lib/books/w3-assembly-state.ts",
+      "kind": "source",
+      "sha256": "2ffd4265cbd8906ec98cd02694c3cd8c749de1dcd6099589edfd1f544f36a471"
     },
     {
       "path": "back-end/src/lib/books/w3-manifest.ts",
@@ -1146,7 +1398,7 @@
     {
       "path": "back-end/src/lib/cron-order-guards.ts",
       "kind": "source",
-      "sha256": "0834fd634dc24fbec2b95eafc8e43edac83a47c7b1231b81d73409fd794877c4"
+      "sha256": "59fc9e3df16c792ce25f062908099bd7b94de77584d7cfcec6a7a3327525f330"
     },
     {
       "path": "back-end/src/lib/csv-book-selection.ts",
@@ -1159,14 +1411,29 @@
       "sha256": "ad2578f3482c98c41bf850a9497776bd6983fdb317f9b55fb9de66d7e2112874"
     },
     {
+      "path": "back-end/src/lib/customer-preview-files.ts",
+      "kind": "source",
+      "sha256": "2c95a8daa17a588c0b709cc196bb363769a5c78e0cd45b953eb3e844c2c1a17b"
+    },
+    {
       "path": "back-end/src/lib/messaging/test-order-guard.ts",
       "kind": "source",
       "sha256": "87415dd03b1428dd3fb079c50c7d877cf04f5847550f1034c07f459e339d4f40"
     },
     {
+      "path": "back-end/src/lib/n8n-recovery-client.ts",
+      "kind": "source",
+      "sha256": "966461c1db058a3691b05c3b5833b39a0d2bbb89bf55ee029a65a755f269dc20"
+    },
+    {
       "path": "back-end/src/lib/order-mapper.ts",
       "kind": "source",
       "sha256": "d3bc8ad394926bf7de136dae32aa29437afdeafb8dbc1b5091c6f9ddaa75e9d2"
+    },
+    {
+      "path": "back-end/src/lib/order-reset.ts",
+      "kind": "source",
+      "sha256": "207ce33f1343c8f7137fb0d1da92f6cba3c6f5dd6b0e5c7ec9f37e3ae527b4ce"
     },
     {
       "path": "back-end/src/lib/printer-file-grants.ts",
@@ -1176,7 +1443,7 @@
     {
       "path": "back-end/src/lib/supabase-client.ts",
       "kind": "source",
-      "sha256": "e7093a9646ed4f3ff16367da69a53e41555cd2c96aa28e24c74dcdd1ec772518"
+      "sha256": "e98643a7f472f35e5d0d4f4bfeb3be4c8517800cd007dd8780dd080514a55bc3"
     },
     {
       "path": "back-end/src/lib/w0-manifest-builder.ts",
@@ -1194,6 +1461,31 @@
       "sha256": "b481c786b9e6f6c34e8fe0596742e13c7270593898df5537be1183ee5f3d84c3"
     },
     {
+      "path": "back-end/src/lib/w2a-completed-recovery.ts",
+      "kind": "source",
+      "sha256": "4d9c74248f4bb0a94f53d57b456048a649d142080ddc4a0b5db7e177a66a00ed"
+    },
+    {
+      "path": "back-end/src/lib/w2a-execution-failure.ts",
+      "kind": "source",
+      "sha256": "10f85e324639c130606504ce13e2e98496c529b6447d32cf7dc22e50f2ef4b6d"
+    },
+    {
+      "path": "back-end/src/lib/w2a-failure-recovery.ts",
+      "kind": "source",
+      "sha256": "2f9b675500864d3809a543ec05bd70ec3be8119cfb4e87aca6dcedc5f87712de"
+    },
+    {
+      "path": "back-end/src/lib/w2a-parent-claim.ts",
+      "kind": "source",
+      "sha256": "001d7af36082afd2dc551167857ba55e4ecabb10273605cdaffb5de45ee2b941"
+    },
+    {
+      "path": "back-end/src/lib/w2a-recovery.ts",
+      "kind": "source",
+      "sha256": "83d13a7f9df472be45046f766b7a205afb7aef65622dc0b505982b5aba82ea49"
+    },
+    {
       "path": "back-end/src/lib/w3-calibration-http.ts",
       "kind": "source",
       "sha256": "f5f642e53dbbd4bd4794426f10b67f9b20756863bd2dfda8c1e0413540022a73"
@@ -1207,6 +1499,26 @@
       "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
       "kind": "source",
       "sha256": "ca20504506d12417a78337355c3b79bbea91a2ccdbc15ca9ea3db4c247753552"
+    },
+    {
+      "path": "back-end/src/lib/workflow-jobs/repository.ts",
+      "kind": "source",
+      "sha256": "0d5ad61834164a4780025c327d1ef99d559448c83a0f95a27275ee89b1d33452"
+    },
+    {
+      "path": "back-end/src/lib/workflow-jobs/types.ts",
+      "kind": "source",
+      "sha256": "6ee1824b79b0024e12e41321d06c23e1c8e82ac987ba7878ddc78f6c8ae9619d"
+    },
+    {
+      "path": "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts",
+      "kind": "source",
+      "sha256": "f71529494d22a977fbd74696b8c0af5c33dd09ef634d1bd17606571e0aa2ff33"
+    },
+    {
+      "path": "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts",
+      "kind": "source",
+      "sha256": "b630491eebee3cc55fb37e63f17667fe971bbd7e703cb263131c4ea5f8403385"
     },
     {
       "path": "back-end/src/types/order.ts",
@@ -1249,6 +1561,11 @@
       "sha256": "e20584bc0770c13bf2875be1a04045d7f30cab0b34ee50d77795b5762a5b81f4"
     },
     {
+      "path": "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
+      "kind": "source",
+      "sha256": "1b612c21995da5705d68c1c5cd924c234787929a1cf018deddab550d7fc2575d"
+    },
+    {
       "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
       "kind": "source",
       "sha256": "f118077ec865f0c707800fb0fb3f904c67a1cdedc50d6ea75f0f46d54be22dea"
@@ -1256,12 +1573,27 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json",
       "kind": "source",
-      "sha256": "a1890d3136288d8ac634c5c5b7c083f6bacbea4f34de6b728eb6df3e6375577e"
+      "sha256": "ba3532d26fdd411af16401c42d2ef6c7a04a6ae6b863f7e9b0c43bb861f8e67d"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
       "kind": "source",
-      "sha256": "221637359eb38d57e7d0972ec345c4286205dcccf7267cef1b1ae81edb0feeae"
+      "sha256": "b6dba42a7a3b874523f1881b4029fbe56851ff552654c45bdc04f697f8f4e448"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
+      "kind": "source",
+      "sha256": "093171fcc2d9088f8aac5dd323e4e59094391faced13506f33689ce8f9be9230"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
+      "kind": "source",
+      "sha256": "f2f71a71c8bf016ec8e1a883d2bdde56d2be52cead92a50facd80b9c480a6d8f"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
+      "kind": "source",
+      "sha256": "ce34c8a07bc1b58101e342d975d362d2ada49dd77746c068b6d75ca3e1415e6d"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
@@ -1341,17 +1673,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "4c50fe4e0b252c9df1bd2c636d53fc3d067201e564afe88f1ff4157880a06b65"
+      "sha256": "0a20cce32e3407b406158c04c07266e33fa3b85d9f218ecf821f1af6629023e5"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "3d26c6fcd876695dab5f312428c2d4ff88c3077e417f7e0afe5b4e7249ce1a1c"
+      "sha256": "a70ab30950a5770b97577ba33818cb5ea6c58aa0057f434fefd368bcd9c5d48c"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "39e27b02972da37bb68ad608b794b601894d8a605ac60eb2afae0a3e0797bc94"
+      "sha256": "3e349151bcd04ae1e9da3432493651974349260effe9756f8290505653b63d7b"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

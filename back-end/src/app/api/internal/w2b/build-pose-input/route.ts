@@ -40,6 +40,7 @@ export async function buildW2BPoseInputResponse(
       ? await options.instrumentPoseJob(result)
       : await claimAndStartW2BPoseJob(result);
 
+  if (!workflowFields.workflowClaimed || !workflowFields.workflowAttemptId) throw Error('W2B pose claim was not acquired; provider work is held');
   return {
     success: true,
     ...result,
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
         error: 'Failed to build W2B pose input',
         details: getErrorMessage(error),
       },
-      { status: 500 },
+      { status: 409 },
     );
   }
 }

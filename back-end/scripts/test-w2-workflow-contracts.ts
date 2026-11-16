@@ -324,8 +324,8 @@ async function main(): Promise<void> {
     "Repo-centric W2A SW0 request builder should trust the repo-owned prompt contract instead of rebuilding the large inline prompt block",
   );
   assert(
-    w2aSw0GenerateNode.onError === "continueRegularOutput" &&
-      w2aSw0ExtractNode.onError === "continueRegularOutput" &&
+    !w2aSw0GenerateNode.onError &&
+      !w2aSw0ExtractNode.onError &&
       w2aSw0UploadNode.type === "n8n-nodes-base.s3" &&
       JSON.stringify(w2aSw0UploadNode.parameters).includes("$json.__meta.storageKey"),
     "Repo-centric W2A SW0 should keep Gemini submit, extraction, and upload as thin workflow-owned transport steps",
@@ -586,14 +586,9 @@ async function main(): Promise<void> {
       w2aReplayBinaryIfConnections.includes("Return Generated Image") &&
       w2aReplayBinaryIfConnections.includes("Restore Replay Fallback Context") &&
       w2aReplayRestoreNode.type === "n8n-nodes-base.code" &&
-      JSON.stringify(w2aReplayRestoreNode.parameters).includes(
-        "Prepare Replay Output",
-      ) &&
-      JSON.stringify(w2aReplayRestoreNode.parameters).includes(
-        "workflowReplayFallback",
-      ) &&
-      w2aReplayRestoreConnections.includes("Stamp Pose Index"),
-    "Repo-centric W2A replay path should rehydrate binary.generated through the R2 S3 credential flow and restore the original item before falling back to live generation if the stored replay artifact is missing",
+      JSON.stringify(w2aReplayRestoreNode.parameters).includes("throw new Error") &&
+      !JSON.stringify(w2aReplayRestoreNode.parameters).includes("workflowReplayReady: false"),
+    "A missing replay artifact must stop before provider work without a fresh owned attempt",
   );
   assert(
     w2aBuildPromptCode.includes("repo-w2a-pose-input@v1") &&

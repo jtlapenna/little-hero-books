@@ -1,3 +1,4 @@
+import { BookReviewConflict } from '@/lib/book-review-invalidation';
 import { NextRequest, NextResponse } from 'next/server';
 import { approveStage } from '@/lib/approval-store';
 import { withErrorHandling } from '@/lib/api-wrapper';
@@ -58,6 +59,7 @@ async function approveOrderStage(
             orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
           }),
         );
+        if (!manifest || !Array.isArray(manifest.entries) || !manifest.entries.length) return NextResponse.json({ error: 'A completed stage manifest is required before approval.' }, { status: 409 });
         if (manifest?.entries) {
           flagCount = manifest.entries.filter((e: any) => e.isFlagged || e.needsReview).length;
         }
@@ -77,6 +79,7 @@ async function approveOrderStage(
             }),
           );
         }
+        if (!manifest || !Array.isArray(manifest.entries) || !manifest.entries.length) return NextResponse.json({ error: 'A completed stage manifest is required before approval.' }, { status: 409 });
         if (manifest?.entries) {
           flagCount = manifest.entries.filter((e: any) => e.isFlagged || e.needsReview).length;
         }
@@ -88,6 +91,7 @@ async function approveOrderStage(
             orderPrefix: typeof orderPrefix === 'string' ? orderPrefix : null,
           }),
         );
+        if (!manifest?.pngGeneration) return NextResponse.json({ error: 'A completed book manifest is required before approval.' }, { status: 409 });
         if (manifest?.pngGeneration?.pagesMetadata) {
           const pagesMetadata = manifest.pngGeneration.pagesMetadata;
           flagCount = Object.values(pagesMetadata).filter((meta: any) => meta.isFlagged || meta.needsReview).length;
@@ -95,7 +99,7 @@ async function approveOrderStage(
       }
     } catch (error) {
       console.error(`[Approve API] Error checking flags for ${stage}:`, error);
-      // Don't fail - allow approval if we can't check flags (graceful degradation)
+      return NextResponse.json({ error: 'Stage flags could not be verified; refresh before approving.' }, { status: 409 });
     }
 
     if (flagCount > 0) {
@@ -106,7 +110,9 @@ async function approveOrderStage(
   }
 
   // Approve the stage
-  const approval = await approveStage(orderId, stage, nextStatus as 'approved' | 'pending');
+  let approval;
+  try { approval = await approveStage(orderId, stage, nextStatus as 'approved' | 'pending'); }
+  catch (error) { if (error instanceof BookReviewConflict) return NextResponse.json({ error: error.message }, { status: 409 }); throw error; }
 
   // Get updated flag counts from Supabase
   const flagSummary = await getOrderFlagSummaryById(orderId).catch(() => null);

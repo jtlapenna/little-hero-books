@@ -1,3 +1,4 @@
+import { assertBookReviewOwnership, invalidateBookReview, BookReviewConflict } from '@/lib/book-review-invalidation';
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -60,7 +61,7 @@ export async function POST(
 
   try {
     // Get current order to preserve review_stages and get numeric id / amazon_order_id
-    const currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    let currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
     if (!currentOrder) {
       return NextResponse.json(
         { error: 'Order not found' },
@@ -68,6 +69,11 @@ export async function POST(
       );
     }
 
+    assertBookReviewOwnership(currentOrder, 'postPdf');
+    await invalidateBookReview(orderId, 'postPdf');
+    currentOrder = await getOrderFromSupabase(orderId);
+    if (!currentOrder) throw new BookReviewConflict('Book changed; refresh before regenerating');
+    assertBookReviewOwnership(currentOrder, 'postPdf');
     const orderRowId = Number(currentOrder.id);
     if (!Number.isFinite(orderRowId)) {
       return NextResponse.json(
@@ -89,9 +95,11 @@ export async function POST(
           .from('orders')
           .update(dataToUpdate as never)
           .eq('id', id)
+          .eq('updated_at', currentOrder!.updated_at)
+          .is('current_workflow', null).is('started_at', null).is('print_submission_id', null).is('print_claim_token', null)
           .select('id');
         if (!error) {
-          if (!data || data.length === 0) throw new Error(`Order not found for update (id=${id})`);
+          if (!data || data.length === 0) throw new BookReviewConflict('Book changed; refresh before regenerating');
           return;
         }
         lastError = error;
@@ -204,6 +212,7 @@ export async function POST(
       manifestCleared: manifest3Modified
     });
   } catch (error: any) {
+    if (error instanceof BookReviewConflict) return NextResponse.json({ error: error.message }, { status: 409 });
     console.error('[Regenerate 3] Error:', error);
     console.error('[Regenerate 3] Error stack:', error?.stack);
     console.error('[Regenerate 3] Error details:', {

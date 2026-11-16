@@ -332,9 +332,11 @@ export async function claimWorkflowJob(
   const now = options.now ?? new Date();
   const patch = {
     status: 'claimed',
+    ...(options.reserveAttemptCount ? { attempt_count: job.attempt_count + 1 } : {}),
     lease_owner: options.leaseOwner,
     lease_expires_at: buildWorkflowJobLeaseExpiry(now, options.leaseMs),
     claimed_at: now.toISOString(),
+    ...(options.normalizedInputSnapshot ? { normalized_input_snapshot: options.normalizedInputSnapshot } : {}),
   };
 
   const query = client
@@ -346,6 +348,24 @@ export async function claimWorkflowJob(
     .maybeSingle();
   const { data, error } = await query;
 
+  if (error) throw error;
+  return (data as WorkflowJobRecord | null) ?? null;
+}
+
+/** Reserve the next QA attempt in the same CAS that replaces the terminal lease. */
+export async function claimRejectedW2APoseJob(
+  job: WorkflowJobRecord, options: ClaimWorkflowJobOptions,
+  client: SupabaseLike = supabase as unknown as SupabaseLike,
+): Promise<WorkflowJobRecord | null> {
+  if (job.stage !== '2a' || job.job_type !== 'w2a-single-pose' || job.status !== 'succeeded') return null;
+  const now = options.now ?? new Date();
+  const { data, error } = await client.from('workflow_jobs').update({
+    status: 'claimed', attempt_count: job.attempt_count + 1,
+    lease_owner: options.leaseOwner, lease_expires_at: buildWorkflowJobLeaseExpiry(now, options.leaseMs),
+    claimed_at: now.toISOString(), completed_at: null, failed_at: null, next_retry_at: null,
+    result_snapshot: {}, last_error: null, normalized_input_snapshot: options.normalizedInputSnapshot,
+  }).eq('id', job.id).eq('status', 'succeeded').eq('updated_at', job.updated_at)
+    .eq('attempt_count', job.attempt_count).select('*').maybeSingle();
   if (error) throw error;
   return (data as WorkflowJobRecord | null) ?? null;
 }
@@ -375,13 +395,11 @@ async function patchWorkflowJob(
   jobId: number,
   patch: Record<string, unknown>,
   client: SupabaseLike = supabase,
+  ownership?: Pick<UpdateWorkflowJobExternalStateInput, 'expectedAttemptCount'>,
 ): Promise<WorkflowJobRecord | null> {
-  const { data, error } = await client
-    .from('workflow_jobs')
-    .update(patch)
-    .eq('id', jobId)
-    .select('*')
-    .maybeSingle();
+  let query = client.from('workflow_jobs').update(patch).eq('id', jobId);
+  if (ownership?.expectedAttemptCount !== undefined) query = query.eq('attempt_count', ownership.expectedAttemptCount);
+  const { data, error } = await query.select('*').maybeSingle();
   if (error) throw error;
   return (data as WorkflowJobRecord | null) ?? null;
 }
@@ -396,7 +414,7 @@ export async function markWorkflowJobRunning(
     buildWorkflowJobPatch('running', input, {
       started_at: new Date().toISOString(),
     }),
-    client,
+    client, input,
   );
 }
 
@@ -410,7 +428,7 @@ export async function markWorkflowJobPolling(
     buildWorkflowJobPatch('polling', input, {
       polling_at: new Date().toISOString(),
     }),
-    client,
+    client, input,
   );
 }
 
@@ -429,7 +447,7 @@ export async function markWorkflowJobSucceeded(
       next_retry_at: null,
       last_error: null,
     }),
-    client,
+    client, input,
   );
 }
 
@@ -468,7 +486,7 @@ export async function markWorkflowJobFailed(
       lease_expires_at: null,
       last_error: toStoredWorkflowJobError(input.lastError as Record<string, unknown> | string | null | undefined),
     }),
-    client,
+    client, input,
   );
 }
 
@@ -485,7 +503,7 @@ export async function scheduleWorkflowJobRetry(
       lease_expires_at: null,
       last_error: toStoredWorkflowJobError(input.lastError as Record<string, unknown> | string | null | undefined),
     }),
-    client,
+    client, input,
   );
 }
 
@@ -502,7 +520,7 @@ export async function deadLetterWorkflowJob(
       lease_expires_at: null,
       last_error: toStoredWorkflowJobError(input.lastError as Record<string, unknown> | string | null | undefined),
     }),
-    client,
+    client, input,
   );
 }
 

@@ -9,6 +9,14 @@ const label = (value: unknown): string | null => {
   return /^p\d{2,3}$/.test(normalized) ? normalized : null;
 };
 
+/** Persisted manifest flags are authoritative even if display-count mirroring failed. */
+export function customerPreviewHasReviewFlags(raw: unknown): boolean {
+  const outer = record(Array.isArray(raw) ? raw[0] : raw);
+  const manifest = Object.keys(record(outer.manifest)).length ? record(outer.manifest) : outer;
+  const png = record(manifest.pngGeneration ?? outer.pngGeneration);
+  return Object.values(record(png.pagesMetadata)).some(value => Boolean(record(value).isFlagged || record(value).needsReview));
+}
+
 /** Minimize the trusted producer manifest; never return its internal fields or URLs. */
 export async function buildCustomerPreviewFiles(raw: unknown, prefix: string, tokenExpiresAt: string) {
   const outer = record(Array.isArray(raw) ? raw[0] : raw);
@@ -63,6 +71,6 @@ export async function buildCustomerPreviewFiles(raw: unknown, prefix: string, to
   for (const [pageLabel, page] of entries) pages.push({ pageNumber: page.pageNumber, pageLabel, imageUrl: await imageUrl(page.key) });
   const coverImageUrl = validCover ? await imageUrl(validCover) : null;
   const summary = record(manifest.summary ?? outer.summary);
-  const ready = expected.size > 0 && !invalid && !!validCover && pages.length > 0 && [...expected].every((key) => selected.has(key)) && summary.readyForBook !== false && manifest.testOnly !== true && outer.testOnly !== true;
+  const ready = !customerPreviewHasReviewFlags(raw) && expected.size > 0 && !invalid && !!validCover && pages.length > 0 && [...expected].every((key) => selected.has(key)) && summary.readyForBook !== false && manifest.testOnly !== true && outer.testOnly !== true;
   return { pages, coverImageUrl, ready, expiresAt };
 }

@@ -1,3 +1,7 @@
+import { requiresConfiguredW0Snapshot } from '@/lib/books/book-legacy-compatibility';
+import { requireActiveW2AParent, readActiveW2AParent, admitW2AParentExecution, assertFrozenW2AParentSelection } from '@/lib/w2a-parent-claim';
+import { verifyEmptyW2ARestart, bootstrapRetryPorts, admitW2ABootstrapRestart, type W2ABootstrapRetryPorts } from '@/lib/books/w2a-bootstrap-retry';
+import { failureRecord, storedW2AFailure, W2A_FAILURE_KEY } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { buildW2ABootstrapManifest, uploadW2ABootstrapIfAbsent } from '@/lib/books';
@@ -58,6 +62,9 @@ export async function buildValidatedW2ABootstrapManifest(
   const normalized = normalizeW0Manifest(manifest, { fallbackManifestKey: key });
   assertWorkflowMatchesW0(identity, normalized, manifest, key);
   const canonicalBody = reconcileFrozenW2AInput(body, normalized);
+  // Recovery evidence is server state, never part of the book's frozen bootstrap content.
+  const details = failureRecord(canonicalBody.orderDetails ?? orderContext.orderDetails);
+  if (details) { const clean = { ...details }; delete clean[W2A_FAILURE_KEY]; delete clean._w2a_parent_claim; canonicalBody.orderDetails = clean; }
   const built = buildW2ABootstrapManifest(canonicalBody);
   if (extractManifestKey(built.oneManifestUrl) !== key) {
     throw new Error('W2A bootstrap selected another W0 manifest');
@@ -75,7 +82,7 @@ export async function buildValidatedW2ABootstrapManifest(
     },
     instrumentPoseWorkItems: async (payload) => payload.poseWorklist,
   });
-  return built;
+  return { ...built, formatId: normalized.formatId, configVersion: normalized.configVersion, configuredW0: requiresConfiguredW0Snapshot(normalized) };
 }
 
 export async function persistValidatedW2ABootstrapManifest(
@@ -83,12 +90,19 @@ export async function persistValidatedW2ABootstrapManifest(
   options: {
     downloadOneManifest?: typeof downloadManifest;
     uploadIfAbsent?: typeof uploadW2ABootstrapIfAbsent;
+    retryPorts?: W2ABootstrapRetryPorts;
+    parent?: Awaited<ReturnType<typeof requireActiveW2AParent>>;
   } = {},
 ) {
   const built = await buildValidatedW2ABootstrapManifest(body, options);
+  if (options.parent) assertFrozenW2AParentSelection(options.parent.row, built);
   const created = await (options.uploadIfAbsent ?? uploadW2ABootstrapIfAbsent)(built.manifestKey, built.manifest);
   if (!created) {
-    throw new W2ABootstrapExistsError('W2A bootstrap already exists; inspect the existing 2A run before retry');
+    if (!options.parent || !storedW2AFailure(options.parent.row)?.resolvedAt) throw new W2ABootstrapExistsError('W2A bootstrap already exists; inspect the existing 2A run before retry');
+  }
+  if (options.parent) {
+    if (storedW2AFailure(options.parent.row)?.resolvedAt) await verifyEmptyW2ARestart(options.parent.row, built, 'bootstrap', options.parent.claim, options.retryPorts);
+    else assertFrozenW2AParentSelection(await readActiveW2AParent(options.parent.claim), built);
   }
   return built;
 }
@@ -161,7 +175,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const built = await persistValidatedW2ABootstrapManifest(body);
+    const parent = await requireActiveW2AParent(body, String(body.orderId ?? failureRecord(body.orderContext)?.orderId ?? ''));
+    const retryPorts = await bootstrapRetryPorts();
+    const preview = await buildValidatedW2ABootstrapManifest(body);
+    assertFrozenW2AParentSelection(parent.row, preview);
+    parent.row = await admitW2AParentExecution(parent.row,parent.claim);
+    if (storedW2AFailure(parent.row)?.resolvedAt) {
+      await verifyEmptyW2ARestart(parent.row, preview, 'bootstrap', parent.claim, retryPorts);
+      parent.row = await admitW2ABootstrapRestart(parent.row, parent.claim);
+    }
+    const built = await persistValidatedW2ABootstrapManifest(body, { parent, retryPorts });
 
     return NextResponse.json(buildW2ABootstrapResponse(body, built));
   } catch (error: unknown) {

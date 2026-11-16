@@ -220,6 +220,11 @@ export async function attachWorkflowJobsToW2BWorkItems(
   return attached;
 }
 
+function assertPoseJobIdentity(job: WorkflowJobRecord, input: W2BPoseWorkItemLike): void {
+  const identity = buildW2BPoseJobIdentity(input);
+  if (job.order_id !== identity.orderId || job.book_id !== identity.bookId || job.stage !== identity.stage || job.job_type !== identity.jobType || job.logical_key !== identity.logicalKey || input.workflowJobIdempotencyKey && input.workflowJobIdempotencyKey !== job.idempotency_key) throw Error('W2B job identity differs from the canonical pose');
+}
+
 async function resolveJobForW2BPose(
   input: W2BPoseWorkItemLike,
   repository: W2BPoseJobRepository,
@@ -227,9 +232,8 @@ async function resolveJobForW2BPose(
   const explicitId = typeof input.workflowJobId === 'number' ? input.workflowJobId : null;
   if (explicitId) {
     const byId = await repository.getWorkflowJobById(explicitId);
-    if (byId) {
-      return byId;
-    }
+    if (!byId) throw Error('Explicit W2B pose job does not exist');
+    assertPoseJobIdentity(byId, input); return byId;
   }
 
   const identity = buildW2BPoseJobIdentity(input);
@@ -237,7 +241,7 @@ async function resolveJobForW2BPose(
     toTrimmedString(input.workflowJobIdempotencyKey) ?? buildWorkflowJobIdempotencyKey(identity);
   const existing = await repository.getWorkflowJobByIdempotencyKey(idempotencyKey);
   if (existing) {
-    return existing;
+    assertPoseJobIdentity(existing, input); return existing;
   }
 
   const created = await repository.enqueueWorkflowJob({
@@ -276,7 +280,8 @@ export async function claimAndStartW2BPoseJob(
   const workerKind = options.workerKind ?? DEFAULT_W2B_WORKER_KIND;
 
   const claimedJob = await repository.claimWorkflowJob(job.id, {
-    leaseOwner,
+    leaseOwner, reserveAttemptCount: true,
+    normalizedInputSnapshot: buildQueuedSnapshot(input),
     leaseMs: options.leaseMs,
   });
 
@@ -305,8 +310,7 @@ export async function claimAndStartW2BPoseJob(
     },
   });
 
-  const incremented = await repository.incrementWorkflowJobAttemptCount(claimedJob.id);
-  const attemptNumber = incremented?.attempt_count ?? (claimedJob.attempt_count + 1);
+  const attemptNumber = claimedJob.attempt_count;
   const attempt = await repository.createWorkflowJobAttempt({
     jobId: claimedJob.id,
     attempt: attemptNumber,
@@ -316,9 +320,11 @@ export async function claimAndStartW2BPoseJob(
     startedAt: new Date().toISOString(),
   });
 
+  if (!attempt) throw Error('A persisted workflow attempt is required before provider work');
   const running = await repository.markWorkflowJobRunning(claimedJob.id, {
-    externalProvider: 'bria',
+    externalProvider: 'bria', expectedAttemptCount: attemptNumber,
   });
+  if (!running) throw Error('Workflow attempt ownership changed before provider work');
 
   await repository.appendWorkflowJobEvent({
     jobId: claimedJob.id,

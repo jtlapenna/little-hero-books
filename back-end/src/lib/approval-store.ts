@@ -1,6 +1,7 @@
-import { getOrderFromSupabase, supabase } from './supabase-client';
-import { updateOrderStatus } from './status-service';
-import { BookReviewStage, invalidateBookReview } from './book-review-invalidation';
+import { getOrderFromSupabase } from './supabase-client';
+import { calculateOrderStatusFromOrder, updateOrderStatus, type StatusCalculationOrder } from './status-service';
+import { findExactPreviewOrder } from './customer-preview-access';
+import { BookReviewStage, invalidateBookReview, assertBookReviewOwnership, compareAndSetBookReview, BookReviewConflict } from './book-review-invalidation';
 
 export interface ApprovalResult {
   reviewer: string;
@@ -62,18 +63,22 @@ export async function approveStage(
   stage: string,
   nextStatus: StageStatus['status'] = 'approved'
 ): Promise<ApprovalResult> {
-  BookReviewStage.parse(stage);
+  const reviewStage = BookReviewStage.parse(stage);
   if (nextStatus !== 'approved') await invalidateBookReview(orderId, BookReviewStage.parse(stage));
   const reviewer = 'system'; // TODO: auth context
   const approvedAt = new Date().toISOString();
 
   // Load existing order if present
-  const existingOrder = await getOrderFromSupabase(orderId).catch(() => null);
-  const reviewStages = sanitizeReviewStages(existingOrder?.review_stages);
+  const existingOrder = await findExactPreviewOrder(orderId);
+  if (!existingOrder) throw new BookReviewConflict('Order not found; review cannot create an order');
+  assertBookReviewOwnership(existingOrder, reviewStage);
+  const reviewStages = sanitizeReviewStages(existingOrder?.review_stages as Record<string, unknown> | null);
 
   if (!reviewStages[stage]) {
     reviewStages[stage] = { status: 'pending' };
   }
+
+  if (nextStatus === 'approved' && reviewStages[stage]?.status === 'approved') return { reviewer: reviewStages[stage].reviewer ?? reviewer, approvedAt: reviewStages[stage].reviewedAt ?? approvedAt, status: 'approved', reviewStages };
 
   if (nextStatus === 'approved') {
     reviewStages[stage] = {
@@ -85,7 +90,6 @@ export async function approveStage(
   }
   // Reset uses the canonical in-review hold written above, including downstream invalidation.
 
-  const nowIso = new Date().toISOString();
 
   const shouldClearCustomerRevision =
     existingOrder?.customer_approval_status === 'revision_requested';
@@ -128,66 +132,14 @@ export async function approveStage(
     return {};
   })();
 
-  try {
-    console.log(`[approveStage] Updating Supabase for order ${orderId}, stage ${stage}, status ${nextStatus}`);
-    console.log(`[approveStage] reviewStages to save:`, JSON.stringify(reviewStages, null, 2));
-    await updateOrderStatus(orderId, {
-      review_stages: reviewStages,
-      // When a stage is approved, queue the next workflow so cron routing can't send it backwards.
-      ...queueUpdateOnApproval,
-      ...(nextStatus === 'approved'
-        ? { human_approved: true, human_reviewed_at: approvedAt, human_reviewer: reviewer }
-        : {}),
-      ...(shouldClearCustomerRevision
-        ? {
-            customer_approval_status: 'revision_requested',
-            customer_approval_required: true,
-            customer_approval_requested_at: null,
-            customer_approval_approved_at: null
-          }
-        : {})
-    });
-    console.log(`[approveStage] ✅ Successfully updated Supabase for order ${orderId}`);
-    
-    // Verify the update was saved
-    const verifyOrder = await getOrderFromSupabase(orderId).catch(() => null);
-    if (verifyOrder) {
-      console.log(`[approveStage] Verified review_stages in Supabase:`, JSON.stringify(verifyOrder.review_stages, null, 2));
-    } else {
-      console.warn(`[approveStage] ⚠️ Could not verify update - order ${orderId} not found in Supabase`);
-    }
-  } catch (updateError) {
-    console.error(`[approveStage] ❌ Failed to update order status for ${orderId}:`, updateError);
-    throw updateError; // Re-throw to ensure the error is visible
-  }
-
-  if (!existingOrder) {
-    try {
-      console.log(`[approveStage] Order ${orderId} not found, creating new record...`);
-      const { data, error: insertError } = await supabase
-        .from('orders')
-        .insert({
-          amazon_order_id: orderId,
-          orderId: orderId, // Ensure orderId is set (required column)
-          status: 'pending_processing',
-          review_stages: reviewStages,
-          customer_approval_status: 'pending',
-          created_at: nowIso,
-          updated_at: nowIso
-        })
-        .select()
-        .single();
-      
-      if (insertError) {
-        console.error(`[approveStage] Insert error for order ${orderId}:`, insertError);
-        throw insertError;
-      }
-      console.log(`[approveStage] ✅ Successfully created new order record for ${orderId}`);
-    } catch (error) {
-      console.error(`[approveStage] ❌ Insert failed for order ${orderId}:`, error);
-      throw error; // Re-throw to ensure the error is visible
-    }
-  }
+  const patch: Record<string, unknown> = {
+    review_stages: reviewStages, ...queueUpdateOnApproval, updated_at: approvedAt,
+    ...(nextStatus === 'approved' ? { human_approved: true, human_reviewed_at: approvedAt, human_reviewer: reviewer } : {}),
+    ...(shouldClearCustomerRevision ? { customer_approval_status: 'revision_requested', customer_approval_required: true,
+      customer_approval_requested_at: null, customer_approval_approved_at: null } : {}),
+  };
+  patch.status = calculateOrderStatusFromOrder({ ...existingOrder, ...patch } as StatusCalculationOrder);
+  if (!await compareAndSetBookReview(existingOrder, patch)) throw new BookReviewConflict('Book changed during stage approval; refresh before reviewing again');
 
   return {
     reviewer,

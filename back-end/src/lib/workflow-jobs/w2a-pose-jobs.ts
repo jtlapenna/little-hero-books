@@ -1,7 +1,11 @@
+import { isDeepStrictEqual } from 'node:util';
+import { parseW2AParentClaim, readActiveW2AParent } from '../w2a-parent-claim';
 import type { BookSnapshotFields } from '../books/book-snapshot';
 import {
   appendWorkflowJobEvent,
   claimWorkflowJob,
+  claimRejectedW2APoseJob,
+  getWorkflowJobAttemptById,
   createWorkflowJobAttempt,
   enqueueWorkflowJob,
   getWorkflowJobById,
@@ -76,6 +80,8 @@ export interface W2APoseWorkItemLike extends BookSnapshotFields {
   workflowAttemptId?: number | null;
   workflowAttempt?: number | null;
   workflowClaimed?: boolean | null;
+  workflowParentClaim?: unknown;
+  qaRetryProof?: unknown;
 }
 
 export interface AttachW2APoseJobsInput {
@@ -105,6 +111,8 @@ export interface W2APoseJobRepository {
   getWorkflowJobById: typeof getWorkflowJobById;
   getWorkflowJobByIdempotencyKey: typeof getWorkflowJobByIdempotencyKey;
   claimWorkflowJob: typeof claimWorkflowJob;
+  claimRejectedW2APoseJob?: typeof claimRejectedW2APoseJob;
+  getWorkflowJobAttemptById?: typeof getWorkflowJobAttemptById;
   incrementWorkflowJobAttemptCount: typeof incrementWorkflowJobAttemptCount;
   createWorkflowJobAttempt: typeof createWorkflowJobAttempt;
   markWorkflowJobRunning: typeof markWorkflowJobRunning;
@@ -116,6 +124,8 @@ const defaultRepository: W2APoseJobRepository = {
   getWorkflowJobById,
   getWorkflowJobByIdempotencyKey,
   claimWorkflowJob,
+  claimRejectedW2APoseJob,
+  getWorkflowJobAttemptById,
   incrementWorkflowJobAttemptCount,
   createWorkflowJobAttempt,
   markWorkflowJobRunning,
@@ -208,6 +218,7 @@ function buildQueuedSnapshot(input: W2APoseWorkItemLike): JsonRecord {
     poseRefKey: toTrimmedString(input.poseRefKey) ?? null,
     uploadKey: toTrimmedString(input.uploadKey) ?? null,
     correlationId: toTrimmedString(input.correlationId) ?? null,
+    workflowParentClaim: input.workflowParentClaim ?? null,
     retryAttempt: toInteger(input.retryAttempt) ?? 0,
     generatedFileName: toTrimmedString(input.generatedFileName) ?? null,
   };
@@ -370,9 +381,9 @@ async function resolveJobForW2APose(
     typeof input.workflowJobId === "number" ? input.workflowJobId : null;
   if (explicitId) {
     const byId = await repository.getWorkflowJobById(explicitId);
-    if (byId) {
-      return byId;
-    }
+    if (!byId) throw new Error('Explicit W2A pose job does not exist');
+    assertPoseJobIdentity(byId, input);
+    return byId;
   }
 
   const identity = buildW2APoseJobIdentity(input);
@@ -382,6 +393,7 @@ async function resolveJobForW2APose(
   const existing =
     await repository.getWorkflowJobByIdempotencyKey(idempotencyKey);
   if (existing) {
+    assertPoseJobIdentity(existing, input);
     return existing;
   }
 
@@ -413,7 +425,32 @@ async function resolveJobForW2APose(
   return created;
 }
 
-const MAX_CONFIGURED_POSE_RETRIES = 3;
+function assertPoseJobIdentity(job: WorkflowJobRecord, input: W2APoseWorkItemLike): void {
+  const identity = buildW2APoseJobIdentity(input);
+  if (job.order_id !== identity.orderId || job.book_id !== identity.bookId || job.stage !== identity.stage ||
+      job.job_type !== identity.jobType || job.logical_key !== identity.logicalKey ||
+      input.workflowJobIdempotencyKey && input.workflowJobIdempotencyKey !== job.idempotency_key) throw Error('W2A job identity differs from the canonical pose');
+}
+
+async function validateQARejection(job: WorkflowJobRecord, input: W2APoseWorkItemLike, repository: W2APoseJobRepository): Promise<void> {
+  const proof = input.qaRetryProof as JsonRecord | null;
+  const previous = job.normalized_input_snapshot ?? {};
+  const next = buildQueuedSnapshot(input);
+  const claim = parseW2AParentClaim(input.workflowParentClaim);
+  if (!proof || proof.schema !== 'lhb.w2a-qa-rejection@1' || proof.jobId !== job.id ||
+      proof.attempt !== job.attempt_count || proof.retryAttempt !== previous.retryAttempt ||
+      !claim || !isDeepStrictEqual(claim, parseW2AParentClaim(previous.workflowParentClaim)) ||
+      !isDeepStrictEqual(claim, parseW2AParentClaim(proof.workflowParentClaim)) ||
+      proof.uploadKey !== job.result_snapshot?.uploadKey || !proof.uploadKey ||
+      proof.generatedFileName !== job.result_snapshot?.generatedFileName || !proof.generatedFileName ||
+      input.retryAttempt !== Number(previous.retryAttempt ?? 0) + 1 || Number(input.retryAttempt) > 3) throw Error('QA retry requires the exact preceding rejected attempt');
+  const attempt = typeof proof.attemptId === 'number' ? await repository.getWorkflowJobAttemptById?.(proof.attemptId) : null;
+  if (!attempt || attempt.job_id !== job.id || attempt.attempt !== job.attempt_count || attempt.status !== 'succeeded' || !attempt.ended_at) throw Error('QA retry requires an ended successful generation attempt');
+  for (const field of ['orderId','bookId','formatId','configVersion','renderSnapshot','poseIdentityContract','characterHash','poseNumber','oneManifestKey','oneManifestUrl','baseCharacterKey','poseRefKey']) {
+    if (!isDeepStrictEqual(previous[field] ?? null, next[field] ?? null)) throw Error('QA retry cannot change frozen generation input');
+  }
+  await readActiveW2AParent(claim);
+}
 
 export async function claimAndStartW2APoseJob(
   input: W2APoseWorkItemLike,
@@ -421,14 +458,10 @@ export async function claimAndStartW2APoseJob(
   repository: W2APoseJobRepository = defaultRepository,
 ): Promise<W2APoseWorkflowFields> {
   const job = await resolveJobForW2APose(input, repository);
-  // An orchestrator retry after a QA rejection carries a higher retryAttempt than the recorded job input. Nothing was
-  // stored for the rejected pose, so a configured order may generate it again instead of replaying or holding.
-  const priorSnapshot = job.normalized_input_snapshot && typeof job.normalized_input_snapshot === 'object'
-    ? job.normalized_input_snapshot as JsonRecord : {};
+  const priorSnapshot = job.normalized_input_snapshot ?? {};
   const requestedRetry = toInteger(input.retryAttempt) ?? 0;
-  // Bounded like the orchestrator (maxPoseRetries = 3): a larger value stays on hold instead of paying for more images.
-  const configuredRetry = input.poseIdentityContract === 'configured-recipe@v1' &&
-    requestedRetry > (toInteger(priorSnapshot.retryAttempt) ?? 0) && requestedRetry <= MAX_CONFIGURED_POSE_RETRIES;
+  const configuredRetry = input.poseIdentityContract === 'configured-recipe@v1' && requestedRetry > (toInteger(priorSnapshot.retryAttempt) ?? 0);
+  if (configuredRetry) await validateQARejection(job, input, repository);
   const replayCandidate = configuredRetry ? null : buildW2APoseWorkflowReplay(job);
   if (job.status === 'succeeded' && input.poseIdentityContract === 'configured-recipe@v1' && !configuredRetry) {
     throw new Error('Configured W2A replay is on hold until a verified generation receipt is available');
@@ -471,10 +504,10 @@ export async function claimAndStartW2APoseJob(
   const leaseOwner = options.leaseOwner ?? DEFAULT_W2A_LEASE_OWNER;
   const workerKind = options.workerKind ?? DEFAULT_W2A_WORKER_KIND;
 
-  const claimedJob = await repository.claimWorkflowJob(job.id, {
-    leaseOwner,
-    leaseMs: options.leaseMs,
-  });
+  const claimOptions = { reserveAttemptCount: true, leaseOwner, leaseMs: options.leaseMs, normalizedInputSnapshot: buildQueuedSnapshot(input) };
+  const claimedJob = configuredRetry
+    ? await repository.claimRejectedW2APoseJob?.(job, claimOptions)
+    : await repository.claimWorkflowJob(job.id, claimOptions);
 
   if (!claimedJob) {
     await repository.appendWorkflowJobEvent({
@@ -501,11 +534,7 @@ export async function claimAndStartW2APoseJob(
     },
   });
 
-  const incremented = await repository.incrementWorkflowJobAttemptCount(
-    claimedJob.id,
-  );
-  const attemptNumber =
-    incremented?.attempt_count ?? claimedJob.attempt_count + 1;
+  const attemptNumber = claimedJob.attempt_count;
   const attempt = await repository.createWorkflowJobAttempt({
     jobId: claimedJob.id,
     attempt: attemptNumber,
@@ -515,9 +544,12 @@ export async function claimAndStartW2APoseJob(
     startedAt: new Date().toISOString(),
   });
 
+  if (!attempt) throw Error('A persisted workflow attempt is required before generation');
+  if (configuredRetry) await readActiveW2AParent(parseW2AParentClaim(input.workflowParentClaim)!);
   const running = await repository.markWorkflowJobRunning(claimedJob.id, {
-    externalProvider: "gemini",
+    externalProvider: "gemini", expectedAttemptCount: attemptNumber,
   });
+  if (!running) throw Error('Workflow attempt ownership changed before generation');
 
   await repository.appendWorkflowJobEvent({
     jobId: claimedJob.id,

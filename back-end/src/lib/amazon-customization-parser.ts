@@ -68,7 +68,7 @@ export function parseAmazonCustomization(input: unknown): {
           specs.childName = area.text || '';
         } else if (label.includes("hometown")) {
           specs.hometown = area.text || '';
-        } else if (label.includes("child's age") || label.includes("age")) {
+        } else if (/\bage\b/.test(label)) {
           specs.age = area.optionValue || area.text || '';
         } else if (label.includes("gender") || label.includes("pronouns")) {
           specs.pronouns = area.optionValue || area.text || '';
@@ -87,14 +87,15 @@ export function parseAmazonCustomization(input: unknown): {
         }
       }
       
-      // Validate required fields
-      if (!specs.childName || !specs.age) {
+      // Amazon dropdowns are ages 0–7; unrelated message text must never become age.
+      const age = String(specs.age ?? '').trim().match(/^([0-7])(?:\s+years?(?:\s+old)?)?$/i);
+      if (!specs.childName || !age) {
         return null;
       }
       
       return {
         childName: specs.childName,
-        age: specs.age,
+        age: age[1],
         pronouns: specs.pronouns || 'they/them',
         skinTone: normalizeSkinTone(specs.skinTone || 'medium'),
         hairColor: normalizeHairColor(specs.hairColor || 'brown'),
@@ -129,7 +130,7 @@ export function parseAmazonCustomization(input: unknown): {
           const label = child.label?.toLowerCase() || '';
           const value = child.displayValue || child.optionSelection?.name || '';
           
-          if (label.includes("child's age") || label.includes("age")) {
+          if (/\bage\b/.test(label)) {
             specs.age = value;
           } else if (label.includes("gender") || label.includes("pronouns")) {
             specs.pronouns = value;
@@ -147,14 +148,15 @@ export function parseAmazonCustomization(input: unknown): {
         }
       }
       
-      // Validate required fields
-      if (!specs.childName || !specs.age) {
+      // Amazon dropdowns are ages 0–7; unrelated message text must never become age.
+      const age = String(specs.age ?? '').trim().match(/^([0-7])(?:\s+years?(?:\s+old)?)?$/i);
+      if (!specs.childName || !age) {
         return null;
       }
       
       return {
         childName: specs.childName,
-        age: specs.age,
+        age: age[1],
         pronouns: normalizePronouns(specs.pronouns || 'they/them'),
         skinTone: normalizeSkinTone(specs.skinTone || 'medium'),
         hairColor: normalizeHairColor(specs.hairColor || 'brown'),

@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 
 interface ManualReviewAlertProps {
   executionStatus: string;
+  recoveryHref?: string;
   errorMessage?: string | null;
   errorType?: string | null;
   retryCount?: number | null;
@@ -23,14 +25,17 @@ export function ManualReviewAlert({
   errorType,
   retryCount,
   workflowStep,
-  currentWorkflow
+  currentWorkflow,
+  recoveryHref
 }: ManualReviewAlertProps) {
   if (executionStatus !== 'error_requires_manual_review') {
     return null;
   }
 
+  const w2aFailure = errorType?.startsWith('w2a_') === true;
   // Determine what happened
   const getWhatHappened = () => {
+    if (w2aFailure) return errorType === 'w2a_provider_billing' ? 'Character generation stopped: Gemini balance depleted' : 'Character generation stopped';
     if (errorType === 'workflow_timeout') {
       return 'Workflow timed out after multiple retry attempts';
     }
@@ -42,6 +47,7 @@ export function ManualReviewAlert({
 
   // Determine why it's marked
   const getWhyMarked = () => {
+    if (w2aFailure) return 'Generation is on hold until the cause is resolved and an administrator queues a retry.';
     if (retryCount !== null && retryCount !== undefined && retryCount >= 3) {
       return `Maximum retry attempts (${retryCount}) exceeded. Automated recovery system has given up.`;
     }
@@ -50,6 +56,7 @@ export function ManualReviewAlert({
 
   // Determine what stage it's in
   const getCurrentStage = () => {
+    if (w2aFailure) return 'AI Character Generation (2A)';
     if (workflowStep) {
       const stepMap: Record<string, string> = {
         'order_intake': 'Order Intake',
@@ -69,6 +76,7 @@ export function ManualReviewAlert({
 
   // Determine what should happen next
   const getNextSteps = () => {
+    if (w2aFailure) return [errorType === 'w2a_provider_billing' ? 'Restore the Gemini project’s prepaid balance in Google AI Studio.' : 'Inspect the failed execution and fix its underlying cause.', 'Open W2A Recovery to verify the failure and queue a retry when ready.'];
     const steps = [
       'Investigate the error message below to understand what went wrong',
       'Check the order data and workflow logs',
@@ -117,6 +125,8 @@ export function ManualReviewAlert({
                   <li key={idx}>{step}</li>
                 ))}
               </ul>
+              {w2aFailure && recoveryHref && <Link href={recoveryHref} className="mt-3 inline-flex rounded-md bg-orange-800 px-3 py-2 font-medium text-white hover:bg-orange-900">Open W2A Recovery</Link>}
+              {errorType === 'w2a_provider_billing' && <a href="https://aistudio.google.com/projects" target="_blank" rel="noreferrer" className="ml-3 inline-flex underline">Google AI Studio</a>}
             </div>
           </div>
         </div>

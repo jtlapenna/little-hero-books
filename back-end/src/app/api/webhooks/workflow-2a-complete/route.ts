@@ -1,3 +1,5 @@
+import { parseW2AParentClaim, assertActiveW2AParentRow } from '@/lib/w2a-parent-claim';
+import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyBearerAuth } from '@/lib/auth';
@@ -19,10 +21,21 @@ const PayloadSchema = z.object({
   amazonOrderId: z.string().min(1).optional(),
   posesGenerated: z.number().int().optional(),
   needsReview: z.boolean().optional(),
+  workflowParentClaim: z.unknown().optional(),
 });
 
 type ExactOrderRow = {
   id: number;
+  workflow_step?: string;
+  updated_at?: string;
+  execution_status?: string;
+  current_workflow?: string | null;
+  started_at?: string | null;
+  product_info?: unknown;
+  error_type?: string | null;
+  print_submission_id?: string | null;
+  print_claim_token?: string | null;
+  gelato_order_id?: string | null;
   orderId?: string | null;
   order_id?: string | null;
   root_order_id?: string | null;
@@ -53,7 +66,7 @@ type ManifestLike = {
 
 async function resolveExactOrderRow(orderId: string): Promise<ExactOrderRow> {
   const exactSelect =
-    'id, orderId, order_id, root_order_id, amazon_order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, final_book_url, cover_image_url';
+    'workflow_step,updated_at,execution_status,current_workflow,started_at,product_info,error_type,print_submission_id,print_claim_token,gelato_order_id,id, orderId, order_id, root_order_id, amazon_order_id, one_manifest_url, manifest_2a_url, manifest_2b_url, manifest_3_url, final_book_url, cover_image_url';
   const fallback = await fetchOrderRowByAnyId<ExactOrderRow>(supabase, orderId, exactSelect);
   if (!fallback.row) {
     throw new Error(`workflow-2a-complete: order row not found for per-item orderId ${orderId}`);
@@ -84,6 +97,15 @@ export async function POST(request: NextRequest) {
     const payload = PayloadSchema.parse(json);
 
     const orderRow = await resolveExactOrderRow(payload.orderId);
+    if (heldW2AFailure(orderRow) || orderRow.print_submission_id || orderRow.print_claim_token || orderRow.gelato_order_id || orderRow.manifest_2b_url || orderRow.manifest_3_url || orderRow.current_workflow && orderRow.current_workflow !== '2A') throw Error('W2A completion is held or another stage owns this book');
+    if (!orderRow.current_workflow && !orderRow.started_at && orderRow.workflow_step === '2A-complete' &&
+        extractManifestKey(String(orderRow.manifest_2a_url ?? '')) === extractManifestKey(payload.manifestUrl)) {
+      return NextResponse.json({success:true,orderId:payload.orderId,stage:'2a',alreadyCompleted:true,updatedRowId:orderRow.id});
+    }
+    const claim = parseW2AParentClaim(payload.workflowParentClaim);
+    if (!claim) throw Error('W2A completion requires the original active physical parent claim');
+    assertActiveW2AParentRow(orderRow, claim);
+    if (!orderRow.updated_at) throw Error('W2A completion requires a current row revision');
     const payloadManifestKey = extractManifestKey(payload.manifestUrl) ?? '';
     const orderHints = buildManifestKeyHintOptionsFromOrderLike(orderRow);
     const expectedManifestKeys = buildManifestKeyCandidates(payload.orderId, '2a', {
@@ -161,6 +183,7 @@ export async function POST(request: NextRequest) {
         updated_at: updateNow,
       } as never)
       .eq('id', orderRow.id)
+      .eq('updated_at', orderRow.updated_at)
       .select('id');
     if (updateRes.error) throw updateRes.error;
     if (!updateRes.data || updateRes.data.length !== 1) {

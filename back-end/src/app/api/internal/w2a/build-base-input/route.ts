@@ -1,3 +1,4 @@
+import { requireActiveW2AParent, assertFrozenW2AParentSelection } from '@/lib/w2a-parent-claim';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { buildW2ABaseInput, type BuildW2ABaseInputResult } from '@/lib/books';
@@ -76,7 +77,9 @@ export async function POST(request: NextRequest) {
     const response = await buildW2ABaseInputResponse(body, {
       defaultBackendUrl: request.nextUrl.origin,
     });
-    return NextResponse.json(response);
+    const parent = await requireActiveW2AParent(body, response.orderId);
+    assertFrozenW2AParentSelection(parent.row, response);
+    return NextResponse.json({ ...response, workflowParentClaim: parent.claim });
   } catch (error: unknown) {
     console.error('[Internal W2A Build Base Input] Error:', error);
     return NextResponse.json(

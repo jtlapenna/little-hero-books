@@ -1,5 +1,7 @@
 'use client';
 
+import { bookReviewOwnershipIssue } from '@/lib/book-review-ownership';
+import { hasCompletedW3Assembly } from '@/lib/books/w3-assembly-state';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AssetGrid } from '@/components/assets/asset-grid';
 import { CheckCircle, Play, Eye, RefreshCw, Info } from 'lucide-react';
@@ -759,7 +761,7 @@ export function PostBriaStage({ orderId, order, isApproved, onApprove, onInitiat
   const isPreBriaApproved = order.reviewStages.preBria.status === 'approved';
   const canApprove = flaggedCount === 0 && hasImages && missingCount === 0;
   const isApprovedEffective = approveStageConfirmed || isApproved;
-  const canTriggerAssembly = isApprovedEffective && hasImages;
+  const canTriggerAssembly = isApprovedEffective && hasImages && !bookReviewOwnershipIssue(order) && !hasCompletedW3Assembly(order);
 
   const [isTriggering, setIsTriggering] = useState(false);
   const [isSyncing2bManifest, setIsSyncing2bManifest] = useState(false);

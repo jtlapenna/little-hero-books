@@ -34,6 +34,7 @@ async function resetOrder(
     return NextResponse.json({ success: true, order });
   } catch (error: any) {
     if (error instanceof OrderResetError) {
+      if (error.message === 'W2A_FAILURE_HOLD') return NextResponse.json({ error: 'Resolve this failure in W2A Recovery before retrying.' }, { status: 409 });
       if (error.message === 'ORDER_NOT_FOUND') {
         return createNotFoundError(`Order ${orderId} not found`);
       }

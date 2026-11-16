@@ -1,0 +1,261 @@
+{
+  "baseline": "f0f1dc9a3d8c19c937c4cc5035ac284872150460",
+  "branch": "codex/w2a-error-reporting-recovery",
+  "scope": "First-party deployed book workflow system and direct admin/CSV/print consumers. Offline review and synthetic tests only.",
+  "excluded": [
+    "vendor/generated files",
+    "secrets/private order data",
+    "live image/provider/printing/billing operations",
+    "unrelated storefront marketing/analytics"
+  ],
+  "areas": [
+    {
+      "id": "intake",
+      "boundary": "Amazon CSV/customization source \u2192 W0 freeze/1-manifest",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts:351",
+        "back-end/src/app/api/internal/w2b/build-worklist/route.ts:30",
+        "back-end/src/lib/amazon-customization-parser.ts:71",
+        "back-end/src/lib/books/w2b-worklist.ts:247",
+        "back-end/src/lib/csv-book-selection.ts",
+        "back-end/src/lib/csv-upload-helpers.ts",
+        "back-end/src/lib/sibling-order-helpers.ts",
+        "docs/amazon/amazon-custom-listing-spec.md:140",
+        "docs/database/fix-orphaned-orders-exclude-completed-workflows.sql",
+        "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json:449",
+        "docs/new-planning/amazon-field-mapping-verification.md:144"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "intake-routing.md"
+    },
+    {
+      "id": "routing",
+      "boundary": "W1 queue/claims/scheduler/retries/health",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts:351",
+        "back-end/src/app/api/internal/w2b/build-worklist/route.ts:30",
+        "back-end/src/lib/amazon-customization-parser.ts:71",
+        "back-end/src/lib/books/w2b-worklist.ts:247",
+        "back-end/src/lib/csv-book-selection.ts",
+        "back-end/src/lib/csv-upload-helpers.ts",
+        "back-end/src/lib/sibling-order-helpers.ts",
+        "docs/amazon/amazon-custom-listing-spec.md:140",
+        "docs/database/fix-orphaned-orders-exclude-completed-workflows.sql",
+        "docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json:449",
+        "docs/new-planning/amazon-field-mapping-verification.md:144"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "intake-routing.md"
+    },
+    {
+      "id": "generation",
+      "boundary": "W2A base/poses/job lifecycle/error recovery",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts:88-92",
+        "back-end/src/lib/books/w2a-base-input.ts:524",
+        "back-end/src/lib/books/w2a-manifest.ts:836-847",
+        "back-end/src/lib/w2a-failure-recovery.ts:114-130",
+        "back-end/src/lib/w2a-recovery.ts:698-709,764-770",
+        "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts:474-491"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "generation-removal.md"
+    },
+    {
+      "id": "background-removal",
+      "boundary": "W2B pose worklist/BRIA/manifest completion",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts:88-92",
+        "back-end/src/lib/books/w2a-base-input.ts:524",
+        "back-end/src/lib/books/w2a-manifest.ts:836-847",
+        "back-end/src/lib/w2a-failure-recovery.ts:114-130",
+        "back-end/src/lib/w2a-recovery.ts:698-709,764-770",
+        "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts:474-491"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "generation-removal.md"
+    },
+    {
+      "id": "assembly",
+      "boundary": "W3 text/images/shadows/cover/PDF artifacts",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts:63",
+        "back-end/src/app/api/cron/router/route.ts:544",
+        "back-end/src/app/api/internal/w3/build-assembly-input/route.ts:104",
+        "back-end/src/app/api/orders/[orderId]/final-approval/route.ts:141",
+        "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts:151",
+        "back-end/src/app/orders/[orderId]/page.tsx:1713",
+        "back-end/src/components/stages/post-bria-stage.tsx:761",
+        "back-end/src/components/stages/post-pdf-stage.tsx:313",
+        "back-end/src/lib/book-review-invalidation.ts:18",
+        "back-end/src/lib/customer-preview-access.ts:106",
+        "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
+        "scripts/test-book-reassembly.ts",
+        "scripts/test-book-review-invalidation.ts",
+        "scripts/test-configured-w3-pipeline.ts",
+        "scripts/test-configured-w3-rendering.ts",
+        "scripts/test-preview-book-contract.ts",
+        "scripts/test-w3-manifest-publish.ts",
+        "scripts/test-w3-preview-artifacts.ts",
+        "scripts/test-w3-preview-render.ts",
+        "scripts/test-w3-whole-worklist.ts"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "assembly-review.md"
+    },
+    {
+      "id": "operator-review",
+      "boundary": "Admin approval/regeneration/customer-preview actions",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts:63",
+        "back-end/src/app/api/cron/router/route.ts:544",
+        "back-end/src/app/api/internal/w3/build-assembly-input/route.ts:104",
+        "back-end/src/app/api/orders/[orderId]/final-approval/route.ts:141",
+        "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts:151",
+        "back-end/src/app/orders/[orderId]/page.tsx:1713",
+        "back-end/src/components/stages/post-bria-stage.tsx:761",
+        "back-end/src/components/stages/post-pdf-stage.tsx:313",
+        "back-end/src/lib/book-review-invalidation.ts:18",
+        "back-end/src/lib/customer-preview-access.ts:106",
+        "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
+        "scripts/test-book-reassembly.ts",
+        "scripts/test-book-review-invalidation.ts",
+        "scripts/test-configured-w3-pipeline.ts",
+        "scripts/test-configured-w3-rendering.ts",
+        "scripts/test-preview-book-contract.ts",
+        "scripts/test-w3-manifest-publish.ts",
+        "scripts/test-w3-preview-artifacts.ts",
+        "scripts/test-w3-preview-render.ts",
+        "scripts/test-w3-whole-worklist.ts"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "assembly-review.md"
+    },
+    {
+      "id": "printing",
+      "boundary": "W4/W4.1 Gelato file/quote/draft/release/sibling routing",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts:65",
+        "back-end/src/app/api/orders/[orderId]/final-approval/route.ts:140-183",
+        "back-end/src/app/orders/[orderId]/page.tsx:1712",
+        "scripts/test-gelato-engineering-automation.ts:39"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "challenge-reviews-print.md"
+    },
+    {
+      "id": "fulfillment",
+      "boundary": "Gelato callback/polling/status/notifications",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts:65",
+        "back-end/src/app/api/orders/[orderId]/final-approval/route.ts:140-183",
+        "back-end/src/app/orders/[orderId]/page.tsx:1712",
+        "scripts/test-gelato-engineering-automation.ts:39"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "challenge-reviews-print.md"
+    },
+    {
+      "id": "interfaces",
+      "boundary": "Frozen book identity/paths/manifests/status contracts across all stages",
+      "status": "inspected",
+      "inspected": [
+        "back-end/src/app/api/cron/router/route.ts:691",
+        "back-end/src/app/api/internal/w2a/bootstrap-manifest/route.ts:79",
+        "back-end/src/lib/amazon-customization-parser.ts:71",
+        "back-end/src/lib/books/w2a-base-input.ts:524",
+        "back-end/src/lib/books/w2a-manifest.ts:836",
+        "back-end/src/lib/books/w2b-worklist.ts:247",
+        "back-end/src/lib/w2a-failure-recovery.ts:114",
+        "back-end/src/lib/w2a-recovery.ts:698",
+        "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts:418",
+        "docs/amazon/amazon-custom-listing-spec.md:140",
+        "docs/new-planning/amazon-field-mapping-verification.md:144"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Offline source/synthetic coverage only; hosted execution and actual DB/object concurrency not established."
+      ],
+      "evidence": "challenge-generation-intake.md"
+    },
+    {
+      "id": "release",
+      "boundary": "CI/source bindings/packaging/runtime config/rollout readiness",
+      "status": "inspected-local-checks-complete-hosted-gates-pending",
+      "inspected": [
+        "back-end/src/app/api/internal/w3/build-assembly-input/route.ts:104",
+        "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts:153",
+        "back-end/src/app/orders/[orderId]/page.tsx:948",
+        "back-end/src/components/stages/post-bria-stage.tsx:791",
+        "back-end/src/lib/books/gelato-ordinary-release-core.ts:156",
+        "back-end/src/lib/books/gelato-release-review.ts:32",
+        "back-end/src/lib/books/gelato-submission.ts:58",
+        "back-end/src/lib/books/w2a-pose-input.ts:662",
+        "back-end/src/lib/sibling-order-helpers.ts:39",
+        "back-end/src/lib/w2a-execution-failure.ts:99",
+        "back-end/src/lib/w2a-failure-recovery.ts:94",
+        "back-end/src/lib/w2a-recovery.ts:762",
+        "back-end/src/lib/workflow-jobs/repository.ts:322",
+        "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts:418"
+      ],
+      "checks": [
+        "Concrete producer/consumer probes in named report; final-verification.md records final executed checks"
+      ],
+      "limits": [
+        "Exact final-SHA Linux/native CI, authorized publication and hosted parity remain required; no live acceptance tonight."
+      ],
+      "evidence": "plan-review.md"
+    }
+  ],
+  "auditCompletion": "All scoped stage boundaries inspected and challenged; fixes prepared locally and bounded rechecks recorded. Publication, billing, live end-to-end and physical acceptance remain separate."
+}

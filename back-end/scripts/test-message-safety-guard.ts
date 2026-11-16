@@ -7,6 +7,8 @@ import { NextRequest } from 'next/server';
 // are counted (never contacted). Any other host fails the test.
 
 Object.assign(process.env, {
+  BACKEND_API_TOKEN:'synthetic-guard-signing-at-least-thirty-two',
+  CLOUDFLARE_ACCOUNT_ID:'synthetic-guard',R2_ACCESS_KEY_ID:'synthetic-guard-access',R2_SECRET_ACCESS_KEY:'synthetic-guard-secret',
   SUPABASE_URL: 'https://guard-db.example.test', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-guard-service',
   RESEND_API_KEY: 'synthetic-guard-resend', D2C_EMAIL_ENABLED: 'true', AMAZON_PREVIEW_NOTIFICATIONS_ENABLED: 'true',
   AMAZON_PRINT_SUBMITTED_NOTIFICATIONS_ENABLED: 'true', CUSTOMER_SITE_URL: 'https://site.example.test',
@@ -38,6 +40,12 @@ globalThis.fetch = async (input, init) => {
   const request = input instanceof Request ? input : new Request(input, init), url = new URL(request.url);
   if (url.host === 'api.resend.com') { resendCalls++; return Response.json({ id: 'synthetic-message' }); }
   if (url.host.endsWith('amazon.com')) { amazonCalls++; return Response.json({ error: 'synthetic_blocked' }, { status: 401 }); }
+  if (url.host === 'little-hero-orders.synthetic-guard.r2.cloudflarestorage.com') {
+    assert.equal(request.method,'GET');
+    const prefix='book-finding-our-inner-voice/orders/GUARD-FA';
+    assert.equal(url.pathname,'/'+prefix+'/manifests/3-manifest.json');
+    return Response.json({orderId:'GUARD-FA',pageLabels:['p00','p01'],pagePreviewImages:[0,1].map(n=>({pageLabel:'p0'+n,r2Key:prefix+'/preview-images/p0'+n+'.png'})),pngGeneration:{coverImageR2Key:prefix+'/preview-images/cover.png'},summary:{readyForBook:true}});
+  }
   assert.equal(url.origin, 'https://guard-db.example.test', `Unexpected host ${url.host}`);
   const table = url.pathname.replace('/rest/v1/', '');
   const rows = (tables[table] ??= []);
@@ -176,7 +184,7 @@ async function main() {
 
   const finalRoute = await import('../src/app/api/orders/[orderId]/final-approval/route');
   for (const platform of ['d2c', 'amazon']) for (const isMarked of [true, false]) {
-    reset(); tables.orders = [order({ orderId: 'GUARD-FA', platform, amazon_order_id: platform === 'amazon' ? AMAZON_ID : null, updated_at: '2026-01-01T00:00:00Z', product_info: isMarked ? marked : unmarked })];
+    reset(); tables.orders = [order({ orderId: 'GUARD-FA',execution_status:'done',workflow_step:'book_assembly_completed',current_workflow:null,started_at:null,manifest_3_url:'book-finding-our-inner-voice/orders/GUARD-FA/manifests/3-manifest.json',review_stages:{preBria:{status:'approved'},postBria:{status:'approved'},postPdf:{status:'approved'}}, platform, amazon_order_id: platform === 'amazon' ? AMAZON_ID : null, updated_at: '2026-01-01T00:00:00Z', product_info: isMarked ? marked : unmarked })];
     const response = await finalRoute.POST(new NextRequest('https://api.example.test/api/orders/GUARD-FA/final-approval', { method: 'POST',
       headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reviewer: 'synthetic' }) }), { params: Promise.resolve({ orderId: 'GUARD-FA' }) } as any);
     const body = await response.json();

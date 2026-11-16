@@ -1,3 +1,4 @@
+import { requireActiveW2AParent, assertFrozenW2AParentSelection } from '@/lib/w2a-parent-claim';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyBearerAuth } from "@/lib/auth";
 import {
@@ -102,9 +103,13 @@ export async function buildW2APoseInputResponse(
   const result = await buildW2APoseInput(body, {
     defaultBackendUrl: options.defaultBackendUrl,
   });
+  const generationInput = { ...result, workflowParentClaim: body.workflowParentClaim ?? (isRecord(body.orderContext) ? body.orderContext.workflowParentClaim : null), qaRetryProof: body.qaRetryProof,
+    workflowJobId: typeof body.workflowJobId === 'number' ? body.workflowJobId : undefined,
+    workflowJobIdempotencyKey: typeof body.workflowJobIdempotencyKey === 'string' ? body.workflowJobIdempotencyKey : undefined };
   const workflowFields = options.instrumentPoseJob
     ? await options.instrumentPoseJob(result)
-    : await claimAndStartW2APoseJob(result);
+    : await claimAndStartW2APoseJob(generationInput);
+  if (!workflowFields.workflowClaimed && !workflowFields.workflowReplay) throw Error('W2A pose claim was not acquired; generation is held');
   const replayCompatibility = buildW2APoseReplayCompatibilityFields(
     result,
     workflowFields,
@@ -112,7 +117,7 @@ export async function buildW2APoseInputResponse(
 
   return {
     success: true,
-    ...result,
+    ...generationInput,
     ...workflowFields,
     ...replayCompatibility,
   };
@@ -152,9 +157,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const parent = await requireActiveW2AParent(body, String(body.orderId ?? (isRecord(body.orderContext) ? body.orderContext.orderId : '') ?? ''));
+    const validated = await buildW2APoseInput(body, { defaultBackendUrl: request.nextUrl.origin });
+    assertFrozenW2AParentSelection(parent.row, validated);
     const response = await buildW2APoseInputResponse(body, {
       defaultBackendUrl: request.nextUrl.origin,
     });
+    await requireActiveW2AParent(body, response.orderId);
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error("[Internal W2A Build Pose Input] Error:", error);
@@ -163,7 +172,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to build W2A pose input",
         details: getErrorMessage(error),
       },
-      { status: 500 },
+      { status: 409 },
     );
   }
 }

@@ -1,3 +1,5 @@
+import { BookReviewConflict } from '@/lib/book-review-invalidation';
+import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
@@ -71,6 +73,8 @@ export async function POST(
       );
     }
 
+    if (heldW2AFailure(currentOrder)) return NextResponse.json({ error: 'Resolve the W2A failure in W2A Recovery before regeneration' }, { status: 409 });
+
     const orderRowId = Number(currentOrder.id);
     if (!Number.isFinite(orderRowId)) {
       return NextResponse.json(
@@ -92,9 +96,10 @@ export async function POST(
           .from('orders')
                     .update(dataToUpdate as never) // Supabase generated types expect 'never'; payload is schema-drift tolerant
           .eq('id', id)
+          .eq('updated_at', String((currentOrder as Record<string, unknown>).updated_at ?? ''))
           .select('id');
         if (!error) {
-          if (!data || data.length === 0) throw new Error(`Order not found for update (id=${id})`);
+          if (!data || data.length === 0) throw new BookReviewConflict('Order revision changed; refresh before regeneration');
           return;
         }
         lastError = error;
@@ -210,6 +215,7 @@ export async function POST(
       manifestCleared: manifest2aModified
     });
   } catch (error: any) {
+    if (error instanceof BookReviewConflict) return NextResponse.json({error:error.message},{status:409});
     console.error('[Regenerate 2A] Error:', error);
     return NextResponse.json(
       { 

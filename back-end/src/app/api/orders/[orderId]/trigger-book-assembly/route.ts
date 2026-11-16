@@ -1,3 +1,5 @@
+import { inspectBookAssemblyQueue, queueReviewedBookAssembly } from '@/lib/book-assembly-queue';
+import { BookReviewConflict } from '@/lib/book-review-invalidation';
 import { NextRequest, NextResponse } from 'next/server';
 import { withErrorHandling } from '@/lib/api-wrapper';
 import { createValidationError, createNotFoundError } from '@/lib/error-handler';
@@ -50,7 +52,6 @@ async function triggerBookAssembly(
 
   // Queue order for W3 via W1.1 router
   // IMPORTANT: Preserve review_stages when updating to avoid losing approvals
-  const { updateOrderStatus } = await import('@/lib/status-service');
   const { getOrderFromSupabase } = await import('@/lib/supabase-client');
   
   try {
@@ -60,6 +61,9 @@ async function triggerBookAssembly(
     if (!currentOrder) {
       throw createNotFoundError(`Order ${orderId} not found`);
     }
+
+    const admission = inspectBookAssemblyQueue(currentOrder);
+    if (admission !== 'queue') return NextResponse.json({ success: true, orderId, alreadyComplete: admission === 'complete', alreadyQueued: admission === 'queued' });
 
     // Best-effort: ensure 2B manifest is consistent with any manually uploaded bg-removed assets.
     // This prevents W3 from missing characters when 2B images exist in R2 but the 2b-manifest.json
@@ -148,20 +152,7 @@ async function triggerBookAssembly(
       // Continue to queue W3; W3 has additional fallbacks, but we prefer not to block here.
     }
     
-    const updates: Record<string, unknown> = {
-      next_workflow: '3',
-      execution_status: 'ready_for_processing',
-      queued_at: new Date().toISOString(),
-      started_at: null,
-      current_workflow: null
-    };
-    
-    // Preserve review_stages if they exist (to maintain approvals)
-    if (currentOrder.review_stages) {
-      updates.review_stages = currentOrder.review_stages;
-    }
-    
-    await updateOrderStatus(orderId, updates);
+    await queueReviewedBookAssembly(currentOrder);
     console.log(`[POST /api/orders/[orderId]/trigger-book-assembly] ✅ Queued order ${orderId} for W3 via router`);
     
     return NextResponse.json({
@@ -172,6 +163,7 @@ async function triggerBookAssembly(
       execution_status: 'ready_for_processing'
     });
   } catch (error: unknown) {
+    if (error instanceof BookReviewConflict) return NextResponse.json({ error: error.message }, { status: 409 });
     console.error(`[POST /api/orders/[orderId]/trigger-book-assembly] Error queueing order:`, error);
     // If it's already a NextResponse (e.g., from createNotFoundError), re-throw it
     if (error instanceof NextResponse) {

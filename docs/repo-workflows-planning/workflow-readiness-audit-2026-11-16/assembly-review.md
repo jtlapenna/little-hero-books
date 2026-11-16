@@ -1,0 +1,74 @@
+# W3 assembly and operator review audit
+
+Reviewed 2026-11-16, baseline `f0f1dc9a3d8c19c937c4cc5035ac284872150460`, branch `codex/w2a-error-reporting-recovery`, task checkout `print-test-prep-20261115`. Source in this slice is unchanged from baseline; the unrelated, uncommitted W2A repair was preserved. Read workspace/repository instructions, audit plan/coverage, bug-hunt skill and shared finding-verification protocol. This is read-only source review plus isolated synthetic probes, not deployment or release approval.
+
+## Result
+
+The exact authorized sanitized v4 release configuration passes synthetic Luca (`age:2`, `he/him`, tiger, red, light skin, light-brown hair, side-part) through real W0 freeze → W3 assembly input → preparation → preview-plan response → collector → manifest builder → Gelato W4 print-input validation. All 32 Amazon pages, frozen v4 identity, selected tiger background variants and he/him copy survive; unresolved personalization tokens and duplicate runtime shadow layers were absent. Removing one preview causes W4 to reject the saved not-ready manifest. This verifies contracts with synthetic artifact keys, not image bytes, hosted rendering, image quality, or PDF certification.
+
+Three candidates below require independent challenge before acceptance. AR-01 and AR-03 are the stronger operator recovery issues. AR-02 demonstrates an unsafe mutation but its downstream race/reachability needs careful qualification.
+
+## Candidate AR-01 — regeneration bypasses active workflow and print ownership
+
+- **Status:** unverified by independent reviewer; directly reproduced against actual handler. Suggested **P2**, high source/reproduction confidence, conditional on operator using the exposed regeneration action after a workflow/print claim exists.
+- **Source:** `back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts:63`, `:142`, `:170`, `:196`; visible caller `back-end/src/app/orders/[orderId]/page.tsx:1713`. Canonical counterexample/expected ownership guard: `back-end/src/lib/book-review-invalidation.ts:18`.
+- **Trigger:** click the always-present Regenerate 3 control on a book actively owned by W3, or already carrying a Gelato submission/claim/provider status. The handler loads the row but checks only existence and numeric id before manifest mutation and queue rewrite.
+- **Expected:** reject an active workflow/print-owned book before replacing any manifest or clearing ownership, using the same canonical ownership boundary as manual image replacement/review invalidation. Any deliberate printed-book regeneration needs an explicit supported ownership policy, not silently clearing the active fields.
+- **Observed:** actual `POST regenerate-3` returned 200 for both synthetic active-W3 and printed/Gelato-owned rows; it PUT the existing 3-manifest after deleting final URLs, set `next_workflow:'3'`/`execution_status:'ready_for_processing'`, and cleared `current_workflow`/`started_at`. For the identical starting rows, `bookReviewInvalidation(row,'postPdf')` correctly throws ownership error.
+- **Consequence:** an operator can rewind a claimed book and permit a second W3 attempt while an earlier stage is still working. For print-owned rows the final publisher's canonical invalidation will reject after the render path has already started, leaving misleading queue/recovery state and potentially unnecessary render work. This report does **not** claim that already frozen immutable printer PDF bytes change.
+- **Counterevidence:** `publishW3Manifest` invalidates reviews/links before replacing the manifest and rejects print ownership. That guard is downstream and does not protect this earlier manual queue/reset action. The cron router explicitly allows all non-W4 queued stages (`back-end/src/app/api/cron/router/route.ts:544` onward); its active-field filter is defeated when the regeneration route clears those fields.
+- **Proof:** `output/workflow-readiness-audit-20261116/assembly-review/review-ownership.ts`; actual route, in-memory PostgREST + R2, no service calls. Output: active-W3 and owned-print each `status:200, objectsWritten:1, queued:'3', ownerCleared:true`.
+- **Smallest fix ownership:** guard/hold at the canonical review/queue transition before any R2 mutation, preserve active identity on rejection, and make UI controls reflect the same rule. Inspect sibling regenerate-2a/regenerate-2b callers because source shows the same unconditional clear-and-queue pattern; those endpoints were inspected but not independently reproduced here.
+
+## Candidate AR-02 — final approval can clear an active owner and restore review readiness
+
+- **Status:** unverified by independent reviewer; state reset directly reproduced, downstream acceptance risk requires reachability challenge. Suggested **P2** if reachable through stale UI/concurrent operator action; not established as a first-pass Luca blocker.
+- **Source:** `back-end/src/app/api/orders/[orderId]/final-approval/route.ts:141`, `:161`, `:170`; readiness consumer `back-end/src/lib/customer-preview-access.ts:106`; UI send gate `back-end/src/components/stages/post-pdf-stage.tsx:313` and `:2851`.
+- **Trigger:** a final-approval request from an already-open admin tab arrives after the book has entered W3 again, while an old complete preview pointer remains. The final-approval handler checks only that the order exists, overwrites postPdf approval and clears the active workflow state. It does not compare the snapshot reviewed by the operator against the row now loaded.
+- **Expected:** require a complete current manifest, reviewed idle row, no active owner/print claim and current stage readiness; reject a changed or busy book before updating approval or creating a token.
+- **Observed:** actual final-approval handler returned 200 for synthetic active-W3 state, set `current_workflow:null`, `started_at:null`, `execution_status:'done'`, `workflow_step:'customer_approval'`, postPdf approved and buyer status pending. `notifyCustomer:false` prevented all delivery attempts.
+- **Consequence:** a stale admin approval request can erase stage ownership and make an old retained preview appear current. In contrast, the customer transaction enforces the busy check only against the row *after* this handler changes it.
+- **Counterevidence/limits:** customer mutation is otherwise protected by `previewMutationReady` and an atomic RPC. A normal `regenerate-3` clears `manifest_3_url`, so that producer alone does not make the old preview customer-actionable. The broader trigger-book-assembly endpoint preserves old completion pointers (AR-03), and final-approval is also missing a server-side flag/readiness recheck. Do not claim a new artifact can reach print solely from the tested synthetic active-row scenario. Smallest next check is actual queue claim/stale-final-approval/customer-RPC sequence, or an independently validated concurrent flag → stale final-approval sequence.
+- **Proof:** final case in `review-ownership.ts`: `action:'final-approval', case:'active-W3', status:200, ownerCleared:true, workflowStep:'customer_approval'`.
+
+## Candidate AR-03 — completed book can be requeued by Trigger Book Assembly and silently skipped
+
+- **Status:** unverified by independent reviewer; producer/consumer behavior reproduced, W1 claim represented in probe and separately source-traced. Suggested **P2**, high confidence pending router hunter review.
+- **Source:** visible action eligibility `back-end/src/components/stages/post-bria-stage.tsx:761`, `:1053`; producer `back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts:151`; consumer `back-end/src/app/api/internal/w3/build-assembly-input/route.ts:104`, `:144`; export `docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json`, node `Extract Manifest URL (3)` (`workflowSkipped === true` returns no items).
+- **Trigger:** after W3 has already produced the complete preview, revisit the Background Removal tab and use Trigger Book Assembly. It stays enabled whenever that stage is approved and has images, regardless of completed W3.
+- **Expected:** either an idempotent no-op that preserves completed idle state, or an explicit safe reassembly transition clearing the old replay checkpoint and retiring review/approval links.
+- **Observed:** actual trigger route returns 200 and queues stage 3 while preserving `manifest_3_url`/`workflow_step:'book_assembly_completed'`. After representing the router's normal processing claim, actual W3 entry returns `workflowSkipped:true, workflowSkipReason:'w3-order-already-complete'` before creating an assembly job. Export then returns `[]`, so no W3 completion callback clears the newly claimed row. Probe row remains processing.
+- **Consequence:** the UI reports successful assembly triggering but creates no new preview and can leave the order in processing until health/recovery intervention. This is relevant to tomorrow's operator retries even though the first pass is valid.
+- **Counterevidence/limits:** explicit admin regenerate-3 clears both pointer and completion step; canonical upstream image invalidation also clears them. This claim is specifically the ordinary Background Removal tab trigger. Probe did not execute the entire n8n/W1 engine. Cron source selects ready rows with no active fields, allows `next_workflow:'3'` without a completion filter (`router/route.ts:503`, `:544`), and dispatches them to W1 (`:818`). Coordinator/routing hunter should check W1 claim/classifier for a counterguard before accepting.
+- **Proof:** `output/workflow-readiness-audit-20261116/assembly-review/trigger-replay.ts`: `actualTriggerRoute:200, completedManifestPreserved:true, simulatedRouterClaim:true, actualW3EntrySkipped:true, assemblyClaims:0, rowStillProcessing:true, externalRequests:0`.
+
+## Checks run
+
+Every command ran from `back-end` under `env -i PATH=/opt/homebrew/bin:/usr/bin:/bin /usr/bin/sandbox-exec -p '(version 1) (allow default) (deny network*)' /opt/homebrew/bin/node --import tsx ...`. No `.env` loading, private records, remote calls, image generation, notifications, print operations, browser, source edits, commits or pushes.
+
+Passed existing suites:
+
+1. `scripts/test-configured-w3-pipeline.ts`: real W0/assembly, exported n8n code adapters, collector, QA, manifest publisher and W4 rejection guards; full/subset 32-page configurations.
+2. `scripts/test-configured-w3-rendering.ts`: frozen configured rendering, supported guides, selected pages, character/animal/overlay/covers.
+3. `scripts/test-w3-whole-worklist.ts`: actual W2A/W2B worklists into W3, invalid/duplicate/missing poses, cover-pose requirements and normalization boundaries.
+4. `scripts/test-w3-preview-render.ts`: actual preview response/render owner with intercepted PDFMonkey create/poll success/failure and resume cases.
+5. `scripts/test-w3-preview-artifacts.ts`: intercepted download/materialize/R2/Cloudflare artifact boundary.
+6. `scripts/test-w3-manifest-publish.ts`: manifest publish with injected storage/order ports.
+7. `scripts/test-book-reassembly.ts`: nine checks over real completion/review/reassembly route ownership and stale checkpoint clearing.
+8. `scripts/test-preview-book-contract.ts`: 90 actual token API checks, complete/busy/unreviewed/missing/claimed/used/expired states.
+9. `scripts/test-book-review-invalidation.ts`: 33 invalidation/status/UI-consumer checks, actual reset caller and guarded writes.
+
+Passed new temporary probes:
+
+10. `../output/workflow-readiness-audit-20261116/assembly-review/luca-v4.ts`: exact sanitized active v4 config (`output/inner-voice-print-test-prep-20261115/candidate-verified/release-config.json`), full Luca Amazon producer-to-consumer journey, 32 pages, 12 used pose normalizations, no runtime shadow layers, incomplete manifest held at W4, zero external requests.
+11. `../output/workflow-readiness-audit-20261116/assembly-review/review-ownership.ts`: AR-01/AR-02 unsafe-transition reproductions against actual handlers, storage/database fully intercepted.
+12. `../output/workflow-readiness-audit-20261116/assembly-review/trigger-replay.ts`: AR-03 real trigger route and real W3 replay guard, router claim represented explicitly.
+
+## Inspected coverage and limits
+
+- **Assembly inspected:** canonical W3 export topology, version-2 batch node wiring, cover pending/resume loop; build/prepare/preview/render/materialize/collect/manifest/publish/completion routes; `w3-assembly-input`, `w3-preview-plan`, `configured-book-rendering`, `book-pronouns`, `w3-manifest`, `w3-assembly-worker`, `w3-manifest-publish`, workflow W3 job identity/claim code. Exact v4 recipe/config exercised with synthetic pose/artifact transport; immutable background bake preparation source inspected.
+- **Operator review inspected:** preBria/postBria/postPdf stage components and order detail action wiring; approve/approval-store, flag/replacement ownership boundary, manual regenerate-2a/2b/3, trigger-book-assembly, final approval; preview access/readiness/approve RPC caller; canonical invalidation and status/review consumers. `regenerate-pose` read through request/worklist handling; did not call a generation provider or run a browser.
+- **Cross-interface inspected/tested:** W0 immutable snapshot and characterization → W3 poses/text/guide/covers; exported workflow adapter → backend helper; preview keys → configured manifest/QA → W4 Gelato input; reviewed state → public preview token readiness. W4 quote/submission/release, callback processing and live provider configuration belong to the other assigned slice.
+- **Rejected suspicions:** preserved reviews in regenerate-3 alone do not prove stale approval reuse because canonical W3 publication invalidates customer decisions and tokens before writing. W3 output count is configuration-driven (32), not legacy 15/17. He/him does not accidentally resolve as they/them. Animal guides select frozen guide backgrounds. No duplicated runtime shadow layers appeared in exact v4 generated HTML. The batch node is typeVersion 2, so v3 output numbering assumptions were not used to manufacture a finding.
+- **Skipped/blocked:** hosted n8n execution, external render/provider polling, reading remote image bytes, full visual UI interaction, physical print, paid image generation, private CSV/recipient/order data, active registry verification, independent PDF/X certification. A sanitized `deployed-config.json` inspected by shape was a deployment receipt, not a configuration; exact config checks used the authorized `candidate-verified/release-config.json` instead. No fresh remote state is asserted. Browser rendering is explicitly excluded by this assignment.
+- **Independence:** this hunter has not verified its own candidate dispositions. Coordinator must dispatch fresh skeptics and personally reconcile material accepted claims. All source-based candidates remain separate from product/release readiness.
