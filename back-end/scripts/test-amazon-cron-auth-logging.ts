@@ -36,6 +36,7 @@ function load(relative: string, secret: string | undefined) {
     'node:util': { isDeepStrictEqual: forbidden },
     '@/lib/csv-book-selection': { readCsvRootRows: forbidden, csvRowDeclaresInnerVoice: forbidden, csvRowHasProgress: forbidden },
     '@/lib/w0-payload': { buildPendingW0Payload: forbidden },
+    '@/lib/w0-webhook-transport': { postW0Webhook: forbidden },
     '@/lib/supabase-client': { upsertOrderByPerBookId: forbidden },
     './printer-file-grants': { authorizePrinterFileRequest: forbidden },
     './admin-auth': { requireAdminAuth: forbidden },
