@@ -147,7 +147,8 @@ export function buildLineItemFromRow(
   const customizedPage = customizedPageIndex !== null ? row[customizedPageIndex]?.toString().trim() : null;
   const item: Record<string, unknown> = {
     order_item_id: orderItemId ?? undefined,
-    sku: readString(['sku']),
+    sku: readString(['sku', 'seller-sku', 'seller_sku', 'SellerSKU']),
+    asin: readString(['asin']),
     product_name: readString(['product-name', 'product_name', 'productName']),
     customization_url: customizationUrl ?? undefined,
     customized_page: customizedPage ?? undefined,

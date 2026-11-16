@@ -393,7 +393,29 @@ export function assertCsvHelperSelection(bookId: unknown, formatId: unknown, sel
   }
 }
 
-export async function resolveCsvBookSelection(form: FormData): Promise<CsvBookSelection | undefined> {
+export interface CsvListingSource { headers: readonly string[]; rows: readonly (readonly string[])[] }
+
+/** Identify the listing from the original CSV, before any lossy field mapping or writes. */
+export function identifyCsvBook(source: CsvListingSource): typeof CSV_INNER_VOICE_BOOK_ID {
+  const aliases = { sku: ['sku', 'seller-sku', 'seller_sku', 'sellersku'], asin: ['asin'] };
+  const columns = Object.fromEntries(Object.entries(aliases).map(([field, names]) => {
+    const matches = source.headers.flatMap((name, index) => names.includes(name.trim().toLowerCase()) ? [index] : []);
+    if (matches.length > 1) throw new CsvBookSelectionError(`The CSV has multiple ${field.toUpperCase()} columns. Keep one unambiguous column.`);
+    return [field, matches[0]];
+  })) as Record<'sku' | 'asin', number | undefined>;
+  if (!source.rows.length) throw new CsvBookSelectionError('The CSV has no order items.');
+  for (const [index, row] of source.rows.entries()) {
+    const sku = columns.sku === undefined ? '' : String(row[columns.sku] ?? '').trim();
+    const asin = columns.asin === undefined ? '' : String(row[columns.asin] ?? '').trim();
+    if ((!sku && !asin) || (sku && ![AMAZON_REPLACEMENT_SKU, 'LHL-INNER-VOICE-PRINT-TEST'].includes(sku)) ||
+        (asin && asin !== AMAZON_REPLACEMENT_ASIN)) {
+      throw new CsvBookSelectionError(`The book could not be identified for row ${index + 2}. Include a recognized Amazon SKU or ASIN; check that both identify the same listing.`);
+    }
+  }
+  return CSV_INNER_VOICE_BOOK_ID;
+}
+
+export async function resolveCsvBookSelection(form: FormData, source?: CsvListingSource): Promise<CsvBookSelection | undefined> {
   for (const alias of ['book_id', 'format_id', 'config_version', 'version', 'bookSpecs', 'book_specs', 'product_info', 'productInfo',
     'print_book_id', 'printBookId', 'print_config_version', 'printConfigVersion', 'print_format_id', 'printFormatId', 'bookConfigRef']) {
     if (form.has(alias)) throw new CsvBookSelectionError('Unsupported CSV book selection field');
@@ -406,8 +428,15 @@ export async function resolveCsvBookSelection(form: FormData): Promise<CsvBookSe
     }
     values[key] = all[0] as string | undefined;
   }
-  const { bookId, formatId, configVersion } = values;
-  if (bookId === undefined && formatId === undefined && configVersion === undefined) return undefined;
+  let { bookId, formatId } = values;
+  const { configVersion } = values;
+  if (bookId === undefined && formatId === undefined && configVersion === undefined) {
+    // The CSV route always supplies the complete source. Explicit historical API selectors
+    // remain compatible; new uploads never silently select the old edition.
+    if (!source) return undefined;
+    bookId = identifyCsvBook(source);
+    formatId = 'amazon';
+  }
   let hint: number | undefined;
   if (configVersion !== undefined) {
     if (!/^[1-9][0-9]*$/.test(configVersion) || !Number.isSafeInteger(Number(configVersion))) {
@@ -420,7 +449,7 @@ export async function resolveCsvBookSelection(form: FormData): Promise<CsvBookSe
     throw new CsvBookSelectionError('Unsupported CSV book or format');
   }
   try {
-    // Load only for the explicit configured-book path; legacy imports keep their existing behavior.
+    // Automatic and explicit current-edition intake share the same published-config owner.
     const { loadPublishedBookConfigRecord } = await import('@/lib/books/runtime-book-config');
     const published = await loadPublishedBookConfigRecord({ bookId });
     const config = published.config;

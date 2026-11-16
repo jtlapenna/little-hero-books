@@ -175,8 +175,8 @@ async function main() {
       assert.equal(deniedCsv.status, 401);
       console.log('Compiled CSV case: header-only file');
       const emptyCsv = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: multipart });
-      assert.equal(emptyCsv.status, 200, await emptyCsv.clone().text());
-      assert.equal((await emptyCsv.json()).summary.total_rows, 0);
+      assert.equal(emptyCsv.status, 400, await emptyCsv.clone().text());
+      assert.equal((await emptyCsv.json()).error, 'The CSV has no order items.');
       const fieldOnly = `--${boundary}\r\nContent-Disposition: form-data; name="file"\r\n\r\nnot a file\r\n--${boundary}--\r\n`;
       console.log('Compiled CSV case: text field');
       const invalidCsv = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: fieldOnly });
@@ -194,7 +194,8 @@ async function main() {
           csvArchive.writeUInt32LE(declared, central + 24);csvArchive.writeUInt32LE(declared, 22);
         }
         const csv = ['amazon-order-id,ship-address-1,ship-city,ship-state,ship-postal-code,customized-url,recipient-name,buyer-email', 'TEST-COMPILED-ZIP,1 Test Lane,Test City,CA,00000,https://compiled-worker-download.example.test/synthetic.zip,Synthetic Parent,parent@example.test', ''].join('\n');
-        const csvBody = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}--\r\n`;
+        // Keep these archive-only probes on their historical explicit API contract.
+        const csvBody = `--${boundary}\r\nContent-Disposition: form-data; name="bookId"\r\n\r\nbook-mvp-simple-adventure\r\n--${boundary}\r\nContent-Disposition: form-data; name="formatId"\r\n\r\namazon\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}--\r\n`;
         const response = await compiledFetch(csvPath, { method: 'POST', headers: { authorization: 'Bearer synthetic-compiled-worker-machine', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: csvBody });
         assert.equal(response.status, 200, scenario + ': ' + await response.clone().text());const summary = (await response.json()).summary;
         assert.equal(csvDownloads, 1, scenario);assert.equal(csvInserts, valid ? 1 : 0, scenario);assert.equal(csvUpdates, scenario === 'rejected-existing' ? 1 : 0, scenario);assert.equal(csvTriggers, valid || scenario === 'rejected-existing' ? 1 : 0, scenario);

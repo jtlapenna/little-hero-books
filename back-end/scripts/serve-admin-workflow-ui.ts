@@ -13,6 +13,7 @@ import { createAdminWorkflowTestAdmission } from '../src/lib/admin-workflow-test
 import { loadBundledBookConfig } from '../src/lib/books/load-book-config';
 const port=3010, backend='http://127.0.0.1:3009', origin=`http://127.0.0.1:${port}`, config=loadBundledBookConfig({bookId:'book-finding-our-inner-voice',version:3});
 const state=new Map<string,string>();
+let csvUiRequests=0;
 const token='synthetic-ui-gateway-only-token-long-value';
 const sid='11111111-1111-4111-8111-111111111111';
 const quote=(orderId:string)=>({state:'operator_review',orderId,submissionId:sid,packetSha256:'d'.repeat(64),expiresAt:new Date(Date.now()+(orderId==='UI-EXPIRED'?-1000:300000)).toISOString(),recipient:{firstName:'Test',lastName:'Adult',addressLine1:'1 Synthetic Lane',city:'Test City',state:'CA',postCode:'00000',country:'US',email:'test@example.test'},quantity:1,productUid:'synthetic-photo-book',service:'usps_ground_advantage',accountSha256:'e'.repeat(64),quote:{version:1,quoteId:'synthetic-quote',quotedAt:new Date().toISOString(),requestFingerprint:'c'.repeat(64),currency:'USD',selectedShipmentMethodUid:'usps_ground_advantage',products:[{itemReferenceId:'item',productUid:'synthetic-photo-book',quantity:1,price:'12.18',currency:'USD'}],shippingOptions:[{shipmentMethodUid:'usps_ground_advantage',name:'USPS Ground Advantage',type:'normal',price:'3.81',initialPrice:'3.81',currency:'USD',minDeliveryDate:null,maxDeliveryDate:null,numberOfParcels:1}]},pdfUrl:origin+'/api/pdf/synthetic.pdf',artifacts:[{key:'synthetic.pdf',sha256:'a'.repeat(64),pageCount:35,orderId}],canSubmit:orderId!=='UI-BLOCKED',submissionEnabled:orderId!=='UI-BLOCKED'});
@@ -59,6 +60,18 @@ const server=createServer(async(req,res)=>{
  const json=(body:unknown,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(body));};
  try{
   if(url.pathname.startsWith('/api/')){
+   if(url.pathname==='/api/admin/amazon-orders/upload-csv'&&req.method==='POST'){
+    const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(chunk);
+    const form=await new Request(origin+url.pathname,{method:'POST',headers:{'content-type':req.headers['content-type']??''},body:Buffer.concat(chunks)}).formData();
+    if([...form.keys()].some(key=>!['file','admin_workflow_test'].includes(key)))return json({error:'UI sent a forbidden book selector'},400);
+    const file=form.get('file');if(!file||typeof file==='string')return json({error:'Missing synthetic CSV'},400);
+    console.log(JSON.stringify({csvUiRequest:++csvUiRequests,fieldNames:[...form.keys()],workflowTest:form.get('admin_workflow_test')==='true'}));
+    if(file.name.includes('uncertain')){res.destroy();return;}
+    if(file.name.includes('error'))return json({error:'The book could not be identified for row 2. Include a recognized Amazon SKU or ASIN.'},400);
+    if(file.name.includes('delay'))await new Promise(resolve=>setTimeout(resolve,1200));
+    const bad=file.name.includes('legacy');
+    return json({success:true,summary:{total_rows:1,created:1,matched:0,pending:0,errors:0},details:{created_orders:['UI-CSV-NEW'],matched_orders:[],pending_orders:[],errors:[],w0_triggered:['UI-CSV-NEW'],w0_skipped:[]},selection:{bookId:bad?'book-mvp-simple-adventure':config.bookId,formatId:'amazon',configVersion:bad?1:3,title:bad?'Adventure Compass':'Finding Our Inner Voice'},timestamp:new Date().toISOString()});
+   }
    const artDir=process.env.LHL_UI_ARTIFACT_DIR;
    if(artDir&&url.pathname.startsWith('/api/assets/')){
     const label=url.pathname.match(/\/(p\d{2}|cover-spread|cover)\.png$/)?.[1];

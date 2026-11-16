@@ -68,6 +68,7 @@ async function main() {
   const csv = 'amazon-order-id,ship-address-1,ship-city,ship-state,ship-postal-code,customized-url,recipient-name,buyer-email\nGUARD-CSV-1,1 Test Lane,Test City,CA,00000,https://download.example.test/synthetic.zip,Synthetic Parent,parent@example.test\n';
   const upload = async (field?: string) => {
     const form = new FormData(); form.set('file', new Blob([csv], { type: 'text/csv' }), 'synthetic.csv');
+    form.set('bookId', 'book-mvp-simple-adventure'); form.set('formatId', 'amazon');
     if (field !== undefined) form.set('overnight_test', field);
     const response = await POST(new NextRequest('https://admin.example.test/api/admin/amazon-orders/upload-csv', { method: 'POST',
       headers: { authorization: 'Bearer synthetic-guard2-machine' }, body: form }));

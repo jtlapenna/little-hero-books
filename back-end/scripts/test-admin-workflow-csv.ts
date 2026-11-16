@@ -20,7 +20,7 @@ async function main() {
  const zip=new AdmZip();zip.addFile('customization.json',Buffer.from(JSON.stringify({orderId:'TEST-CSV-NEW',orderItemId:'line-one','version3.0':{customizationInfo:{surfaces:[{areas:[
   ["Child's First Name",'Alex'],["Child's Age",'5'],['Pronouns','they/them'],['Skin Tone','medium'],['Hair Color','brown'],['Hair Style','short-straight'],['Favorite Color','blue'],['Animal Guide','cat'],['Hometown','Synthetic Town'],['Dedication','For Alex & friends']
  ].map(([label,text])=>({label,customizationType:'TextPrinting',text}))}]}}})));
- const csv=(id='TEST-CSV-NEW',quantity='1')=>'amazon-order-id,order-item-id,quantity-purchased,buyer-email,recipient-name,ship-address-1,ship-city,ship-state,ship-postal-code,ship-country,customized-url\n'+[id,'line-one',quantity,'recipient@example.test','Test Adult','1 Test Lane','Test City','CA','00000','US','https://customization.example.test/custom.zip'].join(',')+'\n';
+ const csv=(id='TEST-CSV-NEW',quantity='1')=>'amazon-order-id,order-item-id,quantity-purchased,buyer-email,recipient-name,ship-address-1,ship-city,ship-state,ship-postal-code,ship-country,customized-url,sku\n'+[id,'line-one',quantity,'recipient@example.test','Test Adult','1 Test Lane','Test City','CA','00000','US','https://customization.example.test/custom.zip','LHL-INNER-VOICE-PRINT-TEST'].join(',')+'\n';
  const previous=globalThis.fetch, logs={log:console.log,error:console.error,warn:console.warn,info:console.info};
  globalThis.fetch=async(input,init)=>{
   const req=input instanceof Request?input:new Request(input,init),url=new URL(req.url);
@@ -47,8 +47,19 @@ async function main() {
  Object.assign(console,{log:()=>{},error:()=>{},warn:()=>{},info:()=>{}});
  try {
   const {POST}=await import('../src/app/api/admin/amazon-orders/upload-csv/route');
-  async function upload(text=csv(),headers:Record<string,string>=human){const f=new FormData();f.set('file',new Blob([text]),'test.csv');f.set('bookId',config.bookId);f.set('formatId','amazon');f.set('admin_workflow_test','true');return POST(new NextRequest(origin+'/api/admin/amazon-orders/upload-csv',{method:'POST',headers,body:f}));}
+  async function upload(text=csv(),headers:Record<string,string>=human,test=true,legacy=false){const f=new FormData();f.set('file',new Blob([text]),'test.csv');if(legacy){f.set('bookId','book-mvp-simple-adventure');f.set('formatId','amazon');}if(test)f.set('admin_workflow_test','true');return POST(new NextRequest(origin+'/api/admin/amazon-orders/upload-csv',{method:'POST',headers,body:f}));}
   const unauth=await upload(csv(),{authorization:'Bearer synthetic-machine-token'});assert.equal(unauth.status,403);assert.equal(writes,0);checks.push('machine cannot enroll a workflow test');
+  const addColumn=(text:string,name:string,value:string)=>text.trimEnd().split('\n').map((line,index)=>line+','+(index===0?name:value)).join('\n')+'\n';
+  for(const text of [
+    csv().replace('LHL-INNER-VOICE-PRINT-TEST','UNKNOWN'),
+    csv().replace(',sku\n','\n').replace(',LHL-INNER-VOICE-PRINT-TEST\n','\n'),
+    addColumn(csv(),'asin','B000WRONG00'),
+    addColumn(csv(),'SKU','LHL-INNER-VOICE-PRINT-TEST'),
+    addColumn(csv(),'seller_sku','KE-3QPF-VN03'),
+    addColumn(addColumn(csv(),'asin','B0G4QPLWKH'),'ASIN','B0G4QPLWKH'),
+    csv()+csv('SECOND').split('\n').slice(1).join('\n').replace('LHL-INNER-VOICE-PRINT-TEST','UNKNOWN'),
+  ]) {const r=await upload(text,human,false);assert.equal(r.status,400);assert.equal(writes,0);assert.equal(w0.length,0);}
+  checks.push('all raw listing rows and duplicate/conflicting identifiers rejected before writes');
   for(const body of [csv('TEST-CSV-NEW','2'),csv()+csv('TEST-CSV-SECOND').split('\n').slice(1).join('\n')]){const r=await upload(body);assert.equal(r.status,400);assert.equal(writes,0);}checks.push('quantity and multi-order tests rejected before writes');
   failW0=true;const response=await upload(), result=await response.json();assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.summary.created,1);assert.equal(rows.length,1);assert.equal(w0.length,1);
   const row=rows[0],admission=adminWorkflowTestAdmission(row);assert(admission);assert.equal(admission.createdBy,actor);assert.equal(admission.configVersion,3);assert(isOvernightTestOrder(row));assert.equal(row.execution_status,'pending_w0');assert.equal(getCronExcludedOrderReason(row),null);checks.push('real first CSV/ZIP admission remains recoverable after W0 timeout');
@@ -64,6 +75,26 @@ async function main() {
   for(const malformed of [[],null,'{bad json',42]){const saved=JSON.stringify(row),count: number=writes;await assert.rejects(()=>upsertOrderByPerBookId({orderId:row.orderId,product_info:malformed}));assert.equal(JSON.stringify(row),saved);assert.equal(writes,count);}checks.push('malformed machine replacements cannot erase server markers');
   const incoming={_admin_workflow_test:{...admission,createdBy:'attacker@example.test'}};
   const attempt=await upsertOrderByPerBookId({orderId:'NEW-MACHINE-ROW',product_info:incoming});assert.equal(attempt.error,null);assert.equal(adminWorkflowTestAdmission(rows[1]),null);assert.equal((rows[1].product_info as Row)._admin_workflow_test,undefined);checks.push('machine cannot mint admission on a new row');
+  failW0=false;
+  for(const [index,source] of [
+    csv('AUTO-REAL').replace('LHL-INNER-VOICE-PRINT-TEST','KE-3QPF-VN03'),
+    addColumn(csv('AUTO-MATCH'),'asin','B0G4QPLWKH'),
+    csv('AUTO-ASIN').replace(',sku\n',',asin\n').replace('LHL-INNER-VOICE-PRINT-TEST','B0G4QPLWKH'),
+    csv('AUTO-ALIAS').replace(',sku\n',',SellerSKU\n').replace('LHL-INNER-VOICE-PRINT-TEST','KE-3QPF-VN03'),
+  ].entries()) {
+    const r=await upload(source,human,false),body=await r.json();assert.equal(r.status,200,JSON.stringify(body));assert.equal(body.summary.created,1);assert.equal(body.summary.errors,0);
+    assert.equal(body.selection.bookId,config.bookId);assert.equal(body.selection.configVersion,3);
+    const created=rows[2+index];assert.equal(adminWorkflowTestAdmission(created),null);assert.equal(isOvernightTestOrder(created),false);assert.equal(w0.at(-1)?.bookId,config.bookId);
+  }
+  checks.push('file-only actual route identifies both SKUs, ASIN-only and alias; filename/SKU do not grant test admission');
+  const frozen=rows[2];Object.assign(frozen,{print_provider:'lulu',print_book_id:'book-mvp-simple-adventure',print_format_id:'amazon',print_config_version:1});
+  const savedFrozen=JSON.stringify(rows),savedWrites=writes,savedW0=w0.length;
+  const retry=await upload(csv('AUTO-REAL').replace('LHL-INNER-VOICE-PRINT-TEST','KE-3QPF-VN03'),human,false);
+  assert.equal((await retry.json()).summary.errors,1);assert.equal(JSON.stringify(rows),savedFrozen);assert.equal(writes,savedWrites);assert.equal(w0.length,savedW0);
+  checks.push('automatic current listing cannot rewrite a frozen older edition or replay W0');
+  const multiple=await upload(csv('AUTO-QUANTITY','2'),human,false),multiBody=await multiple.json();assert.equal(multiple.status,200,JSON.stringify(multiBody));assert.equal(multiBody.summary.created,2);assert.equal(multiBody.summary.errors,0);
+  const legacy=await upload(csv('EXPLICIT-LEGACY').replace('LHL-INNER-VOICE-PRINT-TEST','HISTORICAL-SKU'),human,false,true),legacyBody=await legacy.json();assert.equal(legacy.status,200);assert.equal(legacyBody.summary.created,1);assert.equal(legacyBody.summary.errors,0);assert.equal(w0.at(-1)?.bookId,'book-mvp-simple-adventure');
+  checks.push('ordinary automatic quantities and explicit historical API compatibility preserved');
   logs.log(JSON.stringify({passed:true,checks,hostedCalls:0,providerCreates:0,messagesSent:0}));
  } finally {globalThis.fetch=previous;Object.assign(console,logs);}
 }

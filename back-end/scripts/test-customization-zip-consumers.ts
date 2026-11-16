@@ -32,6 +32,8 @@ async function main() {
       inserts = 0;updates = 0;triggers = 0;downloads = 0;logs.length = 0;
       const csv = 'amazon-order-id,ship-address-1,ship-city,ship-state,ship-postal-code,customized-url,recipient-name,buyer-email\nTEST-ZIP-CONSUMER,1 Test Lane,Test City,CA,00000,https://download.example.test/synthetic.zip,Synthetic Parent,parent@example.test\n';
       const form = new FormData();form.set('file', new Blob([csv], { type: 'text/csv' }), 'synthetic.csv');
+      // Historical archive probes retain their original edition explicitly.
+      form.set('bookId', 'book-mvp-simple-adventure'); form.set('formatId', 'amazon');
       const response = await POST(new NextRequest('https://admin.example.test/api/admin/amazon-orders/upload-csv', { method: 'POST', headers: { authorization: 'Bearer synthetic-zip-machine' }, body: form }));
       assert.equal(response.status, 200);const body = await response.json();assert.equal(downloads, 1);assert.ok(!JSON.stringify(body).includes(marker));assert.ok(!logs.join('\n').includes(marker));
       assert.equal(inserts, broken ? 0 : 1);assert.equal(updates, existing ? 1 : 0);assert.equal(triggers, scenario === 'rejected-new' ? 0 : 1);
