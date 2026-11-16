@@ -4,7 +4,7 @@ Acceptance means Jeff uploads a fresh Amazon-style CSV and advances the normal h
 
 ## Intended operator sequence
 
-1. Use the prepared fresh private CSV at `https://admin.littleherolabs.com/admin/csv-upload`. Select Finding Our Inner Voice and Run a workflow test. Upload one new order, quantity one. The ZIP contains synthetic child customizations; the private CSV carries Jeff's supplied recipient.
+1. Use the prepared fresh private CSV at `https://admin.littleherolabs.com/admin/csv-upload`. The file's recognized Amazon SKU or ASIN identifies Finding Our Inner Voice automatically; there is no book or edition dropdown. Check Run a workflow test and upload one new order, quantity one. Verify the returned book is Finding Our Inner Voice, Amazon, current published v4. The ZIP contains the requested child customizations; the private CSV carries Jeff's supplied recipient. W0 starts automatically and creates the 1-manifest; the router then starts W2A. Existing frozen editions are preserved and incompatible reuploads are rejected.
 2. Review and approve poses, background removal and all32 pages plus cover as they complete through normal W0/W1/W2/W3 routing. Active immutable config v4 includes approved baked shadows and corrected slides.
 3. Create Test Preview, then Open preview and approve it as the customer. Buyer messages are intentionally suppressed; a skipped message is not a notification failure.
 4. Choose Prepare Print File. W4 creates the canonical35-page PDF and quote, then stops at Print file prepared without contacting provider creation. Open the prepared PDF and inspect page order, cover, margins, customization and shadows.

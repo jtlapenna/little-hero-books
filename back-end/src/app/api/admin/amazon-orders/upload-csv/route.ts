@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         throw new CsvBookSelectionError(error instanceof Error ? error.message : 'Invalid mixed CSV source declarations');
       }
     }
-    const selection = itemChoices ? undefined : await resolveCsvBookSelection(formData);
+    const selection = itemChoices ? undefined : await resolveCsvBookSelection(formData, { headers, rows: dataRows });
     if (workflowTest) {
       const units = readCsvItemSelectionRows(headers, dataRows as string[][]);
       if (itemChoices || selection?.bookId !== 'book-finding-our-inner-voice' || selection.formatId !== 'amazon' || units.length !== 1 || units[0].lineItem.quantity !== 1)

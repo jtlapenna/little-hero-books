@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "f1aaf2a096e6025e8b3410dd861b0e4137471d622a68e07de5046b143d582e2b",
+  "sourceSnapshotSha256": "303742113173a1d2c81ca0df04d3daa9d58e1e7c8c9dcef6883ad5d816c48e7c",
   "preparedAgainstHead": "71ed88b098d06c32bf01bd8355d1312fdffb94a6",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -26,6 +26,8 @@
     "back-end/scripts/test-book-layout-calibration-http.ts",
     "back-end/scripts/test-book-layout-calibration-v3.ts",
     "back-end/scripts/test-book-layout-v3.ts",
+    "back-end/scripts/test-csv-request-boundary.ts",
+    "back-end/scripts/test-customization-zip-consumers.ts",
     "back-end/scripts/test-gelato-api-contract.ts",
     "back-end/scripts/test-gelato-consumer-api-group-reuse.ts",
     "back-end/scripts/test-gelato-consumer-api.ts",
@@ -89,6 +91,8 @@
     "back-end/src/lib/books/print-profiles/srgb.json",
     "back-end/src/lib/canonical-json-sha256.ts",
     "back-end/src/lib/cron-order-guards.ts",
+    "back-end/src/lib/csv-book-selection.ts",
+    "back-end/src/lib/csv-upload-helpers.ts",
     "back-end/src/lib/messaging/test-order-guard.ts",
     "back-end/src/lib/order-mapper.ts",
     "back-end/src/lib/supabase-client.ts",
@@ -367,7 +371,7 @@
     {
       "path": "back-end/scripts/serve-admin-workflow-ui.ts",
       "kind": "source",
-      "sha256": "052eab5bad3a5c8572f9ea7f0131d117d228349d45b652fa625c819058e1f694"
+      "sha256": "85bddf28bb899b033a65157b3577a8e5f5db0a561aefcf599a4811831c68143b"
     },
     {
       "path": "back-end/scripts/stage-inner-voice-print-test-csv.ts",
@@ -382,7 +386,7 @@
     {
       "path": "back-end/scripts/test-admin-workflow-csv.ts",
       "kind": "source",
-      "sha256": "1cc3b743a5b07577276d105a3256edc2069dbf7c44638ba28541dd51fe2fa1a8"
+      "sha256": "fc409717964a323c5658d1b537db0c0102246ecee9f91edac723d809bebc4499"
     },
     {
       "path": "back-end/scripts/test-admin-workflow-print-service.ts",
@@ -427,7 +431,17 @@
     {
       "path": "back-end/scripts/test-compiled-pages-worker.ts",
       "kind": "source",
-      "sha256": "fe50deea754f16b2e20b9219380110cf9048e4e687d97494fa4cf04d62fbda51"
+      "sha256": "ad78dbff9aebb5b3d4e18cb1f0cab86c6c3d6478695970ef63f4c7228f844f30"
+    },
+    {
+      "path": "back-end/scripts/test-csv-request-boundary.ts",
+      "kind": "source",
+      "sha256": "e2b9a00476ef67075801071abb9464c77eebdf190822955a0a97b3265b474f95"
+    },
+    {
+      "path": "back-end/scripts/test-customization-zip-consumers.ts",
+      "kind": "source",
+      "sha256": "f718561773ec4991cb1a780a5c83d8a8ef5c1894b27a44d1e30f43766fdabbb2"
     },
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-boundaries.ts",
@@ -622,7 +636,7 @@
     {
       "path": "back-end/scripts/test-message-safety-guard-persistence.ts",
       "kind": "source",
-      "sha256": "466384987439525fc9e533b9470d60d3d5c0b0e0e8553257f519df59b42298d2"
+      "sha256": "4ddf6419758ba51ee549d9d1281cedeb89dbc076a5551bf73e4f7f1c50f22e4d"
     },
     {
       "path": "back-end/scripts/test-pages-upload-identity.ts",
@@ -707,7 +721,7 @@
     {
       "path": "back-end/src/app/admin/csv-upload/page.tsx",
       "kind": "source",
-      "sha256": "ceae35144d195db398525839b7efbecd3c807a21e75fe3d6bf8ba3994459aeb4"
+      "sha256": "3cd7f778aa8a14c08ca4473ed00a3262c6c55a5411c1958f9e93ca2a15b81421"
     },
     {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
@@ -717,7 +731,7 @@
     {
       "path": "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
       "kind": "source",
-      "sha256": "56ac13fe6393d78f8ae1dc74cc880139bfc81944c7d07ffa8ed631c574ff11c9"
+      "sha256": "9d75a08d4a0f14d3c6a6fa16d0c14f33b975bceb5bece7e061bb606ef085bb83"
     },
     {
       "path": "back-end/src/app/api/admin/gelato-print/route.ts",
@@ -1135,6 +1149,16 @@
       "sha256": "0834fd634dc24fbec2b95eafc8e43edac83a47c7b1231b81d73409fd794877c4"
     },
     {
+      "path": "back-end/src/lib/csv-book-selection.ts",
+      "kind": "source",
+      "sha256": "2b9956ced333046ce61200130dd5634f9e77d11a3cfe52dc19aa7b18d825bf05"
+    },
+    {
+      "path": "back-end/src/lib/csv-upload-helpers.ts",
+      "kind": "source",
+      "sha256": "ad2578f3482c98c41bf850a9497776bd6983fdb317f9b55fb9de66d7e2112874"
+    },
+    {
       "path": "back-end/src/lib/messaging/test-order-guard.ts",
       "kind": "source",
       "sha256": "87415dd03b1428dd3fb079c50c7d877cf04f5847550f1034c07f459e339d4f40"
@@ -1317,17 +1341,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "240afeafae50a2f42cd1ad680487bc8b2dfbd2734f7ed403ff767eb36fc962b7"
+      "sha256": "4c50fe4e0b252c9df1bd2c636d53fc3d067201e564afe88f1ff4157880a06b65"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "1fd30e908c2c969785c9f7d6285f7334a6c8a37f340c3e638f9012fa25d747c8"
+      "sha256": "3d26c6fcd876695dab5f312428c2d4ff88c3077e417f7e0afe5b4e7249ce1a1c"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "e6a4024d43f7b5554a1f7999d5d7e6933c13b351dc46a9913559784b583fb810"
+      "sha256": "39e27b02972da37bb68ad608b794b601894d8a605ac60eb2afae0a3e0797bc94"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

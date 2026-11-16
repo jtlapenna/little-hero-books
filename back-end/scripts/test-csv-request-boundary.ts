@@ -42,7 +42,7 @@ async function main() {
     // Same producer contract as the admin UI: browser FormData + File/Blob, no hand-written Content-Type.
     const form = new FormData(); form.set('file', new Blob([headersOnly], { type: 'text/csv' }), 'synthetic.csv');
     const valid = await POST(new NextRequest(url, { method: 'POST', headers: { authorization: 'Bearer synthetic-csv-machine' }, body: form }));
-    assert.equal(valid.status, 200); assert.equal((await valid.json()).summary.total_rows, 0); checks++;
+    assert.equal(valid.status, 400); assert.equal((await valid.json()).error, 'The CSV has no order items.'); checks++;
     for (const kind of ['missing', 'string', 'wrong-extension']) {
       const f = new FormData(); if (kind === 'string') f.set('file', 'not a file'); if (kind === 'wrong-extension') f.set('file', new Blob(['x']), 'synthetic.exe');
       assert.equal((await POST(new NextRequest(url, { method: 'POST', headers: { authorization: 'Bearer synthetic-csv-machine' }, body: f }))).status, 400); checks++;

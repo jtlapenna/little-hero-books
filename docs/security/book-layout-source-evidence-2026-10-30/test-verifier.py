@@ -49,6 +49,11 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-auto-csv-ui': 'back-end/src/app/admin/csv-upload/page.tsx',
+    'changed-auto-csv-selection': 'back-end/src/lib/csv-book-selection.ts',
+    'changed-auto-csv-fields': 'back-end/src/lib/csv-upload-helpers.ts',
+    'changed-csv-envelope-test': 'back-end/scripts/test-csv-request-boundary.ts',
+    'changed-csv-archive-test': 'back-end/scripts/test-customization-zip-consumers.ts',
     'changed-workflow-admission': 'back-end/src/lib/admin-workflow-test.ts',
     'changed-hold-api': 'back-end/src/app/api/admin/workflow-test-print/route.ts',
     'changed-test-hold-sql': 'database/20261115230112_admin_workflow_test_print_hold.sql',
@@ -89,6 +94,7 @@ original_cases = [
 added_cases = ['changed-v3-code', 'changed-v3-test', 'changed-v3-fixture', 'unauthorized-source-rebind',
                'changed-placement-schema', 'changed-canonical-config', 'changed-streaming-digest', 'changed-large-artifact-test', 'changed-quote-transport', 'changed-quote-boundary-test']
 added_cases += ['changed-workflow-admission', 'changed-hold-api', 'changed-test-hold-sql', 'changed-release-scope-sql', 'changed-print-profiles', 'changed-paid-review', 'changed-pdf-preflight']
+added_cases += ['changed-auto-csv-ui', 'changed-auto-csv-selection', 'changed-auto-csv-fields', 'changed-csv-envelope-test', 'changed-csv-archive-test']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:
