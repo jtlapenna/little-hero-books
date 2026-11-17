@@ -15,7 +15,9 @@ export function w2aParentClaimFromInput(input: Record<string, unknown>): W2APare
 }
 export function assertActiveW2AParentRow(row: Record<string, unknown> | null, claim: W2AParentClaim): asserts row is Record<string, unknown> {
   const owner = failureRecord(failureRecord(row?.product_info)?.[W2A_PARENT_KEY]);
-  if (owner && JSON.stringify(parseW2AParentClaim(owner)) !== JSON.stringify(claim)) throw Error('A different execution owns this W2A parent claim');
+  const canonical = parseW2AParentClaim(claim);
+  if (!canonical) throw Error('A valid W2A parent claim is required');
+  if (owner && JSON.stringify(parseW2AParentClaim(owner)) !== JSON.stringify(canonical)) throw Error('A different execution owns this W2A parent claim');
   if (!row || row.id !== claim.orderRowId || row.orderId !== claim.orderId || row.execution_status !== 'processing' ||
       row.current_workflow !== '2A' || claimTime(row.started_at) !== claim.startedAt || heldW2AFailure(row) ||
       row.print_submission_id || row.print_claim_token || row.gelato_order_id || row.manifest_2b_url || row.manifest_3_url) throw Error('W2A parent claim is stopped, changed or owned by another stage');
