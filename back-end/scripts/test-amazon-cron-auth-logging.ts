@@ -40,9 +40,10 @@ function load(relative: string, secret: string | undefined) {
     '@/lib/supabase-client': { upsertOrderByPerBookId: forbidden },
     './printer-file-grants': { authorizePrinterFileRequest: forbidden },
     './admin-auth': { requireAdminAuth: forbidden },
+    './admin-managed-auth': { applyManagedCookieUpdates: forbidden },
     './preview-file-grants': { verifyPreviewImageGrant: forbidden },
     './order-paths': { isOrderAssetKey: forbidden },
-    './admin-login-target': { ADMIN_LOGIN_PATH: '/__access_setup', ADMIN_SIGN_IN_HEADER: 'x-lhl-admin-sign-in',
+    './admin-login-target': { ADMIN_LOGIN_PATH: '/login', LEGACY_ADMIN_LOGIN_PATH: '/__access_setup', ADMIN_SIGN_IN_HEADER: 'x-lhl-admin-sign-in',
       adminReturnPath: forbidden, adminLoginHref: forbidden, canonicalAdminOrigin: forbidden },
   };
   vm.runInNewContext(compiled.outputText, {

@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "a607503d0c659768c01acce33fdb82bdd52ee00b5cb6bd6b7088e225fffa45d9",
+  "sourceSnapshotSha256": "7a8b1f4fb16718646552eab7886fdd158fccad52ac05357744f8a84a919d2d26",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -559,7 +559,7 @@
     {
       "path": "back-end/scripts/test-amazon-cron-auth-logging.ts",
       "kind": "source",
-      "sha256": "2ab09ec46efe616ab1623ea4006395d45691a8c745dd0b17d93cc43bf1fb4d6f"
+      "sha256": "c80ff7ce3305c8584957c6b643313b4d069edc1109d1fe04e88e15677ba7a047"
     },
     {
       "path": "back-end/scripts/test-book-config-activation-migration.sh",
