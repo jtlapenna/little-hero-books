@@ -49,6 +49,13 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-admin-recovery-inspection': 'back-end/src/lib/w2a-recovery.ts',
+    'changed-admin-recovery-client': 'back-end/src/app/admin/w2a-recovery/page.tsx',
+    'changed-admin-recovery-order-link': 'back-end/src/app/orders/[orderId]/page.tsx',
+    'changed-admin-recovery-runbook': 'docs/admin-workflow-recovery.md',
+    'changed-admin-recovery-plan': 'docs/implementation-plans/admin-workflow-recovery-20261117.md',
+    'changed-admin-recovery-prior-manifest': 'docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-recovery-ui-2026-11-17.json',
+
     'changed-managed-auth-session': 'back-end/src/lib/admin-managed-auth.ts',
     'changed-managed-auth-policy': 'back-end/src/lib/admin-auth-policy.ts',
     'changed-managed-auth-http': 'back-end/src/lib/admin-signin-http.ts',
@@ -137,6 +144,8 @@ added_cases += ['changed-base-only-hair-prompt']
 added_cases += ['changed-native-retry-plan']
 added_cases += ['changed-managed-auth-session', 'changed-managed-auth-policy', 'changed-managed-auth-http', 'changed-managed-auth-page', 'changed-managed-auth-form', 'changed-managed-auth-test', 'changed-managed-auth-binding', 'changed-managed-auth-middleware', 'changed-managed-auth-consumer-fixture', 'changed-managed-auth-rollout-plan', 'changed-managed-auth-runbook']
 results = []
+added_cases += ['changed-admin-recovery-inspection', 'changed-admin-recovery-client', 'changed-admin-recovery-order-link', 'changed-admin-recovery-runbook', 'changed-admin-recovery-plan', 'changed-admin-recovery-prior-manifest']
+
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:
         root = Path(temporary).resolve()

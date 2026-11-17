@@ -3,6 +3,7 @@
 import { bookReviewOwnershipIssue } from '@/lib/book-review-ownership';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Order, ReviewStage } from '@/types/order';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DualStatusBadge } from '@/components/ui/dual-status-badge';
@@ -1665,6 +1666,9 @@ export default function OrderDetailPage() {
               <p className="text-xs text-yellow-800 mb-3">
                 Clear workflow status fields and trigger regeneration. This will recreate assets even if they already exist.
               </p>
+              {order.errorType?.startsWith('w2a_') && <p className="mb-3 text-sm text-yellow-900">
+                Character generation is on hold. <Link className="font-medium underline" href={`/admin/w2a-recovery?orderId=${encodeURIComponent(order.orderId)}`}>Open W2A Recovery</Link> to check a safe continuation that preserves existing images.
+              </p>}
               <div className="flex flex-wrap gap-2">
                 <button disabled={order.errorType?.startsWith('w2a_')}
                   onClick={async () => {

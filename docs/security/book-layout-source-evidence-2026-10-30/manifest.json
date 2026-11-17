@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "7a8b1f4fb16718646552eab7886fdd158fccad52ac05357744f8a84a919d2d26",
+  "sourceSnapshotSha256": "ebea41b33caaa03eaa23e01eee671bd454bfb3bdbb2eecb92ff5bd713f0ab139",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -879,7 +879,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "e41cca51614818d97ea94a1f9e12a4f1ac09bf002d1aeafb23ea03f0f4a42878"
+      "sha256": "8ce05e35f192d3c3db705cc36c79f4c4c4a2326b59f2314bafbd421abe9522c8"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -944,7 +944,7 @@
     {
       "path": "back-end/src/app/admin/w2a-recovery/page.tsx",
       "kind": "source",
-      "sha256": "2371f2d3f5c7c234953faddf816dd21977b9f0b1ffa2ec75cdfa344880b78685"
+      "sha256": "3edd800337ffcaeb962ea6cfa13a27c949dd0522212164761b16badc76cbcb90"
     },
     {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
@@ -1159,7 +1159,7 @@
     {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
       "kind": "source",
-      "sha256": "59e348a9a49a379a0705278c4610e506aa008498b148ad622ccee50e3e94522f"
+      "sha256": "c196f64282ff59955561e002d96346c1aa281c8de1cf917b2ad7acd7d7fc6431"
     },
     {
       "path": "back-end/src/components/stages/gelato-release-review.tsx",
@@ -1674,7 +1674,7 @@
     {
       "path": "back-end/src/lib/w2a-native-retry.ts",
       "kind": "source",
-      "sha256": "de86e5b327c91adfb861799ab9a0b19bf1b5f1b3d0753cbf8734c2d1ce9436da"
+      "sha256": "f72013099bec4d80423361018ca747f14837b04ee6f4fe88162b75b4d494e103"
     },
     {
       "path": "back-end/src/lib/w2a-parent-claim.ts",
@@ -1684,7 +1684,7 @@
     {
       "path": "back-end/src/lib/w2a-recovery.ts",
       "kind": "source",
-      "sha256": "83d13a7f9df472be45046f766b7a205afb7aef65622dc0b505982b5aba82ea49"
+      "sha256": "3eb36f2b0366fbe676782deba366c23de4f20a6265e9b56007cbae4c5b5ea5b3"
     },
     {
       "path": "back-end/src/lib/w3-calibration-http.ts",
@@ -1767,6 +1767,11 @@
       "sha256": "f0db70dc3147bc13d59aa013cfcdfe93339c8ac6e3281733212755b1ea4966bb"
     },
     {
+      "path": "docs/admin-workflow-recovery.md",
+      "kind": "evidence",
+      "sha256": "fbdcb27bce2690ad72bcf11c827f19551c95ab519fab67e30b1e91ad1e3aae84"
+    },
+    {
       "path": "docs/database/migration-activate-book-config-version.sql",
       "kind": "source",
       "sha256": "e20584bc0770c13bf2875be1a04045d7f30cab0b34ee50d77795b5762a5b81f4"
@@ -1775,6 +1780,11 @@
       "path": "docs/implementation-plans/admin-mobile-signin-20261117.md",
       "kind": "evidence",
       "sha256": "9fa10c590410907a854e9e9fafa7a25bd49b20ab5f2ca5772d054332d4f4ed60"
+    },
+    {
+      "path": "docs/implementation-plans/admin-workflow-recovery-20261117.md",
+      "kind": "evidence",
+      "sha256": "f8c9626318b8a7abb7c168b3d7feae838856b1e0e0b504db33587f1ee4fcb4f1"
     },
     {
       "path": "docs/implementation-plans/w2a-hair-retry-preservation-20261116.md",
@@ -1894,12 +1904,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "2e907589cfbf6b52dc37e9cdf7a0a074b409f3e2f61252843787e95460f51778"
+      "sha256": "f5e159dc3fb2a21fab0ca7cf5a3c2f7ae7e83fee5dd3955bfe01697cee9c615b"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
       "kind": "evidence",
       "sha256": "5cb3c2a8ec3569d2d03a7b24e7e9c97ae926ec5844bddaf8c44724cae908f128"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-recovery-ui-2026-11-17.json",
+      "kind": "evidence",
+      "sha256": "3c4c27626215594708690f174d271bd2882339162bf152196088f8cb36997a9b"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-hair-native-retry-2026-11-17.json",
@@ -1909,12 +1924,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "8564c653256653e08f22d7ce10b45671934184428fe562bf4d7c7ccbf186446d"
+      "sha256": "337e1eac061b4919f8b1adbcf3cd1607c559299c78a76fd1f22f156173cbc456"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "2405d9e22b802e64582b898185955e236cdbbef61021297f62662b9cdddaeb4c"
+      "sha256": "902aa27a10c8e952b57893e669eb4dd68fa4dea9c29e439b377b443b09219248"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -1933,7 +1948,7 @@
     }
   ],
   "originalPhaseCandidateBindingSha256": "301ae48dfb44e1bcd46b8db4934431697bc2b0b8c7488b39fa5dedef47f66263",
-  "phaseCandidateBindingScope": "Application bytes unchanged; expanded core test reviewed before this manifest refresh. Current source hashes are in sourceSnapshotSha256.",
+  "phaseCandidateBindingScope": "Historical phase-candidate binding retained. Current reviewed application bytes are bound by sourceSnapshotSha256; this manifest grants no live execution authority.",
   "previousPhaseCandidateBindingSha256": "f9924f5e7e6e5b78437b4edffcf4d0172bbed1969a4bcd125ec9051c8f68f64d",
   "sourceBindingUpdate": {
     "date": "2026-11-15",
@@ -1995,5 +2010,11 @@
       "back-end/scripts/test-pages-upload-identity.ts"
     ],
     "activation": "Not performed; feature defaults false and provider setup remains pending"
+  },
+  "adminRecoverySourceBindingUpdate": {
+    "date": "2026-11-17",
+    "baseHead": "37db590dd5dc991290ca9f3ffce9bb86d7c67f57",
+    "priorManifestSha256": "3c4c27626215594708690f174d271bd2882339162bf152196088f8cb36997a9b",
+    "purpose": "Expose existing guarded partial continuation in admin; no live generation or printing"
   }
 }

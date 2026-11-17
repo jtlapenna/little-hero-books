@@ -39,6 +39,7 @@ async function main() {
     const request=new Request(input,init),url=new URL(request.url);
     if(url.hostname==='n8n-handoff.example.test'){
       if(request.method==='POST'){assert(url.pathname.endsWith('/4242/retry'));assert.deepEqual(await request.json(),{loadWorkflow:true});return Response.json({id:'5252'});}
+      if(url.pathname.includes('/workflows/'))return Response.json({id:'HduzTWm0ekmrvwrn',name:'W2A fixture',active:true});
       if(url.pathname.endsWith('/executions'))return Response.json({data:[{id:'4242'}],nextCursor:null});
       const id=url.pathname.split('/').pop()!;assert(executions.has(id),'Unexpected execution lookup '+id);return Response.json(executions.get(id));
     }
@@ -47,6 +48,7 @@ async function main() {
       if(request.method==='GET')return url.pathname.endsWith('/1-manifest.json')?Response.json(one):objects.has(url.pathname)?(objects.get(url.pathname) instanceof Uint8Array ? new Response(Uint8Array.from(objects.get(url.pathname) as Uint8Array).buffer) : Response.json(objects.get(url.pathname))):new Response(null,{status:404});
       assert.equal(request.method,'PUT');if(!url.pathname.endsWith('/2a-manifest.json'))assert.equal(request.headers.get('If-None-Match'),'*');if(objects.has(url.pathname)&&request.headers.has('If-None-Match'))return new Response(null,{status:412});objects.set(url.pathname,await request.json());return new Response(null,{status:200});
     }
+    if(url.hostname==='admin.littleherolabs.com' && request.method==='GET' && url.pathname.startsWith('/api/manifests/'))return new Response(null,{status:404});
     if(url.hostname!=='handoff-db.example.test'){providerCalls++;throw Error('Nonfixture transport forbidden');}
     const table=url.pathname.split('/').pop()!,records=tables[table];assert(records,'Unexpected table '+table);
     const matches=(row:Record<string,any>)=>[...url.searchParams].every(([key,value])=>{
@@ -201,7 +203,7 @@ async function main() {
     assert.notEqual((await bg(request('/api/internal/w2b/build-pose-input',wire(2,{...bgItem,workflowJobId:999,body:{orderId}})))).status,200);assert.equal(writes,before);
     // Resume producer: real bootstrap/worklist/pose jobs, saved native loop, admission, retry and completion.
     Object.assign(process.env,{N8N_API_URL:'https://n8n-handoff.example.test',N8N_API_KEY:'synthetic-n8n-key'});
-    const {prepareNativeW2ARetry,dispatchNativeW2ARetry,mapNativeRetryFailure,NATIVE_RETRY_KEY}=await import('../src/lib/w2a-native-retry');
+    const {prepareNativeW2ARetry,dispatchNativeW2ARetry,mapNativeRetryFailure,inspectNativeW2ARecovery,NATIVE_RETRY_KEY}=await import('../src/lib/w2a-native-retry');
     const {buildW2AFailure}=await import('../src/lib/w2a-execution-failure');
     const nativeId='SYNTHETIC-NATIVE-RETRY',nativeOne=`${bookId}/orders/${nativeId}/manifests/1-manifest.json`;
     one=buildW0RunManifestFromConfig(config,{orderId:nativeId,platform:'amazon',formatId:'amazon',characterHash,input:{characterSpecs:specs,orderDetails:{quantity:1}}});
@@ -231,9 +233,25 @@ async function main() {
     const claim=structuredClone(nativeTop.workflowParentClaim),root:any={id:'4242',workflowId:'HduzTWm0ekmrvwrn',status:'error',startedAt:'2026-11-16T05:00:00.000Z',stoppedAt:'2026-11-16T05:05:00.000Z',data:{executionData:{nodeExecutionStack:[{node:{name:'Execute SW1 - Pose Generation'},data:{main:[[{json:rejectedSource}]]}}]},resultData:{error:{message:'Synthetic failed QA handoff'},lastNodeExecuted:'Execute SW1 - Pose Generation',runData:{'Webhook (Router)':[{data:{main:[[{json:{body:nativeRaw}}]]}}],'SW3 - Upload':published.map(json=>({data:{main:[[{json}]]}})),'IF: QA Combined Pass?':acceptedInputs.map(json=>({data:{main:[[{json}]]}}))}}}};
     const failure=buildW2AFailure(root);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,error_type:failure.code,error_message:failure.message,last_error_at:failure.failedAt,product_info:{...nativeRow.product_info,_w2a_failure:failure}});executions.set('4242',root);
     const retainedJobs=structuredClone(tables.workflow_jobs.filter(j=>j.order_id===nativeId&&Number(j.logical_key.slice(-2))<9)),retainedImages=new Map([...objects].filter(([key])=>published.some(i=>'/'+i.uploadKey===key)));
+    const {inspectW2ARecoveryOrder}=await import('../src/lib/w2a-recovery');
+    const unpreparedInspection=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:true});assert.equal(unpreparedInspection.nativeRecovery?.phase,'unprepared');
     const missing=tables.workflow_jobs.findIndex(j=>j.order_id===nativeId&&j.logical_key==='pose-12'),removed=tables.workflow_jobs.splice(missing,1)[0];
     await assert.rejects(()=>prepareNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin'),/complete frozen pose worklist/);tables.workflow_jobs.push(removed);
     const preparedNative=await prepareNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin');assert(preparedNative.prepared);assert.equal(nativeRow.execution_status,'error_requires_manual_review');
+    const nativeStatus=inspectNativeW2ARecovery(nativeRow,failure,tables.workflow_jobs.filter(j=>j.order_id===nativeId) as any);
+    assert.equal(nativeStatus.phase,'prepared');assert.equal(nativeStatus.canResume,true);
+    assert.deepEqual(nativeStatus.retainedPoses,[0,1,2,3,4,5,6,7,8]);assert.deepEqual(nativeStatus.remainingPoses,[9,10,11,12]);
+    assert(!JSON.stringify(nativeStatus).includes('sourceInput'),'Recovery DTO never includes raw admission');
+    const inspectedNative=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:true});
+    assert.deepEqual(inspectedNative.nativeRecovery,nativeStatus,'Actual order inspection must carry prepared recovery to the admin client');
+    if(process.env.LHL_RECOVERY_FIXTURE_DIR){const fs=await import('node:fs/promises');await fs.mkdir(process.env.LHL_RECOVERY_FIXTURE_DIR,{recursive:true});await fs.writeFile(process.env.LHL_RECOVERY_FIXTURE_DIR+'/inspections.json',JSON.stringify({unprepared:unpreparedInspection,prepared:inspectedNative}),{mode:0o600});}
+    const preparedRow=structuredClone(nativeRow);
+    for(const mutate of [
+      (r:any)=>{r.id=999;},(r:any)=>{r.orderId='OTHER';},(r:any)=>{r.product_info[NATIVE_RETRY_KEY].phase='bogus';},
+      (r:any)=>{r.product_info[NATIVE_RETRY_KEY].firstPose=-1;},(r:any)=>{r.product_info[NATIVE_RETRY_KEY].jobs=[null];},
+      (r:any)=>{r.product_info[NATIVE_RETRY_KEY].sourceFailure.executionId='999';},
+      (r:any)=>{r.product_info[NATIVE_RETRY_KEY].jobs.pop();},
+    ]){const bad=structuredClone(preparedRow);mutate(bad);assert.equal(inspectNativeW2ARecovery(bad,failure,tables.workflow_jobs.filter(j=>j.order_id===nativeId) as any).canResume,false);}
     const runtime={...root,id:'5252',status:'running',retryOf:'4242',startedAt:'2026-11-16T06:00:00.000Z'};executions.set('5252',runtime);
     const mapper=top.nodes.find((n:any)=>n.name==='Execute SW1 - Pose Generation').parameters.workflowInputs.value;
     const resumeBody=tournament.execute(mapper.slice(1),{...expressionContext(rejectedSource),$execution:{id:'5252'}});
@@ -242,6 +260,9 @@ async function main() {
     const imageKey='/'+published[0].uploadKey,originalBytes=objects.get(imageKey);objects.set(imageKey,new Uint8Array([99]));
     await assert.rejects(()=>dispatchNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin'),/Retained image changed/);objects.set(imageKey,originalBytes);assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].phase,'prepared');
     await dispatchNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin');
+    assert.equal(inspectNativeW2ARecovery(nativeRow,failure,tables.workflow_jobs.filter(j=>j.order_id===nativeId) as any).phase,'dispatching');
+    assert.equal(inspectNativeW2ARecovery(nativeRow,failure,tables.workflow_jobs.filter(j=>j.order_id===nativeId) as any).canPrepare,false);
+    assert.equal(inspectNativeW2ARecovery(nativeRow,failure,tables.workflow_jobs.filter(j=>j.order_id===nativeId) as any).canResume,false);
     await assert.rejects(()=>dispatchNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin'),/fresh prepared/,'Dispatch is consumed before retry POST');
     await assert.rejects(()=>prepareNativeW2ARetry({orderId:nativeId,executionId:'4242',updatedAt:nativeRow.updated_at},'fixture-admin'),/already consumed/,'Preparation cannot re-arm an uncertain dispatch');
     for(const patch of [{workflowNativeParentExecutionId:'999'},{orderId:'FOREIGN'},{poseNumber:8},{retryAttempt:2}]){
@@ -251,6 +272,7 @@ async function main() {
       const body=n===9?resumeBody:tournament.execute(mapper.slice(1),{...expressionContext(nativeItems.find((i:any)=>i.poseNumber===n)),$execution:{id:'5252'}});
       const response=await pose(request('/api/internal/w2a/build-pose-input',wire(1,body)));assert.equal(response.status,200,'Native continuation pose'+n+': '+await response.clone().text());
       const output=await response.json();assert.equal(output.workflowParentClaim.executionId,'5252');assert.equal(output.workflowAttempt,n===9?2:1);
+      if(n===9){const adopted=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(adopted.nativeRecovery?.phase,'adopted');assert.equal(adopted.nativeRecovery?.canResume,false);}
       published.push(publishedAck({...output,success:true,uploadKey:output.uploadKey.replace(/_r\d+(?=\.)/,''),qaPass:true,qa:{combined:{pass:true}}}));
     }
     assert.deepEqual(tables.workflow_jobs.filter(j=>j.order_id===nativeId&&Number(j.logical_key.slice(-2))<9),retainedJobs);
@@ -266,6 +288,9 @@ async function main() {
     const {POST:completePost}=await import('../src/app/api/webhooks/workflow-2a-complete/route');
     const completeResponse=await completePost(request('/api/webhooks/workflow-2a-complete',completion));assert.equal(completeResponse.status,200,await completeResponse.clone().text());assert.equal(nativeRow.execution_status,'done');
     assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].currentClaim.executionId,'5252');
+    const completedInspection=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(completedInspection.nativeRecovery?.phase,'adopted');assert.equal(completedInspection.nativeRecovery?.canPrepare,false);
+    const doneRow=structuredClone(nativeRow);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,product_info:{...nativeRow.product_info,_w2a_failure:{...mappedFailure,executionId:'5252',resolvedAt:undefined}}});
+    const laterFailure=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(laterFailure.nativeRecovery?.phase,'adopted');assert.equal(laterFailure.nativeRecovery?.canResume,false);Object.assign(nativeRow,doneRow);
     assert.equal(providerCalls,0);
     log('Actual W0/bootstrap → pose8 two-image request → SW1 return/SW2/repeated QA retry/exhaustion → POST passed; native preparation/dispatch CAS → retained0–8/resumed9–12 → 13-pose manifest/completion passed, zero provider calls');
   }finally{globalThis.fetch=transport;console.log=log;console.error=errorLog;}

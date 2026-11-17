@@ -37,6 +37,36 @@ function held(row: Row, failure: W2AFailure) {
       row.manifest_2a_url || row.manifest_2b_url || row.manifest_3_url || row.print_submission_id || row.print_claim_token || row.gelato_order_id ||
       !same(storedW2AFailure(row),failure) || failure.resolvedAt || Object.values(record(row.review_stages) ?? {}).some(r=>record(r)?.status==='approved')) throw Error('Native retry requires the unchanged held partial run');
 }
+export type NativeW2ARecoveryStatus = {
+  phase: 'unprepared' | 'prepared' | 'dispatching' | 'adopted' | 'blocked';
+  canPrepare: boolean; canResume: boolean; message: string;
+  retainedPoses: number[]; remainingPoses: number[];
+};
+/** Read-only UI guidance. Preparation and dispatch independently revalidate every proof. */
+export function inspectNativeW2ARecovery(row: Row, failure: W2AFailure | null, currentJobs: WorkflowJobRecord[]): NativeW2ARecoveryStatus {
+  const blocked = (message: string): NativeW2ARecoveryStatus => ({ phase:'blocked', canPrepare:false, canResume:false, message, retainedPoses:[], remainingPoses:[] });
+  const raw = record(row.product_info)?.[NATIVE_RETRY_KEY], value = admission(row);
+  const claim = parseW2AParentClaim(record(row.product_info)?.[W2A_PARENT_KEY]);
+  if (value?.phase === 'dispatching' || value?.phase === 'adopted') {
+    const source = parseW2AParentClaim(value.sourceClaim), current = parseW2AParentClaim(value.currentClaim);
+    if (!source || source.orderRowId !== row.id || source.orderId !== row.orderId ||
+        !same(claim,value.phase === 'adopted' ? current : source) ||
+        value.phase === 'adopted' && (!current || current.orderRowId !== row.id || current.orderId !== row.orderId)) return blocked('Saved continuation does not match the current order. Inspect its execution.');
+    return {
+      ...blocked(value.phase === 'dispatching' ? 'A continuation was reserved. Its outcome may be unconfirmed. Refresh the order and inspect its execution before taking another action.' : 'A continuation was already accepted. Follow the current order status; this saved recovery cannot be started again.'), phase:value.phase,
+    };
+  }
+  if (!failure) return blocked('The stopped failure must be verified before recovery.');
+  try { held(row,failure); } catch { return blocked('This order is no longer an unchanged stopped partial run. Refresh its current status.'); }
+  if (typeof row.updated_at !== 'string' || !row.updated_at) return blocked('A fresh order revision is required.');
+  if (raw === undefined) return { ...blocked('Check the stopped run and retained images before resuming. This check does not generate images.'), phase:'unprepared',canPrepare:true };
+  if (!value || value.phase !== 'prepared' || !same(value.sourceFailure,failure) || !same(value.sourceClaim,claim) ||
+      claim?.orderRowId !== row.id || claim?.orderId !== row.orderId || claim?.executionId !== failure.executionId ||
+      !Number.isInteger(value.firstPose) || value.firstPose < 1 || value.firstPose > 99 || !Array.isArray(value.jobs) || value.jobs.some(job=>!record(job) || typeof job.logical_key!=='string')) return blocked('Saved recovery evidence differs from this failure. Inspect the order before continuing.');
+  const poses = value.jobs.map(job => /^pose-\d{2}$/.test(job.logical_key) ? Number(job.logical_key.slice(5)) : -1).sort((a,b)=>a-b);
+  if (!same([...currentJobs].sort((a,b)=>a.id-b.id),value.jobs) || poses.length <= value.firstPose || poses.length > 100 || poses.some((pose,index)=>pose!==index) || value.jobs.some(job=>job.order_id!==row.orderId || job.stage!=='2a')) return blocked('The saved pose worklist is incomplete. Inspect the order before continuing.');
+  return { phase:'prepared',canPrepare:true,canResume:true,message:'A saved resume plan is available. Resuming rechecks the retained images and continues at the interrupted pose.',retainedPoses:poses.slice(0,value.firstPose),remainingPoses:poses.slice(value.firstPose) };
+}
 function runs(root: Row,name: string): Row[] {
   const result = record(record(root.data)?.resultData), values = record(result?.runData)?.[name];
   if (!Array.isArray(values)) return [];

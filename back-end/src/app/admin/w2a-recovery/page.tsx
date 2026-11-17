@@ -2,6 +2,7 @@
 
 import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import type { NativeW2ARecoveryStatus } from '@/lib/w2a-native-retry';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 type RecoveryAction = 'record_failure' | 'retry' | 'finalize' | 'replay' | 'inspect' | 'monitor' | 'none';
+type RecoveryMutation = 'replay' | 'finalize' | 'record_failure' | 'retry' | 'prepare_native_retry' | 'resume_native_retry';
 
 type RecoveryCandidate = {
   orderRowId: number;
@@ -46,6 +48,7 @@ type RecoveryCandidate = {
 };
 
 type RecoveryInspection = RecoveryCandidate & {
+  nativeRecovery?: NativeW2ARecoveryStatus | null;
   failure?: { executionId: string; claimStartedAt: string; failedAt: string; message: string; code: string; resolvedAt?: string };
   failureRecorded?: boolean; canRecordFailure?: boolean; safeToRetry?: boolean;
   failureLookupError?: string | null; failureRevision?: string | null;
@@ -88,7 +91,7 @@ type RecoveryResponse = {
 
 type ActionResponse = {
   success?: boolean;
-  action?: RecoveryAction;
+  action?: RecoveryMutation;
   error?: string;
 };
 
@@ -128,7 +131,7 @@ function actionLabel(action: RecoveryAction): string {
     case 'finalize':
       return 'Finalize 2A';
     case 'replay':
-      return 'Replay Remaining';
+      return 'Interrupted Run';
     case 'inspect':
       return 'Inspect Manifest';
     case 'monitor':
@@ -166,6 +169,7 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
   const readController = useRef<AbortController | null>(null);
   const [verified, setVerified] = useState(false);
   const [resolvedRevision, setResolvedRevision] = useState<string | null>(null);
+  const [creditRevision, setCreditRevision] = useState<string | null>(null);
 
   const [draftOrderId, setDraftOrderId] = useState(selectedOrderId);
   const [data, setData] = useState<RecoveryResponse | null>(null);
@@ -250,28 +254,33 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
   const failureRevision = inspectedOrder?.failure && inspectedOrder.failureRevision
     ? `${selectedOrderId}:${inspectedOrder.failure.executionId}:${inspectedOrder.failure.claimStartedAt}:${inspectedOrder.failureRevision}` : null;
   const causeResolved = Boolean(failureRevision && resolvedRevision === failureRevision);
-  const runAction = async (action: 'replay' | 'finalize' | 'record_failure' | 'retry') => {
+  const creditsAcknowledged = Boolean(failureRevision && creditRevision === failureRevision);
+  const runAction = async (action: RecoveryMutation) => {
     if (!selectedOrderId || !verified || loading || actionInFlight.current || inspectedOrder?.orderId !== selectedOrderId) return;
     const snapshot = inspectedOrder;
     if (action === 'retry' && (!snapshot.safeToRetry || !causeResolved)) return;
     if (action === 'record_failure' && !snapshot.canRecordFailure) return;
+    if (action === 'prepare_native_retry' && (!snapshot.nativeRecovery?.canPrepare || !causeResolved)) return;
+    if (action === 'resume_native_retry' && (!snapshot.nativeRecovery?.canResume || !causeResolved || !creditsAcknowledged)) return;
     actionInFlight.current = true;
     readController.current?.abort(); readSequence.current++;
-    setActing(true); setVerified(false); setBanner(null); setResolvedRevision(null);
+    setActing(true); setVerified(false); setBanner(null); setResolvedRevision(null); setCreditRevision(null);
     try {
       const response = await fetch('/api/admin/w2a-recovery', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, orderId: selectedOrderId,
           waitSeconds: action === 'replay' ? 8 : undefined,
-          ...(['retry', 'record_failure', 'finalize'].includes(action) ? { executionId: snapshot.failure?.executionId,
+          ...(['retry', 'record_failure', 'finalize', 'prepare_native_retry', 'resume_native_retry'].includes(action) ? { executionId: snapshot.failure?.executionId,
             claimStartedAt: snapshot.failure?.claimStartedAt, updatedAt: snapshot.failureRevision,
-            ...(action === 'retry' ? { resolvedCause: true } : {}) } : {}),
+            ...(['retry', 'prepare_native_retry', 'resume_native_retry'].includes(action) ? { resolvedCause: true } : {}) } : {}),
         }),
       });
       const payload = (await response.json()) as ActionResponse;
       if (!mounted.current) return;
       if (!response.ok || !payload.success) throw new Error(payload.error || `Failed to ${action} order`);
       const message = action === 'record_failure' ? 'Failure synced. Generation remains on hold.'
+        : action === 'prepare_native_retry' ? 'Resume readiness checked. No images were generated. Review the saved plan and confirm before starting.'
+        : action === 'resume_native_retry' ? 'Continuation requested. Follow the order status for the remaining poses. Existing images are preserved.'
         : action === 'retry' ? 'W2A queued for the workflow router.'
         : action === 'finalize' ? `Finalized ${selectedOrderId} through the existing 2A completion path.`
         : `Replayed ${selectedOrderId} through the live 2a-start-repo route.`;
@@ -340,11 +349,11 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
             </div>
             <div className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Replay Ready
+                Interrupted Runs
               </div>
               <div className="mt-3 text-3xl font-bold text-gray-900">{data.summary.replayReady}</div>
               <p className="mt-2 text-sm text-gray-600">
-                Partial runs remain held until verified resume is available.
+                Inspect interrupted runs to check whether their remaining poses can resume safely.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -412,7 +421,7 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
                         inspectedOrder.recommendedAction,
                       )}`}
                     >
-                      {actionLabel(inspectedOrder.recommendedAction)}
+                      {inspectedOrder.nativeRecovery?.canResume ? 'Resume available' : inspectedOrder.nativeRecovery?.canPrepare ? 'Check resume readiness' : actionLabel(inspectedOrder.recommendedAction)}
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-gray-600">
@@ -435,7 +444,7 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
                     className="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Replay Remaining
+                    Full Replay Unavailable
                   </button>
                   <Link
                     href={`/orders/${inspectedOrder.orderId}`}
@@ -446,6 +455,27 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
                 </div>
               </div>
             </div>
+
+            {inspectedOrder.nativeRecovery && <section aria-labelledby="resume-poses-title" className="m-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+              <h3 id="resume-poses-title" className="font-semibold">Resume interrupted poses</h3>
+              <p className="mt-2">{inspectedOrder.nativeRecovery.message}</p>
+              {inspectedOrder.nativeRecovery.retainedPoses.length > 0 && <div className="mt-3 space-y-1">
+                <p>Keep existing poses: {inspectedOrder.nativeRecovery.retainedPoses.join(', ')}.</p>
+                <p>Continue poses: {inspectedOrder.nativeRecovery.remainingPoses.join(', ')}.</p>
+                <p>You can review and regenerate an individual flagged pose after this run finishes.</p>
+              </div>}
+              {(inspectedOrder.nativeRecovery.canPrepare || inspectedOrder.nativeRecovery.canResume) && <div className="mt-4 space-y-3">
+                <label className="flex items-start gap-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={causeResolved} disabled={acting || loading || !verified} onChange={event => setResolvedRevision(event.target.checked ? failureRevision : null)} />I have fixed the cause of this failure.</label>
+                {inspectedOrder.nativeRecovery.canPrepare && <div>
+                  <button type="button" disabled={acting || loading || !verified || !causeResolved} onClick={() => runAction('prepare_native_retry')} className="rounded bg-white px-3 py-2 font-medium text-blue-900 border border-blue-300 disabled:cursor-not-allowed disabled:opacity-50">Check resume readiness</button>
+                  <p className="mt-1 text-xs">Checks the saved run and retained images. Saves the resume plan without generating images.</p>
+                </div>}
+                {inspectedOrder.nativeRecovery.canResume && <div className="border-t border-blue-200 pt-3">
+                  <label className="flex items-start gap-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={creditsAcknowledged} disabled={acting || loading || !verified} onChange={event => setCreditRevision(event.target.checked ? failureRevision : null)} />I understand that resuming generates the remaining poses and uses image-generation credits.</label>
+                  <button type="button" disabled={acting || loading || !verified || !causeResolved || !creditsAcknowledged} onClick={() => runAction('resume_native_retry')} className="mt-3 rounded bg-blue-700 px-3 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">Resume remaining poses</button>
+                </div>}
+              </div>}
+            </section>}
 
             {inspectedOrder.failure && !inspectedOrder.failure.resolvedAt && <div className="m-5 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950" role="status">
               <h3 className="font-semibold">Character generation stopped</h3>
