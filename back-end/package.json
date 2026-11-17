@@ -177,7 +177,9 @@
     "test:admin-workflow-print-store": "tsx scripts/test-admin-workflow-print-store.ts",
     "test:w2a-failure-recovery": "tsx scripts/test-w2a-failure-recovery.ts",
     "test:workflow-readiness": "tsx scripts/test-workflow-readiness-intake.ts && tsx scripts/test-book-operator-transitions.ts && tsx scripts/test-gelato-release-defaults.ts && tsx scripts/test-workflow-attempt-fencing.ts && tsx scripts/test-book-reassembly.ts && tsx scripts/test-w2-workflow-contracts.ts && tsx scripts/test-w2-http-handoff.ts",
-    "test:w2-http-handoff": "tsx scripts/test-w2-http-handoff.ts"
+    "test:w2-http-handoff": "tsx scripts/test-w2-http-handoff.ts",
+    "test:admin-managed-auth": "tsx scripts/test-admin-managed-auth.ts",
+    "test:admin-managed-consumers": "tsx scripts/test-admin-workflow-csv.ts --supabase && tsx scripts/test-w2a-failure-recovery.ts --supabase && tsx scripts/test-gelato-release-application.ts --supabase"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
@@ -185,7 +187,8 @@
     "@opennextjs/cloudflare": "1.20.12",
     "@paschendale/r2-presigned-url": "^1.0.0",
     "@squoosh/lib": "^0.3.1",
-    "@supabase/supabase-js": "^2.79.0",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.114.0",
     "adm-zip": "^0.5.16",
     "aws4fetch": "^1.0.20",
     "clsx": "^2.1.1",
@@ -194,7 +197,7 @@
     "jose": "6.2.12",
     "jpeg-js": "^0.4.4",
     "lucide-react": "^0.546.0",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "next-auth": "4.24.15",
     "papaparse": "^5.4.1",
     "pdfjs-dist": "^5.4.394",
@@ -219,7 +222,7 @@
     "dotenv": "^17.2.3",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5",

@@ -27,9 +27,9 @@ async function main() {
     const response = await authorizeBackendBoundary(req(path, nav));
     assert.equal(response?.status, 303);
     const redirect = new URL(response!.headers.get('location')!);
-    assert.equal(redirect.origin, origin); assert.equal(redirect.pathname, '/__access_setup');
+    assert.equal(redirect.origin, origin); assert.equal(redirect.pathname, '/login');
     assert.equal(redirect.searchParams.get('returnTo'), path);
-    const bridge = req(redirect.pathname + redirect.search, { ...nav, ...human });
+    const bridge = req('/__access_setup' + redirect.search, { ...nav, ...human });
     assert.equal(await authorizeBackendBoundary(bridge), null);
     const landed = await login(bridge);
     assert.equal(landed.status, 303); assert.equal(landed.headers.get('location'), `${origin}${path}`);

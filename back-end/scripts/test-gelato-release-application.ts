@@ -1,3 +1,5 @@
+import { managedAdminFixture } from './helpers/managed-admin-fixture';
+import { requireAdminAuth } from '../src/lib/admin-auth';
 /** Real application handler/core with fake database/provider ports. No environment files or real network. */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -13,7 +15,14 @@ async function main() {
     const { ordinaryReleaseApplicationRuntime, composeOrdinaryReleaseRuntime } = await import('../src/lib/books/gelato-ordinary-release-runtime');
     const { createOrdinaryReleaseFixture } = await import('./helpers/gelato-ordinary-release-fixture');
     const { ordinaryReleaseDigest } = await import('../src/lib/books/gelato-ordinary-release-core');
-    const identity = { ok: true as const, mode: 'access' as const, actor: 'operator@example.test' };
+    const actor='operator@example.test', useManaged=process.argv.includes('--supabase');
+    let identity: {ok:true;mode:'access'|'supabase';actor:string}={ok:true,mode:'access',actor};
+    if(useManaged){
+      Object.assign(process.env,{ADMIN_SITE_ORIGIN:'https://admin.example.test',ADMIN_ALLOWED_EMAILS:actor});
+      const managed=await managedAdminFixture([actor]);const base=globalThis.fetch;globalThis.fetch=async(input,init)=>managed.response(input instanceof Request?input:new Request(input,init))??base(input,init);
+      const actual=await requireAdminAuth(new Request('https://admin.example.test/api/admin/gelato-release',{method:'POST',headers:{origin:'https://admin.example.test',cookie:managed.cookie(actor)}}));
+      assert(actual.ok&&actual.mode==='supabase');identity={ok:true,mode:'supabase',actor:actual.actor};
+    }
     const post = (body: unknown) => new Request('https://admin.example.test/api/admin/gelato-release', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
@@ -24,7 +33,7 @@ async function main() {
       fixture.d.approvedPacket=async id=>registered.get(id)?.packet;
       let registrations = 0;
       const handler = createOrdinaryReleaseHttpHandler({ authenticate: async () => identity, runtime: async () => ({ kind: 'ready', application: {
-        release: fixture.d, approvers: new Set([identity.actor]),
+        release: fixture.d, approvers: new Set([identity.actor,'other@example.test']),
         register: async input => {
           assert.equal(ordinaryReleaseDigest(input.packet), input.permit.packetSha256);
           assert.equal(input.actor, identity.actor); assert.match(input.approvalEvidenceSha256, /^[a-f0-9]{64}$/);
@@ -44,6 +53,11 @@ async function main() {
         assert.equal((await handler(post({ action: 'review' }))).status, auth.ok ? 403 : 401);
       }
       assert.equal(runtimes, 0);
+    });
+    await check('approved human identity alone does not grant financial approver access',async()=>{
+      const s=await setup();let runtimeCalls=0;
+      const handler=createOrdinaryReleaseHttpHandler({authenticate:async()=>({...identity,actor:'other@example.test'}),runtime:async()=>{runtimeCalls++;return {kind:'ready',application:{release:s.d,approvers:new Set([identity.actor]),register:async()=>{throw Error('Must not register');},approved:async()=>null}};}});
+      assert.equal((await handler(post({action:'review',submissionId:s.permit.submissionId,maximumTotalCents:s.permit.maximumTotalCents}))).status,403);assert.equal(runtimeCalls,1);assert.equal(s.stats().patches,0);
     });
     await check('installed route is blocked without a financial adapter, including with enabled environment flags', async () => {
       process.env.GELATO_ORDINARY_RELEASE_ENABLED = 'true';
@@ -66,6 +80,8 @@ async function main() {
       assert.equal(approval.status, 200, await approval.clone().text()); assert.equal((await approval.json()).state, 'approved');
       assert.equal(s.registrations(), 1); assert.equal(s.stats().patches, 0);
       const execute = { action: 'execute', permitId: result.permit.id, approvedPacketSha256: result.packetSha256 };
+      const ownerIdentity=identity;identity={...identity,actor:'other@example.test'};
+      assert.equal((await s.handler(post(execute))).status,409,'Another allowed approver cannot execute the owner’s recorded approval');assert.equal(s.stats().patches,0);identity=ownerIdentity;
       const sent = await s.handler(post(execute)); assert.equal(sent.status, 200); const outcome = await sent.json();
       assert.equal(outcome.state, 'converted'); assert.equal(outcome.persistenceConfirmed, true); assert.equal(s.stats().patches, 1);
       assert.equal((await (await s.handler(post(execute))).json()).state, 'already_attempted'); assert.equal(s.stats().patches, 1);

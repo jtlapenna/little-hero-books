@@ -1,3 +1,4 @@
+import { isHumanAdminIdentity } from '@/lib/admin-auth-policy';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Explicit opt-in (default off): only the exact string 'true' marks created/updated orders as overnight
     // test orders, which suppresses every customer/buyer message for them (see lib/messaging/test-order-guard).
     const workflowTest = formData.get(ADMIN_WORKFLOW_TEST_FORM_FIELD) === 'true';
-    if (workflowTest && adminAuth.mode !== 'access') return NextResponse.json({ error: 'Sign in as an administrator to upload a workflow test.' }, { status: 403 });
+    if (workflowTest && !isHumanAdminIdentity(adminAuth)) return NextResponse.json({ error: 'Sign in as an administrator to upload a workflow test.' }, { status: 403 });
     const overnightTest = workflowTest || formData.get(OVERNIGHT_TEST_FORM_FIELD) === 'true';
     console.log(`[CSV Upload] [${requestId}] File received: ${file && typeof file !== 'string' ? `name=${file.name}, size=${file.size} bytes` : 'null'}`);
 

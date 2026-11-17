@@ -1,3 +1,4 @@
+import { isHumanAdminIdentity } from '@/lib/admin-auth-policy';
 import { z } from 'zod';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { hasAdminWorkflowTestMarker, adminWorkflowTestAdmission } from '@/lib/admin-workflow-test';
@@ -450,7 +451,7 @@ async function sendToPrint(
 
     if (hasAdminWorkflowTestMarker(currentOrder)) {
       const admission = adminWorkflowTestAdmission(currentOrder);
-      if (auth.mode !== 'access' || !admission || admission.createdBy !== auth.actor) return NextResponse.json({ error: 'Signed-in workflow-test owner required' }, { status: 403 });
+      if (!isHumanAdminIdentity(auth) || !admission || admission.createdBy !== auth.actor) return NextResponse.json({ error: 'Signed-in workflow-test owner required' }, { status: 403 });
       assertExactOrderLookup(orderId, currentOrder, true);
       await validateOrderReadinessForPrint(currentOrder, orderId);
       const { data, error } = await supabase.rpc('request_admin_workflow_test_print_preparation', { p_order_id: currentOrder.id, p_actor: auth.actor });

@@ -64,6 +64,9 @@ jobs:
       - name: Verify operator preparation and approval through the actual handlers and durable scoped release
         working-directory: back-end
         run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" GELATO_LOCAL_CASE=amazon-single GELATO_LOCAL_OPERATOR_TEST=1 GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 node --import tsx scripts/test-gelato-local-journey.ts
+      - name: Verify Supabase administrator through the operator journey
+        working-directory: back-end
+        run: env -i HOME="$HOME" PATH="$PATH" LHL_TEST_POSTGRES_DOCKER_IMAGE=postgres:17 GELATO_LOCAL_DUMMY_RASTERS="$RUNNER_TEMP/gelato-combined-rasters" GELATO_LOCAL_CASE=amazon-single GELATO_LOCAL_OPERATOR_TEST=1 GELATO_LOCAL_NATIVE_QUEUE=1 GELATO_LOCAL_PERSISTENT_JOURNEY=1 node --import tsx scripts/test-gelato-local-journey.ts --supabase
       - name: Verify one ordinary placeholder revision through the actual approval and draft routes
         working-directory: back-end
         run: |

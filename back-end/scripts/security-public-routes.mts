@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 export const reviewedPublicOwners = new Map<string, string[]>([
+  ['login/page.tsx', ['GET', 'HEAD']],
+  ['api/auth/request-code/route.ts', ['POST']], ['api/auth/verify-code/route.ts', ['POST']], ['api/auth/sign-out/route.ts', ['POST']],
   ['api/pdf/[...path]/route.ts', ['GET', 'HEAD']],
   ['api/checkout/create/route.ts', ['POST']], ['api/preview/check/route.ts', ['GET', 'POST']],
   ['api/preview/generate/route.ts', ['POST']], ['api/preview/validate-token/route.ts', ['POST']],

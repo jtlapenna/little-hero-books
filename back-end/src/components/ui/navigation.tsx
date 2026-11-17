@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BookOpen, Users, Home, Activity, AlertTriangle, Workflow } from 'lucide-react';
-import { adminLoginHref } from '@/lib/admin-login-target';
+import { AdminSignOut } from './admin-sign-out';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
@@ -67,7 +67,7 @@ export function Navigation() {
           </div>
           
           <div className="ml-4 flex shrink-0 items-center">
-            <a href={adminLoginHref(pathname)} className="text-sm text-blue-700 underline focus-visible:outline-2 focus-visible:outline-offset-4">Sign in</a>
+            <AdminSignOut />
           </div>
         </div>
       </div>

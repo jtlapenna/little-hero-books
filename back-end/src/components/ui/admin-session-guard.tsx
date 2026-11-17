@@ -9,7 +9,7 @@ export function AdminSessionGuard({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (expired) heading.current?.focus(); }, [expired]);
-  if (!expired) return children;
+  if (!expired || path === '/login') return children;
   return <main className="max-w-xl mx-auto p-8" aria-labelledby="sign-in-heading">
     <h1 id="sign-in-heading" ref={heading} tabIndex={-1} className="text-2xl font-bold">Sign in again to continue</h1>
     <p className="my-4">Your admin session could not be verified. Review any interrupted action before trying it again.</p>

@@ -49,6 +49,17 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-managed-auth-session': 'back-end/src/lib/admin-managed-auth.ts',
+    'changed-managed-auth-policy': 'back-end/src/lib/admin-auth-policy.ts',
+    'changed-managed-auth-http': 'back-end/src/lib/admin-signin-http.ts',
+    'changed-managed-auth-page': 'back-end/src/app/login/page.tsx',
+    'changed-managed-auth-form': 'back-end/src/components/ui/admin-sign-in.tsx',
+    'changed-managed-auth-test': 'back-end/scripts/test-admin-managed-auth.ts',
+    'changed-managed-auth-binding': 'back-end/scripts/prepare-admin-auth-bindings.mjs',
+    'changed-managed-auth-middleware': 'back-end/src/middleware.ts',
+    'changed-managed-auth-consumer-fixture': 'back-end/scripts/helpers/managed-admin-fixture.ts',
+    'changed-managed-auth-rollout-plan': 'docs/implementation-plans/admin-mobile-signin-20261117.md',
+    'changed-managed-auth-runbook': 'docs/admin-sign-in.md',
     'changed-w2a-failure-owner': 'back-end/src/lib/w2a-failure-recovery.ts',
     'changed-w2a-parent-claim': 'back-end/src/lib/w2a-parent-claim.ts',
     'changed-completed-recovery': 'back-end/src/lib/w2a-completed-recovery.ts',
@@ -124,6 +135,7 @@ added_cases += ['changed-native-partial-retry']
 added_cases += ['changed-qa-identity-restorer']
 added_cases += ['changed-base-only-hair-prompt']
 added_cases += ['changed-native-retry-plan']
+added_cases += ['changed-managed-auth-session', 'changed-managed-auth-policy', 'changed-managed-auth-http', 'changed-managed-auth-page', 'changed-managed-auth-form', 'changed-managed-auth-test', 'changed-managed-auth-binding', 'changed-managed-auth-middleware', 'changed-managed-auth-consumer-fixture', 'changed-managed-auth-rollout-plan', 'changed-managed-auth-runbook']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

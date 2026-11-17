@@ -13,6 +13,31 @@ OWN = 'docs/security/book-layout-source-evidence-2026-10-30'
 PARENT = 'docs/security/lhl-cron-source-evidence-2026-10-23'
 EFFECTS = ['canInstall', 'canExecute', 'liveAcceptanceRenewed', 'suiteExecutionRenewed']
 ADDED = {
+    '.github/workflows/check-application-access.yml',
+    'back-end/scripts/helpers/managed-admin-fixture.ts',
+    'back-end/scripts/prepare-admin-auth-bindings.mjs',
+    'back-end/scripts/security-public-routes.mts',
+    'back-end/scripts/test-access-boundary.ts',
+    'back-end/scripts/test-access-runtime-bindings.mjs',
+    'back-end/scripts/test-admin-login.ts',
+    'back-end/scripts/test-admin-managed-auth.ts',
+    'back-end/scripts/test-pages-access-boundary.ts',
+    'back-end/src/app/api/auth/request-code/route.ts',
+    'back-end/src/app/api/auth/sign-out/route.ts',
+    'back-end/src/app/api/auth/verify-code/route.ts',
+    'back-end/src/app/login/page.tsx',
+    'back-end/src/components/ui/admin-session-guard.tsx',
+    'back-end/src/components/ui/admin-sign-in.tsx',
+    'back-end/src/components/ui/admin-sign-out.tsx',
+    'back-end/src/components/ui/conditional-navigation.tsx',
+    'back-end/src/components/ui/navigation.tsx',
+    'back-end/src/lib/access-boundary.ts',
+    'back-end/src/lib/admin-auth-policy.ts',
+    'back-end/src/lib/admin-auth.ts',
+    'back-end/src/lib/admin-login-target.ts',
+    'back-end/src/lib/admin-managed-auth.ts',
+    'back-end/src/lib/admin-signin-http.ts',
+    'back-end/src/middleware.ts',
     '.gitleaks.toml',
     'back-end/scripts/assemble-inner-voice-print-test.ts',
     'back-end/scripts/fixtures/n8n-expression-runtime/package-lock.json',
@@ -172,6 +197,8 @@ ADDED = {
     'docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json',
 }
 REBOUND = {
+    'back-end/package-lock.json',
+    'back-end/scripts/test-pages-upload-identity.ts',
     '.github/workflows/check-gelato-local-launch.yml',
     '.github/workflows/check-gelato-ordinary-release.yml',
     '.github/workflows/check-production-build.yml',
@@ -255,7 +282,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 304, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 329, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():
@@ -264,7 +291,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
         else:
             assert current[path]['sha256'] == item['sha256'], 'Unreviewed inherited source rebind: ' + path
     assert digest(json.dumps(sources, sort_keys=True, separators=(',', ':')).encode()) == manifest['sourceSnapshotSha256'], 'Source snapshot differs'
-    expected_evidence = {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
+    expected_evidence = {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', OWN + '/history/manifest-before-admin-mobile-signin-2026-11-17.json', 'docs/admin-sign-in.md', 'docs/implementation-plans/admin-mobile-signin-20261117.md', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
     assert {item['path'] for item in rows if item['kind'] == 'evidence'} == expected_evidence, 'Missing or unexpected evidence'
 
     result = subprocess.run([sys.executable, str(root / PARENT / 'verify.py')],

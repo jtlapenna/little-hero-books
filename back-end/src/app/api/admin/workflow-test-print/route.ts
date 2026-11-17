@@ -1,3 +1,4 @@
+import { isHumanAdminIdentity } from '@/lib/admin-auth-policy';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { workflowTestSubmissionActivated } from '@/lib/books/gelato-workflow-test-activation';
 import { NextRequest, NextResponse } from 'next/server';
@@ -46,13 +47,13 @@ async function review(orderId: string, actor: string) {
 }
 export async function GET(request: NextRequest) {
   const auth = await requireAdminAuth(request); if (!auth.ok) return auth.response;
-  if (auth.mode !== 'access') return json({ error: 'Signed-in operator required' }, 403);
+  if (!isHumanAdminIdentity(auth)) return json({ error: 'Signed-in operator required' }, 403);
   try { return json(await review(request.nextUrl.searchParams.get('orderId') ?? '', auth.actor)); }
   catch { return json({ error: 'Prepared print review unavailable. Reload print status.' }, 409); }
 }
 export async function POST(request: NextRequest) {
   const auth = await requireAdminAuth(request); if (!auth.ok) return auth.response;
-  if (auth.mode !== 'access') return json({ error: 'Signed-in operator required' }, 403);
+  if (!isHumanAdminIdentity(auth)) return json({ error: 'Signed-in operator required' }, 403);
   const parsed = Action.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({ error: 'Invalid print review action' }, 400);
   const action = parsed.data;

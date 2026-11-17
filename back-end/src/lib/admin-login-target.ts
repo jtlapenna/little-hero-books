@@ -1,5 +1,6 @@
 /** Only known HTML screens can be returned to after the narrow Access login. */
-export const ADMIN_LOGIN_PATH = '/__access_setup';
+export const ADMIN_LOGIN_PATH = '/login';
+export const LEGACY_ADMIN_LOGIN_PATH = '/__access_setup';
 export const ADMIN_SIGN_IN_HEADER = 'X-LHL-Admin-Sign-In';
 const screens = new Set(['/', '/orders', '/review', '/monitoring',
   '/admin/orphaned-orders', '/admin/analytics', '/admin/w3-calibration',

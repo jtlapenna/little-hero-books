@@ -15,7 +15,7 @@ export function ConditionalNavigation() {
   
   // Customer preview pages are now on customer-facing site (frontend Astro)
   // This check is kept for backwards compatibility but shouldn't match anything
-  if (pathname?.startsWith('/approve/')) {
+  if (pathname === '/login' || pathname?.startsWith('/approve/')) {
     return null;
   }
   

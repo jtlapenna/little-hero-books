@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authorizeBackendBoundary, cleanBoundaryHeaders, newBoundaryRequestId } from './lib/access-boundary';
+import { withBackendAccess } from './lib/access-boundary';
 
 export async function middleware(request: NextRequest) {
-  const requestId = newBoundaryRequestId();
-  const headers = cleanBoundaryHeaders(request.headers);
-  headers.set('x-request-id', requestId);
-  const rejection = await authorizeBackendBoundary(request);
-  const response = rejection ?? NextResponse.next({ request: { headers } });
-  response.headers.set('x-request-id', requestId);
-  response.headers.set('Cache-Control', 'private, no-store');
-  return response;
+  // Preserve refreshed request cookies and every outgoing cookie, just as the outer Pages wrapper does.
+  return withBackendAccess(request, async forwarded => NextResponse.next({ request: { headers: forwarded.headers } }));
 }
 
 export const config = { matcher: ['/:path*'] };

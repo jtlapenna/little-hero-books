@@ -23,6 +23,12 @@ async function main() {
   const pair = await generateKeyPair('RS256', { extractable: true });
   const jwk = { ...await exportJWK(pair.publicKey), kid: 'pages-key', alg: 'RS256' };
   const jwt = await new SignJWT({ email: 'john@example.test', type: 'app' }).setProtectedHeader({ alg: 'RS256', kid: 'pages-key' }).setIssuer(issuer).setAudience([audience]).setSubject('synthetic').setIssuedAt().setExpirationTime('10m').sign(pair.privateKey);
+  const managedProvider='https://pages-managed-auth.example.test', managedEmail='john@example.test';
+  const anon=await new SignJWT({role:'anon'}).setProtectedHeader({alg:'HS256'}).sign(new TextEncoder().encode('synthetic-pages-managed-key'));
+  const managedToken=await new SignJWT({sub:'11111111-1111-4111-8111-111111111111',email:managedEmail,exp:Math.floor(Date.now()/1000)+3600}).setProtectedHeader({alg:'HS256'}).sign(new TextEncoder().encode('synthetic-pages-managed-key'));
+  const managedUser={id:'11111111-1111-4111-8111-111111111111',email:managedEmail,email_confirmed_at:new Date().toISOString(),aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{padding:'x'.repeat(9000)}};
+  const managedSession={access_token:managedToken,refresh_token:'synthetic-pages-refresh',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user:managedUser};
+  let managedRefreshes=0,managedUserReads=0,managedLogouts=0;
   const settings = await readFile('wrangler.toml', 'utf8');
   const date = settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1];
   const flags = [...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(match => match[1]);
@@ -35,7 +41,7 @@ async function main() {
     await copyFile(join(templates, 'init.js'), join(folder, 'cloudflare/init.js'));
     await writeFile(join(folder, 'cloudflare/next-env.mjs'), 'export const production = {};');
     await writeFile(join(folder, 'middleware/handler.mjs'), 'export async function handler(r){await fetch("https://adapter.example.test/called");return r;}');
-    await writeFile(join(folder, 'server-functions/default/handler.mjs'), `import {verifyLuluWebhook} from ${JSON.stringify(resolve('src/lib/lulu-webhook-auth.ts'))};import {POST as gelatoPoll} from ${JSON.stringify(resolve('src/app/api/cron/gelato-status/route.ts'))};import {POST as gelatoHook} from ${JSON.stringify(resolve('src/app/api/webhooks/gelato/route.ts'))};export async function handler(r){if(new URL(r.url).pathname==='/api/cron/gelato-status')return gelatoPoll(r);if(new URL(r.url).pathname==='/api/webhooks/gelato')return gelatoHook(r);if(new URL(r.url).pathname==='/api/webhooks/lulu/status'){const valid=await verifyLuluWebhook(new Uint8Array(await r.arrayBuffer()),r.headers.get('lulu-hmac-sha256'));return Response.json({valid},{status:valid?200:401});}return Response.json({requestId:r.headers.get('x-request-id'),internal:r.headers.get('x-middleware-subrequest'),body:r.method==='POST'?await r.text():null});}`);
+    await writeFile(join(folder, 'server-functions/default/handler.mjs'), `import {GET as managedSessionRoute} from ${JSON.stringify(resolve('src/app/api/admin/session/route.ts'))};import {POST as managedVerify} from ${JSON.stringify(resolve('src/app/api/auth/verify-code/route.ts'))};import {POST as managedLogout} from ${JSON.stringify(resolve('src/app/api/auth/sign-out/route.ts'))};import {verifyLuluWebhook} from ${JSON.stringify(resolve('src/lib/lulu-webhook-auth.ts'))};import {POST as gelatoPoll} from ${JSON.stringify(resolve('src/app/api/cron/gelato-status/route.ts'))};import {POST as gelatoHook} from ${JSON.stringify(resolve('src/app/api/webhooks/gelato/route.ts'))};export async function handler(r){if(new URL(r.url).pathname==='/api/admin/session')return managedSessionRoute(r);if(new URL(r.url).pathname==='/api/auth/verify-code')return managedVerify(r);if(new URL(r.url).pathname==='/api/auth/sign-out')return managedLogout(r);if(new URL(r.url).pathname==='/api/cron/gelato-status')return gelatoPoll(r);if(new URL(r.url).pathname==='/api/webhooks/gelato')return gelatoHook(r);if(new URL(r.url).pathname==='/api/webhooks/lulu/status'){const valid=await verifyLuluWebhook(new Uint8Array(await r.arrayBuffer()),r.headers.get('lulu-hmac-sha256'));return Response.json({valid},{status:valid?200:401});}return Response.json({requestId:r.headers.get('x-request-id'),internal:r.headers.get('x-middleware-subrequest'),body:r.method==='POST'?await r.text():null});}`);
     for (const [file, name] of [['queue.js', 'DOQueueHandler'], ['sharded-tag-cache.js', 'DOShardedTagCache'], ['bucket-cache-purge.js', 'BucketCachePurge']]) await writeFile(join(folder, '.build/durable-objects', file), `export class ${name} {}`);
     await emitPagesAccessBoundary(folder);
     assert.deepEqual(JSON.parse(await readFile(join(folder, '_routes.json'), 'utf8')), pagesRoutes);
@@ -45,11 +51,20 @@ async function main() {
     const bundle = await build({ entryPoints: [join(folder, '_worker.js')], nodePaths: [resolve('node_modules')], bundle: true, write: false, format: 'esm', platform: 'neutral', mainFields: ['browser', 'module', 'main'], external: ['node:*'], logLevel: 'silent',
       define: { __BUILD_TIMESTAMP_MS__: '0', __NEXT_BASE_PATH__: '""', __ASSETS_RUN_WORKER_FIRST__: 'false', __DEPLOYMENT_ID__: '""', __TRAILING_SLASH__: 'false', __SKEW_PROTECTION_ENABLED__: 'false', __IMAGES_LOCAL_PATTERNS__: JSON.stringify([{ pathname: '^/private-sentinel[.]png$', search: '' }]), __IMAGES_REMOTE_PATTERNS__: '[]', __IMAGES_ALLOW_SVG__: 'false', __IMAGES_FORMATS__: '["image/webp"]', __IMAGES_DEVICE_SIZES__: '[640]', __IMAGES_IMAGE_SIZES__: '[16,32]', __IMAGES_QUALITIES__: '[75]', __IMAGES_MAX_REDIRECTS__: '3', __IMAGES_CONTENT_DISPOSITION__: '"inline"', __IMAGES_CONTENT_SECURITY_POLICY__: '"default-src none"' } });
     const worker = new Miniflare(convertV4MiniflareOptions({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: date, compatibilityFlags: flags,
-      bindings: { CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: audience, ADMIN_ALLOWED_EMAILS: 'john@example.test', ADMIN_SITE_ORIGIN: origin, BACKEND_API_TOKEN: 'synthetic-pages-machine-secret-value', LULU_CLIENT_SECRET: 'synthetic-worker-lulu-owner-secret', CRON_SECRET: cron, GELATO_WEBHOOK_SECRET: webhook,
+      bindings: { ADMIN_SUPABASE_AUTH_ENABLED:'true',SUPABASE_URL:managedProvider,SUPABASE_ANON_KEY:anon,CF_ACCESS_ISSUER: issuer, CF_ACCESS_AUDIENCE: audience, ADMIN_ALLOWED_EMAILS: 'john@example.test', ADMIN_SITE_ORIGIN: origin, BACKEND_API_TOKEN: 'synthetic-pages-machine-secret-value', LULU_CLIENT_SECRET: 'synthetic-worker-lulu-owner-secret', CRON_SECRET: cron, GELATO_WEBHOOK_SECRET: webhook,
         GELATO_DRAFT_SUBMISSION_ENABLED: 'false', GELATO_CANCEL_ENABLED: 'false', GELATO_STATUS_RELAY_ENABLED: 'false',
         GELATO_STATUS_POLLING_ENABLED: 'false', GELATO_SCHEDULED_STATUS_ENABLED: 'false', GELATO_NOTIFICATIONS_ENABLED: 'false' },
       serviceBindings: { ASSETS: async () => { assets++; return new WorkerResponse(syntheticPng, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } }); } },
       outboundService: async request => {
+        if(new URL(request.url).origin===managedProvider){
+          const path=new URL(request.url).pathname;
+          const reply=(value:unknown)=>new WorkerResponse(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+          if(path==='/auth/v1/user'){managedUserReads++;assert.equal(request.headers.get('authorization'),'Bearer '+managedToken);return reply(managedUser);}
+          if(path==='/auth/v1/verify')return reply(managedSession);
+          if(path==='/auth/v1/token'){managedRefreshes++;assert.equal(new URL(request.url).search,'?grant_type=refresh_token');return reply(managedSession);}
+          if(path==='/auth/v1/logout'){managedLogouts++;assert.equal(new URL(request.url).search,'?scope=local');return new WorkerResponse(null,{status:204});}
+          throw Error('Unexpected managed fixture transport');
+        }
         if (request.url === issuer + '/cdn-cgi/access/certs') return new WorkerResponse(JSON.stringify({ keys: [jwk] }), { headers: { 'Content-Type': 'application/json' } });
         assert.equal(request.url, 'https://adapter.example.test/called', 'no real provider transport'); adapter++; return new WorkerResponse('synthetic');
       },
@@ -70,6 +85,21 @@ async function main() {
       const machine = await worker.dispatchFetch(origin + '/api/internal/synthetic', { method: 'POST', headers: { authorization: 'Bearer synthetic-pages-machine-secret-value', 'x-request-id': 'caller-id', 'x-middleware-subrequest': 'bypass' }, body: 'synthetic-request-body' });
       assert.equal(machine.status, 200); const body = await machine.json() as { requestId: string; internal: null; body: string };
       assert.equal(body.requestId, machine.headers.get('x-request-id')); assert.notEqual(body.requestId, 'caller-id'); assert.equal(body.internal, null); assert.equal(body.body, 'synthetic-request-body');
+      // Boundary and actual Next route are separately bundled: refreshed cookies must cross the request boundary.
+      const expired='base64-'+Buffer.from(JSON.stringify({...managedSession,expires_at:Math.floor(Date.now()/1000)-60})).toString('base64url');
+      const refreshBefore=managedRefreshes,readsBefore=managedUserReads;
+      const refreshed=await worker.dispatchFetch(origin+'/api/admin/session',{headers:{cookie:'__Host-lhl-admin='+expired+'; __Host-lhl-admin-remember=1',referer:origin+'/orders'}});
+      assert.equal(refreshed.status,200,await refreshed.clone().text());assert.deepEqual(await refreshed.json(),{authenticated:true});
+      assert.equal(managedRefreshes,refreshBefore+1,'Downstream actual handler must receive fresh session, not refresh again');
+      assert.equal(managedUserReads,readsBefore+2,'Both boundary and separate actual route verify against Auth');
+      const rotated=refreshed.headers.getSetCookie();assert(rotated.some(value=>value.startsWith('__Host-lhl-admin.2=')));assert(rotated.some(value=>value.startsWith('__Host-lhl-admin-remember=1')));
+      for(const value of rotated.filter(value=>!value.includes('Max-Age=0'))){assert.match(value,/HttpOnly/i);assert.match(value,/Secure/);assert.match(value,/Max-Age=2592000/);}
+      const verified=await worker.dispatchFetch(origin+'/api/auth/verify-code',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify({email:managedEmail,token:'123456',remember:false,returnTo:'/orders'})});
+      assert.equal(verified.status,200,await verified.clone().text());assert.deepEqual(await verified.json(),{authenticated:true,redirectTo:'/orders'});
+      const loginCookies=verified.headers.getSetCookie().filter(value=>!value.includes('Max-Age=0'));assert(loginCookies.length>=4);for(const value of loginCookies)assert(!/Max-Age=|Expires=/i.test(value));
+      const logout=await worker.dispatchFetch(origin+'/api/auth/sign-out',{method:'POST',headers:{origin,'Content-Type':'application/json',cookie:loginCookies.map(value=>value.split(';')[0]).join('; ')},body:'{}'});
+      assert.equal(logout.status,200);assert.equal(managedLogouts,1);assert(logout.headers.getSetCookie().some(value=>value.startsWith('__Host-lhl-admin.2=')&&value.includes('Max-Age=0')));
+      assert.equal((await worker.dispatchFetch(origin+'/api/auth/verify-code',{method:'POST',headers:{origin:'https://evil.test','Content-Type':'application/json'},body:'{}'})).status,403);
       const beforeGelatoAssets = assets;
       await verifyGelatoStatusRouting((path, init) => worker.dispatchFetch(origin + path, init),
         { backend: 'synthetic-pages-machine-secret-value', cron, webhook });

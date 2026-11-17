@@ -23,7 +23,7 @@ async function fixture(flags = flagValues('false')) {
   const configPath = join(folder, 'back-end/wrangler.toml');
   await mkdir(join(folder, 'back-end'), { recursive: true }); await writeFile(configPath, source);
   const prepared = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(source, flags), access);
-  writePreparedRuntimeConfig(configPath, prepared, { ...flags, ...access }, sourceSha, source);
+  writePreparedRuntimeConfig(configPath, prepared, { ...flags, ...access, ADMIN_SUPABASE_AUTH_ENABLED:'false' }, sourceSha, source);
   return { folder, configPath, receiptPath: join(folder, 'back-end/.wrangler/lhl-runtime-bindings.json'),
     verify: () => verifyReviewedRuntimeBindingFile({ configPath, sourceSha, committedConfigText: source }) };
 }
@@ -167,7 +167,7 @@ async function producerChecks() {
     const access = { CF_ACCESS_ISSUER: 'https://synthetic-access.cloudflareaccess.com', CF_ACCESS_AUDIENCE: 'a'.repeat(64),
       ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com', ADMIN_ALLOWED_EMAILS: 'jeff@littleherolabs.com,john@littleherolabs.com' };
     const prepared = applyAccessRuntimeBindings(applyGelatoRuntimeBindings(source,flags),access);
-    writePreparedRuntimeConfig(join(folder,'back-end/wrangler.toml'),prepared,{...flags,...access},sourceSha,source);
+    writePreparedRuntimeConfig(join(folder,'back-end/wrangler.toml'),prepared,{...flags,...access,ADMIN_SUPABASE_AUTH_ENABLED:'false'},sourceSha,source);
     const packageRoot = join(folder,'back-end/.open-next/cloudflare');
     for (const name of ['_worker.js','access-boundary.mjs','cloudflare/init.js','cloudflare/images.js','cloudflare/skew-protection.js',
       'cloudflare/next-env.mjs','middleware/handler.mjs','server-functions/default/handler.mjs']) {
@@ -273,7 +273,7 @@ async function builtPackageChecks() {
   const access={CF_ACCESS_ISSUER:'https://synthetic-access.cloudflareaccess.com',CF_ACCESS_AUDIENCE:'a'.repeat(64),ADMIN_SITE_ORIGIN:'https://admin.littleherolabs.com',ADMIN_ALLOWED_EMAILS:'jeff@littleherolabs.com,john@littleherolabs.com'};
   const prepared=applyAccessRuntimeBindings(applyGelatoRuntimeBindings(original,flags),access);
   try {
-    writePreparedRuntimeConfig(configPath,prepared,{...flags,...access},sourceSha,original);
+    writePreparedRuntimeConfig(configPath,prepared,{...flags,...access,ADMIN_SUPABASE_AUTH_ENABLED:'false'},sourceSha,original);
     const observed=await createUploadObservation(root,{REVIEWED_SOURCE_SHA:sourceSha,GITHUB_SHA:sourceSha,GITHUB_WORKFLOW_SHA:sourceSha,
       GITHUB_REPOSITORY:'jtlapenna/little-hero-books',GITHUB_REF:'refs/heads/main',GITHUB_JOB:'deploy',GITHUB_EVENT_NAME:'workflow_dispatch',
       GITHUB_WORKFLOW_REF:'jtlapenna/little-hero-books/.github/workflows/deploy-cloudflare-pages.yml@refs/heads/main',

@@ -1,3 +1,4 @@
+import { ADMIN_AUTH_RUNTIME_FLAG, adminAuthBindingValue, applyAdminAuthBinding } from './prepare-admin-auth-bindings.mjs';
 import { WORKFLOW_TEST_BINDING_DEFAULTS, workflowTestBindingValues, applyWorkflowTestBindings } from './prepare-workflow-test-bindings.mjs';
 import { ACCESS_RUNTIME_CONFIG, assertAccessBindingSourceFormat, applyAccessRuntimeBindings, discoveredRuntimeConfig, writePreparedRuntimeConfig, verifyPreparedRuntimeBindings } from './prepare-access-runtime-bindings.mjs';
 import fs from 'node:fs/promises';
@@ -83,9 +84,10 @@ export async function prepareGelatoRuntimeBindingFile({ env, sourceSha, configPa
     access[name] = setting.value;
   }
   let prepared, operator;
-  try { operator=workflowTestBindingValues(settings); prepared = applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(configText, values), operator), access); }
+  const managedAuth = adminAuthBindingValue(settings);
+  try { operator=workflowTestBindingValues(settings); prepared = applyAdminAuthBinding(applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(configText, values), operator), access), managedAuth); }
   catch { throw new BindingPreparationError('Invalid Access runtime settings'); }
-  try { writePreparedRuntimeConfig(configPath, prepared, { ...values, ...operator, ...access, ADMIN_ALLOWED_EMAILS: access.ADMIN_ALLOWED_EMAILS.split(',').map(value => value.trim().toLowerCase()).sort().join(',') }, sourceSha, configText); }
+  try { writePreparedRuntimeConfig(configPath, prepared, { ...values, ...operator, ...access, [ADMIN_AUTH_RUNTIME_FLAG]: managedAuth, ADMIN_ALLOWED_EMAILS: access.ADMIN_ALLOWED_EMAILS.split(',').map(value => value.trim().toLowerCase()).sort().join(',') }, sourceSha, configText); }
   catch { throw new BindingPreparationError('Runtime binding configuration verification failed'); }
 }
 
@@ -121,12 +123,16 @@ export async function verifyReviewedRuntimeBindingFile({ configPath, sourceSha, 
     const exactKeys = (value, keys) => record(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
     requireValue(exactKeys(receipt, ['sourceSha', 'configSha256', 'expected']) && receipt.sourceSha === sourceSha, 'Invalid binding receipt');
     const operatorKeys=Object.keys(WORKFLOW_TEST_BINDING_DEFAULTS);
+    const hasManagedAuth=Object.hasOwn(receipt.expected,ADMIN_AUTH_RUNTIME_FLAG);
+    const managedAuth=hasManagedAuth?adminAuthBindingValue({[ADMIN_AUTH_RUNTIME_FLAG]:{type:'plain_text',value:receipt.expected[ADMIN_AUTH_RUNTIME_FLAG]}}):null;
+    requireValue(hasManagedAuth === committedConfigText.includes(ADMIN_AUTH_RUNTIME_FLAG + ' ='), 'Invalid managed admin binding receipt');
     const hasOperator=operatorKeys.some(key=>Object.hasOwn(receipt.expected,key));
-    requireValue(exactKeys(receipt.expected, [...GELATO_RUNTIME_FLAGS, ...ACCESS_RUNTIME_CONFIG, ...(hasOperator?operatorKeys:[])]), 'Invalid binding fields');
+    requireValue(exactKeys(receipt.expected, [...GELATO_RUNTIME_FLAGS, ...ACCESS_RUNTIME_CONFIG, ...(hasOperator?operatorKeys:[]), ...(hasManagedAuth?[ADMIN_AUTH_RUNTIME_FLAG]:[])]), 'Invalid binding fields');
     const operator=hasOperator?Object.fromEntries(operatorKeys.map(key=>[key,receipt.expected[key]])):WORKFLOW_TEST_BINDING_DEFAULTS;
     const flags = Object.fromEntries(GELATO_RUNTIME_FLAGS.map(name => [name, receipt.expected[name]]));
     const access = Object.fromEntries(ACCESS_RUNTIME_CONFIG.map(name => [name, receipt.expected[name]]));
-    const reconstructed = applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(committedConfigText, flags), operator), access);
+    let reconstructed = applyAccessRuntimeBindings(applyWorkflowTestBindings(applyGelatoRuntimeBindings(committedConfigText, flags), operator), access);
+    if(hasManagedAuth) reconstructed=applyAdminAuthBinding(reconstructed,managedAuth);
     requireValue(Buffer.from(reconstructed, 'utf8').equals(configBytes), 'Unreviewed configuration change');
     verifyPreparedRuntimeBindings(configPath, sourceSha);
     requireValue(configBytes.equals(await readInput(configPath)) && receiptBytes.equals(await readInput(receiptPath)), 'Changed verified inputs');
