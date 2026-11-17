@@ -58,6 +58,8 @@ source_cases = {
     'changed-w1-sibling': 'docs/n8n-workflow-files/repo-centric/workflows/w1.1-Queue_Manager_and_Router.repo-centric.json',
     'changed-qa-handoff': 'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'changed-reviewed-message-guard': 'back-end/scripts/test-message-safety-guard.ts',
+    'changed-http-envelope-selector': 'back-end/scripts/helpers/select-workflow-http-envelope.js',
+    'changed-actual-http-handoff': 'back-end/scripts/test-w2-http-handoff.ts',
     'changed-native-n8n-worker': 'back-end/scripts/test-n8n-transport-worker.ts',
     'changed-w0-native-transport': 'back-end/src/lib/w0-webhook-transport.ts',
     'changed-auto-csv-ui': 'back-end/src/app/admin/csv-upload/page.tsx',
@@ -110,6 +112,7 @@ added_cases += ['changed-w2a-failure-owner', 'changed-w2a-parent-claim', 'change
 added_cases += ['changed-reviewed-message-guard']
 added_cases += ['changed-native-n8n-worker']
 added_cases += ['changed-w0-native-transport']
+added_cases += ['changed-http-envelope-selector', 'changed-actual-http-handoff']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:
