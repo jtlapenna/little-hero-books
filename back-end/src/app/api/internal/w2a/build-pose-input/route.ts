@@ -1,3 +1,4 @@
+import { normalizeNativeW2ARetryInput } from '@/lib/w2a-native-retry';
 import { requireActiveW2AParent, assertFrozenW2AParentSelection } from '@/lib/w2a-parent-claim';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyBearerAuth } from "@/lib/auth";
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const body = unwrapPayloadObject(parsedBody);
+  let body = unwrapPayloadObject(parsedBody);
   if (!body) {
     return NextResponse.json(
       { error: "Request body must be a JSON object" },
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    body = await normalizeNativeW2ARetryInput(body);
     const parent = await requireActiveW2AParent(body, String(body.orderId ?? (isRecord(body.orderContext) ? body.orderContext.orderId : '') ?? ''));
     const validated = await buildW2APoseInput(body, { defaultBackendUrl: request.nextUrl.origin });
     assertFrozenW2AParentSelection(parent.row, validated);

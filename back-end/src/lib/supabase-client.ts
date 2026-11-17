@@ -350,7 +350,7 @@ export async function upsertOrderByPerBookId(
   if (Object.hasOwn(normalizedPayload, 'product_info')) {
     normalizedPayload.product_info = stripAdminWorkflowTestAdmission(normalizedPayload.product_info);
     const info = failureRecord(normalizedPayload.product_info);
-    if (info) { const clean = { ...info }; delete clean[W2A_FAILURE_KEY]; delete clean._w2a_parent_claim; normalizedPayload.product_info = clean; }
+    if (info) { const clean = { ...info }; delete clean[W2A_FAILURE_KEY]; delete clean._w2a_parent_claim; delete clean._w2a_native_retry; normalizedPayload.product_info = clean; }
   }
 
   const byOrderId = await supabase
@@ -383,6 +383,7 @@ export async function upsertOrderByPerBookId(
     if (existingRecord && Object.hasOwn(normalizedPayload, 'product_info')) {
       normalizedPayload.product_info = preserveOvernightTestMarker(existingRecord, normalizedPayload.product_info);
       const existingInfo = failureRecord(existingRecord.product_info);
+      if (existingInfo?._w2a_native_retry) normalizedPayload.product_info = {...failureRecord(normalizedPayload.product_info),_w2a_native_retry:existingInfo._w2a_native_retry};
       if (existingInfo?._w2a_parent_claim) normalizedPayload.product_info = {...failureRecord(normalizedPayload.product_info),_w2a_parent_claim:existingInfo._w2a_parent_claim};
       if (existingInfo?.[W2A_FAILURE_KEY]) normalizedPayload.product_info = { ...failureRecord(normalizedPayload.product_info), [W2A_FAILURE_KEY]: existingInfo[W2A_FAILURE_KEY] };
     }

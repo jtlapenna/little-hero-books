@@ -59,6 +59,10 @@ source_cases = {
     'changed-qa-handoff': 'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'changed-reviewed-message-guard': 'back-end/scripts/test-message-safety-guard.ts',
     'changed-http-envelope-selector': 'back-end/scripts/helpers/select-workflow-http-envelope.js',
+    'changed-native-partial-retry': 'back-end/src/lib/w2a-native-retry.ts',
+    'changed-qa-identity-restorer': 'back-end/scripts/helpers/restore-w2a-qa-identity.js',
+    'changed-base-only-hair-prompt': 'back-end/src/lib/books/w2a-pose-input.ts',
+    'changed-native-retry-plan': 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md',
     'changed-actual-http-handoff': 'back-end/scripts/test-w2-http-handoff.ts',
     'changed-n8n-expression-test-package': 'back-end/scripts/fixtures/n8n-expression-runtime/package.json',
     'changed-n8n-expression-test-lock': 'back-end/scripts/fixtures/n8n-expression-runtime/package-lock.json',
@@ -116,6 +120,10 @@ added_cases += ['changed-native-n8n-worker']
 added_cases += ['changed-w0-native-transport']
 added_cases += ['changed-http-envelope-selector', 'changed-actual-http-handoff']
 added_cases += ['changed-n8n-expression-test-package', 'changed-n8n-expression-test-lock']
+added_cases += ['changed-native-partial-retry']
+added_cases += ['changed-qa-identity-restorer']
+added_cases += ['changed-base-only-hair-prompt']
+added_cases += ['changed-native-retry-plan']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

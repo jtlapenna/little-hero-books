@@ -2,8 +2,8 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "8beff79e22d72c4cc789e975d0bac1d7a8b721f3db4831c226c85580c17679b2",
-  "preparedAgainstHead": "03815e0b0a1351dcdcaa1dde8e3f0e5684390283",
+  "sourceSnapshotSha256": "39646d29ba7fefac0be9c2f550b3406a7e7b278bbf0d6d1c9c9d592c28c499a8",
+  "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
@@ -16,6 +16,7 @@
     "back-end/scripts/fixtures/n8n-expression-runtime/package.json",
     "back-end/scripts/helpers/book-layout-v3-fixture.ts",
     "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+    "back-end/scripts/helpers/restore-w2a-qa-identity.js",
     "back-end/scripts/helpers/select-workflow-http-envelope.js",
     "back-end/scripts/prepare-inner-voice-print-test.ts",
     "back-end/scripts/prepare-workflow-test-bindings.mjs",
@@ -132,6 +133,7 @@
     "back-end/src/lib/books/print-profiles/gracol.json",
     "back-end/src/lib/books/print-profiles/srgb.json",
     "back-end/src/lib/books/w2a-bootstrap-retry.ts",
+    "back-end/src/lib/books/w2a-pose-input.ts",
     "back-end/src/lib/books/w3-assembly-state.ts",
     "back-end/src/lib/canonical-json-sha256.ts",
     "back-end/src/lib/cron-order-guards.ts",
@@ -147,6 +149,7 @@
     "back-end/src/lib/w2a-completed-recovery.ts",
     "back-end/src/lib/w2a-execution-failure.ts",
     "back-end/src/lib/w2a-failure-recovery.ts",
+    "back-end/src/lib/w2a-native-retry.ts",
     "back-end/src/lib/w2a-parent-claim.ts",
     "back-end/src/lib/w2a-recovery.ts",
     "back-end/src/lib/w3-calibration-http.ts",
@@ -395,6 +398,11 @@
       "path": "back-end/scripts/helpers/prepare-w1-native-queue.ts",
       "kind": "source",
       "sha256": "8e6266f08d193bde9f2e6cadeef6f93d2900122930e0f775f1ea64cf619aa1b7"
+    },
+    {
+      "path": "back-end/scripts/helpers/restore-w2a-qa-identity.js",
+      "kind": "source",
+      "sha256": "df22a796ca040cb9a8a67f6b35fe6627e67a80cebcc7ab28f2031285125a3037"
     },
     {
       "path": "back-end/scripts/helpers/select-workflow-http-envelope.js",
@@ -799,7 +807,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "12702bb9da01f6570b084f5094bae0512353ce12f073fb934fba21c54cefdb5e"
+      "sha256": "e41cca51614818d97ea94a1f9e12a4f1ac09bf002d1aeafb23ea03f0f4a42878"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -814,7 +822,7 @@
     {
       "path": "back-end/scripts/test-w2a-failure-recovery.ts",
       "kind": "source",
-      "sha256": "3a1c6f615453aa790722821ff1d072b3e84a8e8673d72620ebc9da59d3c4c867"
+      "sha256": "32cd500d27f571231c7817f8545cbd7b67f79bec3cf9057435f11140097cf880"
     },
     {
       "path": "back-end/scripts/test-w2a-frozen-generation-input.ts",
@@ -824,7 +832,7 @@
     {
       "path": "back-end/scripts/test-w2a-pose-input.ts",
       "kind": "source",
-      "sha256": "108470725987f82714f42026b53a0c2380d43009a6bc740970e261bc3cad24ef"
+      "sha256": "7aa8dc7685621b47cf4797e811618760a4b6504752c982018e775e23a27b6928"
     },
     {
       "path": "back-end/scripts/test-w2a-pose-workflow-identity.ts",
@@ -914,7 +922,7 @@
     {
       "path": "back-end/src/app/api/admin/w2a-recovery/route.ts",
       "kind": "source",
-      "sha256": "71b072c1fa401934551c18bfc08a82f6026bc34ced0e73c9e4d9229bf9a98bfd"
+      "sha256": "29cc83eac375fddcf45b1ab62b3186a5b268e3c6d6f739c7cd177c77f8e6f5f2"
     },
     {
       "path": "back-end/src/app/api/admin/w3-calibration/route.ts",
@@ -964,7 +972,7 @@
     {
       "path": "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
       "kind": "source",
-      "sha256": "c6707347c4c08200c2ddd8753473e470fcc0f6bd6ba198dd758f68c5ca3eec9d"
+      "sha256": "677927fc01d0f86f7c886410d172ac648bbd3be3a7be10890473ef398b91fcc5"
     },
     {
       "path": "back-end/src/app/api/internal/w2a/report-failure/route.ts",
@@ -1054,7 +1062,7 @@
     {
       "path": "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
       "kind": "source",
-      "sha256": "221275b96422f3df825b14f1605f03f0ec1f9a09723d6c7145195e89365d4333"
+      "sha256": "988e678cf8f733a50974b99197f1f396420263fc30e748f555612d275f7317c6"
     },
     {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
@@ -1407,6 +1415,11 @@
       "sha256": "efefc27c7e897c96bb0f05fbbef568bef52c76ab8f432cff8e31da01df758b5f"
     },
     {
+      "path": "back-end/src/lib/books/w2a-pose-input.ts",
+      "kind": "source",
+      "sha256": "e871decb553b113ed35cd4931b574a749d2543d500c5109603f9a53513ce65e2"
+    },
+    {
       "path": "back-end/src/lib/books/w3-assembly-state.ts",
       "kind": "source",
       "sha256": "2ffd4265cbd8906ec98cd02694c3cd8c749de1dcd6099589edfd1f544f36a471"
@@ -1474,7 +1487,7 @@
     {
       "path": "back-end/src/lib/supabase-client.ts",
       "kind": "source",
-      "sha256": "e98643a7f472f35e5d0d4f4bfeb3be4c8517800cd007dd8780dd080514a55bc3"
+      "sha256": "28b38869ab41c8834371def210ed060de4aadf2ff4d316d526c664b388cd4c4f"
     },
     {
       "path": "back-end/src/lib/w0-manifest-builder.ts",
@@ -1509,7 +1522,12 @@
     {
       "path": "back-end/src/lib/w2a-failure-recovery.ts",
       "kind": "source",
-      "sha256": "2f9b675500864d3809a543ec05bd70ec3be8119cfb4e87aca6dcedc5f87712de"
+      "sha256": "65a1c02bc9ec8483440b73a0ffe857fc8e03264e1ec3ea9163422f085d5ede11"
+    },
+    {
+      "path": "back-end/src/lib/w2a-native-retry.ts",
+      "kind": "source",
+      "sha256": "de86e5b327c91adfb861799ab9a0b19bf1b5f1b3d0753cbf8734c2d1ce9436da"
     },
     {
       "path": "back-end/src/lib/w2a-parent-claim.ts",
@@ -1549,7 +1567,7 @@
     {
       "path": "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts",
       "kind": "source",
-      "sha256": "f71529494d22a977fbd74696b8c0af5c33dd09ef634d1bd17606571e0aa2ff33"
+      "sha256": "2c78d2a2b0ee99c1cfa5e4be761e71153663e0e8807a2e120c091a181b85e5df"
     },
     {
       "path": "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts",
@@ -1597,9 +1615,14 @@
       "sha256": "e20584bc0770c13bf2875be1a04045d7f30cab0b34ee50d77795b5762a5b81f4"
     },
     {
+      "path": "docs/implementation-plans/w2a-hair-retry-preservation-20261116.md",
+      "kind": "evidence",
+      "sha256": "aa47f8bb2986d7e262e3bd914ae98e4832b25a2f8eb872c8e0dc587579162f07"
+    },
+    {
       "path": "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
       "kind": "source",
-      "sha256": "1b612c21995da5705d68c1c5cd924c234787929a1cf018deddab550d7fc2575d"
+      "sha256": "e811ec5a64ec4d42e149982a9093d2713b5dd5e85c7a48ffdfdcf82dc16a004c"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
@@ -1614,7 +1637,7 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json",
       "kind": "source",
-      "sha256": "b6dba42a7a3b874523f1881b4029fbe56851ff552654c45bdc04f697f8f4e448"
+      "sha256": "6fce8ec8047812933fa44c4469607bc523d62a5fb01c810eff3280f02ba71a13"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
@@ -1624,7 +1647,7 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "c5da7ffdff4b46d35bd769b64f1a01def6ef49fa743e62c70f87be0a7e066e9f"
+      "sha256": "32fd4003d3045af0589543c9b402bba62993b4591de20fe55c4ac27fe799b1a6"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
@@ -1709,17 +1732,22 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "22249ed00ac0a211307ec376c0710b36687da169f36dcd6cbaacbbf88e5dd96e"
+      "sha256": "545ca939abade10d91257bd4c13233f87b400cfd2772a3eedb2003d89d310b42"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-hair-native-retry-2026-11-17.json",
+      "kind": "evidence",
+      "sha256": "01253fbd7d3889cf0c4035e2cf130d6c831877676851d9a18c95087ad03f9a0f"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "fdb88c65570a450e117b2de136f5b631daa31cad888368f1771f4ba78b77f093"
+      "sha256": "01b760c46dd638a325a0d8886c80d011b361734f58ad1d1a7ead489997224e4b"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "97bfc0393b8ad1d6b7dd1141d93e7a1029a69143ee40a387c01b2b43aec00d41"
+      "sha256": "687324de5b06fdefe6181f998fea008f9785e6e75edccb0edcfb21c658415d04"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

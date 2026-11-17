@@ -38,7 +38,12 @@ export async function verifiedW2AFailure(executionId: string): Promise<W2AFailur
     if (!verifyFailureChild(parent, child)) throw Error('Linked W2A execution is unverified or still running');
     children.push(child); parent = child;
   }
-  return buildW2AFailure(root, children);
+  const failure = buildW2AFailure(root, children);
+  if (failureRecord(root)?.retryOf) {
+    const { mapNativeRetryFailure } = await import('./w2a-native-retry');
+    return mapNativeRetryFailure(await readPhysicalOrder(failure.orderRowId),failureRecord(root)!,failure);
+  }
+  return failure;
 }
 export async function assertLatestFailure(failure: W2AFailure): Promise<void> {
   const current=await readPhysicalOrder(failure.orderRowId);
