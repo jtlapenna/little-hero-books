@@ -1,3 +1,4 @@
+import { isHumanAdminIdentity } from '@/lib/admin-auth-policy';
 /** Human review/approval/application boundary. Provider transport is supplied by a reviewed runtime, never by an HTTP body. */
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -22,7 +23,7 @@ export interface OrdinaryReleaseApplication {
 }
 export type OrdinaryReleaseRuntime = { kind: 'ready'; application: OrdinaryReleaseApplication } |
   { kind: 'blocked'; blockers: readonly string[] };
-export type ReleaseIdentity = { ok: true; mode: 'access' | 'token'; actor: string } | { ok: false; response: Response };
+export type ReleaseIdentity = { ok: true; mode: 'access' | 'supabase' | 'token'; actor: string } | { ok: false; response: Response };
 export interface ReleaseHttpPorts {
   authenticate(request: Request): Promise<ReleaseIdentity>;
   runtime(actor: string): Promise<OrdinaryReleaseRuntime>;
@@ -66,7 +67,7 @@ export function createOrdinaryReleaseHttpHandler(ports: ReleaseHttpPorts) {
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     const identity = await ports.authenticate(request);
     if (!identity.ok) return identity.response;
-    if (identity.mode !== 'access') return json({ error: 'A signed-in authorized operator is required' }, 403);
+    if (!isHumanAdminIdentity(identity)) return json({ error: 'A signed-in authorized operator is required' }, 403);
     let input: unknown;
     try { const text = await request.text(); if (text.length > 65536) return json({ error: 'Request too large' }, 413); input = JSON.parse(text); }
     catch { return json({ error: 'Invalid release request' }, 400); }

@@ -1,8 +1,9 @@
+import { applyManagedCookieUpdates } from './admin-managed-auth';
 import { authorizePrinterFileRequest } from './printer-file-grants';
 import { requireAdminAuth } from './admin-auth';
 import { verifyPreviewImageGrant } from './preview-file-grants';
 import { isOrderAssetKey } from './order-paths';
-import { ADMIN_LOGIN_PATH, ADMIN_SIGN_IN_HEADER, adminReturnPath, adminLoginHref, canonicalAdminOrigin } from './admin-login-target';
+import { LEGACY_ADMIN_LOGIN_PATH, ADMIN_SIGN_IN_HEADER, adminReturnPath, adminLoginHref, canonicalAdminOrigin } from './admin-login-target';
 
 const publicStatic = new Set(['/favicon.ico', '/window.svg', '/globe.svg', '/next.svg', '/vercel.svg', '/file.svg', '/pdf.worker.min.mjs']);
 // Exact method/path contracts: new POST polling must not open legacy cron methods.
@@ -12,6 +13,8 @@ const cronMethods = new Map([
   ['/api/cron/gelato-status', ['POST']],
 ]);
 const publicMethods = new Map([
+  ['/api/auth/request-code', ['POST']], ['/api/auth/verify-code', ['POST']], ['/api/auth/sign-out', ['POST']],
+  ['/login', ['GET', 'HEAD']],
   ['/api/checkout/create', ['POST']], ['/api/preview/check', ['GET', 'POST']],
   ['/api/preview/generate', ['POST']], ['/api/preview/validate-token', ['POST']],
   ['/api/preview/contact', ['POST']], ['/api/webhooks/stripe', ['POST']], ['/api/webhooks/lulu/status', ['POST']],
@@ -76,7 +79,7 @@ export async function authorizeBackendBoundary(request: Request): Promise<Respon
     headers.set('Location', new URL(adminLoginHref(url.pathname), origin).href);
     return new Response(null, { status: 303, headers });
   }
-  if (htmlNavigation && url.pathname === ADMIN_LOGIN_PATH) {
+  if (htmlNavigation && url.pathname === LEGACY_ADMIN_LOGIN_PATH) {
     headers.set('Content-Type', 'text/html; charset=utf-8');
     return new Response('<!doctype html><html lang="en"><title>Sign-in unavailable</title><main><h1>Sign-in could not be verified</h1><p>Contact the site administrator if signing in again does not resolve this.</p><a href="/">Return to admin</a></main></html>', { status: 401, headers });
   }
@@ -100,13 +103,18 @@ export async function withBackendAccess(request: Request, next: (request: Reques
   headers.set('x-request-id', requestId);
   const forwarded = new Request(request, { headers });
   const rejection = await authorizeBackendBoundary(forwarded);
-  const response = rejection ?? await next(forwarded);
+  const response = applyManagedCookieUpdates(forwarded, rejection ?? await next(forwarded));
   const responseHeaders = new Headers(response.headers);
   // The normal Next path generates its own correlation ID; shortcuts use this entrypoint ID.
   responseHeaders.set('x-request-id', responseHeaders.get('x-request-id') ?? requestId);
   if (boundaryPolicy(new URL(request.url).pathname, request.method) !== 'static') {
     responseHeaders.set('Cache-Control', 'private, no-store');
     responseHeaders.set('CDN-Cache-Control', 'no-store');
+    if (new URL(request.url).pathname === '/login' || new URL(request.url).pathname.startsWith('/api/auth/')) {
+      responseHeaders.set('Referrer-Policy', 'no-referrer');
+      responseHeaders.set('Content-Security-Policy', "frame-ancestors 'none'; form-action 'self'; base-uri 'self'");
+      responseHeaders.set('X-Frame-Options', 'DENY');
+    }
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
 }

@@ -19,7 +19,11 @@ async function main() {
   const accessJwt=await new SignJWT({email:'jeff@littleherolabs.com',type:'app'}).setProtectedHeader({alg:'RS256',kid:jwk.kid})
     .setIssuer(accessIssuer).setAudience(accessAudience).setSubject('synthetic-operator').setIssuedAt().setExpirationTime('15m').sign(accessKeys.privateKey);
   const testAccount=createHash('sha256').update('synthetic-compiled-gelato-key').digest('hex'),testExpiry=new Date(Date.now()+3600000).toISOString();
-  let scopeRegistrations=0;
+  let scopeRegistrations=0,managedRefreshes=0,managedReads=0;
+  const managedAnon=await new SignJWT({role:'anon'}).setProtectedHeader({alg:'HS256'}).sign(new TextEncoder().encode('synthetic-compiled-managed-key'));
+  const managedToken=await new SignJWT({sub:'11111111-1111-4111-8111-111111111111',email:'jeff@littleherolabs.com',exp:Math.floor(Date.now()/1000)+3600}).setProtectedHeader({alg:'HS256'}).sign(new TextEncoder().encode('synthetic-compiled-managed-key'));
+  const managedUser={id:'11111111-1111-4111-8111-111111111111',email:'jeff@littleherolabs.com',email_confirmed_at:new Date().toISOString(),aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{padding:'x'.repeat(9000)}};
+  const managedSession={access_token:managedToken,refresh_token:'synthetic-compiled-managed-refresh',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user:managedUser};
   const settings = await readFile('wrangler.toml', 'utf8');
   const date = settings.match(/^compatibility_date\s*=\s*"([^"]+)"/m)?.[1];
   const flags = [...(settings.match(/compatibility_flags\s*=\s*\[([^\]]+)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(match => match[1]);
@@ -46,7 +50,7 @@ async function main() {
       compatibilityDate: date, compatibilityFlags: flags,
       bindings: {
         SUPABASE_URL: 'https://compiled-worker-db.example.test', NEXT_PUBLIC_SUPABASE_URL: 'https://compiled-worker-db.example.test',
-        SUPABASE_SERVICE_ROLE_KEY: 'synthetic-compiled-worker-key', BACKEND_API_TOKEN: 'synthetic-compiled-worker-machine',
+        ADMIN_SUPABASE_AUTH_ENABLED:'true',SUPABASE_ANON_KEY:managedAnon,SUPABASE_SERVICE_ROLE_KEY: 'synthetic-compiled-worker-key', BACKEND_API_TOKEN: 'synthetic-compiled-worker-machine',
         CRON_SECRET: 'synthetic-compiled-cron-replacement',
         ADMIN_SITE_ORIGIN: 'https://admin.littleherolabs.com',
         N8N_W0_WEBHOOK_URL: 'https://compiled-worker-w0.example.test/hook',
@@ -63,6 +67,13 @@ async function main() {
       serviceBindings: { ASSETS: async () => new WorkerResponse('Missing synthetic asset', { status: 404 }) },
       outboundService: async request => {
         const url = new URL(request.url);
+        if(url.origin==='https://compiled-worker-db.example.test'&&url.pathname.startsWith('/auth/v1/')){
+          if(url.pathname==='/auth/v1/user'){managedReads++;assert.equal(request.headers.get('authorization'),'Bearer '+managedToken);return WorkerResponse.json(managedUser);}
+          if(url.pathname==='/auth/v1/verify')return WorkerResponse.json(managedSession);
+          if(url.pathname==='/auth/v1/token'){managedRefreshes++;assert.equal(url.search,'?grant_type=refresh_token');return WorkerResponse.json(managedSession);}
+          if(url.pathname==='/auth/v1/logout'){assert.equal(url.search,'?scope=local');return new WorkerResponse(null,{status:204});}
+          throw Error('Unexpected compiled Auth transport');
+        }
         if(url.href===accessIssuer+'/cdn-cgi/access/certs' && request.method==='GET') return WorkerResponse.json({keys:[jwk]});
         if(url.origin==='https://compiled-worker-db.example.test' && url.pathname==='/rest/v1/rpc/register_admin_workflow_test_release_scope' && request.method==='POST') {
           scopeRegistrations++;
@@ -99,7 +110,7 @@ async function main() {
         const target = new URL(url);
         const failed = (error: Error) => reject(new Error(`Synthetic Worker transport failed for ${target.pathname}`, { cause: error }));
         const request = httpRequest(new URL(target.pathname + target.search, local), {
-          agent: false, method: init.method ?? 'GET', headers: { ...init.headers, 'MF-Original-URL': url, 'MF-Disable-Pretty-Error': 'true' },
+          agent: false, method: init.method ?? 'GET', headers: { host: target.host, ...init.headers, 'MF-Original-URL': url, 'MF-Disable-Pretty-Error': 'true' },
         }, response => {
           const chunks: Buffer[] = [];
           response.on('data', chunk => chunks.push(Buffer.from(chunk)));
@@ -159,7 +170,16 @@ async function main() {
       assert.equal(queryRouteCheck.status, 400);
       const redirect = await compiledFetch(origin + '/orders', { headers: nav });
       assert.equal(redirect.status, 303);
-      assert.equal(new URL(redirect.headers.get('location')!).pathname, '/__access_setup');
+      assert.equal(new URL(redirect.headers.get('location')!).pathname, '/login');
+      const signInPage=await compiledFetch(origin+'/login?returnTo=%2Fadmin%2Fcsv-upload',{headers:nav});assert.equal(signInPage.status,200);const loginHtml=await signInPage.text();assert.match(loginHtml,/Loading sign-in/);assert.match(loginHtml,/<form[^>]*method="post"/);assert.match(loginHtml,/disabled=""/);assert.equal(signInPage.headers.get('referrer-policy'),'no-referrer');
+      const verified=await compiledFetch(origin+'/api/auth/verify-code',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify({email:managedUser.email,token:'123456',remember:true,returnTo:'/admin/csv-upload'})});
+      assert.equal(verified.status,200,await verified.clone().text());assert.deepEqual(await verified.json(),{authenticated:true,redirectTo:'/admin/csv-upload'});
+      const sessionCookies=verified.headers.getSetCookie().filter(value=>!value.includes('Max-Age=0'));assert(sessionCookies.some(value=>value.startsWith('__Host-lhl-admin.2=')));
+      const signedInHeaders={cookie:sessionCookies.map(value=>value.split(';')[0]).join('; '),referer:origin+'/login'};
+      const signedIn=await compiledFetch(origin+'/api/admin/session',{headers:signedInHeaders});assert.equal(signedIn.status,200,await signedIn.clone().text());assert.deepEqual(await signedIn.json(),{authenticated:true});
+      const expired='base64-'+Buffer.from(JSON.stringify({...managedSession,expires_at:Math.floor(Date.now()/1000)-60})).toString('base64url');const beforeRefresh=managedRefreshes,beforeReads=managedReads;
+      const renewed=await compiledFetch(origin+'/api/admin/session',{headers:{cookie:'__Host-lhl-admin='+expired+'; __Host-lhl-admin-remember=1',referer:origin+'/orders'}});assert.equal(renewed.status,200,await renewed.clone().text());assert.equal(managedRefreshes,beforeRefresh+1);assert(managedReads>=beforeReads+2);assert(renewed.headers.getSetCookie().some(value=>value.startsWith('__Host-lhl-admin.2=')));assert(renewed.headers.getSetCookie().some(value=>value.startsWith('__Host-lhl-admin-remember=1')));
+      const signedOut=await compiledFetch(origin+'/api/auth/sign-out',{method:'POST',headers:{...signedInHeaders,origin,'Content-Type':'application/json'},body:'{}'});assert.equal(signedOut.status,200);assert(signedOut.headers.getSetCookie().some(value=>value.startsWith('__Host-lhl-admin.2=')&&value.includes('Max-Age=0')));
       // Public route must reach compiled Next middleware/router and actual validation.
       const invalidCheckout = await compiledFetch(origin + '/api/checkout/create', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'synthetic-compiled-invalid' }, body: '{}',

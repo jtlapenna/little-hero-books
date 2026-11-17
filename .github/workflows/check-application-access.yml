@@ -42,6 +42,8 @@ jobs:
       - name: Verify human and machine identities in Node and Worker
         run: |
           npm run test:admin-auth
+          npm run test:admin-managed-auth
+          npm run test:admin-managed-consumers
           npm run test:admin-auth:worker
           npm run test:admin-login
           npm run test:admin-session-client

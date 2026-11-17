@@ -1,3 +1,4 @@
+import { managedAdminFixture } from './helpers/managed-admin-fixture';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
@@ -14,6 +15,7 @@ async function main() {
   const keys = await generateKeyPair('RS256'), jwk = { ...await exportJWK(keys.publicKey), kid: 'w2a-test', alg: 'RS256' };
   const jwt = await new SignJWT({ email: 'operator@example.test', type: 'app' }).setProtectedHeader({ alg: 'RS256', kid: 'w2a-test' })
     .setIssuer(process.env.CF_ACCESS_ISSUER!).setAudience(process.env.CF_ACCESS_AUDIENCE!).setSubject('operator').setIssuedAt().setExpirationTime('10m').sign(keys.privateKey);
+  const managed=process.argv.includes('--supabase')?await managedAdminFixture(['operator@example.test']):null;
   const started = '2026-11-16T05:50:28.244', stopped = '2026-11-16T05:50:34.758Z';
   const initial = { id: 91, orderId: 'TEST-W2A-FAILURE', root_order_id: 'ROOT-W2A', execution_status: 'processing', current_workflow: '2A', next_workflow: '2A',
     workflow_step: 'order_intake', started_at: started, updated_at: '2026-11-16T05:50:28.553595Z', one_manifest_url: 'https://admin.littleherolabs.com/api/manifests/book-finding-our-inner-voice/orders/TEST-W2A-FAILURE/manifests/1-manifest.json',
@@ -38,6 +40,7 @@ async function main() {
     : expression === 'is.null' ? value == null : expression.startsWith('in.') ? expression.slice(4, -1).split(',').map(v => v.replaceAll('"', '')).includes(String(value))
     : expression.startsWith('like.') ? String(value ?? '').startsWith(expression.slice(5).replace('%', '').replace('_', '_')) : true;
   globalThis.fetch = async (input, init) => {
+    const managedResponse=managed?.response(input instanceof Request?input:new Request(input,init));if(managedResponse)return managedResponse;
     calls++; const request = new Request(input, init), url = new URL(request.url);
     assert.ok(['w2a-db.example.test', 'w2a-n8n.example.test', 'admin.littleherolabs.com', 'w2a-test.cloudflareaccess.com', 'little-hero-orders.synthetic-w2a.r2.cloudflarestorage.com', 'little-hero-assets.synthetic-w2a.r2.cloudflarestorage.com'].includes(url.hostname), 'unexpected external transport');
     if (url.hostname.endsWith('.r2.cloudflarestorage.com')) {
@@ -88,7 +91,7 @@ async function main() {
     const { GET, POST } = await import('../src/app/api/admin/w2a-recovery/route');
     const { recordW2AExecutionFailure, queueEarlyW2ARetry } = await import('../src/lib/w2a-failure-recovery');
     const req = (path: string, body?: unknown, access = false, authorized = true) => new NextRequest('https://admin.littleherolabs.com'+path, {
-      method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(authorized ? access ? { 'cf-access-jwt-assertion': jwt, origin: 'https://admin.littleherolabs.com' } : { authorization: 'Bearer synthetic-w2a-machine' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body),
+      method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(authorized ? access ? { ...(managed?{cookie:managed.cookie('operator@example.test')}:{'cf-access-jwt-assertion':jwt}), origin: 'https://admin.littleherolabs.com' } : { authorization: 'Bearer synthetic-w2a-machine' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body),
     });
     for (const handler of [report, POST]) { const before = calls; assert.equal((await handler(req('/api/unused', { executionId: '101' }, false, false))).status, 401); assert.equal(calls, before); }
     assert.equal((await report(req('/api/internal/w2a/report-failure', { executionId: '101', spoof: { id: 91 } }))).status, 400);
@@ -126,6 +129,7 @@ async function main() {
     const retry = { action: 'retry', orderId: initial.orderId, executionId: '101', claimStartedAt: failure.claimStartedAt, updatedAt: row!.updated_at };
     assert.equal((await POST(req('/api/admin/w2a-recovery', { ...retry, resolvedCause: true }))).status, 403, 'machine cannot acknowledge resolved cause');
     for(const action of ['prepare_native_retry','resume_native_retry']) assert.equal((await POST(req('/api/admin/w2a-recovery',{...retry,action,resolvedCause:true}))).status,403,'Machine cannot prepare or dispatch native recovery');
+    for(const action of ['prepare_native_retry','resume_native_retry']) { const result=await POST(req('/api/admin/w2a-recovery',{...retry,action,resolvedCause:true},true));assert.equal(result.status,400,'Human passes auth but invalid native ownership stays held');assert.equal(writes,1); }
     assert.equal((await POST(req('/api/admin/w2a-recovery', retry, true))).status, 400); assert.equal(writes, 1);
     assert.equal((await POST(req('/api/admin/w2a-recovery', { ...retry, resolvedCause: true }, true))).status, 200);
     assert.equal(writes, 2); assert.equal(row!.execution_status, 'ready_for_processing'); assert.equal(row!.retry_count, 1);

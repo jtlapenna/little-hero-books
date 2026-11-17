@@ -1,0 +1,52 @@
+# Mobile admin sign-in with managed sessions
+
+## Outcome and observed current state
+
+User can receive and enter a Cloudflare code on phone, then encounters an error. Exact phone error/UA is not yet known; do not invent a confirmed device-specific cause. Current app has no first-party sign-in form: unauthorized HTML redirects to narrow `/__access_setup`, Cloudflare protects only that handoff, and app authorization relies on a Cloudflare JWT. Supabase has0Auth users and built-in non-production SMTP. Existing local Resend key returns401; user asked to sign in to Resend while implementation proceeds. Customer/order workflows are separate. Luca E/1181 remains held with prepared native continuation; no generation, reset, print, paid provider or notification actions are part of this work.
+
+## Smallest complete solution and boundaries
+
+Use existing Supabase Auth plus its official SSR cookie helper. Add pinned `@supabase/ssr`0.12.7 and compatible pinned existing-v2 `@supabase/supabase-js`2.114.x after verifying registry/current docs. No new custom session store, password system, role table or OAuth provider project. Production SMTP using existing approved email service is required before default sign-in cutover. Provision only existing allowlisted admins; native OTP requests set shouldCreateUser:false. No self-signup or added admin identities. Keep verified Cloudflare sessions as compatibility/rollback, existing `/__access_setup` gate and machine Bearer callers remain valid. Preserve current exact print permissions and all order/image data.
+
+## Canonical contracts
+
+- Human identity is server-confirmed Supabase user with confirmed email on existing ADMIN_ALLOWED_EMAILS, or existing verified Cloudflare identity. No user_metadata authorization; no getSession user object trusted alone. Machine mode stays token. Extend mode with supabase; add a shared human identity predicate for CSV, W2A recovery, workflow-test print owner and paid-release guards. Existing actor-email ownership and all print admissions remain unchanged. Legacy Cloudflare-only handoff stays explicit.
+- Managed session cookies are host-only, Secure in production, HttpOnly, SameSite=Lax, path/. Remembered session has bounded30-day cookie persistence; browser-session option has no persistence. Provider refresh rotation remains canonical. On protected requests refresh once at existing Worker boundary, update forwarded request cookies and attach Set-Cookie only to this no-store response so downstream handlers see fresh tokens. Request-scoped result memoization avoids duplicate refresh. Never cache auth/session/private responses.
+- New public exceptions are exact login GET/HEAD and auth code request/verify/logout POST contracts on canonical admin host; production preview/Pages hosts do not become auth authorities. Body-size/content-type validation, same-origin mutation/Fetch Metadata checks and provider request/verification rate limits apply. Rejected/expired codes and provider/network errors get clear messages with no token/provider-secret logs.
+- Safe internal return paths use existing adminReturnPath owner. No arbitrary redirect URLs or new public private-asset/cron/API exceptions. Session-loss guard and navigation links point to login; sign-out clears local managed session and compatible app cookie. Login/status UI never interprets authentication loss as an empty order list.
+
+## Checkpoints and proof
+
+1. Write failing contract tests using actual exported boundary/auth/route handlers and real SSR/Supabase client against intercepted synthetic Auth HTTP. Cover code request→verification→protected page/session, invalid/unconfirmed/unapproved identities, malformed/tampered cookies, expiry→refresh→forwarded cookie and response Set-Cookie, session-cookie choice, logout, no-store and unsafe redirects/CSRF/duplicate cookies. Confirm machine Bearer and legacy verified Cloudflare paths remain strict. Apply smallest auth/server changes; independent review.
+2. Build phone-first login page with email/code forms, paste/autofill-friendly single OTP field, resend/cooldown, back/change-email, pending/error states and stay-signed-in control. Preserve intended page after success; wire session guard/sign-out and all human-only consumers. Render real app desktop/mobile, keyboard and invalid/expired/network/session states; screenshot QA. Independent security/consumer review.
+3. Configure managed Auth/SMTP and only approved existing identities using provider interfaces; verify delivery/session on canonical host without customer messages or order actions. No provider credential pasted into chat or Git. If user/provider access is required, keep dependent activation pending while completing all independent work. No default-email assumptions or silent auth bypass.
+4. Run exact source-evidence successor preserving prior304 manifest and false authority flags, activated access/Worker/production and workflow suites, personal-account Git gate and release-safety review. Prepare the concrete reviewed diff and respect session authorization before publication, preserving existing policies and secret bindings. Verify canonical deployed source, allowed sign-in and forbidden access, old Bearer workflow path, cookie refresh and phone viewport. Do not declare real-phone success solely from emulation; user can confirm the final phone login.
+
+## Residual limits
+
+No actual phone browser access until user retries; exact old error remains unconfirmed. No new Google/Apple/passkey setup in this slice. No RLS loosening: current private public-schema tables are RLS-enabled without client policies; server service-role remains server-only. Do not log codes, cookies or raw provider errors. Supabase delivery/credentials are an activation dependency, not grounds to remove email confirmation or use shared passwords.
+
+## Plan review resolutions
+
+Pinned SSR requires overriding persistence at its final setAll adapter, not only cookieOptions; remember means rolling30-day browser persistence, not absolute provider session lifetime. Preserve maxAge0 deletions and session-only choice through every refresh. Forward rotated cookie chunks through the existing boundary and revalidate fresh tokens downstream; cross-bundle identity memoization is not assumed. Present managed cookies own the actor and invalid ones do not fall back to another Cloudflare identity; explicit machine Authorization remains first. Successful managed login clears locally accepted Cloudflare cookies, logout uses Supabase local scope and local cookie cleanup, not global Cloudflare logout. Activation requires verified SMTP/domain, code-token template, signupdisabled and provisioned only approved identities. Server-only Auth ownership means no browser Supabase client or service-role session client.
+
+For protected API reads only, accept exact Origin or, when absent, exact Referer with missing optional Fetch Metadata; deny any explicitcross-site and any mismatched supplied Origin. Mutations still require exact Origin; ordinary HTML navigation remains compatible with inbound links. This is a reviewed compatibility improvement, not proof of the old phone error's cause.
+
+Actual handler matrix must prove both human modes through CSV, W2A, creator-owned workflow-test review/print and ordinary-release role/owner checks, with machines still denied human actions. Packaged Worker test must prove one refresh and refreshed forwarded chunks, all Set-Cookie headers on successful route/redirect/denial, and preserved session-only/remembered persistence. No live order or provider side effects.
+
+## Implemented checkpoints and review resolutions
+
+- Raw cookie duplicates must be detected before SSR's parser, which collapses duplicate names. Fixed and tested with valid-first/invalid-second and duplicate preference cookies.
+- The final writer enforces browser/session persistence because the installed SSR helper supplies a400-day default. The30-day preference marker renews alongside refreshed chunks. Logout deletion/expiry remains effective.
+- Both separately bundled Pages boundary and Next middleware forward fresh cookies and preserve response updates. Actual packaged Worker tests cover OTP, refresh and chunked logout; the production-compiled test also covers these paths.
+- `/login` has no-referrer protection; its session probe explicitly uses `referrerPolicy:'same-origin'`. Browser testing proves existing-session return without weakening protected reads.
+- Form controls wait for hydration; native form method is POST. This prevents a pre-hydration click from putting email/code values in a GET URL. Phone-sized error layout wraps the email on its own line.
+- Every human consumer accepts the managed identity while retaining its original actor/owner rules. Synthetic CSV/W2A/print preparation/review/submit and paid-release suites cover managed and original human providers, machine denials and foreign-owner denials.
+- Rollout review found two stale CI consumers: compiled login redirect and three runtime-receipt fixture writers. Updated all of them; portable upload identity checks pass. Native Linux built-package checks remain a required hosted gate.
+- Next's local security reminder was verified against the vendor advisory; updated only the patch line to16.4.6 with matching ESLint package. SDK/Next changes require a fresh actual Pages build.
+- Production SMTP, six-digit template/settings, signup policy and approved Auth users remain activation gates, described in `docs/admin-sign-in.md`. No production flag, policy, credential, user, order, workflow, image or print change has been performed for this task. Earlier deployment authorization does not substitute for verifying the new Auth provider configuration.
+
+
+## Authorized setup and publication continuation
+
+The user explicitly requested finishing Resend setup and deployment. Existing Resend sending credentials were revalidated with an empty email request:422missing-recipient proves authentication without sending an email. Prior401 was an endpoint permission mismatch. Reuse the current sending key; no new credential or broader provider permission is needed. Browser SMTP password entry/save is handed to the user under the browser credential-entry policy. Source candidate publication can proceed with managed login disabled while SMTP is pending; activation waits for configured provider, approved users and real delivery/session proof.

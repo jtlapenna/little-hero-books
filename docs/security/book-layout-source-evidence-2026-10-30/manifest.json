@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "39646d29ba7fefac0be9c2f550b3406a7e7b278bbf0d6d1c9c9d592c28c499a8",
+  "sourceSnapshotSha256": "7a8b1f4fb16718646552eab7886fdd158fccad52ac05357744f8a84a919d2d26",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -10,21 +10,29 @@
   "liveAcceptanceRenewed": false,
   "suiteExecutionRenewed": false,
   "addedSourcePaths": [
+    ".github/workflows/check-application-access.yml",
     ".gitleaks.toml",
     "back-end/scripts/assemble-inner-voice-print-test.ts",
     "back-end/scripts/fixtures/n8n-expression-runtime/package-lock.json",
     "back-end/scripts/fixtures/n8n-expression-runtime/package.json",
     "back-end/scripts/helpers/book-layout-v3-fixture.ts",
     "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+    "back-end/scripts/helpers/managed-admin-fixture.ts",
     "back-end/scripts/helpers/restore-w2a-qa-identity.js",
     "back-end/scripts/helpers/select-workflow-http-envelope.js",
+    "back-end/scripts/prepare-admin-auth-bindings.mjs",
     "back-end/scripts/prepare-inner-voice-print-test.ts",
     "back-end/scripts/prepare-workflow-test-bindings.mjs",
     "back-end/scripts/quote-inner-voice-print-test.ts",
     "back-end/scripts/release-inner-voice-print-test.ts",
+    "back-end/scripts/security-public-routes.mts",
     "back-end/scripts/serve-admin-workflow-ui.ts",
     "back-end/scripts/stage-inner-voice-print-test-csv.ts",
+    "back-end/scripts/test-access-boundary.ts",
+    "back-end/scripts/test-access-runtime-bindings.mjs",
     "back-end/scripts/test-admin-auth.ts",
+    "back-end/scripts/test-admin-login.ts",
+    "back-end/scripts/test-admin-managed-auth.ts",
     "back-end/scripts/test-admin-workflow-csv.ts",
     "back-end/scripts/test-admin-workflow-print-service.ts",
     "back-end/scripts/test-admin-workflow-print-store.ts",
@@ -52,6 +60,7 @@
     "back-end/scripts/test-message-safety-guard-persistence.ts",
     "back-end/scripts/test-message-safety-guard.ts",
     "back-end/scripts/test-n8n-transport-worker.ts",
+    "back-end/scripts/test-pages-access-boundary.ts",
     "back-end/scripts/test-w2-http-handoff.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
@@ -74,6 +83,9 @@
     "back-end/src/app/api/admin/w2a-recovery/route.ts",
     "back-end/src/app/api/admin/w3-calibration/route.ts",
     "back-end/src/app/api/admin/workflow-test-print/route.ts",
+    "back-end/src/app/api/auth/request-code/route.ts",
+    "back-end/src/app/api/auth/sign-out/route.ts",
+    "back-end/src/app/api/auth/verify-code/route.ts",
     "back-end/src/app/api/cron/health-monitor/route.ts",
     "back-end/src/app/api/internal/w2a/build-base-input/route.ts",
     "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
@@ -90,13 +102,25 @@
     "back-end/src/app/api/orders/[orderId]/route.ts",
     "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts",
     "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
+    "back-end/src/app/login/page.tsx",
     "back-end/src/app/orders/[orderId]/page.tsx",
     "back-end/src/components/stages/gelato-release-review.tsx",
     "back-end/src/components/stages/gelato-stage.tsx",
     "back-end/src/components/stages/post-bria-stage.tsx",
     "back-end/src/components/stages/post-pdf-stage.tsx",
     "back-end/src/components/stages/workflow-test-print-review.tsx",
+    "back-end/src/components/ui/admin-session-guard.tsx",
+    "back-end/src/components/ui/admin-sign-in.tsx",
+    "back-end/src/components/ui/admin-sign-out.tsx",
+    "back-end/src/components/ui/conditional-navigation.tsx",
     "back-end/src/components/ui/manual-review-alert.tsx",
+    "back-end/src/components/ui/navigation.tsx",
+    "back-end/src/lib/access-boundary.ts",
+    "back-end/src/lib/admin-auth-policy.ts",
+    "back-end/src/lib/admin-auth.ts",
+    "back-end/src/lib/admin-login-target.ts",
+    "back-end/src/lib/admin-managed-auth.ts",
+    "back-end/src/lib/admin-signin-http.ts",
     "back-end/src/lib/admin-workflow-test.ts",
     "back-end/src/lib/amazon-customization-parser.ts",
     "back-end/src/lib/analytics-helpers.ts",
@@ -159,6 +183,7 @@
     "back-end/src/lib/workflow-jobs/types.ts",
     "back-end/src/lib/workflow-jobs/w2a-pose-jobs.ts",
     "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts",
+    "back-end/src/middleware.ts",
     "back-end/src/types/order.ts",
     "back-end/wrangler.toml",
     "database/20261115230112_admin_workflow_test_print_hold.sql",
@@ -173,6 +198,7 @@
     ".github/workflows/check-gelato-ordinary-release.yml",
     ".github/workflows/check-production-build.yml",
     ".github/workflows/check-workflow-export-secrets.yml",
+    "back-end/package-lock.json",
     "back-end/package.json",
     "back-end/scripts/helpers/gelato-admission-sql.ts",
     "back-end/scripts/helpers/gelato-combined-local-journey.ts",
@@ -191,6 +217,7 @@
     "back-end/scripts/test-gelato-protected-launch.ts",
     "back-end/scripts/test-gelato-protected-runner-crashes.ts",
     "back-end/scripts/test-gelato-protected-runner.ts",
+    "back-end/scripts/test-pages-upload-identity.ts",
     "back-end/scripts/test-w0-character-handoff.ts",
     "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
     "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -215,6 +242,11 @@
   ],
   "files": [
     {
+      "path": ".github/workflows/check-application-access.yml",
+      "kind": "source",
+      "sha256": "bd35b4bfa47e1b2deb09cbe078e50017bda55a30c7556cab2964b32a4732b171"
+    },
+    {
       "path": ".github/workflows/check-gelato-local-launch.yml",
       "kind": "source",
       "sha256": "b56cd0f9791baf06977a6486ce3ecbc916781802a6cc093717a9b7558729af2c"
@@ -222,7 +254,7 @@
     {
       "path": ".github/workflows/check-gelato-ordinary-release.yml",
       "kind": "source",
-      "sha256": "1c34e070bc9ad9a1393614d5cde1e1c770e84940084625821fb21e8cc7b9fbb9"
+      "sha256": "725f7139ea4e2e0fde2e96eb16a9c1143cfbcffd58172667014189ae431a54e7"
     },
     {
       "path": ".github/workflows/check-production-build.yml",
@@ -247,12 +279,12 @@
     {
       "path": "back-end/package-lock.json",
       "kind": "source",
-      "sha256": "7e90264484dd4d2a898983d875f0a9697b1cd2b97326fe36f9b7a15920fd468d"
+      "sha256": "271910673fadbd2774675d0462aab1212e61ede5d185a36921fff7c79f053cf4"
     },
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "26d87dbc0805e81db5230f659b5f9442f5e2788a6842e6e350dc5891d1099f3a"
+      "sha256": "c075a60b0c9d13462409659a674565688a9047ee751dcb617f381efb9177a8a2"
     },
     {
       "path": "back-end/scripts/assemble-inner-voice-print-test.ts",
@@ -390,6 +422,11 @@
       "sha256": "f03bf87a3e44f4d501611369b14e965b1ebf2fef6af63fddd1bbe578deaa6f51"
     },
     {
+      "path": "back-end/scripts/helpers/managed-admin-fixture.ts",
+      "kind": "source",
+      "sha256": "956178eabf547ff5d637ecf5a22bf4e7f31e27cecf023dc9c2c041c55478c47e"
+    },
+    {
       "path": "back-end/scripts/helpers/prepare-gelato-isolated-workflows.ts",
       "kind": "source",
       "sha256": "b9641a28b2dd1fe803c21cc2804a5e7d6acce9ba8626f765ec12bad936d80907"
@@ -420,6 +457,11 @@
       "sha256": "526a6e64c10b94b6ad2a0f44c0902fcd2551fe3e9f45e7205e25955f32fa6248"
     },
     {
+      "path": "back-end/scripts/prepare-admin-auth-bindings.mjs",
+      "kind": "source",
+      "sha256": "43b33dd05fe46eba3603f3bd6f6454d739874075db65caa4dcde04f0aa958ca5"
+    },
+    {
       "path": "back-end/scripts/prepare-gelato-isolated-workflows.ts",
       "kind": "source",
       "sha256": "7ee2a0195700e71ca1d55e88d354458d796436ad8a1a2b20c8fe3580d77d4412"
@@ -432,7 +474,7 @@
     {
       "path": "back-end/scripts/prepare-gelato-runtime-bindings.mjs",
       "kind": "source",
-      "sha256": "4dca577ca0f40f76e3289248ff93d2468822a4dcec9acc5517bff00cbbd8e9d4"
+      "sha256": "79571289d112244979a3f8f80724bc7b6a11f1bfbfd82e46e9ee35d37376c372"
     },
     {
       "path": "back-end/scripts/prepare-inner-voice-print-test.ts",
@@ -460,6 +502,11 @@
       "sha256": "a1b1f6032f3d05ebd2dac45b32bf7cb5e6c3523d80d0f87b982935445c4e2217"
     },
     {
+      "path": "back-end/scripts/security-public-routes.mts",
+      "kind": "source",
+      "sha256": "9c690b96e32b9363a726e22dc31387d85b4378db627071720d36bdea1c18c8cc"
+    },
+    {
       "path": "back-end/scripts/serve-admin-workflow-ui.ts",
       "kind": "source",
       "sha256": "8cd9cc6d2f3838934b6a60911d21f425c90c928fbc08da25fd742c2f9c9bbb02"
@@ -470,14 +517,34 @@
       "sha256": "84500f43fb6eb36fa886cfe4910e9b7beff9a8b0113b203e5016274ec2498e76"
     },
     {
+      "path": "back-end/scripts/test-access-boundary.ts",
+      "kind": "source",
+      "sha256": "731984c58af04fcc6eb228165bb6e68c1d102d92bb4af599ab355e9ac41a9369"
+    },
+    {
+      "path": "back-end/scripts/test-access-runtime-bindings.mjs",
+      "kind": "source",
+      "sha256": "b5e135c639697b3966254b93a2e3e2c6f193522d53aeaf71edae11dc8abf0fa0"
+    },
+    {
       "path": "back-end/scripts/test-admin-auth.ts",
       "kind": "source",
       "sha256": "021d2e10fd9e673621f61cce52211cf677d832393b70a6405296fd30bc2f51c5"
     },
     {
+      "path": "back-end/scripts/test-admin-login.ts",
+      "kind": "source",
+      "sha256": "2d6309ac5e85f7a89b989a0f6602ea18e7a39a562b416559e1a1a0224a8074a9"
+    },
+    {
+      "path": "back-end/scripts/test-admin-managed-auth.ts",
+      "kind": "source",
+      "sha256": "3f3e5dda880f1440de94222397a3008f8e8db7ba050bd0d71daf07d9dc7a0afd"
+    },
+    {
       "path": "back-end/scripts/test-admin-workflow-csv.ts",
       "kind": "source",
-      "sha256": "fa359cb2c9beecb58ea86110e5c2f7208719de49a95395efcfe84c8eb55f009d"
+      "sha256": "5267a4d43ec5f1c09732fb26806290e5b435c8743046bc7cd41da5897c73364e"
     },
     {
       "path": "back-end/scripts/test-admin-workflow-print-service.ts",
@@ -492,7 +559,7 @@
     {
       "path": "back-end/scripts/test-amazon-cron-auth-logging.ts",
       "kind": "source",
-      "sha256": "2ab09ec46efe616ab1623ea4006395d45691a8c745dd0b17d93cc43bf1fb4d6f"
+      "sha256": "c80ff7ce3305c8584957c6b643313b4d069edc1109d1fe04e88e15677ba7a047"
     },
     {
       "path": "back-end/scripts/test-book-config-activation-migration.sh",
@@ -532,7 +599,7 @@
     {
       "path": "back-end/scripts/test-compiled-pages-worker.ts",
       "kind": "source",
-      "sha256": "ad78dbff9aebb5b3d4e18cb1f0cab86c6c3d6478695970ef63f4c7228f844f30"
+      "sha256": "0f4670ba43b1d18824898fe5f108ec3382263303efdb2e9721cef60be1f5bbd4"
     },
     {
       "path": "back-end/scripts/test-csv-request-boundary.ts",
@@ -642,7 +709,7 @@
     {
       "path": "back-end/scripts/test-gelato-local-journey.ts",
       "kind": "source",
-      "sha256": "f87fb488f57c94015de4c5b407f1866a932337bb034f4b7fae324965aa3f212c"
+      "sha256": "d1e38ad7444c83da64118440cb60c6dd7643ed12d653cc68c72b6b436406a059"
     },
     {
       "path": "back-end/scripts/test-gelato-local-window.ts",
@@ -697,7 +764,7 @@
     {
       "path": "back-end/scripts/test-gelato-release-application.ts",
       "kind": "source",
-      "sha256": "31e24e7272b58039ff4d007b3f6673eb122a1e3ceda39c3b324456bea7fa2dc5"
+      "sha256": "609560b0a91e5d15941a2646e1329d0031eff0e1a817da551e6392b99e5dc30c"
     },
     {
       "path": "back-end/scripts/test-gelato-release-defaults.ts",
@@ -755,9 +822,14 @@
       "sha256": "1e6406bd0ac6e4bbbf089a994de0251bfde4d560506412fa74a400b9743b32b6"
     },
     {
+      "path": "back-end/scripts/test-pages-access-boundary.ts",
+      "kind": "source",
+      "sha256": "b35298123091de78dedeb16c59576f12bd1e8fc2a34c4364bd9a4930223f789b"
+    },
+    {
       "path": "back-end/scripts/test-pages-upload-identity.ts",
       "kind": "source",
-      "sha256": "d88900cbaa426f9c4625114fefdc9b8787b6255194deec6361fb981643c163a2"
+      "sha256": "fda94d8cdea5deca1d3bec9fbe5ca76c7387a34fbb51148116cd237727b54bb2"
     },
     {
       "path": "back-end/scripts/test-publish-book-config-immutability.ts",
@@ -822,7 +894,7 @@
     {
       "path": "back-end/scripts/test-w2a-failure-recovery.ts",
       "kind": "source",
-      "sha256": "32cd500d27f571231c7817f8545cbd7b67f79bec3cf9057435f11140097cf880"
+      "sha256": "97c0050a2e1d39f14b952eb7bd57e2e1655cc7026cdc89331b7ba822cf0d56c6"
     },
     {
       "path": "back-end/scripts/test-w2a-frozen-generation-input.ts",
@@ -882,7 +954,7 @@
     {
       "path": "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
       "kind": "source",
-      "sha256": "9d75a08d4a0f14d3c6a6fa16d0c14f33b975bceb5bece7e061bb606ef085bb83"
+      "sha256": "8bd2509cecd27497f0e583f910c68c749a9d2830a64d1ae57c09e6e324e09d5c"
     },
     {
       "path": "back-end/src/app/api/admin/gelato-print/route.ts",
@@ -922,7 +994,7 @@
     {
       "path": "back-end/src/app/api/admin/w2a-recovery/route.ts",
       "kind": "source",
-      "sha256": "29cc83eac375fddcf45b1ab62b3186a5b268e3c6d6f739c7cd177c77f8e6f5f2"
+      "sha256": "cdb58895c04f722a2d05c03651700d48896eb1ce1e54dc715eafbcc85c297bb8"
     },
     {
       "path": "back-end/src/app/api/admin/w3-calibration/route.ts",
@@ -932,7 +1004,22 @@
     {
       "path": "back-end/src/app/api/admin/workflow-test-print/route.ts",
       "kind": "source",
-      "sha256": "54e7c1feb77cbfee381d2e970a43eb1f88bd897d15561f07e362030fb3d0b6b7"
+      "sha256": "2ba342113810999e56a061c89c09c948022841f6605a8a881e7b5a6345fcdbde"
+    },
+    {
+      "path": "back-end/src/app/api/auth/request-code/route.ts",
+      "kind": "source",
+      "sha256": "a51bf39fd585169f70e2ff586f3dc28864cf53763e8b65971d309cddb2041c3f"
+    },
+    {
+      "path": "back-end/src/app/api/auth/sign-out/route.ts",
+      "kind": "source",
+      "sha256": "94bea1e05c25f3894d41f4b0e6575cc2cf0ace3ec7ca3c7b9dc7f359acf59a37"
+    },
+    {
+      "path": "back-end/src/app/api/auth/verify-code/route.ts",
+      "kind": "source",
+      "sha256": "92ad346758330ba2ca168302e1e3d87d88b11fc8465cac301519b33267631019"
     },
     {
       "path": "back-end/src/app/api/checkout/create/route.ts",
@@ -1037,7 +1124,7 @@
     {
       "path": "back-end/src/app/api/orders/[orderId]/print/route.ts",
       "kind": "source",
-      "sha256": "d63c9a436f26996a724491bfc9b07061643072ee771dd4c93027ce5cdb15b617"
+      "sha256": "52423033bb83937c3f9f0a9b57c2f9d415e470f7000ee8ce1f7bfc4d3a62b0a9"
     },
     {
       "path": "back-end/src/app/api/orders/[orderId]/queue-workflow-3/route.ts",
@@ -1063,6 +1150,11 @@
       "path": "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
       "kind": "source",
       "sha256": "988e678cf8f733a50974b99197f1f396420263fc30e748f555612d275f7317c6"
+    },
+    {
+      "path": "back-end/src/app/login/page.tsx",
+      "kind": "source",
+      "sha256": "aa455492338b7a9294ce2eba89527541a902e5a3777bd8e2508e30dd4ebe1104"
     },
     {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
@@ -1095,9 +1187,64 @@
       "sha256": "60d9494c641e109184dd72b7c8e21f21bd858780d1596214a5749dbaa79c26b8"
     },
     {
+      "path": "back-end/src/components/ui/admin-session-guard.tsx",
+      "kind": "source",
+      "sha256": "1fb54685cd0338fc2d75f323da4a20e37c385ca30cd16d1815889a47e592a419"
+    },
+    {
+      "path": "back-end/src/components/ui/admin-sign-in.tsx",
+      "kind": "source",
+      "sha256": "4b307cf9101cfbc520e9d8d2e76c98100f603b3d6ff171ddb33bf6d348c56410"
+    },
+    {
+      "path": "back-end/src/components/ui/admin-sign-out.tsx",
+      "kind": "source",
+      "sha256": "42032e536780bfbc7c80a3865ad9f45b4af5684c278e75a57697c800b09434c1"
+    },
+    {
+      "path": "back-end/src/components/ui/conditional-navigation.tsx",
+      "kind": "source",
+      "sha256": "719a05ae25124eeae086975edc96872a558ddae5cf9ee6cbcda78ec48d11685b"
+    },
+    {
       "path": "back-end/src/components/ui/manual-review-alert.tsx",
       "kind": "source",
       "sha256": "2013cd4bc0d210adfc152b6d3fdadbe685fcd6ffd57c86896a396e6cf8a68e8a"
+    },
+    {
+      "path": "back-end/src/components/ui/navigation.tsx",
+      "kind": "source",
+      "sha256": "fb1eef27a987b9e188872e711f8fffa692207d507b03cc2d8bd3db70594d705d"
+    },
+    {
+      "path": "back-end/src/lib/access-boundary.ts",
+      "kind": "source",
+      "sha256": "08adcbc8744474b8db138674754dbc7e73ecfd49dd9cc418a0cd8a0f7e90f0ee"
+    },
+    {
+      "path": "back-end/src/lib/admin-auth-policy.ts",
+      "kind": "source",
+      "sha256": "76cf3057d43e32060dbad685b33c09bd0f23c11aa637da5fc3d42d20db899451"
+    },
+    {
+      "path": "back-end/src/lib/admin-auth.ts",
+      "kind": "source",
+      "sha256": "c36495388914929310f6890c869bfc827f8f403679a0e542a528a980869438cc"
+    },
+    {
+      "path": "back-end/src/lib/admin-login-target.ts",
+      "kind": "source",
+      "sha256": "9423535ee52231ce48cedff3e78b04ed9607f29d7b813d9e9ebf1a720af1a203"
+    },
+    {
+      "path": "back-end/src/lib/admin-managed-auth.ts",
+      "kind": "source",
+      "sha256": "12cf08752746bec3234252e003a0d92726f8d9054733da0395095d0f086e8d50"
+    },
+    {
+      "path": "back-end/src/lib/admin-signin-http.ts",
+      "kind": "source",
+      "sha256": "917bcd18175a9283c84dabf240559ba3db938e1fe00880c26da8f11ebd45c85f"
     },
     {
       "path": "back-end/src/lib/admin-workflow-test.ts",
@@ -1267,7 +1414,7 @@
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-application.ts",
       "kind": "source",
-      "sha256": "71cc17cc29640db74c85d3c21a0796fc81f833b876bbb31decce29a14875cfe1"
+      "sha256": "467a81f93cab5940311ec338a3e04efcb7acc6e86b741a8c771b07f04122a627"
     },
     {
       "path": "back-end/src/lib/books/gelato-ordinary-release-core.ts",
@@ -1575,6 +1722,11 @@
       "sha256": "b630491eebee3cc55fb37e63f17667fe971bbd7e703cb263131c4ea5f8403385"
     },
     {
+      "path": "back-end/src/middleware.ts",
+      "kind": "source",
+      "sha256": "560d66e8c5b7aef6ad479b937966f930504444842abf75239bd4315c99b0970b"
+    },
+    {
       "path": "back-end/src/types/order.ts",
       "kind": "source",
       "sha256": "4755247ab528c6eb6fb7bbd735a56f8d3cdf188bf13b64b7d2fc2eb3215f9bc1"
@@ -1587,7 +1739,7 @@
     {
       "path": "back-end/wrangler.toml",
       "kind": "source",
-      "sha256": "5dafd719e0d05549b5502fffc304c174a55cce14567e5bdffc6611ce6e73c346"
+      "sha256": "bdd84f6d75a04017cc5d47f85785c9f77f184e1f120be74d628c962fe901cdbb"
     },
     {
       "path": "database/20261020011248_gelato_engineering_isolation.sql",
@@ -1610,9 +1762,19 @@
       "sha256": "3d1b5fb7b4c34c8fa6d6f8924ca7f9cdfda6f8303b402e48e30ed7e9bea537f0"
     },
     {
+      "path": "docs/admin-sign-in.md",
+      "kind": "evidence",
+      "sha256": "f0db70dc3147bc13d59aa013cfcdfe93339c8ac6e3281733212755b1ea4966bb"
+    },
+    {
       "path": "docs/database/migration-activate-book-config-version.sql",
       "kind": "source",
       "sha256": "e20584bc0770c13bf2875be1a04045d7f30cab0b34ee50d77795b5762a5b81f4"
+    },
+    {
+      "path": "docs/implementation-plans/admin-mobile-signin-20261117.md",
+      "kind": "evidence",
+      "sha256": "9fa10c590410907a854e9e9fafa7a25bd49b20ab5f2ca5772d054332d4f4ed60"
     },
     {
       "path": "docs/implementation-plans/w2a-hair-retry-preservation-20261116.md",
@@ -1732,7 +1894,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "545ca939abade10d91257bd4c13233f87b400cfd2772a3eedb2003d89d310b42"
+      "sha256": "2e907589cfbf6b52dc37e9cdf7a0a074b409f3e2f61252843787e95460f51778"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
+      "kind": "evidence",
+      "sha256": "5cb3c2a8ec3569d2d03a7b24e7e9c97ae926ec5844bddaf8c44724cae908f128"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-hair-native-retry-2026-11-17.json",
@@ -1742,12 +1909,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "01b760c46dd638a325a0d8886c80d011b361734f58ad1d1a7ead489997224e4b"
+      "sha256": "8564c653256653e08f22d7ce10b45671934184428fe562bf4d7c7ccbf186446d"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "687324de5b06fdefe6181f998fea008f9785e6e75edccb0edcfb21c658415d04"
+      "sha256": "2405d9e22b802e64582b898185955e236cdbbef61021297f62662b9cdddaeb4c"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -1786,5 +1953,47 @@
       "back-end/scripts/test-inner-voice-print-quote.ts",
       "back-end/src/lib/books/gelato-file-digest.ts"
     ]
+  },
+  "managedAuthSourceBindingUpdate": {
+    "date": "2026-11-17",
+    "baseHead": "c1ed0baa4b1c614e2ed5f8e38109e4e28772139d",
+    "priorManifestSha256": "5cb3c2a8ec3569d2d03a7b24e7e9c97ae926ec5844bddaf8c44724cae908f128",
+    "addedPaths": [
+      ".github/workflows/check-application-access.yml",
+      "back-end/scripts/helpers/managed-admin-fixture.ts",
+      "back-end/scripts/prepare-admin-auth-bindings.mjs",
+      "back-end/scripts/security-public-routes.mts",
+      "back-end/scripts/test-access-boundary.ts",
+      "back-end/scripts/test-access-runtime-bindings.mjs",
+      "back-end/scripts/test-admin-login.ts",
+      "back-end/scripts/test-admin-managed-auth.ts",
+      "back-end/scripts/test-pages-access-boundary.ts",
+      "back-end/src/app/api/auth/request-code/route.ts",
+      "back-end/src/app/api/auth/sign-out/route.ts",
+      "back-end/src/app/api/auth/verify-code/route.ts",
+      "back-end/src/app/login/page.tsx",
+      "back-end/src/components/ui/admin-session-guard.tsx",
+      "back-end/src/components/ui/admin-sign-in.tsx",
+      "back-end/src/components/ui/admin-sign-out.tsx",
+      "back-end/src/components/ui/conditional-navigation.tsx",
+      "back-end/src/components/ui/navigation.tsx",
+      "back-end/src/lib/access-boundary.ts",
+      "back-end/src/lib/admin-auth-policy.ts",
+      "back-end/src/lib/admin-auth.ts",
+      "back-end/src/lib/admin-login-target.ts",
+      "back-end/src/lib/admin-managed-auth.ts",
+      "back-end/src/lib/admin-signin-http.ts",
+      "back-end/src/middleware.ts"
+    ],
+    "reboundPaths": [
+      ".github/workflows/check-gelato-ordinary-release.yml",
+      "back-end/package-lock.json",
+      "back-end/package.json",
+      "back-end/scripts/prepare-gelato-runtime-bindings.mjs",
+      "back-end/scripts/test-compiled-pages-worker.ts",
+      "back-end/scripts/test-gelato-local-journey.ts",
+      "back-end/scripts/test-pages-upload-identity.ts"
+    ],
+    "activation": "Not performed; feature defaults false and provider setup remains pending"
   }
 }

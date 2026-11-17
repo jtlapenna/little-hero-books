@@ -60,3 +60,8 @@ The same unpublished candidate was further checked against n8n’s documented pr
 ## November17 hair and native continuation successor
 
 The prior301-source manifest is preserved byte exact at `history/manifest-before-hair-native-retry-2026-11-17.json` and bound as evidence. Current304 source paths add the pose prompt owner, lean QA identity restorer and guarded native-retry owner;62corruption rejections plus the separate valid snapshot retain every prior case. Actual graph/handler regressions exercise two-image pose8 request, SW1 Set coercion, repeated SW2 rejection/retry/exhaustion, native dispatch CAS, retained publication correlation through real SW3 return, preserved0–8 state, resumed9–12 and13-pose completion. No provider calls occur in those fixtures. All four authority flags remain false. This source record does not assert hosted CI, live paid generation or print acceptance.
+
+
+## Admin mobile sign-in successor, November17
+
+The exact prior304-source manifest is preserved in `history/manifest-before-admin-mobile-signin-2026-11-17.json`. The current snapshot binds 329 source files, including first-party managed auth, human consumers, runtime preparation and actual Worker regressions. Eleven additional corruption probes protect the new auth contract and setup instructions. Earlier historical manifests and all62 earlier negative cases remain retained. All execution/install/live-acceptance/suite-renewal authority flags remain false. This source receipt does not activate Supabase Auth, SMTP, production users, workflows, images or printing. Local test/visual evidence is separate; hosted exact-source CI and live delivery/phone acceptance remain pending.

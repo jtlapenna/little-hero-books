@@ -1,3 +1,4 @@
+import { managedAdminFixture } from './helpers/managed-admin-fixture';
 import { generateKeyPair, exportJWK, SignJWT } from 'jose';
 import { createAdminWorkflowTestAdmission } from '../src/lib/admin-workflow-test';
 /** Local ordinary-path integration. Every service transport is intercepted. Never load dotenv. */
@@ -20,8 +21,9 @@ async function main() {
  Object.assign(process.env,bindings);
  const pair=await generateKeyPair('RS256',{extractable:true}),jwk={...await exportJWK(pair.publicKey),alg:'RS256',kid:'operator-journey'};
  const jwt=await new SignJWT({email:actor,type:'app'}).setProtectedHeader({alg:'RS256',kid:'operator-journey'}).setIssuer(issuer).setAudience('a'.repeat(64)).setSubject('synthetic-operator').setIssuedAt().setExpirationTime('30m').sign(pair.privateKey);
- if(operatorTest)Object.assign(process.env,{CF_ACCESS_ISSUER:issuer,CF_ACCESS_AUDIENCE:'a'.repeat(64),ADMIN_ALLOWED_EMAILS:actor,ADMIN_SITE_ORIGIN:bindings.BACKEND_URL});
- const humanRequest=(url:string,body:unknown)=>new NextRequest(url,{method:'POST',headers:{cookie:'CF_Authorization='+jwt,origin:bindings.BACKEND_URL,'sec-fetch-site':'same-origin','content-type':'application/json'},body:JSON.stringify(body)});
+ if(operatorTest)Object.assign(process.env,{CF_ACCESS_ISSUER:issuer,CF_ACCESS_AUDIENCE:'a'.repeat(64),ADMIN_ALLOWED_EMAILS:actor+',other@example.test',ADMIN_SITE_ORIGIN:bindings.BACKEND_URL});
+ const managed=process.argv.includes('--supabase')?await managedAdminFixture([actor,'other@example.test']):null;
+ const humanRequest=(url:string,body:unknown)=>new NextRequest(url,{method:'POST',headers:{cookie:managed?.cookie(actor)??'CF_Authorization='+jwt,origin:bindings.BACKEND_URL,'sec-fetch-site':'same-origin','content-type':'application/json'},body:JSON.stringify(body)});
  let failArtifactRead=false;
  const previous=globalThis.fetch;globalThis.fetch=async()=>{throw Error('No real network')};
  let rows:Row[]=[],tokens:Row[]=[],ctx:GelatoSubmissionContext,raw:Row|undefined,creates=0,quotes=0,claims=0;
@@ -62,6 +64,7 @@ async function main() {
  const request=(url:string,body:unknown)=>new NextRequest(url,{method:'POST',headers:{authorization:'Bearer '+bindings.BACKEND_API_TOKEN,'content-type':'application/json'},body:JSON.stringify(body)});
  globalThis.fetch=async(input,init)=>{
   const r=new Request(input,init),u=new URL(r.url);calls.push(r.method+' '+u.hostname+u.pathname);
+  const managedResponse=managed?.response(r);if(managedResponse)return managedResponse;
   if(u.href===issuer+'/cdn-cgi/access/certs')return Response.json({keys:[jwk]});
   if(u.origin===bindings.SUPABASE_URL){
    const name=u.pathname.split('/').pop()!;
@@ -203,6 +206,7 @@ async function main() {
   assert(rows.every(row=>row.customer_approval_status==='approved'));assert(rows.every(row=>ordinaryPrintRoutingBlocker(row,false)==='gelato_draft_submission_disabled'));
   if(operatorTest){
    const {POST:prepare}=await import('../src/app/api/orders/[orderId]/print/route');
+   if(managed){const foreign=humanRequest(bindings.BACKEND_URL+'/api/orders/'+rows[0].orderId+'/print',{});foreign.headers.set('cookie',managed.cookie('other@example.test'));assert.equal((await prepare(foreign,{params:Promise.resolve({orderId:String(rows[0].orderId)})})).status,403);}
    const response=await prepare(humanRequest(bindings.BACKEND_URL+'/api/orders/'+rows[0].orderId+'/print',{}),{params:Promise.resolve({orderId:String(rows[0].orderId)})});
    assert.equal(response.status,200,await response.clone().text());const receipt=await response.json();operatorPreparationReceipt=receipt;
    assert.equal(receipt.orderId,rows[0].orderId);assert.equal(receipt.next_workflow,'4');assert.equal(receipt.execution_status,'ready_for_processing');assert.equal(receipt.preparationOnly,true);
@@ -261,6 +265,7 @@ async function main() {
    const payload={action:'submit',orderId:root,packetSha256:review.packetSha256,acknowledgePossibleCharge:true,approveExactBookAndRecipient:true};
    assert.equal((await operator(request(url,payload))).status,403);assert.equal((await operator(humanRequest(url,payload))).status,409);assert.equal(creates,beforeCreates);
    Object.assign(process.env,{GELATO_WORKFLOW_TEST_SUBMISSION_ENABLED:'true',GELATO_WORKFLOW_TEST_SUBMISSION_ORDER_ID:root,GELATO_WORKFLOW_TEST_SUBMISSION_ACCOUNT_SHA256:sha(Buffer.from(bindings.GELATO_API_KEY)),GELATO_WORKFLOW_TEST_SUBMISSION_EXPIRES_AT:new Date(Date.now()+3600000).toISOString()});
+   if(managed){for(const body of [{action:'review',orderId:root},payload]){const foreign=humanRequest(url,body);foreign.headers.set('cookie',managed.cookie('other@example.test'));assert.equal((await operator(foreign)).status,409);assert.equal(creates,beforeCreates);assert.equal(ctx!.submission.request_state,'operator_review');}}
    const result=await operator(humanRequest(url,payload));assert.equal(result.status,200,await result.clone().text());assert.equal(ctx!.submission.operator_approval_actor,actor);assert(ctx!.submission.operator_approval_consumed_at);
    delete process.env.GELATO_WORKFLOW_TEST_SUBMISSION_ENABLED;
   }

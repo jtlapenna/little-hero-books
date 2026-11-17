@@ -1,3 +1,4 @@
+import { managedAdminFixture } from './helpers/managed-admin-fixture';
 /** Real Access-signed CSV route -> ZIP parser -> W0 producer -> canonical upsert -> queue guard. Offline only. */
 import assert from 'node:assert/strict';
 import AdmZip from 'adm-zip';
@@ -14,7 +15,8 @@ async function main() {
  Object.assign(process.env, { SUPABASE_URL:'https://workflow-csv-db.example.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-only',BACKEND_API_TOKEN:'synthetic-machine-token',N8N_W0_WEBHOOK_URL:'https://workflow-csv-w0.example.test/hook',CF_ACCESS_ISSUER:issuer,CF_ACCESS_AUDIENCE:'a'.repeat(64),ADMIN_ALLOWED_EMAILS:actor,ADMIN_SITE_ORIGIN:origin });
  const pair=await generateKeyPair('RS256',{extractable:true}), jwk={...await exportJWK(pair.publicKey),alg:'RS256',kid:'csv-key'};
  const token=await new SignJWT({email:actor,type:'app'}).setProtectedHeader({alg:'RS256',kid:'csv-key'}).setIssuer(issuer).setSubject('synthetic-operator').setAudience('a'.repeat(64)).setIssuedAt().setExpirationTime('10m').sign(pair.privateKey);
- const human={cookie:`CF_Authorization=${token}`,origin,'sec-fetch-site':'same-origin'};
+ const managed=process.argv.includes('--supabase')?await managedAdminFixture([actor]):null;
+ const human={cookie:managed?.cookie(actor)??`CF_Authorization=${token}`,origin,'sec-fetch-site':'same-origin'};
  const config=loadBundledBookConfig({bookId:'book-finding-our-inner-voice',version:3});
  const rows:Row[]=[], w0:Row[]=[], checks:string[]=[];let writes=0,failW0=false;
  const zip=new AdmZip();zip.addFile('customization.json',Buffer.from(JSON.stringify({orderId:'TEST-CSV-NEW',orderItemId:'line-one','version3.0':{customizationInfo:{surfaces:[{areas:[
@@ -24,6 +26,7 @@ async function main() {
  const previous=globalThis.fetch, logs={log:console.log,error:console.error,warn:console.warn,info:console.info};
  globalThis.fetch=async(input,init)=>{
   const req=input instanceof Request?input:new Request(input,init),url=new URL(req.url);
+  const managedResponse=managed?.response(req);if(managedResponse)return managedResponse;
   if(url.href===issuer+'/cdn-cgi/access/certs')return Response.json({keys:[jwk]});
   if(url.origin==='https://customization.example.test')return new Response(new Uint8Array(zip.toBuffer()));
   if(url.origin==='https://workflow-csv-w0.example.test'){w0.push(await req.json());if(failW0)throw Error('Synthetic first-trigger timeout');return Response.json({ok:true});}

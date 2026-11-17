@@ -1,3 +1,4 @@
+import { isHumanAdminIdentity } from '@/lib/admin-auth-policy';
 import { prepareNativeW2ARetry, dispatchNativeW2ARetry } from '@/lib/w2a-native-retry';
 import { finalizeCompletedW2ARecovery } from '@/lib/w2a-completed-recovery';
 import { NextRequest, NextResponse } from 'next/server';
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = ActionSchema.strict().parse(JSON.parse(await readBoundedRequestText(request, 4096)));
-    if (['retry','prepare_native_retry','resume_native_retry'].includes(payload.action) && adminAuth.mode !== 'access') return NextResponse.json({ error: 'An authenticated administrator must confirm the cause is resolved' }, { status: 403 });
+    if (['retry','prepare_native_retry','resume_native_retry'].includes(payload.action) && !isHumanAdminIdentity(adminAuth)) return NextResponse.json({ error: 'An authenticated administrator must confirm the cause is resolved' }, { status: 403 });
     const before = await inspectW2ARecoveryOrder(payload.orderId, {
       adminBaseUrl: request.nextUrl.origin,
       executionLimit: 40,

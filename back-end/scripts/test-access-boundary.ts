@@ -58,10 +58,11 @@ async function main() {
       const res = await run(make(path, 'GET', { origin, host: 'admin.example.test', 'x-admin-email': 'john@example.test', 'x-forwarded-host': 'admin.example.test', 'x-middleware-subrequest': 'middleware:middleware:middleware:middleware:middleware', 'x-request-id': 'attacker-id' }, undefined, host));
       assert.equal(res.status, 401, path); assert.equal(businessFetches, before); assert.equal(routeCalls, calls); assert.notEqual(res.headers.get('x-request-id'), 'attacker-id'); assert.match(res.headers.get('cache-control')!, /no-store/);
     }
-    for (const headers of [ { ...human, 'sec-fetch-site': 'cross-site', referer: 'https://evil.example/' }, { cookie: human.cookie }, { ...human, 'sec-fetch-site': 'same-site' }, { ...human, referer: 'invalid-url' }, { ...human, origin: 'https://evil.example' } ]) {
+    for (const headers of [ { ...human, 'sec-fetch-site': 'cross-site', referer: 'https://evil.example/' }, { cookie: human.cookie }, { ...human, referer: 'https://admin.example.test.evil.test/' }, { ...human, referer: 'invalid-url' }, { ...human, origin: 'https://evil.example' } ]) {
       for (const method of ['GET', 'HEAD']) { const calls = routeCalls, before = businessFetches; assert.equal((await run(make('/api/admin/send-amazon-message', method, headers))).status, 403); assert.equal(routeCalls, calls); assert.equal(businessFetches, before); }
     }
     assert.equal((await run(make('/api/orders', 'GET', { ...human, cookie: 'CF_Authorization=bad.bad.bad' }))).status, 401);
+    assert.equal((await run(make('/api/orders', 'GET', { cookie: human.cookie, referer: origin + '/orders' }))).status, 200, 'Exact Referer supports browsers without Fetch Metadata');
     const read = await run(make('/api/orders', 'GET', { ...human, 'x-request-id': 'attacker', 'x-middleware-subrequest': 'bypass' })); assert.equal(read.status, 200);
     const data = await read.json(); assert.equal(data.id, read.headers.get('x-request-id')); assert.equal(data.internalHeader, null);
     assert.equal((await run(make('/api/orders', 'POST', human, '{}'))).status, 403);

@@ -7,7 +7,7 @@ import { experimental_readRawConfig } from 'wrangler';
 import { ACCESS_RUNTIME_CONFIG, verifyPreparedRuntimeBindings, discoveredRuntimeConfig } from './prepare-access-runtime-bindings.mjs';
 import { prepareGelatoRuntimeBindingFile, GELATO_RUNTIME_FLAGS } from './prepare-gelato-runtime-bindings.mjs';
 const source=await fs.readFile(new URL('../wrangler.toml',import.meta.url),'utf8');
-const sha='a'.repeat(40), values={CF_ACCESS_ISSUER:'https://synthetic-binding.cloudflareaccess.com',CF_ACCESS_AUDIENCE:'b'.repeat(64),ADMIN_SITE_ORIGIN:'https://admin.littleherolabs.com',ADMIN_ALLOWED_EMAILS:'jeff@littleherolabs.com,john@littleherolabs.com',...Object.fromEntries(GELATO_RUNTIME_FLAGS.map(name=>[name,'false']))};
+const sha='a'.repeat(40), values={ADMIN_SUPABASE_AUTH_ENABLED:'false',CF_ACCESS_ISSUER:'https://synthetic-binding.cloudflareaccess.com',CF_ACCESS_AUDIENCE:'b'.repeat(64),ADMIN_SITE_ORIGIN:'https://admin.littleherolabs.com',ADMIN_ALLOWED_EMAILS:'jeff@littleherolabs.com,john@littleherolabs.com',...Object.fromEntries(GELATO_RUNTIME_FLAGS.map(name=>[name,'false']))};
 const env={DEPLOY_ENVIRONMENT:'production',CLOUDFLARE_PAGES_PROJECT:'little-hero-labs-admin',CLOUDFLARE_ACCOUNT_ID:'a'.repeat(32),CLOUDFLARE_API_TOKEN:'synthetic-cloudflare-authority',GITHUB_REF:'refs/heads/main',GITHUB_SHA:sha};
 const directory=await fs.mkdtemp(path.join(os.tmpdir(),'lhl-access-bindings-')),configPath=path.join(directory,'wrangler.toml');
 let fetches=0;
@@ -17,6 +17,10 @@ const reject=async(s,text=source)=>{await assert.rejects(prepare(s,text));assert
 try{
  for(const name of ACCESS_RUNTIME_CONFIG){const missing=settings();delete missing[name];await reject(missing);const hidden=settings();hidden[name].type='secret_text';await reject(hidden);const bad=settings();bad[name].value='sensitive-marker-never-upload';await reject(bad);}
  for(const operators of ['john@littleherolabs.com','john@littleherolabs.com,jeff@littleherolabs.com,other@example.test','john@littleherolabs.com,john@littleherolabs.com']){const s=settings();s.ADMIN_ALLOWED_EMAILS.value=operators;await reject(s);}
+ for(const value of ['true','false']) { const s=settings();s.ADMIN_SUPABASE_AUTH_ENABLED={type:'plain_text',value};await prepare(s);verifyPreparedRuntimeBindings(configPath,sha);const raw=experimental_readRawConfig({config:configPath}).rawConfig;assert.equal(raw.vars.ADMIN_SUPABASE_AUTH_ENABLED,value); }
+ for(const setting of [{type:'secret_text',value:'true'},{type:'plain_text',value:'1'},{type:'plain_text',value:''}]) { const s=settings();s.ADMIN_SUPABASE_AUTH_ENABLED=setting;await reject(s); }
+ await reject(settings(),source.replace('ADMIN_SUPABASE_AUTH_ENABLED = "false"','ADMIN_SUPABASE_AUTH_ENABLED = "true"'));
+ await reject(settings(),source+'\nADMIN_SUPABASE_AUTH_ENABLED = "false"\n');
  const start=fetches;
  for(const text of [source+'\n["e\\u006ev".production.vars]\nCF_ACCESS_AUDIENCE="shadow"\n',source+'\n[vars]\n"CF_ACCESS_AUDIENCE"="shadow"\n',source.replace('CF_ACCESS_AUDIENCE = ""','"CF_ACCESS_\\u0041UDIENCE" = ""')])await reject(settings(),text);
  assert.equal(fetches,start,'Decoded/quoted TOML overrides must fail before settings lookup');

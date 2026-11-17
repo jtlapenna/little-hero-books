@@ -9,6 +9,8 @@ compatibility_flags = [
 ]
 
 [vars]
+# Enable only after production SMTP, code template and approved users are verified.
+ADMIN_SUPABASE_AUTH_ENABLED = "false"
 GELATO_DRAFT_SUBMISSION_ENABLED = "false"
 GELATO_CANCEL_ENABLED = "false"
 GELATO_STATUS_RELAY_ENABLED = "false"

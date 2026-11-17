@@ -1,7 +1,9 @@
+import { adminIdentityPolicy, humanAdminRequestAllowed, type AdminIdentity } from './admin-auth-policy';
+import { verifyManagedAdmin } from './admin-managed-auth';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { verifyBearerAuth } from './auth';
 
-type AdminAuthOk = { ok: true; mode: 'access' | 'token'; actor: string };
+type AdminAuthOk = AdminIdentity;
 type AdminAuthFail = { ok: false; response: Response };
 type AccessSettings = { issuer: string; audience: string; emails: Set<string>; origin: string };
 
@@ -58,6 +60,13 @@ export async function requireAdminAuth(request: Request, options: { protectReadA
       ? { ok: true, mode: 'token', actor: 'backend-automation' }
       : denied();
   }
+  const managed = await verifyManagedAdmin(request);
+  if (managed !== null) {
+    const policy = adminIdentityPolicy();
+    if (!managed || !policy) return denied();
+    if (!humanAdminRequestAllowed(request,policy.origin,options.protectReadActions)) return denied(403);
+    return {ok:true,mode:'supabase',actor:managed.actor};
+  }
   const config = settings();
   const token = accessToken(request);
   if (!config || !token) return denied();
@@ -81,20 +90,7 @@ export async function requireAdminAuth(request: Request, options: { protectReadA
         typeof payload.email !== 'string' || !config.emails.has(payload.email.toLowerCase()) ||
         typeof payload.iat !== 'number' || payload.iat > Date.now() / 1000) return denied();
 
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
-      if (request.headers.get('origin') !== config.origin ||
-          request.headers.get('sec-fetch-site') === 'cross-site') return denied(403);
-    }
-    if (options.protectReadActions && ['GET', 'HEAD'].includes(request.method)) {
-      const origin = request.headers.get('origin');
-      if (origin !== null) {
-        if (origin !== config.origin) return denied(403);
-      } else {
-        let refererOrigin: string | undefined;
-        try { refererOrigin = new URL(request.headers.get('referer') ?? '').origin; } catch { /* deny */ }
-        if (request.headers.get('sec-fetch-site') !== 'same-origin' || refererOrigin !== config.origin) return denied(403);
-      }
-    }
+    if (!humanAdminRequestAllowed(request,config.origin,options.protectReadActions)) return denied(403);
     return { ok: true, mode: 'access', actor: payload.email.toLowerCase() };
   } catch {
     // Do not echo tokens, signed claims, JWKS errors or transport details.
