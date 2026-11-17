@@ -1,4 +1,5 @@
 import { verifyCompletedW2ARecovery } from './w2a-completed-recovery';
+import { inspectNativeW2ARecovery, NATIVE_RETRY_KEY, type NativeW2ARecoveryStatus } from './w2a-native-retry';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
 import {
@@ -86,6 +87,7 @@ export type W2ARecoveryCandidate = {
 };
 
 export type W2ARecoveryInspection = W2ARecoveryCandidate & W2AFailureInspection & {
+  nativeRecovery: NativeW2ARecoveryStatus | null;
   resolvedVia: 'id' | 'orderId' | 'order_id' | 'root_order_id' | 'amazon_order_id' | 'none';
   manifestReachableUrl: string | null;
   safeToFinalize: boolean;
@@ -782,11 +784,14 @@ export async function inspectW2ARecoveryOrder(
   if (failureInspection.canRecordFailure) recommendedAction = 'record_failure';
   else if (failureInspection.safeToRetry) recommendedAction = 'retry';
 
+  const nativeRecovery = (isRecord(lookup.row.product_info) && lookup.row.product_info[NATIVE_RETRY_KEY] !== undefined) || (candidate.hasIncompleteJobs && failureInspection.failureRecorded)
+    ? inspectNativeW2ARecovery({ ...lookup.row }, failureInspection.failureRecorded && !failureInspection.failureLookupError ? failureInspection.failure : null, jobs) : null;
   return {
     ...candidate,
     ...failureInspection,
+    nativeRecovery,
     recommendedAction: safeToFinalize ? 'finalize' : recommendedAction === 'replay' || recommendedAction === 'finalize' ? 'inspect' : recommendedAction,
-    recommendedReason: safeToFinalize ? 'All frozen poses are approved and available. Finalize into manual review without generation.' : completionHoldReason ?? (candidate.hasIncompleteJobs ? 'Partial W2A resume is held. Configured poses require verified generation provenance; full replay would rerun the base character. Inspect the failure before recovery.' : candidate.recommendedReason),
+    recommendedReason: nativeRecovery?.message ?? (safeToFinalize ? 'All frozen poses are approved and available. Finalize into manual review without generation.' : completionHoldReason ?? (candidate.hasIncompleteJobs ? 'Partial W2A resume is held. Configured poses require verified generation provenance; full replay would rerun the base character. Inspect the failure before recovery.' : candidate.recommendedReason)),
     resolvedVia: lookup.used,
     manifestReachableUrl,
     safeToFinalize,
