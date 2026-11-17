@@ -2,8 +2,8 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "4d455a05bb2fa060779f8620372cce517e416728d7921e214d5b3d1f0b31ec94",
-  "preparedAgainstHead": "2f8287eac2bab3dfd2cbf0a4cfe754f2ccc96a06",
+  "sourceSnapshotSha256": "8beff79e22d72c4cc789e975d0bac1d7a8b721f3db4831c226c85580c17679b2",
+  "preparedAgainstHead": "03815e0b0a1351dcdcaa1dde8e3f0e5684390283",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
@@ -399,7 +399,7 @@
     {
       "path": "back-end/scripts/helpers/select-workflow-http-envelope.js",
       "kind": "source",
-      "sha256": "59ff376e41929e65db9ba2bceece3b1402ba44516e61ca9f21ddb598b5203627"
+      "sha256": "7136eb12f49f835c5726f025e52bd3339e025550923de28dac611bbd47f580a5"
     },
     {
       "path": "back-end/scripts/helpers/w2a-config-fixture.ts",
@@ -799,7 +799,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "f1eb523d3dff2c069c66aa2663b168ae91176a1d737bb9ab313c13f7ad4a99c7"
+      "sha256": "12702bb9da01f6570b084f5094bae0512353ce12f073fb934fba21c54cefdb5e"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -1619,17 +1619,17 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "159c8330c661226bd1d6f3a70e6ae06c16f593f7916df102e3cf6d8115c245b4"
+      "sha256": "fc2a2d22dee7374fc0a1c841b30642b2fa01d4113de4e3d124906005a2717b96"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "0a1150067fce6559f3e0046d9a51e4ae93eca9af3473e23cecede806738f900b"
+      "sha256": "c5da7ffdff4b46d35bd769b64f1a01def6ef49fa743e62c70f87be0a7e066e9f"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
       "kind": "source",
-      "sha256": "a391b5ce301e15646eabe14d21d1d11a6b310e27a156216c793adb8f0f2cfe5c"
+      "sha256": "c60cdf190eaea7bba562f253492921920f1d4a5645a9154a7e1c9cf0eb651418"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
@@ -1709,7 +1709,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "d42495149e8f82c3c05a3137262be93b772e76371889ea89288dc535bd0274c5"
+      "sha256": "22249ed00ac0a211307ec376c0710b36687da169f36dcd6cbaacbbf88e5dd96e"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
