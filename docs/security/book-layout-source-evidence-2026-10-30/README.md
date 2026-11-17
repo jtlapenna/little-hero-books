@@ -46,3 +46,7 @@ The prior294-path audit manifest is preserved byte-for-byte in `history/manifest
 ## November16 native Worker transport successor
 
 The prior295-path manifest is retained byte exact in `history/manifest-before-worker-transport-2026-11-16.json`. Current297-source bindings include the native n8n/W0 transport regression and canonical W0 POST transport;54 corruption rejections plus the valid snapshot are required. The two Amazon dispatch callers retain their existing non-2xx refusal. Prior history, parents and four false authority flags remain unchanged; synthetic runtime proof is not provider or physical print acceptance.
+
+## November16 workflow HTTP envelope successor
+
+The prior297-source manifest is preserved byte exact in `history/manifest-before-http-envelope-2026-11-16.json`. Current299-source bindings add the standalone HTTP envelope selector and actual producer/expression/POST regression. The package required workflow-readiness gate and three leaf exports are rebound; only their intended HTTP body expressions change semantically. The separate valid snapshot and56 corruption rejections retain all prior cases. Nullable legacy aliases are absent for optional identity comparison; canonical ownership/job/proof declarations remain strict and malformed top fields never trigger legacy body fallback. Historical parents and all four false authority flags remain unchanged. These bindings establish source consistency, not live generation, provider or physical print acceptance.

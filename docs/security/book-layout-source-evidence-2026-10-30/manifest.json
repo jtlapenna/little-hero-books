@@ -2,8 +2,8 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "9fb2fefdb16b48593204f522d48d5b42670e34d48a156ac1c52ba73519c34008",
-  "preparedAgainstHead": "19876129260dc60fcc58ecbe52af4f6e4c91c250",
+  "sourceSnapshotSha256": "b4345c3a0837620f2186de35480be12b25c4249e7eb667541a96fa475c9bcf21",
+  "preparedAgainstHead": "c1da58feaf4b9af09e566b0ec06a386b51cc187c",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
   "canExecute": false,
@@ -14,6 +14,7 @@
     "back-end/scripts/assemble-inner-voice-print-test.ts",
     "back-end/scripts/helpers/book-layout-v3-fixture.ts",
     "back-end/scripts/helpers/gelato-ordinary-release-fixture.ts",
+    "back-end/scripts/helpers/select-workflow-http-envelope.js",
     "back-end/scripts/prepare-inner-voice-print-test.ts",
     "back-end/scripts/prepare-workflow-test-bindings.mjs",
     "back-end/scripts/quote-inner-voice-print-test.ts",
@@ -48,6 +49,7 @@
     "back-end/scripts/test-message-safety-guard-persistence.ts",
     "back-end/scripts/test-message-safety-guard.ts",
     "back-end/scripts/test-n8n-transport-worker.ts",
+    "back-end/scripts/test-w2-http-handoff.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
     "back-end/scripts/test-workflow-attempt-fencing.ts",
@@ -245,7 +247,7 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "666de1fe03b9426db55ada7d731c564290064765596f94a4c2c9099e4005df6c"
+      "sha256": "26d87dbc0805e81db5230f659b5f9442f5e2788a6842e6e350dc5891d1099f3a"
     },
     {
       "path": "back-end/scripts/assemble-inner-voice-print-test.ts",
@@ -381,6 +383,11 @@
       "path": "back-end/scripts/helpers/prepare-w1-native-queue.ts",
       "kind": "source",
       "sha256": "8e6266f08d193bde9f2e6cadeef6f93d2900122930e0f775f1ea64cf619aa1b7"
+    },
+    {
+      "path": "back-end/scripts/helpers/select-workflow-http-envelope.js",
+      "kind": "source",
+      "sha256": "386c3686e89557272413ed3f672017d603d5c1785935885b4da0b21cf4d3e5e8"
     },
     {
       "path": "back-end/scripts/helpers/w2a-config-fixture.ts",
@@ -776,6 +783,11 @@
       "path": "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
       "kind": "source",
       "sha256": "adf67cb34056cdd2888bfa58a7df088a66b499ea4517e22b164735003222c76e"
+    },
+    {
+      "path": "back-end/scripts/test-w2-http-handoff.ts",
+      "kind": "source",
+      "sha256": "782b10f1cbb84f670da3091867eb408a23d674a07917e9547de5caa38167e545"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -1595,17 +1607,17 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "093171fcc2d9088f8aac5dd323e4e59094391faced13506f33689ce8f9be9230"
+      "sha256": "49decaafb39f78b1a9b6c4a719281af7ad6bbcf59ffa60dda5b90901782d3f5b"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "f2f71a71c8bf016ec8e1a883d2bdde56d2be52cead92a50facd80b9c480a6d8f"
+      "sha256": "dabf28529cf0fa0220db2e8e6cd4f30841b260fefbc05502e93aa912c4b9c649"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
       "kind": "source",
-      "sha256": "ce34c8a07bc1b58101e342d975d362d2ada49dd77746c068b6d75ca3e1415e6d"
+      "sha256": "c71588d0c6b6715689106e59e2dabb7bec09e53e51910f6935fe4e930d8bb9d9"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
@@ -1685,17 +1697,17 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "0f572e81573f96cd5f6b7e28210332d09ac4cea1015c18823bb2787bf4bfe7b9"
+      "sha256": "0cbc162f5cc9b776b1cf73f2680e60d89d5f171a7076222ccb799e8bb746053b"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "2a186a11b4a094846217a4f31868fa3511152edd58a5db4108fe3ab2054a22a3"
+      "sha256": "60da6cb05ec50d1ccdf8ddc5f867bb0b8f85422baed1fc948b4dbdeb60f2afee"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "49dd9466f7c57e64f8fdf127a433155127ba8ac59b0cdeb42b89b72d626c1c4c"
+      "sha256": "24784d3eba70ffd31911564776d5a0bea7280f0d45ff5435a46a6ab60453c674"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

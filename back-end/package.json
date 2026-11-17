@@ -176,7 +176,8 @@
     "test:admin-workflow-test": "tsx scripts/test-admin-workflow-csv.ts && tsx scripts/test-admin-workflow-print-service.ts",
     "test:admin-workflow-print-store": "tsx scripts/test-admin-workflow-print-store.ts",
     "test:w2a-failure-recovery": "tsx scripts/test-w2a-failure-recovery.ts",
-    "test:workflow-readiness": "tsx scripts/test-workflow-readiness-intake.ts && tsx scripts/test-book-operator-transitions.ts && tsx scripts/test-gelato-release-defaults.ts && tsx scripts/test-workflow-attempt-fencing.ts && tsx scripts/test-book-reassembly.ts && tsx scripts/test-w2-workflow-contracts.ts"
+    "test:workflow-readiness": "tsx scripts/test-workflow-readiness-intake.ts && tsx scripts/test-book-operator-transitions.ts && tsx scripts/test-gelato-release-defaults.ts && tsx scripts/test-workflow-attempt-fencing.ts && tsx scripts/test-book-reassembly.ts && tsx scripts/test-w2-workflow-contracts.ts && tsx scripts/test-w2-http-handoff.ts",
+    "test:w2-http-handoff": "tsx scripts/test-w2-http-handoff.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
