@@ -6,7 +6,7 @@ import { failureRecord as record, storedW2AFailure, originalW2AClaim, W2A_ORCHES
 import { parseW2AParentClaim, w2aParentClaimFromInput, assertActiveW2AParentRow, type W2AParentClaim } from './w2a-parent-claim';
 import { getObject, R2_PUBLIC_BUCKET } from './r2-client';
 import { buildGeneratedPoseAssetKey, extractManifestKey } from './order-paths';
-import type { WorkflowJobRecord } from './workflow-jobs/types';
+import type { WorkflowJobRecord, WorkflowJobAttemptRecord } from './workflow-jobs/types';
 
 type Row = Record<string, unknown>;
 export const NATIVE_RETRY_KEY = '_w2a_native_retry';
@@ -14,7 +14,9 @@ type ImageProof = { key: string; sha256: string; bytes: number };
 type Admission = {
   schema: 'lhb.w2a-native-retry@1'; phase: 'prepared' | 'dispatching' | 'adopted'; preparedBy: string; preparedAt: string;
   sourceClaim: W2AParentClaim; sourceFailure: W2AFailure; sourceInput: Row; jobs: WorkflowJobRecord[];
-  firstPose: number; images: ImageProof[]; currentClaim?: W2AParentClaim;
+  firstPose: number; images: ImageProof[]; currentClaim?: W2AParentClaim; dispatchedBy?:string; dispatchedAt?:string;
+  originalPreparedAt?: string; attempts?: WorkflowJobAttemptRecord[];
+  failedContinuations?: {claim:W2AParentClaim;failure:W2AFailure;checkedBy:string;checkedAt:string;dispatchedBy:string;dispatchedAt:string}[];
 };
 function same(a: unknown,b: unknown) { return isDeepStrictEqual(a,b); }
 function sameFrozen(key:string,a:unknown,b:unknown) { return key==='oneManifestUrl' || key==='oneManifestKey' ? extractManifestKey(typeof a==='string'?a:null)===extractManifestKey(typeof b==='string'?b:null) : same(a,b); }
@@ -38,7 +40,7 @@ function held(row: Row, failure: W2AFailure) {
       !same(storedW2AFailure(row),failure) || failure.resolvedAt || Object.values(record(row.review_stages) ?? {}).some(r=>record(r)?.status==='approved')) throw Error('Native retry requires the unchanged held partial run');
 }
 export type NativeW2ARecoveryStatus = {
-  phase: 'unprepared' | 'prepared' | 'dispatching' | 'adopted' | 'blocked';
+  phase: 'unprepared' | 'prepared' | 'dispatching' | 'adopted' | 'stopped' | 'blocked';
   canPrepare: boolean; canResume: boolean; message: string;
   retainedPoses: number[]; remainingPoses: number[];
 };
@@ -52,6 +54,9 @@ export function inspectNativeW2ARecovery(row: Row, failure: W2AFailure | null, c
     if (!source || source.orderRowId !== row.id || source.orderId !== row.orderId ||
         !same(claim,value.phase === 'adopted' ? current : source) ||
         value.phase === 'adopted' && (!current || current.orderRowId !== row.id || current.orderId !== row.orderId)) return blocked('Saved continuation does not match the current order. Inspect its execution.');
+    if (value.phase==='adopted' && failure && current?.executionId===failure.executionId && current.startedAt===failure.claimStartedAt && same([...currentJobs].sort((a,b)=>a.id-b.id),value.jobs)) {
+      try { held(row,failure); return {...blocked('The continuation stopped before any new pose attempts. Check resume readiness to verify the retained images before continuing.'),phase:'stopped',canPrepare:true}; } catch { /* A running or progressed continuation stays consumed. */ }
+    }
     return {
       ...blocked(value.phase === 'dispatching' ? 'A continuation was reserved. Its outcome may be unconfirmed. Refresh the order and inspect its execution before taking another action.' : 'A continuation was already accepted. Follow the current order status; this saved recovery cannot be started again.'), phase:value.phase,
     };
@@ -129,30 +134,99 @@ async function imageProof(key:string):Promise<ImageProof> {
   const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(n=>n.toString(16).padStart(2,'0')).join('');return {key,bytes:length,sha256};
 }
+function expectedImageKeys(value:Admission):string[] {
+  const target=value.jobs.find(job=>job.id===value.sourceInput.workflowJobId);
+  const base=target?.normalized_input_snapshot?.baseCharacterKey;
+  if(typeof base!=='string' || !base || !Number.isInteger(value.firstPose) || value.firstPose<1 || value.firstPose>99)throw Error('Retained image inventory is invalid');
+  const keys=[base,...Array.from({length:value.firstPose},(_,n)=>buildGeneratedPoseAssetKey(String(target?.normalized_input_snapshot?.characterHash),n,String(target?.book_id)))];
+  if(new Set(keys).size!==keys.length)throw Error('Retained image inventory is ambiguous');return keys;
+}
 async function currentProofs(value: Admission) {
   if (!same(await jobsFor(value.sourceClaim.orderId),value.jobs)) throw Error('Pose job history changed; prepare recovery again');
+  const keys=expectedImageKeys(value);
+  if(!Array.isArray(value.images) || value.images.length!==keys.length || !same(value.images.map(image=>image?.key).sort(),[...keys].sort()) ||
+    value.images.some(image=>!Number.isSafeInteger(image.bytes) || image.bytes<1 || image.bytes>10*1024*1024 || !/^[a-f0-9]{64}$/.test(image.sha256)))throw Error('Original retained image inventory is incomplete');
   for(const image of value.images)if(!same(await imageProof(image.key),image))throw Error('Retained image changed; inspect before continuing');
+  if(value.attempts)await unchangedAttempts(value);
+}
+/** Legacy admissions pin jobs but not attempts. Only history already terminal before that admission can qualify. */
+async function unchangedAttempts(value:Admission):Promise<WorkflowJobAttemptRecord[]> {
+  const cutoff=claimTime(value.originalPreparedAt ?? value.preparedAt);
+  if(!cutoff)throw Error('Original attempt history cutoff is unavailable');
+  const attempts:WorkflowJobAttemptRecord[]=[];
+  for(const job of value.jobs) {
+    const result=await supabase.from('workflow_job_attempts').select('*').eq('job_id',job.id);
+    if(result.error || !Array.isArray(result.data))throw Error('Original attempt history is unavailable');
+    const rows=(result.data as WorkflowJobAttemptRecord[]).sort((a,b)=>a.attempt-b.attempt);
+    if(rows.length!==job.attempt_count || rows.some((attempt,index)=>attempt.job_id!==job.id || attempt.attempt!==index+1 || attempt.status!=='succeeded' ||
+      ['started_at','ended_at','created_at','updated_at'].some(key=>{const time=claimTime(attempt[key as keyof WorkflowJobAttemptRecord]);return !time || time>cutoff;})))throw Error('Pose attempts progressed or original terminal history is incomplete');
+    attempts.push(...rows);
+  }
+  const target=record(value.sourceInput.qaRetryProof);
+  if(!attempts.some(attempt=>attempt.id===target?.attemptId && attempt.job_id===target.jobId && attempt.attempt===target.attempt))throw Error('Original rejected attempt is unavailable');
+  if(value.attempts && !same(attempts,value.attempts))throw Error('Saved pose attempt history changed');
+  return attempts;
+}
+async function verifyStoppedContinuation(value:Admission,claim:W2AParentClaim,failure:W2AFailure) {
+  const {readStoppedW2AFailure,assertLatestFailure}=await import('./w2a-failure-recovery');
+  const stopped=await readStoppedW2AFailure(claim.executionId),root=record(stopped.root)!;
+  if(!parseW2AParentClaim(claim) || claim.executionId===value.sourceClaim.executionId || claim.orderId!==value.sourceClaim.orderId || claim.orderRowId!==value.sourceClaim.orderRowId ||
+    root.retryOf!==value.sourceClaim.executionId || claimTime(root.startedAt)!==claim.startedAt ||
+    !same(originalW2AClaim(root),{orderId:value.sourceClaim.orderId,orderRowId:value.sourceClaim.orderRowId,startedAt:value.sourceClaim.startedAt}) ||
+    !same({...stopped.failure,claimStartedAt:claim.startedAt},failure))throw Error('Stopped continuation lineage changed or is unverified');
+  await assertLatestFailure(failure,true);
+}
+async function verifyBarrier(value:Admission) {
+  if(value.failedContinuations===undefined)return;
+  if(!Array.isArray(value.failedContinuations) || value.failedContinuations.length<1 || value.failedContinuations.length>8)throw Error('Failed continuation history is invalid');
+  const last=value.failedContinuations.at(-1)!;
+  await verifyStoppedContinuation(value,last.claim,last.failure);
+  await unchangedAttempts(value);
 }
 export async function prepareNativeW2ARetry(scope:{orderId:string;executionId:string;updatedAt:string},actor:string) {
   const {verifiedW2AFailure,assertLatestFailure}=await import('./w2a-failure-recovery');
-  const failure=await verifiedW2AFailure(scope.executionId),row=await physical(failure.orderRowId);
+  const failure=await verifiedW2AFailure(scope.executionId),row=await physical(failure.orderRowId),savedValue=admission(row);
   if(row.orderId!==scope.orderId || row.updated_at!==scope.updatedAt)throw Error('Recovery revision changed');
-  if(admission(row) && admission(row)?.phase!=='prepared')throw Error('Native retry was already consumed; inspect its outcome before another preparation');
-  await assertLatestFailure(failure);
+  held(row,failure);
+  const rearm=savedValue?.phase==='adopted';
+  if(savedValue && savedValue.phase!=='prepared' && !rearm)throw Error('Native retry was already consumed; inspect its outcome before another preparation');
+  let sourceRow=row;
+  if(rearm) {
+    const current=parseW2AParentClaim(savedValue.currentClaim);
+    if(!current || !same(current,parseW2AParentClaim(record(row.product_info)?.[W2A_PARENT_KEY])) || current.executionId!==failure.executionId || current.startedAt!==failure.claimStartedAt)throw Error('Failed native continuation no longer owns this held order');
+    await verifyStoppedContinuation(savedValue,current,failure);
+    if(!savedValue.dispatchedBy || !claimTime(savedValue.dispatchedAt))throw Error('Original dispatch receipt is unavailable');
+    if((savedValue.failedContinuations?.length ?? 0)>=8)throw Error('Continuation history inspection limit reached');
+    sourceRow={...row,error_type:savedValue.sourceFailure.code,error_message:savedValue.sourceFailure.message,last_error_at:savedValue.sourceFailure.failedAt,
+      product_info:{...record(row.product_info),[W2A_PARENT_KEY]:savedValue.sourceClaim,[W2A_FAILURE_KEY]:savedValue.sourceFailure}};
+  } else if(savedValue?.failedContinuations)await verifyBarrier(savedValue);
+  else await assertLatestFailure(failure);
   const {resolveW2APoseWorklistResponse}=await import('../app/api/internal/w2a/resolve-pose-worklist/route');
   const expected=await resolveW2APoseWorklistResponse({orderId:row.orderId,oneManifestUrl:row.one_manifest_url,includeZeroPose:true},{instrumentPoseWorkItems:async payload=>payload.poseWorklist});
   const required=expected.poseWorklist.map(item=>item.poseNumber).sort((a,b)=>a-b);
   const actualJobs=await jobsFor(scope.orderId);
   if(!same(required,actualJobs.map(job=>Number(job.logical_key.replace(/^pose-/,''))).sort((a,b)=>a-b)))throw Error('Native retry requires the complete frozen pose worklist');
-  const proof=proveNativeRetrySource(row,record(await readN8NExecution(failure.executionId))!,actualJobs);
+  const sourceId=savedValue?.sourceClaim.executionId ?? failure.executionId;
+  const proof=proveNativeRetrySource(sourceRow,record(await readN8NExecution(sourceId))!,actualJobs);
+  if(savedValue && (!same(savedValue.sourceClaim,proof.sourceClaim) || !same(savedValue.sourceFailure,proof.sourceFailure) || !same(savedValue.jobs,proof.jobs) || !same(savedValue.sourceInput,proof.sourceInput) || savedValue.firstPose!==proof.firstPose))throw Error('Original native retry proof changed');
   const target=proof.jobs.find(j=>j.id===proof.sourceInput.workflowJobId)!;
   const attempt=await supabase.from('workflow_job_attempts').select('*').eq('id',record(proof.sourceInput.qaRetryProof)?.attemptId).maybeSingle();
   if(attempt.error || !attempt.data || attempt.data.job_id!==target.id || attempt.data.attempt!==target.attempt_count || attempt.data.status!=='succeeded' || !attempt.data.ended_at)throw Error('Rejected generation attempt history is incomplete');
-  const images:ImageProof[]=[];
-  for(const key of [String(target.normalized_input_snapshot?.baseCharacterKey),...Array.from({length:proof.firstPose},(_,n)=>buildGeneratedPoseAssetKey(String(row.character_hash),n,String(row.print_book_id)))])images.push(await imageProof(key));
-  const value:Admission={...proof,images,schema:'lhb.w2a-native-retry@1',phase:'prepared',preparedAt:new Date().toISOString(),preparedBy:actor};
+  const now=new Date(Math.max(Date.now(),new Date(scope.updatedAt).getTime()+1)).toISOString();
+  let value:Admission;
+  if(savedValue) {
+    await currentProofs(savedValue);
+    value={...savedValue,phase:'prepared',preparedAt:now,preparedBy:actor,originalPreparedAt:savedValue.originalPreparedAt ?? savedValue.preparedAt};
+    delete value.currentClaim;
+    if(rearm)value.failedContinuations=[...(savedValue.failedContinuations ?? []),{claim:parseW2AParentClaim(savedValue.currentClaim)!,failure,checkedBy:actor,checkedAt:now,dispatchedBy:savedValue.dispatchedBy!,dispatchedAt:savedValue.dispatchedAt!}];
+    if(value.failedContinuations)value.attempts=await unchangedAttempts(value);
+  } else {
+    value={...proof,images:[],schema:'lhb.w2a-native-retry@1',phase:'prepared',preparedAt:now,preparedBy:actor};
+    for(const key of expectedImageKeys(value))value.images.push(await imageProof(key));
+  }
   await currentProofs(value);
-  const saved=await supabase.from('orders').update({updated_at:new Date().toISOString(),product_info:{...record(row.product_info),[NATIVE_RETRY_KEY]:value}}).eq('id',row.id).eq('updated_at',row.updated_at).eq('execution_status','error_requires_manual_review').is('current_workflow',null).is('started_at',null).select('id,updated_at').maybeSingle();
+  const saved=await supabase.from('orders').update({updated_at:now,...(rearm?{error_type:value.sourceFailure.code,error_message:value.sourceFailure.message,last_error_at:value.sourceFailure.failedAt}:{}),
+    product_info:{...record(sourceRow.product_info),[NATIVE_RETRY_KEY]:value}}).eq('id',row.id).eq('orderId',row.orderId).eq('updated_at',row.updated_at).eq('error_type',failure.code).eq('error_message',failure.message).eq('execution_status','error_requires_manual_review').is('current_workflow',null).is('started_at',null).select('id,updated_at').maybeSingle();
   if(saved.error || !saved.data)throw Error('Order changed during recovery preparation');
   return {prepared:true,dispatchStarted:false,retainedPoses:Array.from({length:proof.firstPose},(_,n)=>n),nextPose:proof.firstPose,updatedAt:saved.data.updated_at};
 }
@@ -160,7 +234,8 @@ export async function dispatchNativeW2ARetry(scope:{orderId:string;executionId:s
   const read=await supabase.from('orders').select('*').eq('orderId',scope.orderId).maybeSingle();if(read.error || !read.data)throw Error('Recovery order unavailable');
   const row=read.data as Row,value=admission(row);if(!value || value.phase!=='prepared' || value.sourceClaim.executionId!==scope.executionId || row.updated_at!==scope.updatedAt)throw Error('A fresh prepared native retry is required');
   held(row,value.sourceFailure);await currentProofs(value);
-  const {assertLatestFailure}=await import('./w2a-failure-recovery');await assertLatestFailure(value.sourceFailure);
+  const {assertLatestFailure}=await import('./w2a-failure-recovery');
+  if(value.failedContinuations)await verifyBarrier(value);else await assertLatestFailure(value.sourceFailure);
   const now=new Date().toISOString();
   const reserved=await supabase.from('orders').update({updated_at:now,product_info:{...record(row.product_info),[NATIVE_RETRY_KEY]:{...value,phase:'dispatching',dispatchedBy:actor,dispatchedAt:now}}}).eq('id',row.id).eq('updated_at',scope.updatedAt).eq('execution_status','error_requires_manual_review').select('id').maybeSingle();
   if(reserved.error || !reserved.data)throw Error('Native retry was already consumed or changed');

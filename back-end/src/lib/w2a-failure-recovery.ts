@@ -29,7 +29,7 @@ async function hasPoseJobs(orderId: string): Promise<boolean> {
   if (result.error || !Array.isArray(result.data)) throw Error('W2A pose progress could not be verified');
   return result.data.length > 0;
 }
-export async function verifiedW2AFailure(executionId: string): Promise<W2AFailure> {
+export async function readStoppedW2AFailure(executionId: string): Promise<{ root: unknown; failure: W2AFailure }> {
   const root = await readN8NExecution(executionId), children: unknown[] = [];
   let parent = root;
   for (let depth = 0; linkedFailureExecutionId(parent); depth++) {
@@ -38,14 +38,17 @@ export async function verifiedW2AFailure(executionId: string): Promise<W2AFailur
     if (!verifyFailureChild(parent, child)) throw Error('Linked W2A execution is unverified or still running');
     children.push(child); parent = child;
   }
-  const failure = buildW2AFailure(root, children);
+  return {root, failure: buildW2AFailure(root, children)};
+}
+export async function verifiedW2AFailure(executionId: string): Promise<W2AFailure> {
+  const {root,failure}=await readStoppedW2AFailure(executionId);
   if (failureRecord(root)?.retryOf) {
     const { mapNativeRetryFailure } = await import('./w2a-native-retry');
     return mapNativeRetryFailure(await readPhysicalOrder(failure.orderRowId),failureRecord(root)!,failure);
   }
   return failure;
 }
-export async function assertLatestFailure(failure: W2AFailure): Promise<void> {
+export async function assertLatestFailure(failure: W2AFailure, strict = false): Promise<void> {
   const current=await readPhysicalOrder(failure.orderRowId);
   const reserved=failureRecord(failureRecord(current.product_info)?.[W2A_PARENT_KEY]);
   const reservedOwner=reserved?.executionId === failure.executionId && claimTime(reserved.startedAt) === failure.claimStartedAt;
@@ -56,8 +59,9 @@ export async function assertLatestFailure(failure: W2AFailure): Promise<void> {
     for (const entry of result.entries) {
       if (entry.id === failure.executionId) return;
       if (BigInt(entry.id) < BigInt(failure.executionId)) continue;
-      const claim = originalW2AClaim(await readN8NExecution(entry.id));
-      if (reservedOwner && claim?.orderId === failure.orderId && claim.orderRowId === failure.orderRowId && claim.startedAt === failure.claimStartedAt) continue;
+      const detail=await readN8NExecution(entry.id),claim = originalW2AClaim(detail);
+      if(strict && (failureRecord(detail)?.id!==entry.id || failureRecord(detail)?.workflowId!==W2A_ORCHESTRATOR_ID || !claim))throw Error('Newer W2A execution ownership is unverified; inspect workflow history');
+      if (!strict && reservedOwner && claim?.orderId === failure.orderId && claim.orderRowId === failure.orderRowId && claim.startedAt === failure.claimStartedAt) continue;
       if (claim?.orderId === failure.orderId && claim.orderRowId === failure.orderRowId) throw Error('A newer W2A execution exists; refresh recovery before continuing');
     }
     if (!result.nextCursor || seen.has(result.nextCursor)) break;

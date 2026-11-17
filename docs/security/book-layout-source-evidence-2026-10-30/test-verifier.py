@@ -49,6 +49,13 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-native-jsonb-parent': 'back-end/src/lib/w2a-parent-claim.ts',
+    'changed-native-jsonb-rearm': 'back-end/src/lib/w2a-native-retry.ts',
+    'changed-native-jsonb-failure': 'back-end/src/lib/w2a-failure-recovery.ts',
+    'changed-native-jsonb-http-proof': 'back-end/scripts/test-w2-http-handoff.ts',
+    'changed-native-jsonb-plan': 'docs/implementation-plans/native-retry-jsonb-fix-20261117.md',
+    'changed-native-jsonb-prior': 'docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-native-jsonb-fix-2026-11-17.json',
+
     'changed-admin-recovery-inspection': 'back-end/src/lib/w2a-recovery.ts',
     'changed-admin-recovery-client': 'back-end/src/app/admin/w2a-recovery/page.tsx',
     'changed-admin-recovery-order-link': 'back-end/src/app/orders/[orderId]/page.tsx',
@@ -145,6 +152,7 @@ added_cases += ['changed-native-retry-plan']
 added_cases += ['changed-managed-auth-session', 'changed-managed-auth-policy', 'changed-managed-auth-http', 'changed-managed-auth-page', 'changed-managed-auth-form', 'changed-managed-auth-test', 'changed-managed-auth-binding', 'changed-managed-auth-middleware', 'changed-managed-auth-consumer-fixture', 'changed-managed-auth-rollout-plan', 'changed-managed-auth-runbook']
 results = []
 added_cases += ['changed-admin-recovery-inspection', 'changed-admin-recovery-client', 'changed-admin-recovery-order-link', 'changed-admin-recovery-runbook', 'changed-admin-recovery-plan', 'changed-admin-recovery-prior-manifest']
+added_cases += ['changed-native-jsonb-parent', 'changed-native-jsonb-rearm', 'changed-native-jsonb-failure', 'changed-native-jsonb-http-proof', 'changed-native-jsonb-plan', 'changed-native-jsonb-prior']
 
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

@@ -29,18 +29,26 @@ assert.equal(tournament.execute('{{ $json[$json.key] }}',expressionContext({key:
 for(const expression of ['{{ Object.prototype }}',"{{ Object['constructor'] }}",'{{ $json[$json.key] }}'])assert.throws(()=>tournament.execute(expression,expressionContext({key:'prototype'})),/Forbidden n8n property/);
 
 import {NextRequest} from 'next/server';
+import {managedAdminFixture} from './helpers/managed-admin-fixture';
 
 async function main() {
   Object.assign(process.env,{SUPABASE_URL:'https://handoff-db.example.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-handoff-key',BACKEND_API_TOKEN:'synthetic-handoff-machine',CLOUDFLARE_ACCOUNT_ID:'synthetic-handoff',R2_ACCESS_KEY_ID:'synthetic-access',R2_SECRET_ACCESS_KEY:'synthetic-secret'});
+  Object.assign(process.env,{ADMIN_SITE_ORIGIN:'https://admin.littleherolabs.com',ADMIN_ALLOWED_EMAILS:'operator@example.test'});
+  const managed=await managedAdminFixture(['operator@example.test']);
   const transport=globalThis.fetch,log=console.log,errorLog=console.error;
   const tables:Record<string,Record<string,any>[]>={orders:[],workflow_jobs:[],workflow_job_attempts:[],workflow_job_events:[],book_configs:[]};
-  const objects=new Map<string,unknown>(),executions=new Map<string,any>();let one:unknown;let ids=100,writes=0,providerCalls=0;
+  // JSONB object ordering is not JavaScript insertion ordering. Exercise the storage boundary.
+  const jsonb=(value:unknown):unknown=>Array.isArray(value)?value.map(jsonb):value!==null&&typeof value==='object'
+    ? Object.fromEntries(Object.entries(value).sort(([a],[b])=>Buffer.byteLength(a)-Buffer.byteLength(b)||Buffer.compare(Buffer.from(a),Buffer.from(b))).map(([key,item])=>[key,jsonb(item)])):value;
+  const databaseRow=(row:Record<string,unknown>|null)=>row===null?null:Object.fromEntries(Object.entries(row).map(([key,value])=>[key,['product_info','normalized_input_snapshot','result_snapshot','review_stages','metadata'].includes(key)?jsonb(value):value]));
+  const objects=new Map<string,unknown>(),executions=new Map<string,any>();let one:unknown;let ids=100,writes=0,providerCalls=0,retryPosts=0;let historyResponse:any=null;
   globalThis.fetch=async(input,init)=>{
     const request=new Request(input,init),url=new URL(request.url);
+    const authResponse=managed.response(request);if(authResponse)return authResponse;
     if(url.hostname==='n8n-handoff.example.test'){
-      if(request.method==='POST'){assert(url.pathname.endsWith('/4242/retry'));assert.deepEqual(await request.json(),{loadWorkflow:true});return Response.json({id:'5252'});}
+      if(request.method==='POST'){retryPosts++;assert(url.pathname.endsWith('/4242/retry'));assert.deepEqual(await request.json(),{loadWorkflow:true});return Response.json({id:'5252'});}
       if(url.pathname.includes('/workflows/'))return Response.json({id:'HduzTWm0ekmrvwrn',name:'W2A fixture',active:true});
-      if(url.pathname.endsWith('/executions'))return Response.json({data:[{id:'4242'}],nextCursor:null});
+      if(url.pathname.endsWith('/executions'))return Response.json(historyResponse ?? {data:[...executions.values()].filter(e=>e.workflowId==='HduzTWm0ekmrvwrn').sort((a,b)=>Number(b.id)-Number(a.id)).map(e=>({id:e.id})),nextCursor:null});
       const id=url.pathname.split('/').pop()!;assert(executions.has(id),'Unexpected execution lookup '+id);return Response.json(executions.get(id));
     }
     if(url.hostname.endsWith('.synthetic-handoff.r2.cloudflarestorage.com')){
@@ -52,20 +60,32 @@ async function main() {
     if(url.hostname!=='handoff-db.example.test'){providerCalls++;throw Error('Nonfixture transport forbidden');}
     const table=url.pathname.split('/').pop()!,records=tables[table];assert(records,'Unexpected table '+table);
     const matches=(row:Record<string,any>)=>[...url.searchParams].every(([key,value])=>{
-      if(['select','order','limit'].includes(key))return true;
+      if(['select','order','limit'].includes(key) || value.startsWith('gte.') || key==='or')return true;
       if(value.startsWith('eq.'))return String(row[key])===value.slice(3);
       if(value==='is.null')return row[key]==null;
+      if(value.startsWith('in.'))return value.slice(4,-1).split(',').map(v=>v.replaceAll('\"','')).includes(String(row[key]));
+      if(value.startsWith('like.'))return String(row[key]??'').startsWith(value.slice(5).replace('%',''));
       throw Error('Unexpected filter '+key+'='+value);
     });
     let found:Record<string,any>|undefined;
-    if(request.method==='POST'){found={id:++ids,...await request.json()};records.push(found!);writes++;}
-    else {found=records.find(matches);if(request.method==='PATCH'&&found){Object.assign(found,await request.json());found.updated_at=new Date().toISOString();writes++;}else assert.equal(request.method,'GET');}
-    return Response.json(request.headers.get('Accept')?.includes('object')?found??null:request.method==='GET'?records.filter(matches):found?[found]:[]);
+    if(request.method==='POST'){found={id:++ids,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),...await request.json()};Object.assign(found!,databaseRow(found!));records.push(found!);writes++;}
+    else {found=records.find(matches);if(request.method==='PATCH'&&found){Object.assign(found,databaseRow(await request.json()));found.updated_at=new Date().toISOString();writes++;}else assert.equal(request.method,'GET');}
+    return Response.json(request.headers.get('Accept')?.includes('object')?databaseRow(found??null):request.method==='GET'?records.filter(matches).map(databaseRow):found?[databaseRow(found)]:[]);
   };
   console.log=()=>{};console.error=()=>{};
   try{
     const [{loadBundledBookConfig},{buildW0RunManifestFromConfig},{POST:bootstrap},{POST:base},{POST:pose},{POST:bg},{POST:worklist},{attachWorkflowJobsToW2BWorkItems}]=await Promise.all([
       import('../src/lib/books/load-book-config'),import('../src/lib/books/build-run-manifest'),import('../src/app/api/internal/w2a/bootstrap-manifest/route'),import('../src/app/api/internal/w2a/build-base-input/route'),import('../src/app/api/internal/w2a/build-pose-input/route'),import('../src/app/api/internal/w2b/build-pose-input/route'),import('../src/app/api/internal/w2a/resolve-pose-worklist/route'),import('../src/lib/workflow-jobs/w2b-pose-jobs')]);
+    const {assertActiveW2AParentRow}=await import('../src/lib/w2a-parent-claim');
+    const claimExample={orderRowId:4,orderId:'CLAIM-PERMUTATION',startedAt:'2026-11-16T05:00:00.000001Z',executionId:'4242'};
+    const permutations=(entries:[string,unknown][]):[string,unknown][][]=>entries.length?entries.flatMap((entry,index)=>permutations(entries.filter((_,i)=>i!==index)).map(rest=>[entry,...rest])):[[]];
+    for(const ownerEntries of permutations(Object.entries(claimExample)))for(const inputEntries of permutations(Object.entries(claimExample))){
+      const owner=Object.fromEntries(ownerEntries),input=Object.fromEntries(inputEntries);
+      const active={id:4,orderId:claimExample.orderId,execution_status:'processing',current_workflow:'2A',started_at:claimExample.startedAt,product_info:{_w2a_parent_claim:owner}};
+      assert.doesNotThrow(()=>assertActiveW2AParentRow(active,input as any));
+      for(const change of [{orderRowId:5},{orderId:'FOREIGN'},{executionId:'5252'},{startedAt:'2026-11-16T05:00:00.000002Z'}])assert.throws(()=>assertActiveW2AParentRow(active,{...input,...change} as any));
+    }
+    assert.throws(()=>assertActiveW2AParentRow(null,{} as any));
     const bookId='book-finding-our-inner-voice',orderId='SYNTHETIC-HTTP-HANDOFF',characterHash='synthetic-handoff-hash',oneUrl=`${bookId}/orders/${orderId}/manifests/1-manifest.json`;
     const config=loadBundledBookConfig({bookId,version:3}),specs={childName:'Fixture',age:2,pronouns:'he/him',animalGuide:'tiger',favoriteColor:'red',skinTone:'light',hairColor:'light-brown',hairStyle:'side-part'};
     one=buildW0RunManifestFromConfig(config,{orderId,platform:'amazon',formatId:'amazon',characterHash,input:{characterSpecs:specs,orderDetails:{quantity:1}}});
@@ -268,28 +288,79 @@ async function main() {
     for(const patch of [{workflowNativeParentExecutionId:'999'},{orderId:'FOREIGN'},{poseNumber:8},{retryAttempt:2}]){
       const before=structuredClone(nativeRow);const response=await pose(request('/api/internal/w2a/build-pose-input',wire(1,{...resumeBody,...patch})));assert.equal(response.status,409);assert.deepEqual(nativeRow,before,'Invalid native request must not adopt the physical order');
     }
+    // User continuation adopts, then its input endpoint fails before any job attempt.
+    const {normalizeNativeW2ARetryInput}=await import('../src/lib/w2a-native-retry');
+    await normalizeNativeW2ARetryInput(wire(1,resumeBody));
+    runtime.status='error';runtime.stoppedAt='2026-11-16T06:01:00.000Z';
+    runtime.workflowData={nodes:[{type:'n8n-nodes-base.executeWorkflow',parameters:{workflowId:'fixture-sw1'}}]};
+    runtime.data={...root.data,resultData:{...root.data.resultData,error:{executionId:'5253',message:'Input endpoint rejected parent'},lastNodeExecuted:'Execute SW1 - Pose Generation'}};
+    executions.set('5253',{id:'5253',workflowId:'fixture-sw1',status:'error',stoppedAt:runtime.stoppedAt,data:{parentExecution:{executionId:'5252',workflowId:runtime.workflowId},resultData:{error:{message:'A different execution owns this W2A parent claim'},lastNodeExecuted:'Fetch Repo W2A Pose Input'}}});
+    const {recordW2AExecutionFailure}=await import('../src/lib/w2a-failure-recovery');
+    await recordW2AExecutionFailure('5252');
+    const stoppedJobs=structuredClone(tables.workflow_jobs),stoppedAttempts=structuredClone(tables.workflow_job_attempts);
+    const {GET:recoveryGet,POST:recoveryPost}=await import('../src/app/api/admin/w2a-recovery/route');
+    const adminRequest=(body?:unknown)=>new NextRequest('https://admin.littleherolabs.com/api/admin/w2a-recovery?orderId='+nativeId,{method:body?'POST':'GET',headers:{cookie:managed.cookie('operator@example.test'),origin:'https://admin.littleherolabs.com','content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+    const stoppedDto=await (await recoveryGet(adminRequest())).json();
+    assert(stoppedDto.inspectedOrder,JSON.stringify(stoppedDto));assert.equal(stoppedDto.inspectedOrder.nativeRecovery.canPrepare,true);assert.equal(stoppedDto.inspectedOrder.nativeRecovery.canResume,false);assert.equal(stoppedDto.inspectedOrder.failure.executionId,'5252');
+    const actionBody=(dto:any,action:string)=>({action,orderId:nativeId,executionId:dto.failure.executionId,updatedAt:dto.failureRevision,resolvedCause:true});
+    const assertRejected=async(body:unknown)=>{const before=structuredClone(nativeRow),jobBefore=structuredClone(tables.workflow_jobs),attemptBefore=structuredClone(tables.workflow_job_attempts),posts=retryPosts;const response=await recoveryPost(adminRequest(body));assert.equal(response.status,400,await response.clone().text());assert.deepEqual(nativeRow,before);assert.deepEqual(tables.workflow_jobs,jobBefore);assert.deepEqual(tables.workflow_job_attempts,attemptBefore);assert.equal(retryPosts,posts);};
+    const stoppedBody=actionBody(stoppedDto.inspectedOrder,'prepare_native_retry');
+    await assertRejected({...stoppedBody,updatedAt:'1999-01-01T00:00:00Z'});
+    const assertUnknownHistory=async(body:unknown)=>{
+      for(const detail of [{},{id:'7777',workflowId:root.workflowId,status:'running'}, {...root,id:'7778'}, {...root,id:'7777',workflowId:'FOREIGN'},...['new','running','success','error'].map(status=>({...root,id:'7777',status}))]){
+        executions.set('7777',detail);historyResponse={data:[{id:'7777'},{id:'5252'},{id:'4242'}],nextCursor:null};await assertRejected(body);
+      }
+      executions.delete('7777');historyResponse={data:[],nextCursor:'repeat'};await assertRejected(body);historyResponse=null;
+    };
+    await assertUnknownHistory(stoppedBody);
+    for(const change of [(value:any)=>value.images.pop(),(value:any)=>value.images.push(value.images[0]),(value:any)=>{value.images[0].sha256='bad';},(value:any)=>{value.images[0].bytes=0;},(value:any)=>{value.images[0].key='foreign.png';}]){
+      const info=structuredClone(nativeRow.product_info);change(nativeRow.product_info[NATIVE_RETRY_KEY]);await assertRejected(stoppedBody);nativeRow.product_info=info;
+    }
+    const pinnedImage=objects.get(imageKey);objects.set(imageKey,new Uint8Array([7,7]));await assertRejected(stoppedBody);objects.set(imageKey,pinnedImage);
+    const originalAttempt=structuredClone(tables.workflow_job_attempts.find(a=>a.job_id===nativeRow.product_info[NATIVE_RETRY_KEY].sourceInput.workflowJobId)!);tables.workflow_job_attempts.push({...originalAttempt,id:99999});await assertRejected(stoppedBody);tables.workflow_job_attempts.pop();
+    const targetAttempt=tables.workflow_job_attempts.find(a=>a.job_id===nativeRow.product_info[NATIVE_RETRY_KEY].sourceInput.workflowJobId)!;
+    const targetTime=targetAttempt.updated_at;targetAttempt.updated_at='2099-01-01T00:00:00Z';await assertRejected(stoppedBody);targetAttempt.updated_at=targetTime;
+    const childStatus=executions.get('5253').status;executions.get('5253').status='running';await assertRejected(stoppedBody);executions.get('5253').status=childStatus;
+    const stoppedFixture=structuredClone(stoppedDto.inspectedOrder);
+    const preparedAgain=await recoveryPost(adminRequest(actionBody(stoppedDto.inspectedOrder,'prepare_native_retry')));
+    assert.equal(preparedAgain.status,200,'Failed adopted continuation must be recoverable without generation: '+await preparedAgain.clone().text());
+    const againDto=await preparedAgain.json();assert.equal(againDto.after.failure.executionId,'4242');assert.equal(againDto.after.nativeRecovery.canResume,true);
+    const refreshPrepared=await recoveryPost(adminRequest(actionBody(againDto.after,'prepare_native_retry')));assert.equal(refreshPrepared.status,200,await refreshPrepared.clone().text());
+    const refreshPreparedDto=await refreshPrepared.json();assert.deepEqual(nativeRow.product_info[NATIVE_RETRY_KEY].images,preparedRow.product_info[NATIVE_RETRY_KEY].images);
+    assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].failedContinuations[0].dispatchedBy,'fixture-admin');
+    assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].failedContinuations[0].checkedBy,'operator@example.test');
+    await assertUnknownHistory(actionBody(refreshPreparedDto.after,'prepare_native_retry'));
+    await assertUnknownHistory(actionBody(refreshPreparedDto.after,'resume_native_retry'));
+    const refreshedDto=await (await recoveryGet(adminRequest())).json();
+    assert.equal(refreshedDto.inspectedOrder.failure.executionId,'4242');
+    assert.deepEqual(tables.workflow_jobs,stoppedJobs);assert.deepEqual(tables.workflow_job_attempts,stoppedAttempts);
+    const resumedAgain=await recoveryPost(adminRequest(actionBody(refreshedDto.inspectedOrder,'resume_native_retry')));
+    assert.equal(resumedAgain.status,200,await resumedAgain.clone().text());
+    assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].failedContinuations[0].dispatchedBy,'fixture-admin');
+    if(process.env.LHL_RECOVERY_FIXTURE_DIR){const fs=await import('node:fs/promises');await fs.writeFile(process.env.LHL_RECOVERY_FIXTURE_DIR+'/new-inspections.json',JSON.stringify({stopped:stoppedFixture,prepared:refreshedDto.inspectedOrder}),{mode:0o600});}
+    executions.set('6262',{...root,id:'6262',retryOf:'4242',status:'running',startedAt:'2026-11-16T07:00:00.000Z'});
     for(let n=9;n<=12;n++){
-      const body=n===9?resumeBody:tournament.execute(mapper.slice(1),{...expressionContext(nativeItems.find((i:any)=>i.poseNumber===n)),$execution:{id:'5252'}});
+      const body=n===9?{...resumeBody,workflowNativeParentExecutionId:'6262'}:tournament.execute(mapper.slice(1),{...expressionContext(nativeItems.find((i:any)=>i.poseNumber===n)),$execution:{id:'6262'}});
       const response=await pose(request('/api/internal/w2a/build-pose-input',wire(1,body)));assert.equal(response.status,200,'Native continuation pose'+n+': '+await response.clone().text());
-      const output=await response.json();assert.equal(output.workflowParentClaim.executionId,'5252');assert.equal(output.workflowAttempt,n===9?2:1);
+      const output=await response.json();assert.equal(output.workflowParentClaim.executionId,'6262');assert.equal(output.workflowAttempt,n===9?2:1);
       if(n===9){const adopted=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(adopted.nativeRecovery?.phase,'adopted');assert.equal(adopted.nativeRecovery?.canResume,false);}
       published.push(publishedAck({...output,success:true,uploadKey:output.uploadKey.replace(/_r\d+(?=\.)/,''),qaPass:true,qa:{combined:{pass:true}}}));
     }
     assert.deepEqual(tables.workflow_jobs.filter(j=>j.order_id===nativeId&&Number(j.logical_key.slice(-2))<9),retainedJobs);
     for(const [key,bytes]of retainedImages)assert.deepEqual(objects.get(key),bytes);
-    const mappedFailure=mapNativeRetryFailure(nativeRow,{...root,id:'5252',retryOf:'4242'},{...failure,executionId:'5252'});assert.equal(mappedFailure.claimStartedAt,nativeRow.started_at);
-    assert.equal(mapNativeRetryFailure(nativeRow,{...root,id:'5252',retryOf:'FOREIGN'},{...failure,executionId:'5252'}).claimStartedAt,failure.claimStartedAt);
-    const manifestItems=topNode('Write Run Manifest1',published[0],{$input:{all:()=>published.map(json=>({json}))},$execution:{id:'5252',customData:{orderContext:nativeTop.orderContext}}});
+    const mappedFailure=mapNativeRetryFailure(nativeRow,{...root,id:'6262',retryOf:'4242'},{...failure,executionId:'6262'});assert.equal(mappedFailure.claimStartedAt,nativeRow.started_at);
+    assert.equal(mapNativeRetryFailure(nativeRow,{...root,id:'6262',retryOf:'FOREIGN'},{...failure,executionId:'6262'}).claimStartedAt,failure.claimStartedAt);
+    const manifestItems=topNode('Write Run Manifest1',published[0],{$input:{all:()=>published.map(json=>({json}))},$execution:{id:'6262',customData:{orderContext:nativeTop.orderContext}}});
     const manifestBody=JSON.parse(topNode('Prepare Build 2A Manifest Body',manifestItems[0].json)[0].json.requestBody);
     const {POST:manifestPost}=await import('../src/app/api/internal/w2a/build-run-manifest/route');
     const manifestRes=await manifestPost(request('/api/internal/w2a/build-run-manifest',manifestBody));assert.equal(manifestRes.status,200,await manifestRes.clone().text());const manifestOut=await manifestRes.json();assert.equal(manifestOut.manifest.entries.length,13);
-    const completion=JSON.parse(topNode('Prepare 2A Completion Upsert Body',manifestOut,{$execution:{id:'5252',customData:{orderContext:nativeTop.orderContext}}})[0].json.requestBody);
-    assert.equal(completion.workflowNativeParentExecutionId,'5252');assert.equal(completion.workflowParentClaim.executionId,'4242','Saved context is old; only verified lineage can map it');
+    const completion=JSON.parse(topNode('Prepare 2A Completion Upsert Body',manifestOut,{$execution:{id:'6262',customData:{orderContext:nativeTop.orderContext}}})[0].json.requestBody);
+    assert.equal(completion.workflowNativeParentExecutionId,'6262');assert.equal(completion.workflowParentClaim.executionId,'4242','Saved context is old; only verified lineage can map it');
     const {POST:completePost}=await import('../src/app/api/webhooks/workflow-2a-complete/route');
     const completeResponse=await completePost(request('/api/webhooks/workflow-2a-complete',completion));assert.equal(completeResponse.status,200,await completeResponse.clone().text());assert.equal(nativeRow.execution_status,'done');
-    assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].currentClaim.executionId,'5252');
+    assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].currentClaim.executionId,'6262');
     const completedInspection=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(completedInspection.nativeRecovery?.phase,'adopted');assert.equal(completedInspection.nativeRecovery?.canPrepare,false);
-    const doneRow=structuredClone(nativeRow);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,product_info:{...nativeRow.product_info,_w2a_failure:{...mappedFailure,executionId:'5252',resolvedAt:undefined}}});
+    const doneRow=structuredClone(nativeRow);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,product_info:{...nativeRow.product_info,_w2a_failure:{...mappedFailure,executionId:'6262',resolvedAt:undefined}}});
     const laterFailure=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(laterFailure.nativeRecovery?.phase,'adopted');assert.equal(laterFailure.nativeRecovery?.canResume,false);Object.assign(nativeRow,doneRow);
     assert.equal(providerCalls,0);
     log('Actual W0/bootstrap → pose8 two-image request → SW1 return/SW2/repeated QA retry/exhaustion → POST passed; native preparation/dispatch CAS → retained0–8/resumed9–12 → 13-pose manifest/completion passed, zero provider calls');
