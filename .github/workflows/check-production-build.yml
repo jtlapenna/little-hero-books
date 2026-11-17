@@ -81,6 +81,9 @@ jobs:
           node --import tsx scripts/test-publish-book-config-immutability.ts
           node --import tsx scripts/test-book-config-semantics.ts
           node --import tsx scripts/test-frozen-book-handoff.ts
+      - name: Install locked n8n expression regression tooling without lifecycle scripts
+        working-directory: back-end
+        run: npm ci --prefix scripts/fixtures/n8n-expression-runtime --ignore-scripts --no-audit --no-fund
       - name: Verify saved W2A errors and human-confirmed recovery without providers
         working-directory: back-end
         run: |

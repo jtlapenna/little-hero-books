@@ -27,7 +27,7 @@ module.exports = function selectWorkflowHttpEnvelope(input) {
     const manifest = value => {
       if (typeof value !== 'string') return value;
       try { return decodeURIComponent(value.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/i, '')).replace(/^\/api\/manifests\//, '').replace(/^\/+/, ''); }
-      catch { return value; }
+      catch (error) { return value; }
     };
     const claim = value => {
       if (!record(value)) return value;

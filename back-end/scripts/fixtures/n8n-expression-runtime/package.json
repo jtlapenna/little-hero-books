@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@n8n/tournament": "1.11.1",
+    "ast-types": "0.16.1"
+  },
+  "name": "lhl-n8n-expression-test-runtime",
+  "private": true,
+  "overrides": {
+    "ast-types": "0.16.1"
+  }
+}

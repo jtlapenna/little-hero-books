@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+// Isolated test tooling pins the live engine; it is not an application dependency.
+const n8nTestRequire=createRequire(new URL('./fixtures/n8n-expression-runtime/package.json',import.meta.url));
+const {Tournament}=n8nTestRequire('@n8n/tournament');
+assert.equal(n8nTestRequire('@n8n/tournament/package.json').version,'1.11.1');
+const scopeVersion=(path:string)=>JSON.parse(readFileSync(resolve(dirname(path),'../package.json'),'utf8')).version;
+assert.equal(scopeVersion(n8nTestRequire.resolve('ast-types')),'0.16.1');
+assert.equal(scopeVersion(createRequire(n8nTestRequire.resolve('recast')).resolve('ast-types')),'0.16.1');
+const tournament=new Tournament((error:Error)=>{throw error;});
 import {NextRequest} from 'next/server';
 
 async function main() {
@@ -43,7 +53,7 @@ async function main() {
     const topNode=(name:string,input:unknown,extra:Record<string,unknown>={})=>vm.runInNewContext('(function(){'+top.nodes.find((n:{name:string})=>n.name===name).parameters.jsCode+'\n})()',{$json:input,$input:{first:()=>({json:input})},$execution:{id:'4242',customData:{}},$getWorkflowStaticData:()=>({}),$binary:{},Buffer,console:{log(){},warn(){},error(){}},...extra});
     const wire=(index:number,input:unknown)=>{
       const expression=graphs[index].nodes.find((n:{name:string})=>n.name===nodeNames[index]).parameters.body;
-      return JSON.parse(vm.runInNewContext('('+expression.slice(3,-2)+')',{$json:input,URL},{timeout:1000}));
+      return JSON.parse(tournament.execute(expression.slice(1),{$json:input,JSON,Object,Array,Number,Date,Error,decodeURIComponent}));
     };
     const request=(path:string,input:unknown)=>new NextRequest('https://admin.littleherolabs.com'+path,{method:'POST',headers:{Authorization:'Bearer synthetic-handoff-machine','Content-Type':'application/json'},body:JSON.stringify(input)});
     const normalized=topNode('Normalize Router Payload',{body:structuredClone(row)})[0].json;
