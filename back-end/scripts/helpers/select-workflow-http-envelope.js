@@ -2,7 +2,7 @@
 module.exports = function selectWorkflowHttpEnvelope(input) {
   const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
   if (!record(input)) throw Error('Workflow input must be an object');
-  const owns = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+  const owns = (value, key) => Object.hasOwn(value, key);
   const canonicalFields = ['orderId', 'orderContext', 'workflowParentClaim', 'workflowJobId', 'workflowAttemptId', 'workflowJobIdempotencyKey', 'qaRetryProof', 'renderSnapshot', 'bookId', 'formatId', 'configVersion', 'oneManifestUrl', 'oneManifestKey', 'characterHash', 'poseNumber', 'approvedKey'];
   const canonical = canonicalFields.some(key => owns(input, key));
   if (!canonical) {
@@ -27,7 +27,7 @@ module.exports = function selectWorkflowHttpEnvelope(input) {
     const manifest = value => {
       if (typeof value !== 'string') return value;
       try { return decodeURIComponent(value.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/i, '')).replace(/^\/api\/manifests\//, '').replace(/^\/+/, ''); }
-      catch { return value; }
+      catch (error) { return value; }
     };
     const claim = value => {
       if (!record(value)) return value;

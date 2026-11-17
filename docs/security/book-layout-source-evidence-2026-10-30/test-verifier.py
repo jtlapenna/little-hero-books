@@ -60,6 +60,8 @@ source_cases = {
     'changed-reviewed-message-guard': 'back-end/scripts/test-message-safety-guard.ts',
     'changed-http-envelope-selector': 'back-end/scripts/helpers/select-workflow-http-envelope.js',
     'changed-actual-http-handoff': 'back-end/scripts/test-w2-http-handoff.ts',
+    'changed-n8n-expression-test-package': 'back-end/scripts/fixtures/n8n-expression-runtime/package.json',
+    'changed-n8n-expression-test-lock': 'back-end/scripts/fixtures/n8n-expression-runtime/package-lock.json',
     'changed-native-n8n-worker': 'back-end/scripts/test-n8n-transport-worker.ts',
     'changed-w0-native-transport': 'back-end/src/lib/w0-webhook-transport.ts',
     'changed-auto-csv-ui': 'back-end/src/app/admin/csv-upload/page.tsx',
@@ -113,6 +115,7 @@ added_cases += ['changed-reviewed-message-guard']
 added_cases += ['changed-native-n8n-worker']
 added_cases += ['changed-w0-native-transport']
 added_cases += ['changed-http-envelope-selector', 'changed-actual-http-handoff']
+added_cases += ['changed-n8n-expression-test-package', 'changed-n8n-expression-test-lock']
 results = []
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

@@ -1,6 +1,33 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+// Isolated test tooling pins the live engine; it is not an application dependency.
+const n8nTestRequire=createRequire(new URL('./fixtures/n8n-expression-runtime/package.json',import.meta.url));
+const {Tournament,astVisit,astBuilders}=n8nTestRequire('@n8n/tournament');
+assert.equal(n8nTestRequire('@n8n/tournament/package.json').version,'1.11.1');
+const scopeVersion=(path:string)=>JSON.parse(readFileSync(resolve(dirname(path),'../package.json'),'utf8')).version;
+assert.equal(scopeVersion(n8nTestRequire.resolve('ast-types')),'0.16.1');
+assert.equal(scopeVersion(createRequire(n8nTestRequire.resolve('recast')).resolve('ast-types')),'0.16.1');
+// Property-access compatibility subset of n8n's official PrototypeSanitizer.
+// https://github.com/n8n-io/n8n/blob/7be94a11840668a8dee22a4c12b3c6a774f27f8a/packages/workflow/src/expression-sandboxing.ts
+// This is a property-access subset, not the full n8n SDK sandbox.
+const unsafeProperties=new Set(['__proto__','prototype','constructor','getPrototypeOf','setPrototypeOf','getOwnPropertyDescriptor','getOwnPropertyDescriptors','defineProperty','defineProperties','mainModule','binding','_linkedBinding','_load','prepareStackTrace','__lookupGetter__','__lookupSetter__','__defineGetter__','__defineSetter__','caller','callee','arguments','getBuiltinModule','dlopen','execve','loadEnvFile']);
+const sanitizeProperty=(value:unknown)=>{const key=String(value);if(unsafeProperties.has(key))throw Error('Forbidden n8n property: '+key);return key;};
+const propertyGuard=(ast:unknown,dataNode:unknown)=>astVisit(ast,{
+  visitMemberExpression(this:{traverse:(path:unknown)=>void},path:{node:{computed:boolean;property:{type:string;name?:string;value?:unknown};object:unknown};replace:(node:unknown)=>void}){
+    this.traverse(path);const node=path.node;
+    if(!node.computed)sanitizeProperty(node.property.name);
+    else if(['Literal','StringLiteral'].includes(node.property.type))sanitizeProperty(node.property.value);
+    else path.replace(astBuilders.memberExpression(node.object,astBuilders.callExpression(astBuilders.memberExpression(dataNode,astBuilders.identifier('__sanitize')),[node.property]),true));
+  }
+});
+const tournament=new Tournament((error:Error)=>{throw error;},undefined,undefined,{before:[],after:[propertyGuard]});
+const expressionContext=(input:unknown)=>({$json:input,JSON,Object,Array,Number,Date,Error,decodeURIComponent,__sanitize:sanitizeProperty});
+assert.equal(tournament.execute('{{ $json[$json.key] }}',expressionContext({key:'value',value:23})),23);
+for(const expression of ['{{ Object.prototype }}',"{{ Object['constructor'] }}",'{{ $json[$json.key] }}'])assert.throws(()=>tournament.execute(expression,expressionContext({key:'prototype'})),/Forbidden n8n property/);
+
 import {NextRequest} from 'next/server';
 
 async function main() {
@@ -43,7 +70,7 @@ async function main() {
     const topNode=(name:string,input:unknown,extra:Record<string,unknown>={})=>vm.runInNewContext('(function(){'+top.nodes.find((n:{name:string})=>n.name===name).parameters.jsCode+'\n})()',{$json:input,$input:{first:()=>({json:input})},$execution:{id:'4242',customData:{}},$getWorkflowStaticData:()=>({}),$binary:{},Buffer,console:{log(){},warn(){},error(){}},...extra});
     const wire=(index:number,input:unknown)=>{
       const expression=graphs[index].nodes.find((n:{name:string})=>n.name===nodeNames[index]).parameters.body;
-      return JSON.parse(vm.runInNewContext('('+expression.slice(3,-2)+')',{$json:input,URL},{timeout:1000}));
+      return JSON.parse(tournament.execute(expression.slice(1),expressionContext(input)));
     };
     const request=(path:string,input:unknown)=>new NextRequest('https://admin.littleherolabs.com'+path,{method:'POST',headers:{Authorization:'Bearer synthetic-handoff-machine','Content-Type':'application/json'},body:JSON.stringify(input)});
     const normalized=topNode('Normalize Router Payload',{body:structuredClone(row)})[0].json;
@@ -102,6 +129,8 @@ async function main() {
       assert.throws(()=>wire(index,{...seed,orderId:null,body:seed}),/Conflicting workflow envelope/);
       assert.throws(()=>wire(index,{body:[]}),/Legacy workflow body/);
       assert.deepEqual(wire(index,{body:seed}),seed);
+      assert.deepEqual(wire(index,Object.assign(Object.create(null),seed)),seed);
+      assert.deepEqual(wire(index,{...seed,hasOwnProperty:false}),{...seed,hasOwnProperty:false});
       assert.deepEqual(wire(index,{...seed,body:{...seed,oneManifestUrl:'https://admin.littleherolabs.com/api/manifests/'+oneUrl,workflowParentClaim:{...canonical.workflowParentClaim,startedAt:'2026-11-16T05:00:00.000000Z'}}}),seed);
       assert.throws(()=>wire(index,{...seed,body:{...seed,workflowParentClaim:{...canonical.workflowParentClaim,startedAt:'2026-11-16T05:00:00.000001Z'}}}),/Conflicting workflow envelope/);
       assert.throws(()=>wire(index,{workflowParentClaim:undefined,body:seed}),/Conflicting workflow envelope/,'Malformed canonical declaration must not fall back');
