@@ -1,3 +1,4 @@
+import { nativeCompletionClaim } from '@/lib/w2a-native-retry';
 import { parseW2AParentClaim, assertActiveW2AParentRow } from '@/lib/w2a-parent-claim';
 import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,6 +23,7 @@ const PayloadSchema = z.object({
   posesGenerated: z.number().int().optional(),
   needsReview: z.boolean().optional(),
   workflowParentClaim: z.unknown().optional(),
+  workflowNativeParentExecutionId: z.string().regex(/^\d{1,30}$/).optional(),
 });
 
 type ExactOrderRow = {
@@ -102,8 +104,9 @@ export async function POST(request: NextRequest) {
         extractManifestKey(String(orderRow.manifest_2a_url ?? '')) === extractManifestKey(payload.manifestUrl)) {
       return NextResponse.json({success:true,orderId:payload.orderId,stage:'2a',alreadyCompleted:true,updatedRowId:orderRow.id});
     }
-    const claim = parseW2AParentClaim(payload.workflowParentClaim);
+    let claim = parseW2AParentClaim(payload.workflowParentClaim);
     if (!claim) throw Error('W2A completion requires the original active physical parent claim');
+    claim = await nativeCompletionClaim(orderRow as Record<string,unknown>,claim,payload.workflowNativeParentExecutionId);
     assertActiveW2AParentRow(orderRow, claim);
     if (!orderRow.updated_at) throw Error('W2A completion requires a current row revision');
     const payloadManifestKey = extractManifestKey(payload.manifestUrl) ?? '';

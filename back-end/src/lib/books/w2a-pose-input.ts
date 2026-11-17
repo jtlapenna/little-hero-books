@@ -448,9 +448,7 @@ function buildPosePromptBlock(input: {
     'Preserve BASE facial features exactly, including two visible natural eyebrows above the eyes.',
     'Preserve BASE clothing and footwear exactly, including shoe shape, shoe color, sole color, trim, and any visible shoe details.',
     'Use POSE for body pose only.',
-    input.hasHairRef
-      ? 'Use HAIR CHIP for hair silhouette only. Hair color must still match BASE exactly.'
-      : 'No HAIR CHIP is provided. Keep both hair silhouette and hair color aligned to BASE.',
+    'Use BASE as the sole source for hair silhouette, size and color. Keep all hair attached to the head; never render detached hair or a second hairstyle.',
     'Render exactly one child on a pure white background.',
     'The pure white background must remain empty: no cast shadow, contact shadow, floor, ground plane, reflection, dark blob, gray haze, vignette, or under-body shading.',
     'Show the full body, including hands and feet.',

@@ -19,6 +19,7 @@ ADDED = {
     'back-end/scripts/fixtures/n8n-expression-runtime/package.json',
     'back-end/scripts/helpers/book-layout-v3-fixture.ts',
     'back-end/scripts/helpers/gelato-ordinary-release-fixture.ts',
+    'back-end/scripts/helpers/restore-w2a-qa-identity.js',
     'back-end/scripts/helpers/select-workflow-http-envelope.js',
     'back-end/scripts/prepare-inner-voice-print-test.ts',
     'back-end/scripts/prepare-workflow-test-bindings.mjs',
@@ -135,6 +136,7 @@ ADDED = {
     'back-end/src/lib/books/print-profiles/gracol.json',
     'back-end/src/lib/books/print-profiles/srgb.json',
     'back-end/src/lib/books/w2a-bootstrap-retry.ts',
+    'back-end/src/lib/books/w2a-pose-input.ts',
     'back-end/src/lib/books/w3-assembly-state.ts',
     'back-end/src/lib/canonical-json-sha256.ts',
     'back-end/src/lib/cron-order-guards.ts',
@@ -150,6 +152,7 @@ ADDED = {
     'back-end/src/lib/w2a-completed-recovery.ts',
     'back-end/src/lib/w2a-execution-failure.ts',
     'back-end/src/lib/w2a-failure-recovery.ts',
+    'back-end/src/lib/w2a-native-retry.ts',
     'back-end/src/lib/w2a-parent-claim.ts',
     'back-end/src/lib/w2a-recovery.ts',
     'back-end/src/lib/w3-calibration-http.ts',
@@ -252,7 +255,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 301, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 304, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():
@@ -261,7 +264,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
         else:
             assert current[path]['sha256'] == item['sha256'], 'Unreviewed inherited source rebind: ' + path
     assert digest(json.dumps(sources, sort_keys=True, separators=(',', ':')).encode()) == manifest['sourceSnapshotSha256'], 'Source snapshot differs'
-    expected_evidence = {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json'}
+    expected_evidence = {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
     assert {item['path'] for item in rows if item['kind'] == 'evidence'} == expected_evidence, 'Missing or unexpected evidence'
 
     result = subprocess.run([sys.executable, str(root / PARENT / 'verify.py')],

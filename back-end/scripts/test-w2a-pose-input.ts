@@ -83,7 +83,9 @@ async function main(): Promise<void> {
     bookTwoBuilt.clothingTypeCanonical === "dress" &&
       bookTwoBuilt.posePromptBlock.includes("BASE") &&
       bookTwoBuilt.posePromptBlock.includes("POSE") &&
-      bookTwoBuilt.posePromptBlock.includes("HAIR CHIP") &&
+      !bookTwoBuilt.posePromptBlock.includes("HAIR CHIP") &&
+      bookTwoBuilt.posePromptBlock.includes("BASE as the sole source for hair silhouette") &&
+      bookTwoBuilt.posePromptBlock.includes("never render detached hair") &&
       bookTwoBuilt.posePromptBlock.includes("EYEBROW LOCK") &&
       bookTwoBuilt.posePromptBlock.includes("two visible natural eyebrows") &&
       bookTwoBuilt.posePromptBlock.includes("no cast shadow") &&
@@ -96,7 +98,7 @@ async function main(): Promise<void> {
       /do NOT copy (it|that skin color)/.test(bookTwoBuilt.posePromptBlock) &&
       /\(RGB \d+,\d+,\d+\)/.test(bookTwoBuilt.posePromptBlock) &&
       bookTwoBuilt.posePromptBlock.includes("subtle paper-grain texture"),
-    "Expected repo-owned prompt construction to emit the core BASE/POSE/HAIR/background/footwear contract",
+    "Expected repo-owned prompt construction to emit the core BASE/POSE/background/footwear contract",
   );
   assert(
     bookTwoBuilt.correlationId ===

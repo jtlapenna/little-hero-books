@@ -1,3 +1,4 @@
+import { prepareNativeW2ARetry, dispatchNativeW2ARetry } from '@/lib/w2a-native-retry';
 import { finalizeCompletedW2ARecovery } from '@/lib/w2a-completed-recovery';
 import { NextRequest, NextResponse } from 'next/server';
 import { recordW2AExecutionFailure, queueEarlyW2ARetry } from '@/lib/w2a-failure-recovery';
@@ -19,7 +20,7 @@ const QuerySchema = z.object({
 });
 
 const ActionSchema = z.object({
-  action: z.enum(['replay', 'finalize', 'record_failure', 'retry']),
+  action: z.enum(['replay', 'finalize', 'record_failure', 'retry', 'prepare_native_retry', 'resume_native_retry']),
   executionId: z.string().regex(/^\d{1,30}$/).optional(),
   claimStartedAt: z.string().min(1).optional(),
   updatedAt: z.string().min(1).optional(),
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = ActionSchema.strict().parse(JSON.parse(await readBoundedRequestText(request, 4096)));
-    if (payload.action === 'retry' && adminAuth.mode !== 'access') return NextResponse.json({ error: 'An authenticated administrator must confirm the cause is resolved' }, { status: 403 });
+    if (['retry','prepare_native_retry','resume_native_retry'].includes(payload.action) && adminAuth.mode !== 'access') return NextResponse.json({ error: 'An authenticated administrator must confirm the cause is resolved' }, { status: 403 });
     const before = await inspectW2ARecoveryOrder(payload.orderId, {
       adminBaseUrl: request.nextUrl.origin,
       executionLimit: 40,
@@ -119,7 +120,11 @@ export async function POST(request: NextRequest) {
     });
 
     let actionResult: unknown;
-    if (payload.action === 'record_failure' || payload.action === 'retry') {
+    if (payload.action === 'prepare_native_retry' || payload.action === 'resume_native_retry') {
+      if (!payload.executionId || !payload.updatedAt || payload.resolvedCause !== true) throw Error('A fresh failure revision and resolved-cause acknowledgement are required');
+      const scope={orderId:payload.orderId,executionId:payload.executionId,updatedAt:payload.updatedAt};
+      actionResult=payload.action==='prepare_native_retry' ? await prepareNativeW2ARetry(scope,adminAuth.actor) : await dispatchNativeW2ARetry(scope,adminAuth.actor);
+    } else if (payload.action === 'record_failure' || payload.action === 'retry') {
       if (!payload.executionId || !payload.claimStartedAt || !payload.updatedAt ||
           before.orderId !== payload.orderId || before.failure?.executionId !== payload.executionId ||
           before.failure.claimStartedAt !== payload.claimStartedAt || before.failureRevision !== payload.updatedAt) throw new Error('Failure changed; refresh recovery before continuing');

@@ -125,6 +125,7 @@ async function main() {
     dto = await (await GET(req('/api/admin/w2a-recovery?orderId=TEST-W2A-FAILURE'))).json(); assert.equal(dto.inspectedOrder.safeToRetry, true);
     const retry = { action: 'retry', orderId: initial.orderId, executionId: '101', claimStartedAt: failure.claimStartedAt, updatedAt: row!.updated_at };
     assert.equal((await POST(req('/api/admin/w2a-recovery', { ...retry, resolvedCause: true }))).status, 403, 'machine cannot acknowledge resolved cause');
+    for(const action of ['prepare_native_retry','resume_native_retry']) assert.equal((await POST(req('/api/admin/w2a-recovery',{...retry,action,resolvedCause:true}))).status,403,'Machine cannot prepare or dispatch native recovery');
     assert.equal((await POST(req('/api/admin/w2a-recovery', retry, true))).status, 400); assert.equal(writes, 1);
     assert.equal((await POST(req('/api/admin/w2a-recovery', { ...retry, resolvedCause: true }, true))).status, 200);
     assert.equal(writes, 2); assert.equal(row!.execution_status, 'ready_for_processing'); assert.equal(row!.retry_count, 1);

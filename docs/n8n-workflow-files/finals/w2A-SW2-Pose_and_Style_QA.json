@@ -974,6 +974,20 @@
       ],
       "id": "cadf62d7-47cd-48ff-b321-735625325628",
       "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const restore = function restoreW2AQAIdentity(input, source) {\n  function record(value) { return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }\n  function text(value) { return typeof value === 'string' && value.trim() ? value.trim() : null; }\n  const context = record(source.orderContext);\n  const orderId = text(source.orderId) || text(context.orderId);\n  if (!orderId) throw new Error('QA trigger is missing canonical order identity');\n  const rootOrderId = text(source.rootOrderId) || text(context.rootOrderId) || text(source.amazonOrderId) || orderId;\n  const amazonOrderId = text(source.amazonOrderId) || text(context.amazonOrderId) || rootOrderId;\n  const canonical = { orderId, rootOrderId, amazonOrderId };\n  for (const candidate of [source, context, input, record(input.orderContext)]) {\n    for (const key of Object.keys(canonical)) {\n      if (text(candidate[key]) && text(candidate[key]) !== canonical[key]) throw new Error('Conflicting QA order identity: ' + key);\n    }\n  }\n  const retryAttempt = source.retryAttempt === undefined ? 0 : source.retryAttempt;\n  if (typeof retryAttempt !== 'number' || !Number.isInteger(retryAttempt) || retryAttempt < 0 || retryAttempt > 3) throw new Error('Invalid QA trigger retry attempt');\n  // Intermediate QA nodes historically default the counter to zero. Only the current trigger owns it.\n  return { ...input, ...canonical, retryAttempt, orderContext: { ...context, ...canonical } };\n};\nreturn { json: restore($json, $('When Executed by Another Workflow').first().json), binary: $binary, pairedItem: $input.item.pairedItem ?? { item: 0 } };"
+      },
+      "id": "w2a-restore-qa-order-identity",
+      "name": "Restore QA Order Identity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        400
+      ]
     }
   ],
   "pinData": {
@@ -1445,6 +1459,17 @@
       ]
     },
     "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Restore QA Order Identity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore QA Order Identity": {
       "main": [
         [
           {

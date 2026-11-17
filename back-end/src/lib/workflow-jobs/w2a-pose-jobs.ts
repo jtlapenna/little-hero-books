@@ -1,3 +1,4 @@
+import { allowsNativeQAAdoption } from '../w2a-native-retry';
 import { isDeepStrictEqual } from 'node:util';
 import { parseW2AParentClaim, readActiveW2AParent } from '../w2a-parent-claim';
 import type { BookSnapshotFields } from '../books/book-snapshot';
@@ -437,10 +438,12 @@ async function validateQARejection(job: WorkflowJobRecord, input: W2APoseWorkIte
   const previous = job.normalized_input_snapshot ?? {};
   const next = buildQueuedSnapshot(input);
   const claim = parseW2AParentClaim(input.workflowParentClaim);
+  const activeRow = claim ? await readActiveW2AParent(claim) : null;
+  const sameParent = claim && isDeepStrictEqual(claim, parseW2AParentClaim(previous.workflowParentClaim)) && isDeepStrictEqual(claim, parseW2AParentClaim(proof?.workflowParentClaim));
+  const adopted = activeRow && allowsNativeQAAdoption(activeRow,job,previous.workflowParentClaim,proof?.workflowParentClaim,claim);
   if (!proof || proof.schema !== 'lhb.w2a-qa-rejection@1' || proof.jobId !== job.id ||
       proof.attempt !== job.attempt_count || proof.retryAttempt !== previous.retryAttempt ||
-      !claim || !isDeepStrictEqual(claim, parseW2AParentClaim(previous.workflowParentClaim)) ||
-      !isDeepStrictEqual(claim, parseW2AParentClaim(proof.workflowParentClaim)) ||
+      !claim || !(sameParent || adopted) ||
       proof.uploadKey !== job.result_snapshot?.uploadKey || !proof.uploadKey ||
       proof.generatedFileName !== job.result_snapshot?.generatedFileName || !proof.generatedFileName ||
       input.retryAttempt !== Number(previous.retryAttempt ?? 0) + 1 || Number(input.retryAttempt) > 3) throw Error('QA retry requires the exact preceding rejected attempt');
