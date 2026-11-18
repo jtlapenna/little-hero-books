@@ -11,6 +11,133 @@ from lettering_state import clean_lettering
 from migrate_flow_candidate import migrate, write_candidate
 
 
+REVIEWED_COPY_PAGES = {'page-01', 'page-12', 'page-20', 'page-28', 'page-31'}
+REVISION_COPY_FIELDS = {'id', 'text', 'placement', 'fontSize', 'lineHeight', 'color', 'align',
+                        'padding', 'edgeStyle', 'nameFit', 'longName', 'backgroundColor', 'flow'}
+REVISION_EDITOR_FIELDS = {'id', 'text', 'left', 'top', 'width', 'size', 'leading', 'color',
+                          'align', 'rotation', 'edge', 'height', 'padding', 'flow'}
+
+
+def revision_hash(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                     separators=(',', ':')).encode()).hexdigest()
+
+
+def assert_revision_editor_fields(document, flow_schema):
+    for page in document['pages']:
+        for block in page['blocks']:
+            fields = REVISION_EDITOR_FIELDS if flow_schema and 'flow' in block else REVISION_EDITOR_FIELDS - {'flow', 'height', 'padding'}
+            if set(block) - fields:
+                raise ValueError('Unsupported saved editor fields: ' + str(block.get('id')))
+
+
+def revised_editor_block(block, scale):
+    if not isinstance(block, dict) or set(block) - REVISION_COPY_FIELDS:
+        raise ValueError('Unsupported revised copy fields')
+    placement = block.get('placement', {})
+    if set(placement) - {'left', 'top', 'width', 'height', 'rotateDeg', 'zIndex'}:
+        raise ValueError('Unsupported revised placement fields')
+    if 'flow' in block and any(key in block for key in ('nameFit', 'longName')):
+        raise ValueError('Flow cannot retain legacy name fitting')
+    result = {'id': block['id'], 'text': block['text'], 'left': placement['left'],
+              'top': placement['top'], 'width': placement['width'],
+              'size': block['fontSize'] / scale,
+              'leading': block['fontSize'] * block['lineHeight'] / scale,
+              'color': block['color'], 'align': block['align'],
+              'rotation': placement.get('rotateDeg', 0), 'edge': bool(block.get('edgeStyle'))}
+    if 'flow' in block:
+        result.update(flow=copy.deepcopy(block['flow']), height=placement['height'],
+                      padding=block.get('padding', 0))
+    return result
+
+
+def migrate_reviewed_copy(config, source_seed, source_draft, replacements):
+    """Deliberate approved-copy revision, separate from ordinary geometry-only saves.
+
+    Extend the existing v2 flow candidate path for the five reviewed final-book pages.
+    Existing published config is the authority for all untouched release content.
+    """
+    if config.get('bookId') != source_seed['bookId'] or config['rendering']['recipe']['schema'] != 'lhb.book-render@v2':
+        raise ValueError('Expected matching Inner Voice v2 recipe')
+    if source_seed['bookId'] != 'book-finding-our-inner-voice':
+        raise ValueError('Expected Inner Voice book')
+    if not replacements or set(replacements) - REVIEWED_COPY_PAGES:
+        raise ValueError('Copy revision is outside the reviewed scope')
+    flow_schema = source_seed.get('stateSchema') == 'lhb.lettering-review@v2'
+    assert_revision_editor_fields(source_seed, flow_schema)
+    assert_revision_editor_fields(source_draft, flow_schema)
+    clean_lettering(source_draft, source_seed)
+    seed, draft = copy.deepcopy(source_seed), copy.deepcopy(source_draft)
+    scale = seed['units'] / (seed['pageSizeMm'] * 72 / 25.4)
+    if config['rendering']['preview']['interiorPx'] != {'w': seed['units'], 'h': seed['units']}:
+        raise ValueError('Editor and recipe canvas differ')
+    seed['stateSchema'] = 'lhb.lettering-review@v2'
+    draft['schema'] = 'lhb.lettering-review@v2'
+    fingerprint = revision_hash({'source': source_seed['layoutFingerprint'], 'copy': replacements})
+    seed['layoutFingerprint'] = draft['layoutFingerprint'] = fingerprint
+    draft['revision'] += 1
+    for pages in (seed['pages'], draft['pages']):
+        for page in pages:
+            if page['pageId'] in replacements:
+                page['blocks'] = [revised_editor_block(block, scale) for block in replacements[page['pageId']]]
+    draft = clean_lettering(draft, seed)
+    receipt = {'schema': 'lhb.reviewed-copy-revision@v1', 'sourceConfigSha256': revision_hash(config),
+               'approvedSeedSha256': revision_hash(seed), 'copy': copy.deepcopy(replacements),
+               'untouchedBlocks': {page['pageId']: revision_hash(page['blocks']) for page in draft['pages']
+                                   if page['pageId'] not in replacements}}
+    return seed, draft, receipt
+
+
+def export_reviewed_copy(config, seed, draft, receipt):
+    """Export saved edits without re-running legacy index/count-based lettering sync."""
+    if receipt.get('schema') != 'lhb.reviewed-copy-revision@v1' or revision_hash(config) != receipt.get('sourceConfigSha256'):
+        raise ValueError('Source config changed; review a new migration')
+    if revision_hash(seed) != receipt.get('approvedSeedSha256'):
+        raise ValueError('Approved seed changed; review a new migration')
+    assert_revision_editor_fields(draft, True)
+    cleaned = clean_lettering(draft, seed)
+    result = copy.deepcopy(config)
+    scale = seed['units'] / (seed['pageSizeMm'] * 72 / 25.4)
+    pages = {page['pageId']: page for page in cleaned['pages']}
+    for page_id, expected in receipt['untouchedBlocks'].items():
+        if revision_hash(pages[page_id]['blocks']) != expected:
+            raise ValueError('Unlisted page changed: ' + page_id)
+    for page_id, approved in receipt['copy'].items():
+        blocks = pages[page_id]['blocks']
+        if [block['id'] for block in blocks] != [block['id'] for block in approved]:
+            raise ValueError('Revised block identities changed')
+        output = []
+        for current, original in zip(blocks, approved):
+            block = copy.deepcopy(original)
+            block['text'] = current['text']
+            expected = revised_editor_block(original, scale)
+            for field, target in [('left', 'left'), ('top', 'top'), ('width', 'width'), ('rotation', 'rotateDeg')]:
+                if current[field] != expected[field]:
+                    block['placement'][target] = current[field]
+            if current['size'] != expected['size']:
+                block['fontSize'] = current['size'] * scale
+            if current['leading'] != expected['leading'] or current['size'] != expected['size']:
+                block['lineHeight'] = current['leading'] / current['size']
+            if not .5 <= block['lineHeight'] <= 4:
+                raise ValueError('Edited line height is outside the render contract')
+            for field in ('color', 'align'):
+                block[field] = current[field]
+            if current['edge'] != expected['edge']:
+                if current['edge']:
+                    block['edgeStyle'] = 'stroke'
+                else:
+                    block.pop('edgeStyle', None)
+            if 'flow' in current:
+                block.update(flow=copy.deepcopy(current['flow']), padding=current['padding'])
+                block['placement']['height'] = current['height']
+            output.append(block)
+        if output:
+            result['rendering']['recipe']['copy'][page_id] = output
+        else:
+            result['rendering']['recipe']['copy'].pop(page_id, None)
+    return result
+
+
 def recipe_text(page, text):
     # The retained config intentionally substitutes these editor-only values.
     if page == 3:

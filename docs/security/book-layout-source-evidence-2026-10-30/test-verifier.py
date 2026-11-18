@@ -141,6 +141,7 @@ source_cases = {
     'changed-canonical-config': 'back-end/src/lib/books/types.ts',
     'changed-v3-fixture': 'back-end/scripts/helpers/book-layout-v3-fixture.ts',
 }
+source_cases.update({'changed-updated-book-copy-owner': 'back-end/src/lib/books/updated-test-book-copy.ts', 'changed-updated-book-copy-auth': 'back-end/src/lib/books/updated-test-book-copy-http.ts', 'changed-updated-book-copy-store': 'back-end/src/lib/books/updated-test-book-copy-store.ts', 'changed-updated-book-copy-ui': 'back-end/src/components/orders/updated-test-book-copy.tsx', 'changed-final-book-config': 'tools/inner-voice-placement-editor/final-book-revisions-20261117/release-config.json', 'changed-w2b-revision-job': 'back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts', 'changed-final-book-prior': 'docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-final-book-revisions-2026-11-18.json'})
 original_cases = [
     'changed-repair', 'changed-ancestor', 'changed-route', 'changed-new-regression',
     'changed-inherited-adapter', 'changed-workflow', 'changed-upload-helper',
@@ -170,6 +171,8 @@ added_cases += ['changed-native-jsonb-parent', 'changed-native-jsonb-rearm', 'ch
 added_cases += ['changed-error-observer-contract', 'changed-error-observer-history', 'changed-error-observer-admin', 'changed-error-observer-http', 'changed-error-observer-plan', 'changed-error-observer-prior']
 
 added_cases += ['changed-completion-claim-response', 'changed-completion-inspection', 'changed-completion-transport', 'changed-completion-transport-test', 'changed-completion-plan', 'changed-completion-prior']
+
+added_cases += ['changed-updated-book-copy-owner', 'changed-updated-book-copy-auth', 'changed-updated-book-copy-store', 'changed-updated-book-copy-ui', 'changed-final-book-config', 'changed-w2b-revision-job', 'changed-final-book-prior']
 
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

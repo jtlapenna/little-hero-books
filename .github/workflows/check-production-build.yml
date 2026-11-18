@@ -109,6 +109,9 @@ jobs:
           npm run test:inner-voice-workflow-e2e
           npm run test:inner-voice-pose-chain
           npm run test:configured-pose
+          npm run test:pose-revision-resolution
+          npm run test:final-book-flying-orientation
+          npm run test:updated-test-book-copy
           npm run test:gelato-print-routing
           GELATO_TEST_PREFLIGHT_DIR="$RUNNER_TEMP/gelato-print-preflight" npm run test:gelato-print-pdf
           python3 -m venv "$RUNNER_TEMP/gelato-preflight-python"
@@ -137,6 +140,8 @@ jobs:
           python3 tools/inner-voice-placement-editor/test_server.py
           python3 tools/inner-voice-placement-editor/test_lettering_flow.py
           python3 tools/inner-voice-placement-editor/test_migrate_flow.py
+          python3 tools/inner-voice-placement-editor/test_reviewed_copy_revision.py
+          "$RUNNER_TEMP/gelato-preflight-python/bin/python" tools/inner-voice-placement-editor/test_final_book_candidate.py
           python3 tools/inner-voice-placement-editor/test_export_flow_candidate.py
           python3 tools/inner-voice-placement-editor/test_legacy_metadata.py
           # Ubuntu 24.04 restricts unprivileged user namespaces, so headless Chrome needs --no-sandbox on the runner.

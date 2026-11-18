@@ -1,5 +1,6 @@
 'use client';
 
+import { UpdatedTestBookCopy } from '@/components/orders/updated-test-book-copy';
 import { bookReviewOwnershipIssue } from '@/lib/book-review-ownership';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -1920,6 +1921,7 @@ export default function OrderDetailPage() {
             {/* Book & Order Information */}
             <div className="space-y-4">
               <h3 className="text-md font-semibold text-gray-900 border-b border-gray-200 pb-2">Book & Order Info</h3>
+              {order.isWorkflowTest && <UpdatedTestBookCopy orderId={order.orderId} />}
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Book Title</p>

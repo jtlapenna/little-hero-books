@@ -1,0 +1,15 @@
+{
+  "title": {
+    "sourceKey": "book-mvp-simple-adventure/backgrounds/page00-title-page.png",
+    "sha256": "aaebc123fff1c5f61cf3c582b3020177310c334a034f5a58140dd3e6ba5ae6d2",
+    "exactCopy": true
+  },
+  "colorMark": {
+    "source": "frontend/public/assets/logo.png",
+    "sha256": "9b6ae153ab15433861167801b4472fc80940e8c92bf1e59423d6ea09797129e7"
+  },
+  "coverScope": {
+    "amazon": "Revised front title/byline and separate personalized label/name",
+    "standard": "Existing personalized-title front retained; shared back imprint updated in both formats"
+  }
+}

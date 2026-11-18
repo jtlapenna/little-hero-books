@@ -13,6 +13,73 @@ OWN = 'docs/security/book-layout-source-evidence-2026-10-30'
 PARENT = 'docs/security/lhl-cron-source-evidence-2026-10-23'
 EFFECTS = ['canInstall', 'canExecute', 'liveAcceptanceRenewed', 'suiteExecutionRenewed']
 ADDED = {
+    'back-end/scripts/assemble-final-book-proof.ts',
+    'back-end/scripts/export-final-book-revision-proof.ts',
+    'back-end/scripts/serve-updated-book-copy-fixture.ts',
+    'back-end/scripts/test-final-book-flying-orientation.ts',
+    'back-end/scripts/test-pose-revision-resolution.ts',
+    'back-end/scripts/test-updated-test-book-copy-api.ts',
+    'back-end/scripts/test-updated-test-book-copy-runtime.ts',
+    'back-end/scripts/test-updated-test-book-copy.ts',
+    'back-end/scripts/updated-test-book-fixture.ts',
+    'back-end/src/app/api/admin/orders/[orderId]/updated-test-copy/route.ts',
+    'back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts',
+    'back-end/src/components/orders/updated-test-book-copy.tsx',
+    'back-end/src/lib/books/updated-test-book-copy-http.ts',
+    'back-end/src/lib/books/updated-test-book-copy-store.ts',
+    'back-end/src/lib/books/updated-test-book-copy.ts',
+    'docs/implementation-plans/final-book-revisions-20261117.md',
+    'docs/implementation-plans/final-book-revisions-validation-20261118.md',
+    'docs/implementation-plans/updated-test-book-copy-20261118.md',
+    'tools/inner-voice-placement-editor/build_final_book_candidate.py',
+    'tools/inner-voice-placement-editor/export_flow_candidate.py',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/.gitignore',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/README.md',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/back-imprint-panel.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/lhl-color-mark.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/original-title-page.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/approved-page13-shadow.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/owl.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/paw.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/penguin.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/trex.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/unicorn.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-12-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-13-v5.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/white-page.png',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/candidate-config.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/copy-revision.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering-data.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/publication-inventory.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/release-config.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/source-config.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/source-provenance.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-art-direction.md',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-provenance.json',
+    'tools/inner-voice-placement-editor/final-book-revisions-20261117/trails.json',
+    'tools/inner-voice-placement-editor/lettering_state.py',
+    'tools/inner-voice-placement-editor/process_final_book_trails.py',
+    'tools/inner-voice-placement-editor/rasterize_final_book_proof.py',
+    'tools/inner-voice-placement-editor/test_final_book_candidate.py',
+    'tools/inner-voice-placement-editor/test_final_book_proof.py',
+    'tools/inner-voice-placement-editor/test_final_book_trails.py',
+    'tools/inner-voice-placement-editor/test_reviewed_copy_revision.py',
+
     'back-end/src/app/api/internal/w2a/build-run-manifest/route.ts',
     '.github/workflows/check-application-access.yml',
     'back-end/scripts/helpers/managed-admin-fixture.ts',
@@ -283,7 +350,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 330, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 396, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():
@@ -292,7 +359,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
         else:
             assert current[path]['sha256'] == item['sha256'], 'Unreviewed inherited source rebind: ' + path
     assert digest(json.dumps(sources, sort_keys=True, separators=(',', ':')).encode()) == manifest['sourceSnapshotSha256'], 'Source snapshot differs'
-    expected_evidence = {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', OWN + '/history/manifest-before-admin-mobile-signin-2026-11-17.json', OWN + '/history/manifest-before-admin-recovery-ui-2026-11-17.json', OWN + '/history/manifest-before-native-jsonb-fix-2026-11-17.json', 'docs/implementation-plans/native-retry-jsonb-fix-20261117.md', OWN + '/history/manifest-before-error-observer-recovery-2026-11-17.json', OWN + '/history/manifest-before-completion-claim-2026-11-17.json', 'docs/implementation-plans/w2a-completion-claim-20261117.md', 'docs/implementation-plans/w2a-error-observer-recovery-20261117.md', 'docs/admin-workflow-recovery.md', 'docs/implementation-plans/admin-workflow-recovery-20261117.md', 'docs/admin-sign-in.md', 'docs/implementation-plans/admin-mobile-signin-20261117.md', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
+    expected_evidence = {OWN + '/history/manifest-before-final-book-revisions-2026-11-18.json'} | {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', OWN + '/history/manifest-before-admin-mobile-signin-2026-11-17.json', OWN + '/history/manifest-before-admin-recovery-ui-2026-11-17.json', OWN + '/history/manifest-before-native-jsonb-fix-2026-11-17.json', 'docs/implementation-plans/native-retry-jsonb-fix-20261117.md', OWN + '/history/manifest-before-error-observer-recovery-2026-11-17.json', OWN + '/history/manifest-before-completion-claim-2026-11-17.json', 'docs/implementation-plans/w2a-completion-claim-20261117.md', 'docs/implementation-plans/w2a-error-observer-recovery-20261117.md', 'docs/admin-workflow-recovery.md', 'docs/implementation-plans/admin-workflow-recovery-20261117.md', 'docs/admin-sign-in.md', 'docs/implementation-plans/admin-mobile-signin-20261117.md', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
     assert {item['path'] for item in rows if item['kind'] == 'evidence'} == expected_evidence, 'Missing or unexpected evidence'
 
     result = subprocess.run([sys.executable, str(root / PARENT / 'verify.py')],

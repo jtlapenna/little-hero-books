@@ -1,0 +1,390 @@
+{
+  "schema": "lhb.reviewed-copy-revision@v1",
+  "sourceConfigSha256": "d242ae8ef7c22bf5846e84de03d6a7224f14d2bd37b3ed0ef5a2fec9f25eeb8f",
+  "approvedSeedSha256": "da232f231ab11cc868462eaf55ef9c5d2f3cbb01488bd6a1c8e4dbdb989f6b94",
+  "copy": {
+    "page-01": [
+      {
+        "id": "title-artwork-text",
+        "text": "",
+        "placement": {
+          "left": 0,
+          "top": 0,
+          "width": 2625,
+          "zIndex": 50
+        },
+        "fontSize": 74,
+        "lineHeight": 1.2,
+        "color": "#000000",
+        "align": "left",
+        "padding": 0
+      }
+    ],
+    "page-12": [
+      {
+        "id": "text-12-trail-dialogue",
+        "text": "On the path lay a trail of [animal clues].\n[Child Name] looked left. Then right.\n\"Where are you?\" called [Child Name].",
+        "align": "left",
+        "color": "#fff5de",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "placement": {
+          "top": 540,
+          "left": 613,
+          "width": 1900,
+          "zIndex": 50,
+          "rotateDeg": 0,
+          "height": 700
+        },
+        "lineHeight": 1.3125,
+        "flow": {
+          "paragraphs": [
+            {
+              "runs": [
+                {
+                  "text": "On the path lay a trail of "
+                },
+                {
+                  "text": "[animal clues]",
+                  "atomicPhrase": true,
+                  "keepWithNext": true,
+                  "style": {
+                    "sizeRatio": 1.15,
+                    "rotateDeg": -3
+                  }
+                },
+                {
+                  "text": "."
+                }
+              ]
+            },
+            {
+              "runs": [
+                {
+                  "text": "[Child Name] looked "
+                },
+                {
+                  "text": "left.",
+                  "style": {
+                    "sizeRatio": 1.15,
+                    "rotateDeg": -3
+                  }
+                },
+                {
+                  "text": " Then "
+                },
+                {
+                  "text": "right.",
+                  "style": {
+                    "sizeRatio": 1.15,
+                    "rotateDeg": 3
+                  }
+                }
+              ]
+            },
+            {
+              "runs": [
+                {
+                  "text": "\"Where are you?\"",
+                  "style": {
+                    "sizeRatio": 1.1
+                  }
+                },
+                {
+                  "text": " called [Child Name]."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "page-20": [
+      {
+        "id": "text-19-05",
+        "text": "The prickly words",
+        "align": "left",
+        "color": "#fff5de",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 250.8198113908237,
+          "left": 315.80031762882754,
+          "width": 708.75,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.3125
+      },
+      {
+        "id": "text-19-06",
+        "text": "wiggled.",
+        "align": "left",
+        "color": "#ffe09a",
+        "padding": 0,
+        "fontSize": 92.60416666666666,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 237.47310923980885,
+          "left": 946.3285985789234,
+          "width": 472.5,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.05
+      },
+      {
+        "id": "text-19-07",
+        "text": "Then softened.",
+        "align": "left",
+        "color": "#ffe09a",
+        "padding": 0,
+        "fontSize": 97.234375,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 231.4507383028056,
+          "left": 1315.6477651760813,
+          "width": 1000,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1
+      },
+      {
+        "id": "text-20-01",
+        "text": "Inside were smaller words:",
+        "align": "left",
+        "color": "#fff5de",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 360,
+          "left": 321.51479399638987,
+          "width": 1837.5,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.3125
+      },
+      {
+        "id": "text-20-03",
+        "text": "\"Oh. You weren't trying to be mean.\"",
+        "align": "left",
+        "color": "#fff5de",
+        "padding": 0,
+        "fontSize": 78.71354166666666,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 1875.3174988124417,
+          "left": 675.1264880323091,
+          "width": 1736.9107837711827,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.2352941176470589
+      },
+      {
+        "id": "text-20-04",
+        "text": "The tiny voice felt warm again.",
+        "align": "left",
+        "color": "#fff5de",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "edgeStyle": "stroke",
+        "placement": {
+          "top": 1997.7630177636222,
+          "left": 707.8435188801702,
+          "width": 1598.4401966004073,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.3125
+      }
+    ],
+    "page-28": [
+      {
+        "id": "text-28-01",
+        "text": "The quiet voice was there. Small and warm.",
+        "align": "left",
+        "color": "#392e29",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "placement": {
+          "top": 131.25,
+          "left": 183.75,
+          "width": 2100,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.75
+      },
+      {
+        "id": "text-28-02",
+        "text": "\"Not yet,\" it said.",
+        "align": "left",
+        "color": "#392e29",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "placement": {
+          "top": 291.03986787704497,
+          "left": 182.33310721428523,
+          "width": 1706.25,
+          "zIndex": 50,
+          "rotateDeg": 0
+        },
+        "lineHeight": 1.3125
+      },
+      {
+        "id": "text-28-03",
+        "text": "\"Almost.\"",
+        "align": "left",
+        "color": "#793c28",
+        "padding": 0,
+        "fontSize": 111.125,
+        "placement": {
+          "top": 279.3035734912484,
+          "left": 783.720108295814,
+          "width": 1496.25,
+          "zIndex": 50,
+          "rotateDeg": -3
+        },
+        "lineHeight": 0.875
+      },
+      {
+        "id": "text-28-responsive-dialogue",
+        "text": "[Child Name] looked at the child waiting behind [object pronoun].\n\"You go first,\" said [Child Name]. \"I'm almost ready.\"\nAnd this time, [Child Name] smiled.",
+        "align": "left",
+        "color": "#392e29",
+        "padding": 0,
+        "fontSize": 74.08333333333333,
+        "placement": {
+          "top": 449,
+          "left": 185,
+          "width": 2350,
+          "zIndex": 50,
+          "rotateDeg": 0,
+          "height": 680
+        },
+        "lineHeight": 1.3125,
+        "flow": {
+          "paragraphs": [
+            {
+              "runs": [
+                {
+                  "text": "[Child Name] looked at the child waiting behind [object pronoun]."
+                }
+              ]
+            },
+            {
+              "runs": [
+                {
+                  "text": "\"You go first,\" said [Child Name]. \"I'm almost ready.\""
+                }
+              ]
+            },
+            {
+              "runs": [
+                {
+                  "text": "And this time, [Child Name] smiled."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "page-31": [
+      {
+        "id": "publisher-heading",
+        "text": "Little Hero Labs",
+        "placement": {
+          "left": 250,
+          "top": 1050,
+          "width": 2125,
+          "zIndex": 50
+        },
+        "fontSize": 112,
+        "lineHeight": 1.2,
+        "color": "#17354b",
+        "align": "center",
+        "padding": 0
+      },
+      {
+        "id": "publisher-tagline",
+        "text": "Every child is the hero\nof their own story.",
+        "placement": {
+          "left": 300,
+          "top": 1300,
+          "width": 2025,
+          "zIndex": 50
+        },
+        "fontSize": 88,
+        "lineHeight": 1.4,
+        "color": "#17354b",
+        "align": "center",
+        "padding": 0
+      },
+      {
+        "id": "publisher-description",
+        "text": "Personalized books for little readers\nand the people who love them.",
+        "placement": {
+          "left": 300,
+          "top": 1710,
+          "width": 2025,
+          "zIndex": 50
+        },
+        "fontSize": 72,
+        "lineHeight": 1.5,
+        "color": "#17354b",
+        "align": "center",
+        "padding": 0
+      },
+      {
+        "id": "publisher-website",
+        "text": "www.LittleHeroLabs.com",
+        "placement": {
+          "left": 300,
+          "top": 2210,
+          "width": 2025,
+          "zIndex": 50
+        },
+        "fontSize": 74,
+        "lineHeight": 1.3,
+        "color": "#17354b",
+        "align": "center",
+        "padding": 0
+      }
+    ]
+  },
+  "untouchedBlocks": {
+    "page-02": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "page-03": "e6d449fdff988cfa91739149c0254dde4f533498941eb6c663f0360b9cc2ddf1",
+    "page-04": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "page-05": "8087606932bd623bcd82598aaf0acf4e2b6ef8282bcbb8db6b687d80a0caef78",
+    "page-06": "7ed3bf4002f53bc295e158623e3a6342c871eda81bda885be07d72a6ff8866cc",
+    "page-07": "8f0c95924d006122ec7ad7a62fb5d960fbbfa355cdc6a0113ad00af852075d1f",
+    "page-08": "7390f90fd7464bc2d3f5af6525abf107bac1a70437950cd09fbc8d284ad3dbdc",
+    "page-09": "54945aef06413a8fb99d9aea187e72303543f62eb7e36bd43c08a37a1ba56e65",
+    "page-10": "80548a3d18db4452c1c1944a4012d52b09b42094cf3ca00e6f17771a50b7a78a",
+    "page-11": "11f87e544905a1d8e12ee64deb8923b6d5ffc822dd5641b7952a348cdd86100a",
+    "page-13": "0830ef24b4596f3161b490443e0e0303913b21b3216e1410d0e0a4fb865f7f78",
+    "page-14": "911c053c240773ebc2ce504c400d7372d3ccd63f83fbe9a2b7cfda8f3cc3b707",
+    "page-15": "38944d3a6e78c2d73bd38031457a78c27d79b1bf770ba566f7030a15ae392cf3",
+    "page-16": "976e21b2f81c3cd113e21bc21c5a3b4e29e851a1246a91332ca8104c3ead66d7",
+    "page-17": "4403f847e1e7f4ebb7b846bc527125a45d691b49471945f3fedc8f57fb062b3c",
+    "page-18": "22c4f6011d4056390e7c51fbc4b45d5af0c3df5935b455ef17ef67a7c7725cf5",
+    "page-19": "59dc87b572e48c3ed5350f9adcb110f499b8ad38fd61b3da7880a9bc98848eac",
+    "page-21": "cabd9fe95514ed374e2dee0e0119fdb3dc0d45b60c632e8c22ec408a2d688258",
+    "page-22": "f15a49680cc97611759772abfe3d1a473ddc1abfdf0dce248778f89b71b765ff",
+    "page-23": "e1f8b39af566e531ab16eddebbe8afb8982ef56e33ab457aefa76edadb43870a",
+    "page-24": "9a6dd996ad7601defd51125617d84d7f070d8fa20eafa0d3b127ae20491055e1",
+    "page-25": "1bf099e0f2c67b8c3cf8298e16682d2b57472df5180ba30b343f3294c5d18510",
+    "page-26": "5bbfef6f37cac5ceb370687b7d496a964f001938619d066b8b97dc346d70decd",
+    "page-27": "1de07f43b6b3cbdaf68564e606fca7d26e5d57d56f51694537d40bd4002c2714",
+    "page-29": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "page-30": "e14024174f0859f6eb9cca87ebacc98ac9694b3a74e304f56148cf42d1c3378d",
+    "page-32": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  }
+}

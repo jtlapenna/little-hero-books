@@ -115,7 +115,9 @@ def clean_lettering(value, seed):
             if not isinstance(block, dict) or not isinstance(block.get('id'), str) or not re.fullmatch(id_pattern, block['id']) or block['id'] in ids:
                 raise ValueError('Invalid block identity')
             ids.add(block['id'])
-            if not isinstance(block.get('text'), str) or not block['text'].strip() or (utf16_length(block['text']) if schema == 'lhb.lettering-review@v2' else len(block['text'])) > 8000:
+            approved_empty = (schema == 'lhb.lettering-review@v2' and block.get('text') == ''
+                              and any(item.get('id') == block['id'] and item.get('text') == '' for item in base['blocks']))
+            if not isinstance(block.get('text'), str) or (not block['text'].strip() and not approved_empty) or (utf16_length(block['text']) if schema == 'lhb.lettering-review@v2' else len(block['text'])) > 8000:
                 raise ValueError('Invalid text')
             if re.search(r'[\[\]]', re.sub(r'\[[^\[\]]+\]', '', block['text'])):
                 raise ValueError('Keep each personalization field in one text block')
