@@ -1,0 +1,204 @@
+{
+  "schema": "lhb.final-book-trails@v1",
+  "method": "built-in imagegen edited full2:1spread; full-spread color alignment; exact2048center crop; original shadow reapplied once",
+  "preservedUpperRows": [
+    0,
+    1320
+  ],
+  "colorAlignmentGaussianRadius": 100,
+  "shadowSha256": "8f9b305e45034dbf9e1746aa11c4cd58b8d96ad215c34509431ff5c88fbecd0c",
+  "guides": {
+    "cat": {
+      "native": "assets/trail-native/paw.png",
+      "nativeSha256": "e6e16649e86c631c52a5f73687c8cee422701b6c8c8134827af83f9b60e2cb71",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c/page-12-cat.png",
+          "sha256": "042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6/page-13-cat.png",
+          "sha256": "d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-cat-12-v5.png",
+          "sha256": "6f6402933e1a99ccae22e5197362ecec306c2af4dc712127d5e94e19ff037506"
+        },
+        {
+          "file": "assets/trail-cat-13-v5.png",
+          "sha256": "7c339de59e23d1cbb5954ba50d0d705b0ca7a6e24a77091f065820add1d0baba"
+        }
+      ]
+    },
+    "dog": {
+      "native": "assets/trail-native/paw.png",
+      "nativeSha256": "e6e16649e86c631c52a5f73687c8cee422701b6c8c8134827af83f9b60e2cb71",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-dog.png",
+          "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-dog.png",
+          "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-dog-12-v5.png",
+          "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+        },
+        {
+          "file": "assets/trail-dog-13-v5.png",
+          "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+        }
+      ]
+    },
+    "owl": {
+      "native": "assets/trail-native/owl.png",
+      "nativeSha256": "ac19059f4d2183ba8dc6946a09da0defb40f8df559203ade9348d05639b1ff59",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/66b8cd029d33c5a91bea8af521cf72f9be9422667d88de33e290156c427c7934/page-12-owl.png",
+          "sha256": "66b8cd029d33c5a91bea8af521cf72f9be9422667d88de33e290156c427c7934"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/55ddd79de210b22ec8dd2fbf71a5041860da547ec81d708149e3a896a7d9a471/page-13-owl.png",
+          "sha256": "55ddd79de210b22ec8dd2fbf71a5041860da547ec81d708149e3a896a7d9a471"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-owl-12-v5.png",
+          "sha256": "541149a1dc7709ec0d0922f61f39743a5a47b10e687bd19287f5717ea7f67bae"
+        },
+        {
+          "file": "assets/trail-owl-13-v5.png",
+          "sha256": "b1b7fb895c388677fd48a8ece1b09a2fc21e7d31bc6eea3dd8ae0cb05c09188e"
+        }
+      ]
+    },
+    "lion": {
+      "native": "assets/trail-native/paw.png",
+      "nativeSha256": "e6e16649e86c631c52a5f73687c8cee422701b6c8c8134827af83f9b60e2cb71",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-lion.png",
+          "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-lion.png",
+          "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-lion-12-v5.png",
+          "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+        },
+        {
+          "file": "assets/trail-lion-13-v5.png",
+          "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+        }
+      ]
+    },
+    "tiger": {
+      "native": "assets/trail-native/paw.png",
+      "nativeSha256": "e6e16649e86c631c52a5f73687c8cee422701b6c8c8134827af83f9b60e2cb71",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311/page-12-tiger.png",
+          "sha256": "dfa5c07b4dfa6820f937f3452d8af1842ef445600b4296e66da683ab052e4311"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e/page-13-tiger.png",
+          "sha256": "cba2d6ebc3e71cc8156b60684f46a528194368e3bd40732d43bf6bd5bb8a975e"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-tiger-12-v5.png",
+          "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+        },
+        {
+          "file": "assets/trail-tiger-13-v5.png",
+          "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+        }
+      ]
+    },
+    "penguin": {
+      "native": "assets/trail-native/penguin.png",
+      "nativeSha256": "3871fdca7924c3e29db708999cb9faa4dadc0c1b3317c1fe9147343c5faec19c",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/952432a430bbc6a67d202b9b4f83537aeb6c8115c9f4192374284141afa40425/page-12-penguin.png",
+          "sha256": "952432a430bbc6a67d202b9b4f83537aeb6c8115c9f4192374284141afa40425"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/8bbcd91dae06f1a261c6fecb315c234dd86e61c44e4cba3ef6d39a3b511bf43a/page-13-penguin.png",
+          "sha256": "8bbcd91dae06f1a261c6fecb315c234dd86e61c44e4cba3ef6d39a3b511bf43a"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-penguin-12-v5.png",
+          "sha256": "533559d886116e11dd5be2eb7c03cac1a6eee27fbf812735f34d0b1570ea721b"
+        },
+        {
+          "file": "assets/trail-penguin-13-v5.png",
+          "sha256": "46507e91d0a6820b3f3902e7c89d436b04b603af022d9b5a8d5afb2d34949f73"
+        }
+      ]
+    },
+    "unicorn": {
+      "native": "assets/trail-native/unicorn.png",
+      "nativeSha256": "29e045cfa8f75541629cb04816ebe5d3326a8a4a4ecf2107590aa9e0f8b10772",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/d9cc928eabe71983624586a8500a7fb6bd3ebb580831e48038f7b8112e00a10c/page-12-unicorn.png",
+          "sha256": "d9cc928eabe71983624586a8500a7fb6bd3ebb580831e48038f7b8112e00a10c"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/58dab889e865e5b77f301503139c98eb0768c0adf29dfc22e99c1ec4439f7ea4/page-13-unicorn.png",
+          "sha256": "58dab889e865e5b77f301503139c98eb0768c0adf29dfc22e99c1ec4439f7ea4"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-unicorn-12-v5.png",
+          "sha256": "37f6c136099b56aaeb07b03e63a5c18c4c1b0bb4689a625340ab125417e180d8"
+        },
+        {
+          "file": "assets/trail-unicorn-13-v5.png",
+          "sha256": "dddbadd568cf7380ba3ce99c8c999bf11e14917a626d61be00d0542d439966de"
+        }
+      ]
+    },
+    "t-rex": {
+      "native": "assets/trail-native/trex.png",
+      "nativeSha256": "ed81955ec76ea71e18768e3304cb302d9286232700d7385facbf7d69eaf0b7cb",
+      "sources": [
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/d2b8b8e886aabd309d3ac336bc669331030404f83389f7448bf8969440037fef/page-12-t-rex.png",
+          "sha256": "d2b8b8e886aabd309d3ac336bc669331030404f83389f7448bf8969440037fef"
+        },
+        {
+          "key": "book-finding-our-inner-voice/v4/backgrounds/4563077cf4ce04e292c16f1489c10ffae953b2829c2a0392def03ec0afdf5d2f/page-13-t-rex.png",
+          "sha256": "4563077cf4ce04e292c16f1489c10ffae953b2829c2a0392def03ec0afdf5d2f"
+        }
+      ],
+      "outputs": [
+        {
+          "file": "assets/trail-t-rex-12-v5.png",
+          "sha256": "d68dd7a9d7a9a82122261963bd8d66a9e7f11bac155467f92ce5fd5c55ee7656"
+        },
+        {
+          "file": "assets/trail-t-rex-13-v5.png",
+          "sha256": "702711a782a7e7a9788412b7ca8427911323bd27dbdd8737641b43b14c130c13"
+        }
+      ]
+    }
+  }
+}

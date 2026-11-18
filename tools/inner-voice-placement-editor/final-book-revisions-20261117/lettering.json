@@ -1,0 +1,2405 @@
+{
+  "schema": "lhb.lettering-review@v2",
+  "bookId": "book-finding-our-inner-voice",
+  "baselineFingerprint": "4217ea0d3f27ae1cc659fd3d27eff61123d4a16c89f025b6c2bc1fd373f60dd9",
+  "layoutFingerprint": "5935e3e40d0b28c957df4d3cb5ac26ae9233dc8a85a9250c40218fdd9b663f51",
+  "revision": 1482,
+  "savedAt": "2026-10-26T21:14:48.336Z",
+  "pages": [
+    {
+      "page": 1,
+      "pageId": "page-01",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Export the saved two-line title without the added child-name line or colored text box.",
+      "blocks": [
+        {
+          "id": "title-artwork-text",
+          "text": "",
+          "left": 0,
+          "top": 0,
+          "width": 2625,
+          "size": 15.982002249718786,
+          "leading": 19.17840269966254,
+          "color": "#000000",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "pageId": "page-02",
+      "reviewed": false,
+      "notes": "",
+      "blocks": []
+    },
+    {
+      "page": 3,
+      "pageId": "page-03",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Dedication text remains directly on the artwork, with no colored container.",
+      "blocks": [
+        {
+          "id": "text-03-01",
+          "text": "[Customer dedication message]",
+          "left": 500,
+          "top": 1150,
+          "width": 1625,
+          "size": 20,
+          "leading": 28,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "pageId": "page-04",
+      "reviewed": false,
+      "notes": "",
+      "blocks": []
+    },
+    {
+      "page": 5,
+      "pageId": "page-05",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Restore the saved opening paragraph position of the arrival sentence.",
+      "blocks": [
+        {
+          "id": "text-05-01",
+          "text": "This was [Child Name]'s favorite park\nin all of Grass Valley.",
+          "left": 168,
+          "top": 149.625,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-05-02",
+          "text": "Swings",
+          "left": 168,
+          "top": 420,
+          "width": 254.57714843749997,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-05-03",
+          "text": "squeaked.",
+          "left": 435.1114423072117,
+          "top": 393.3188469689699,
+          "width": 517.9564208984375,
+          "size": 24,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-05-04",
+          "text": "Sneakers",
+          "left": 170.25680345765917,
+          "top": 577.2722485152408,
+          "width": 332.7119140625,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-05-05",
+          "text": "thumped.",
+          "left": 515.4898649619622,
+          "top": 546.366171825016,
+          "width": 474.76525878906244,
+          "size": 24,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": 2,
+          "edge": false
+        },
+        {
+          "id": "text-05-06",
+          "text": "Kids laughed and called,",
+          "left": 171.71321240679546,
+          "top": 749.174164901997,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-05-07",
+          "text": "\"Again, again!\"",
+          "left": 1024.3771230510924,
+          "top": 719.6634602317883,
+          "width": 1521.8728769489076,
+          "size": 25,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-05-08",
+          "text": "[Child Name] ran in, ready to play.",
+          "left": 507.1351342960877,
+          "top": 921.7646865698289,
+          "width": 1732.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "pageId": "page-06",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-06-01",
+          "text": "Swings. Tunnels. Sand.\nA climbing wall like a mountain.",
+          "left": 202.42721334317832,
+          "top": 156.40539178615663,
+          "width": 1811.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-06-02",
+          "text": "[Child Name] looked left, then right.",
+          "left": 338.584318579697,
+          "top": 402.235137195122,
+          "width": 1811.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-06-03",
+          "text": "\"What should I try first?\"",
+          "left": 502.8780458031629,
+          "top": 554.465131061833,
+          "width": 1758.75,
+          "size": 17,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-06-04",
+          "text": "Then came a",
+          "left": 680.4289238162157,
+          "top": 704.3391738519435,
+          "width": 439.7854817708333,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-06-05",
+          "text": "whoosh",
+          "left": 1150.9766002127794,
+          "top": 695.5519308943088,
+          "width": 502.00390624999994,
+          "size": 32,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -4,
+          "edge": false
+        },
+        {
+          "id": "text-06-06",
+          "text": "from way up high.",
+          "left": 1170.4094480196022,
+          "top": 861.9523613933632,
+          "width": 618.2655436197916,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 7,
+      "pageId": "page-07",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-07-01",
+          "text": "It was the tall slide.",
+          "left": 183.75,
+          "top": 157.5,
+          "width": 1653.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-02",
+          "text": "Kids climbed up.",
+          "left": 183.75,
+          "top": 315,
+          "width": 1732.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-03",
+          "text": "Kids sat down.",
+          "left": 776.9874779837982,
+          "top": 315.10459226289777,
+          "width": 1732.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-04",
+          "text": "Kids",
+          "left": 179.57383690810786,
+          "top": 468.9455060261052,
+          "width": 169.35237630208331,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-05",
+          "text": "whooshed",
+          "left": 359.9825191342734,
+          "top": 470.4670843853214,
+          "width": 495.49267578124994,
+          "size": 24,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-07-06",
+          "text": "all the way",
+          "left": 893.1289657964937,
+          "top": 472.8518490675019,
+          "width": 391.31298828125,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-07",
+          "text": "to the bottom.",
+          "left": 1297.6028963414635,
+          "top": 480.0228658536585,
+          "width": 1248.6471036585365,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-08",
+          "text": "\"Again, again!\"",
+          "left": 177.3307931443836,
+          "top": 632.5042026294345,
+          "width": 733.586669921875,
+          "size": 24,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -2,
+          "edge": false
+        },
+        {
+          "id": "text-07-09",
+          "text": "they shouted.",
+          "left": 910.3604447148558,
+          "top": 647.9206219606143,
+          "width": 476.8994954427083,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-10",
+          "text": "[Child Name] looked up.",
+          "left": 173.06201339956692,
+          "top": 798.1748058489994,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-11",
+          "text": "The slide looked fun.",
+          "left": 177.5740447722316,
+          "top": 940.4512196364885,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-12",
+          "text": "It also looked",
+          "left": 880.789030000158,
+          "top": 940.116729070573,
+          "width": 477.1888834635417,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-07-13",
+          "text": "very, very tall.",
+          "left": 393.34936522151713,
+          "top": 1050.9762678280035,
+          "width": 708.5636494954427,
+          "size": 22,
+          "leading": 21,
+          "color": "#4c3024",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 8,
+      "pageId": "page-08",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-08-01",
+          "text": "[Child Name] climbed to the top.",
+          "left": 183.75,
+          "top": 157.5,
+          "width": 2047.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-08-02",
+          "text": "The slide looked even longer from here.",
+          "left": 188.4341260796545,
+          "top": 306.68563623117166,
+          "width": 2021.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-08-03",
+          "text": "\"Your turn!\"  \"Go!\"  \"It's fun!\"",
+          "left": 180.25726028341663,
+          "top": 468.6428985195679,
+          "width": 2152.5,
+          "size": 18,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -2,
+          "edge": false
+        },
+        {
+          "id": "text-08-04",
+          "text": "[Child Name]'s tummy flipped.",
+          "left": 189.69452548621942,
+          "top": 607.9596797317541,
+          "width": 1128.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-08-05",
+          "text": "The top felt small.",
+          "left": 186.8169142470971,
+          "top": 738.3918987935103,
+          "width": 997.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-08-06",
+          "text": "The slide felt big.",
+          "left": 827.9410344358632,
+          "top": 738.3715972607515,
+          "width": 997.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-08-07",
+          "text": "[Child Name] did not know \nwhat to do.",
+          "left": 1529.781713639745,
+          "top": 1072.2866216966436,
+          "width": 896.7278532988346,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 9,
+      "pageId": "page-09",
+      "reviewed": false,
+      "notes": "some text on this page may need a very subtle/blurred shadow to distinguish it from the background.\n\nApplied 2026-10-20: Changed the existing contrast treatment to a soft dark shadow, keeping text positions and sizes.\n\n-----\n\nthe text over the window is still a bit hard to read.  i also think the text on this page is a bit too chaotic.\n\nmaybe we can remove \"The slide was far away\" and \"Alexandra took a deep breath. The room grew quiet.\"\n\nApplied follow-up 2026-10-20: Removed the three requested sentences. Moved opening below the window and grouped the remaining memory lines. Added broad feathered navy shading behind the right passage and lower dialogue.\n\nApplied draft 2026-10-25: Group text below the window and keep all dialogue inside the page.",
+      "blocks": [
+        {
+          "id": "text-09-01",
+          "text": "That night, [Child Name]\nsat quietly on the bed.",
+          "left": 1473.0008672615388,
+          "top": 1121.5875657094418,
+          "width": 1000,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-09-03",
+          "text": "The big feeling was still there.",
+          "left": 1476.3073092001184,
+          "top": 1378.6694757677544,
+          "width": 1083.3434326406175,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-09-04",
+          "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+          "left": 1480.0860999870665,
+          "top": 1533.5981498615756,
+          "width": 1000,
+          "size": 17,
+          "leading": 25,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-09-07",
+          "text": "\"That was scary,\" said a tiny voice.",
+          "left": 320.47102300310775,
+          "top": 2012.0994307212318,
+          "width": 1830,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-09-08",
+          "text": "[Child Name] nodded. \"Yes.\"",
+          "left": 336.1503293555437,
+          "top": 2146.0282959452975,
+          "width": 1830,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-09-09",
+          "text": "\"Oh! You can hear me now.\"",
+          "left": 346.2533976432229,
+          "top": 2287.027528729869,
+          "width": 1830,
+          "size": 16,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 10,
+      "pageId": "page-10",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-10-01",
+          "text": "\"Who said that?\" asked [Child Name].",
+          "left": 1226.464662503216,
+          "top": 198.03841551191425,
+          "width": 1146.3424729477192,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-10-02",
+          "text": "A light blinked  beside the bed.",
+          "left": 1395.1284392371915,
+          "top": 361.19756238669595,
+          "width": 997.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-10-03",
+          "text": "Then another.",
+          "left": 1445.4755025695513,
+          "top": 495.9954228304526,
+          "width": 887.9813412404294,
+          "size": 21,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -2,
+          "edge": true
+        },
+        {
+          "id": "text-10-04",
+          "text": "Then another.",
+          "left": 1458.6489415350693,
+          "top": 639.3873017656074,
+          "width": 1050,
+          "size": 21,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 2,
+          "edge": true
+        },
+        {
+          "id": "text-10-05",
+          "text": "The lights made a path\nacross the floor.",
+          "left": 1405.0206431464796,
+          "top": 830.5767157153574,
+          "width": 1128.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-10-06",
+          "text": "\"Let's look together,\"\nsaid the tiny voice.",
+          "left": 1226.1249011025313,
+          "top": 1091.5415373411493,
+          "width": 1233.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 11,
+      "pageId": "page-11",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-11-01",
+          "text": "[Child Name] followed the lights.",
+          "left": 157.5313010331168,
+          "top": 178.97345361869873,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-11-02",
+          "text": "The walls became trees.",
+          "left": 159.93216855724307,
+          "top": 299.31046501571484,
+          "width": 1968.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-11-03",
+          "text": "The rug became moss.",
+          "left": 994.4635499116939,
+          "top": 291.35208994221307,
+          "width": 1415.6451178536836,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-11-04",
+          "text": "The ceiling filled with stars.",
+          "left": 161.27229093997477,
+          "top": 433.2074963348333,
+          "width": 1968.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-11-05",
+          "text": "\"This way,\" said the voice. \"Whenever you're ready.\"",
+          "left": 156.56430014565697,
+          "top": 562.2711301683669,
+          "width": 1852.2188636940866,
+          "size": 17,
+          "leading": 26,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 12,
+      "pageId": "page-12",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Separate the dynamic animal clue phrase and direction callouts; review the continuous footprint spread.",
+      "blocks": [
+        {
+          "id": "text-12-trail-dialogue",
+          "text": "On the path lay a trail of [animal clues].\n[Child Name] looked left. Then right.\n\"Where are you?\" called [Child Name].",
+          "left": 613,
+          "top": 540,
+          "width": 1900,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "height": 700,
+          "padding": 0,
+          "flow": {
+            "paragraphs": [
+              {
+                "runs": [
+                  {
+                    "text": "On the path lay a trail of "
+                  },
+                  {
+                    "text": "[animal clues]",
+                    "style": {
+                      "sizeRatio": 1.15,
+                      "rotateDeg": -3
+                    },
+                    "keepWithNext": true,
+                    "atomicPhrase": true
+                  },
+                  {
+                    "text": "."
+                  }
+                ]
+              },
+              {
+                "runs": [
+                  {
+                    "text": "[Child Name] looked "
+                  },
+                  {
+                    "text": "left.",
+                    "style": {
+                      "sizeRatio": 1.15,
+                      "rotateDeg": -3
+                    }
+                  },
+                  {
+                    "text": " Then "
+                  },
+                  {
+                    "text": "right.",
+                    "style": {
+                      "sizeRatio": 1.15,
+                      "rotateDeg": 3
+                    }
+                  }
+                ]
+              },
+              {
+                "runs": [
+                  {
+                    "text": "\"Where are you?\"",
+                    "style": {
+                      "sizeRatio": 1.1
+                    }
+                  },
+                  {
+                    "text": " called [Child Name]."
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page": 13,
+      "pageId": "page-13",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Review the footprint trail together with page 12, using a single spread revision.",
+      "blocks": [
+        {
+          "id": "text-13-01",
+          "text": "Something rustled  in a bush.",
+          "left": 1069.7717857834084,
+          "top": 555.6128518830626,
+          "width": 1050,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-13-02",
+          "text": "\"Are you hiding?\"",
+          "left": 1068.405477829983,
+          "top": 679.8153719346872,
+          "width": 1128.75,
+          "size": 18,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": -3,
+          "edge": true
+        },
+        {
+          "id": "text-13-03",
+          "text": "asked [Child Name].",
+          "left": 1726.6625156440984,
+          "top": 678.8828446348197,
+          "width": 1050,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-13-04",
+          "text": "The bush rustled again.",
+          "left": 1072.5998944902703,
+          "top": 803.3265040460014,
+          "width": 1076.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-13-05",
+          "text": "Then it sneezed.",
+          "left": 1886.8615178765892,
+          "top": 804.4515709693743,
+          "width": 743.5846643451002,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-13-06",
+          "text": "\"Achoo!\"",
+          "left": 2022.569347978235,
+          "top": 1305.9387032734892,
+          "width": 547.4423207487098,
+          "size": 31,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 8,
+          "edge": true
+        },
+        {
+          "id": "text-13-07",
+          "text": "Bushes do not usually sneeze.",
+          "left": 212.05187927420383,
+          "top": 2220.5481567782836,
+          "width": 2100,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 14,
+      "pageId": "page-14",
+      "reviewed": false,
+      "notes": "Applied 2026-10-20: Removed the sign and HURRY lines. Shortened the listening action to “Then listened.” and the final reassurance to “I'm still here.” Kept the breathing beat, lesson, and existing text positions.",
+      "blocks": [
+        {
+          "id": "text-14-01",
+          "text": "Before [Child Name] could peek, voices called from every direction.",
+          "left": 239.90133770641376,
+          "top": 133.5654726336943,
+          "width": 1266.473700876657,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-14-02",
+          "text": "\"This way!\" blinked a star.\n\"No, this way!\" puffed the wind.",
+          "left": 1405.3253470203367,
+          "top": 811.7271783254682,
+          "width": 1149.6631066744808,
+          "size": 16,
+          "leading": 26,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-14-03",
+          "text": "\"Hop!\"",
+          "left": 1411.6566587435352,
+          "top": 1045.4424928668407,
+          "width": 263.0688781738281,
+          "size": 21,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -3,
+          "edge": true
+        },
+        {
+          "id": "text-14-04",
+          "text": "said a mushroom.",
+          "left": 1694.9418181732533,
+          "top": 1056.546193204074,
+          "width": 611.4649251302084,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-14-05",
+          "text": "\"Skip!\"",
+          "left": 1407.7941125412847,
+          "top": 1160.3125905331485,
+          "width": 286.7127838134765,
+          "size": 21,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 3,
+          "edge": true
+        },
+        {
+          "id": "text-14-06",
+          "text": "said a stone.",
+          "left": 1699.1179711409554,
+          "top": 1182.7757882149967,
+          "width": 452.301513671875,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-01",
+          "text": "\"Too many voices make it hard to hear your own,\"",
+          "left": 171.01422037135617,
+          "top": 1607.6004165971576,
+          "width": 1734.8886644359743,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-02",
+          "text": "said the tiny voice.",
+          "left": 190.6758119140157,
+          "top": 1727.272518985331,
+          "width": 1155,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-03",
+          "text": "[Child Name] stopped.",
+          "left": 181.60278393531257,
+          "top": 1842.996092519925,
+          "width": 1312.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-04",
+          "text": "One slow breath.",
+          "left": 182.44560065974193,
+          "top": 1962.3018108814554,
+          "width": 1207.5,
+          "size": 21,
+          "leading": 25,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-05",
+          "text": "Then listened.",
+          "left": 187.53343739573648,
+          "top": 2114.488193856091,
+          "width": 1365,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-15-06",
+          "text": "\"I'm still here.\"",
+          "left": 185.77542940165398,
+          "top": 2234.4748756569775,
+          "width": 1365,
+          "size": 16,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 15,
+      "pageId": "page-15",
+      "reviewed": false,
+      "notes": "everything except \"and there it was: a tiny path\" needs to be on the previous page, lower half.\n\n\nApplied 2026-10-20: Breathing sequence moved beside the breathing portrait on page 14. The quiet-path line stays on this page; existing “quiet path” wording retained.",
+      "blocks": [
+        {
+          "id": "text-15-07",
+          "text": "And there it was: a quiet path.",
+          "left": 835.8960819061339,
+          "top": 1041.9906149075262,
+          "width": 1233.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 16,
+      "pageId": "page-16",
+      "reviewed": false,
+      "notes": "this page may also need a subtle/blurry shadow behind the text\n\nApplied 2026-10-20: Changed the existing contrast treatment to a soft dark shadow, keeping text positions and sizes.\n\nApplied follow-up 2026-10-20: Added broad feathered navy shading behind the upper passage; kept all text positions.",
+      "blocks": [
+        {
+          "id": "text-16-01",
+          "text": "The path split in two.",
+          "left": 187.46313552710006,
+          "top": 186.43136696257199,
+          "width": 1837.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-02",
+          "text": "One way was smooth and shiny.\nIt looked easy.",
+          "left": 193.31506417946255,
+          "top": 327.4684351007677,
+          "width": 1890,
+          "size": 16,
+          "leading": 26,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-03",
+          "text": "The other was plain and steep.",
+          "left": 720.5987755126439,
+          "top": 451.16306313682173,
+          "width": 1825.651224487356,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-04",
+          "text": "[Child Name] looked at the shiny path. It was pretty.",
+          "left": 186.499780262294,
+          "top": 601.9311489828305,
+          "width": 1864.7367355141669,
+          "size": 16,
+          "leading": 26,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-05",
+          "text": "But something inside felt tight.",
+          "left": 191.3956015032221,
+          "top": 745.9782523532065,
+          "width": 1995,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-06",
+          "text": "A deep breath.",
+          "left": 193.62690536779752,
+          "top": 883.1194327314115,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-07",
+          "text": "\"Not that way,\"",
+          "left": 186.9850336166531,
+          "top": 1031.926602387293,
+          "width": 1785,
+          "size": 18,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-16-08",
+          "text": "whispered the tiny voice.",
+          "left": 774.5042790599118,
+          "top": 1039.4531678669036,
+          "width": 1771.7457209400882,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 17,
+      "pageId": "page-17",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-17-01",
+          "text": "[Child Name] chose the steep path.",
+          "left": 276.33637982558616,
+          "top": 475.9733878561109,
+          "width": 1968.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-17-02",
+          "text": "Up, and up,",
+          "left": 288.084551383201,
+          "top": 617.1432521618806,
+          "width": 813.75,
+          "size": 22,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -5,
+          "edge": true
+        },
+        {
+          "id": "text-17-03",
+          "text": "and up.",
+          "left": 807.4111466019135,
+          "top": 604.9963270721073,
+          "width": 813.75,
+          "size": 28,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -5,
+          "edge": true
+        },
+        {
+          "id": "text-17-04",
+          "text": "At the top, a cave glittered.",
+          "left": 284.2953960061001,
+          "top": 777.5327571363329,
+          "width": 1837.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-17-05",
+          "text": "[Child Name] stepped closer.",
+          "left": 277.1115716341578,
+          "top": 921.6162559688216,
+          "width": 1656.1869190402326,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 18,
+      "pageId": "page-18",
+      "reviewed": false,
+      "notes": "to reduce text on this page, maybe we make a change similar to this:\n\n\"YOU CANT'T! YOU'RE TOO LITTLE!\"\nThe tiny voice echoed throughout the cave, and the same words glowed on a wall in big prickly letters.\n\nApplied 2026-10-20: Condensed cave exposition and corrected CAN'T. Kept the emotional setup and the child's question.\n\nchange the last line of text from brown to white.\n\nApplied follow-up 2026-10-20: Changed the final question to warm white, retaining its position.",
+      "blocks": [
+        {
+          "id": "text-18-01",
+          "text": "[Child Name]'s tummy felt tight.",
+          "left": 133.89090364130354,
+          "top": 193.1670615403071,
+          "width": 2257.5,
+          "size": 16,
+          "leading": 28,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-18-02",
+          "text": "\"YOU CAN'T! YOU'RE TOO LITTLE!\"",
+          "left": 128.94245248961255,
+          "top": 323.6576587424665,
+          "width": 2201.9690583659763,
+          "size": 17,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-18-03",
+          "text": "The tiny voice echoed through the cave.",
+          "left": 1191.8555237890755,
+          "top": 324.68408190195646,
+          "width": 1999.8851628435455,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-18-05",
+          "text": "The same words glowed on a wall in big, prickly letters.",
+          "left": 140.3997807091782,
+          "top": 449.2313894826612,
+          "width": 2040.9167117303714,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-18-07",
+          "text": "\"Why do you sound mean?\" asked [Child Name].",
+          "left": 616.2838085934072,
+          "top": 1706.5921135443402,
+          "width": 1817.6389598511594,
+          "size": 17,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 19,
+      "pageId": "page-19",
+      "reviewed": false,
+      "notes": "the following need to be moved to the next page:\n\n\"The prickly words wiggled. Then softened.\"\n\nApplied 2026-10-20: Transformation moved to page 20. This page now holds only the breathing pause.",
+      "blocks": [
+        {
+          "id": "text-19-01",
+          "text": "The voice was quiet. [Child Name] remembered.",
+          "left": 221.42832047651,
+          "top": 246.4149472168906,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 28,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-19-02",
+          "text": "One deep breath.",
+          "left": 225.5972687527624,
+          "top": 399.2548132382509,
+          "width": 1128.75,
+          "size": 18,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -2,
+          "edge": true
+        },
+        {
+          "id": "text-19-03",
+          "text": "Then another.",
+          "left": 889.0672927569997,
+          "top": 395.67717047556016,
+          "width": 1050,
+          "size": 17,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-19-04",
+          "text": "The cave grew quieter.",
+          "left": 229.72056441938582,
+          "top": 550.7413608602279,
+          "width": 1181.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 20,
+      "pageId": "page-20",
+      "reviewed": false,
+      "notes": "We can remove \"The words opened.\" and \"I'M A LITTLE SCARED. THIS FEELS TOO BIG.\" (since it's on the wall and we use a colon after \"inside were smaller words\"\n\n\n\nApplied 2026-10-20: Removed “The words opened” and the small duplicate wall inscription. Transformation text precedes the illustrated reveal.\n\nApplied draft 2026-10-25: Move the wiggled/softened sentence down and leave a gap before the smaller-words introduction.",
+      "blocks": [
+        {
+          "id": "text-19-05",
+          "text": "The prickly words",
+          "left": 315.80031762882754,
+          "top": 250.8198113908237,
+          "width": 708.75,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-19-06",
+          "text": "wiggled.",
+          "left": 946.3285985789234,
+          "top": 237.47310923980885,
+          "width": 472.5,
+          "size": 20.0,
+          "leading": 21.0,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-19-07",
+          "text": "Then softened.",
+          "left": 1315.6477651760813,
+          "top": 231.4507383028056,
+          "width": 1000,
+          "size": 21.0,
+          "leading": 21.0,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-20-01",
+          "text": "Inside were smaller words:",
+          "left": 321.51479399638987,
+          "top": 360,
+          "width": 1837.5,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-20-03",
+          "text": "\"Oh. You weren't trying to be mean.\"",
+          "left": 675.1264880323091,
+          "top": 1875.3174988124417,
+          "width": 1736.9107837711827,
+          "size": 17.0,
+          "leading": 21.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-20-04",
+          "text": "The tiny voice felt warm again.",
+          "left": 707.8435188801702,
+          "top": 1997.7630177636222,
+          "width": 1598.4401966004073,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 21,
+      "pageId": "page-21",
+      "reviewed": false,
+      "notes": "This page feels a little awkward. Not sure what to do about it.\n\nApplied 2026-10-20: Grouped dialogue above center as a quiet pause. Existing artwork and character placements retained.",
+      "blocks": [
+        {
+          "id": "text-21-01",
+          "text": "\"Sometimes big feelings come out sharp,\" said the voice.",
+          "left": 279.7793988840873,
+          "top": 972.6309868927881,
+          "width": 2100,
+          "size": 17,
+          "leading": 23,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-21-02",
+          "text": "\"But if you listen close, you can hear what they are really trying to say.\"",
+          "left": 291.80218127407693,
+          "top": 1138.3923682507534,
+          "width": 2010.132802425099,
+          "size": 18,
+          "leading": 25,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 22,
+      "pageId": "page-22",
+      "reviewed": false,
+      "notes": "",
+      "blocks": [
+        {
+          "id": "text-22-01",
+          "text": "The prickles fell away.\nThe wall shimmered.",
+          "left": 203.46487640770883,
+          "top": 233.45413601603275,
+          "width": 1653.75,
+          "size": 16,
+          "leading": 28,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-22-02",
+          "text": "The cave",
+          "left": 206.91393946748593,
+          "top": 517.585939523695,
+          "width": 1233.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-22-03",
+          "text": "opened wide.",
+          "left": 539.3409519241095,
+          "top": 530.5058529088908,
+          "width": 1995,
+          "size": 29,
+          "leading": 21,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -5,
+          "edge": true
+        },
+        {
+          "id": "text-22-04",
+          "text": "Beyond it, the world was bright.",
+          "left": 1105.7891014938102,
+          "top": 2286.410764297136,
+          "width": 1303.7272272091682,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-22-05",
+          "text": "[Child Name] stepped through.",
+          "left": 1235.55759737629,
+          "top": 2395.7681750157403,
+          "width": 1233.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 23,
+      "pageId": "page-23",
+      "reviewed": false,
+      "notes": "Remove \"Alexandra felt a little better now\".\n\nChange \"Now [Name] understood.\" to \"Now [pronoun] understood.\"\n\n\"The tiny voice helped [pronoun] notice.\"\n\nAlso noting anywhere else we use \"them\" to refer to the child we need to change it to the dynamic pronoun.\n\n\n\nApplied 2026-10-20: Removed the redundant reassurance. Added the renderer's subject/object pronoun fields; plural references to other children and feelings are unchanged.",
+      "blocks": [
+        {
+          "id": "text-23-01",
+          "text": "[Child Name] ran into the sunlight.",
+          "left": -106.46538234718012,
+          "top": 300.8577986001511,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": -2,
+          "edge": false
+        },
+        {
+          "id": "text-23-03",
+          "text": "Now [subject pronoun] understood.",
+          "left": 434.1262918531847,
+          "top": 382.2928010597584,
+          "width": 1758.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-23-04",
+          "text": "The tiny voice helped [object pronoun] notice",
+          "left": 441.1815986438646,
+          "top": 510.54916475770244,
+          "width": 1758.75,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-23-05",
+          "text": "what felt scary,",
+          "left": 550.356114628018,
+          "top": 638.8936153390614,
+          "width": 1706.25,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-23-06",
+          "text": "what felt wrong,",
+          "left": 710.9721042205709,
+          "top": 754.6455460376918,
+          "width": 1575,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-23-07",
+          "text": "and what felt right.",
+          "left": 845.3598278333707,
+          "top": 872.682490845498,
+          "width": 1443.75,
+          "size": 18,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 24,
+      "pageId": "page-24",
+      "reviewed": false,
+      "notes": "the text on this page is generally very hard to read and we need a new solution\n\nApplied 2026-10-20: Added a soft warm reading area behind the existing text and used consistent dark ink. Text coordinates retained.\n\nApplied draft 2026-10-25: Align the forest dialogue and review a denser walking trail.",
+      "blocks": [
+        {
+          "id": "text-24-01",
+          "text": "\"I want to see you,\" said [Child Name].",
+          "left": 349.5800831038755,
+          "top": 249.62537051620043,
+          "width": 1950,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-24-02",
+          "text": "A trail of feathers glowed ahead.",
+          "left": 363.7505485549312,
+          "top": 375.44955614203457,
+          "width": 1950,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-24-03",
+          "text": "The forest grew warmer and quieter.",
+          "left": 362.7009869537061,
+          "top": 498.42073100084536,
+          "width": 1950,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-24-04",
+          "text": "\"Where are you?\"",
+          "left": -125.50448602540939,
+          "top": 661.6844109884837,
+          "width": 1750,
+          "size": 23,
+          "leading": 28,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-24-05",
+          "text": "\"Listen close,\" said the tiny voice.\n\"That quiet is your heart.\"",
+          "left": 379.0446044570425,
+          "top": 809.2706571201903,
+          "width": 1830,
+          "size": 17,
+          "leading": 24,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 25,
+      "pageId": "page-25",
+      "reviewed": false,
+      "notes": "some of the text on this page is also a bit tough to read and we need a solution\n\n\nApplied 2026-10-20: Separated the gasp, question and reply. Added a soft reading area above Owl; moved the closing sentence below Owl.\n\nApplied draft 2026-10-25: Center and enlarge the appearing guide within the clearing; separate the dialogue blocks.",
+      "blocks": [
+        {
+          "id": "text-25-01",
+          "text": "In a warm, magical clearing, Owl appeared.",
+          "left": 375.82116095896185,
+          "top": 211.1920691726304,
+          "width": 2110,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-25-02",
+          "text": "[Child Name] gasped.",
+          "left": 376.1097673353902,
+          "top": 335.3611613326704,
+          "width": 850,
+          "size": 16,
+          "leading": 21,
+          "color": "#211d19",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-25-03",
+          "text": "\"It was you?\"",
+          "left": 1014.4547981950462,
+          "top": 326.3562647257565,
+          "width": 1150,
+          "size": 23,
+          "leading": 27,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-25-04",
+          "text": "Owl smiled.",
+          "left": 381.1220928345898,
+          "top": 448.0401765087516,
+          "width": 1800,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-25-05",
+          "text": "\"I am your quiet voice,\" said Owl, \"in a shape you can see.\"",
+          "left": 369.9956020421121,
+          "top": 561.5138918241477,
+          "width": 2100,
+          "size": 16,
+          "leading": 20,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-25-06",
+          "text": "The warm quiet was inside [Child Name], too.",
+          "left": 55.16584692898274,
+          "top": 684.8160601302895,
+          "width": 2050,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 26,
+      "pageId": "page-26",
+      "reviewed": false,
+      "notes": "Applied draft 2026-10-25: Group flying text above the action, lower the guide beside the child and place the closing line below both.",
+      "blocks": [
+        {
+          "id": "text-26-01",
+          "text": "[Child Name] and Owl",
+          "left": 39.323049484805246,
+          "top": 356.2651775183042,
+          "width": 2025,
+          "size": 17,
+          "leading": 22,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-26-02",
+          "text": "flew",
+          "left": 1498.4768838127832,
+          "top": 335.72931852993213,
+          "width": 370,
+          "size": 26,
+          "leading": 29,
+          "color": "#ffe09a",
+          "align": "left",
+          "rotation": -4,
+          "edge": true
+        },
+        {
+          "id": "text-26-03",
+          "text": "through the stars.",
+          "left": 1788.0198292738553,
+          "top": 358.1962195017929,
+          "width": 1500,
+          "size": 18,
+          "leading": 23,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-26-04",
+          "text": "The magical forest grew small below.",
+          "left": 730.9456486619595,
+          "top": 484.3269641019561,
+          "width": 1850,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-26-05",
+          "text": "Ahead was the park, the ladder, and the very, very tall slide.",
+          "left": 724.8051136331686,
+          "top": 605.0414123828032,
+          "width": 1800,
+          "size": 16,
+          "leading": 21,
+          "color": "#fff5de",
+          "align": "left",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-26-06",
+          "text": "Owl stayed close. So did the quiet voice.",
+          "left": 326.22773212571974,
+          "top": 1949.804032631433,
+          "width": 2100,
+          "size": 16,
+          "leading": 27,
+          "color": "#ffe09a",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 27,
+      "pageId": "page-27",
+      "reviewed": false,
+      "notes": "change to \"This time [pronoun] new what to do.\"\n\nApplied follow-up 2026-10-20: Changed the sentence to “This time [subject pronoun] knew what to do.” Used the dynamic subject pronoun and corrected “new” to “knew”.",
+      "blocks": [
+        {
+          "id": "text-27-01",
+          "text": "[Child Name] was back at the top.",
+          "left": 183.75,
+          "top": 157.5,
+          "width": 2100,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-02",
+          "text": "The slide still looked long.",
+          "left": 184.8521473128599,
+          "top": 304.41521276668027,
+          "width": 2152.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-03",
+          "text": "The slide still looked fun.",
+          "left": 1089.1248088697553,
+          "top": 309.62214845155796,
+          "width": 1457.1251911302447,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-04",
+          "text": "The slide still looked",
+          "left": 189.79874067251603,
+          "top": 471.0451655470249,
+          "width": 715.6446126302084,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-05",
+          "text": "very, very tall.",
+          "left": 927.6475752563867,
+          "top": 454.94755414790706,
+          "width": 708.5636494954427,
+          "size": 22,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -2,
+          "edge": false
+        },
+        {
+          "id": "text-27-06",
+          "text": "\"Your turn!\"  \"Go!\"  \"It's fun!\"",
+          "left": 186.7452421572753,
+          "top": 627.1579575492874,
+          "width": 2152.5,
+          "size": 22,
+          "leading": 21,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -2,
+          "edge": false
+        },
+        {
+          "id": "text-27-07",
+          "text": "[Child Name]'s tummy flipped.",
+          "left": 206.1209919173521,
+          "top": 771.3965268418794,
+          "width": 2047.5,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-08",
+          "text": "This time [subject pronoun] knew what to do.",
+          "left": 204.5024098636092,
+          "top": 902.8527858390003,
+          "width": 1480.402696137236,
+          "size": 16,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-09",
+          "text": "Pause.",
+          "left": 1600.5282534198432,
+          "top": 1043.084339280961,
+          "width": 1009.7250155340917,
+          "size": 19,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-10",
+          "text": "Breathe.",
+          "left": 1910.0949746862257,
+          "top": 1043.4970233353454,
+          "width": 892.5094469769672,
+          "size": 19,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-27-11",
+          "text": "Listen close.",
+          "left": 1685.5398585929065,
+          "top": 1152.0914320112877,
+          "width": 804.4220574025687,
+          "size": 19,
+          "leading": 21,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 28,
+      "pageId": "page-28",
+      "reviewed": false,
+      "notes": "\"Alexandra looked at the child waiting behin d[pronoun].\"\n\nApplied 2026-10-20: “Behind” uses the child's dynamic object pronoun.",
+      "blocks": [
+        {
+          "id": "text-28-01",
+          "text": "The quiet voice was there. Small and warm.",
+          "left": 183.75,
+          "top": 131.25,
+          "width": 2100,
+          "size": 16.0,
+          "leading": 27.999999999999996,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-28-02",
+          "text": "\"Not yet,\" it said.",
+          "left": 182.33310721428523,
+          "top": 291.03986787704497,
+          "width": 1706.25,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "text-28-03",
+          "text": "\"Almost.\"",
+          "left": 783.720108295814,
+          "top": 279.3035734912484,
+          "width": 1496.25,
+          "size": 24.0,
+          "leading": 21.0,
+          "color": "#793c28",
+          "align": "left",
+          "rotation": -3,
+          "edge": false
+        },
+        {
+          "id": "text-28-responsive-dialogue",
+          "text": "[Child Name] looked at the child waiting behind [object pronoun].\n\"You go first,\" said [Child Name]. \"I'm almost ready.\"\nAnd this time, [Child Name] smiled.",
+          "left": 185,
+          "top": 449,
+          "width": 2350,
+          "size": 16.0,
+          "leading": 21.0,
+          "color": "#392e29",
+          "align": "left",
+          "rotation": 0,
+          "edge": false,
+          "height": 680,
+          "padding": 0,
+          "flow": {
+            "paragraphs": [
+              {
+                "runs": [
+                  {
+                    "text": "[Child Name] looked at the child waiting behind [object pronoun]."
+                  }
+                ]
+              },
+              {
+                "runs": [
+                  {
+                    "text": "\"You go first,\" said [Child Name]. \"I'm almost ready.\""
+                  }
+                ]
+              },
+              {
+                "runs": [
+                  {
+                    "text": "And this time, [Child Name] smiled."
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page": 29,
+      "pageId": "page-29",
+      "reviewed": false,
+      "notes": "",
+      "blocks": []
+    },
+    {
+      "page": 30,
+      "pageId": "page-30",
+      "reviewed": false,
+      "notes": "Applied 2026-10-20: Replaced the missing-spiral instructions with a breathing activity that matches the existing page.\n\nApplied draft 2026-10-25: Center the breathing exercise and space its thoughts evenly.",
+      "blocks": [
+        {
+          "id": "text-30-01",
+          "text": "Pause. Breathe. Listen close.",
+          "left": 338.7665421674439,
+          "top": 292.9060188044513,
+          "width": 1945,
+          "size": 22,
+          "leading": 28,
+          "color": "#ffe09a",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-02",
+          "text": "Put a hand on your tummy.",
+          "left": 329.83143021186345,
+          "top": 547.3249310220729,
+          "width": 1945,
+          "size": 16,
+          "leading": 24,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-03",
+          "text": "Take a slow breath in.\nLet it out slowly.",
+          "left": 327.1415634301711,
+          "top": 676.4876226912075,
+          "width": 1945,
+          "size": 16,
+          "leading": 24,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-04",
+          "text": "Think of something you'd like to try.",
+          "left": 352.12362044145874,
+          "top": 1045.4918663332421,
+          "width": 1945,
+          "size": 16,
+          "leading": 24,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-05",
+          "text": "How does it make you feel?",
+          "left": 345.91743015281986,
+          "top": 1289.6098998320538,
+          "width": 1945,
+          "size": 18,
+          "leading": 28,
+          "color": "#ffe09a",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-06",
+          "text": "Listen close. Does your quiet voice say\n\"no,\" \"not yet,\" or \"yes\"?",
+          "left": 357.2668720618777,
+          "top": 1509.205155619733,
+          "width": 1945,
+          "size": 16,
+          "leading": 24,
+          "color": "#fff5de",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        },
+        {
+          "id": "text-30-07",
+          "text": "You can take your time.",
+          "left": 331.6421007972761,
+          "top": 1866.7586846818392,
+          "width": 1945,
+          "size": 18,
+          "leading": 28,
+          "color": "#ffe09a",
+          "align": "center",
+          "rotation": 0,
+          "edge": true
+        }
+      ]
+    },
+    {
+      "page": 31,
+      "pageId": "page-31",
+      "reviewed": false,
+      "notes": "I'm generally unsure about this page and if we need the \"For grown-ups\" section since the previous page essentially does the same thing.\n\nApplied 2026-10-20: Removed the duplicate grown-up activity. Compact brand/copyright layout applied. Publication year and copyright holder remain explicit placeholders pending confirmation.",
+      "blocks": [
+        {
+          "id": "publisher-heading",
+          "text": "Little Hero Labs",
+          "left": 250,
+          "top": 1050,
+          "width": 2125,
+          "size": 24.18897637795276,
+          "leading": 29.02677165354331,
+          "color": "#17354b",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "publisher-tagline",
+          "text": "Every child is the hero\nof their own story.",
+          "left": 300,
+          "top": 1300,
+          "width": 2025,
+          "size": 19.005624296962882,
+          "leading": 26.60787401574803,
+          "color": "#17354b",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "publisher-description",
+          "text": "Personalized books for little readers\nand the people who love them.",
+          "left": 300,
+          "top": 1710,
+          "width": 2025,
+          "size": 15.55005624296963,
+          "leading": 23.325084364454444,
+          "color": "#17354b",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        },
+        {
+          "id": "publisher-website",
+          "text": "www.LittleHeroLabs.com",
+          "left": 300,
+          "top": 2210,
+          "width": 2025,
+          "size": 15.982002249718786,
+          "leading": 20.77660292463442,
+          "color": "#17354b",
+          "align": "center",
+          "rotation": 0,
+          "edge": false
+        }
+      ]
+    },
+    {
+      "page": 32,
+      "pageId": "page-32",
+      "reviewed": false,
+      "notes": "",
+      "blocks": []
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   appendWorkflowJobEvent,
   claimWorkflowJob,
@@ -107,8 +108,17 @@ function toJsonRecord(value: unknown): JsonRecord {
     : {};
 }
 
-export function buildW2BPoseLogicalKey(poseNumber: number): string {
-  return buildWorkflowJobLogicalKey(`pose-${String(Math.max(0, Math.floor(poseNumber))).padStart(2, '0')}`);
+export function buildW2BPoseLogicalKey(poseNumber: number, source?: W2BPoseWorkItemLike): string {
+  const poseKey = `pose-${String(Math.max(0, Math.floor(poseNumber))).padStart(2, '0')}`;
+  const replacedAt = toTrimmedString(source?.replacedAt);
+  const replacementCount = toInteger(source?.replacementCount) ?? 0;
+  // Keep original/legacy jobs stable; each accepted revision gets a distinct,
+  // retry-stable Bria job instead of colliding with its completed predecessor.
+  if (!source || (!replacedAt && replacementCount <= 0)) return buildWorkflowJobLogicalKey(poseKey);
+  const revision = createHash('sha256').update(JSON.stringify([
+    source.characterHash, toTrimmedString(source.approvedKey), replacedAt, replacementCount,
+  ])).digest('hex').slice(0, 20);
+  return buildWorkflowJobLogicalKey(poseKey, `revision-${revision}`);
 }
 
 export function buildW2BPoseJobIdentity(input: W2BPoseWorkItemLike) {
@@ -119,7 +129,7 @@ export function buildW2BPoseJobIdentity(input: W2BPoseWorkItemLike) {
     rootOrderId: toTrimmedString(input.rootOrderId) ?? toTrimmedString(input.amazonOrderId),
     amazonOrderId: toTrimmedString(input.amazonOrderId) ?? toTrimmedString(input.rootOrderId),
     bookId: input.bookId,
-    logicalKey: buildW2BPoseLogicalKey(input.poseNumber),
+    logicalKey: buildW2BPoseLogicalKey(input.poseNumber, input),
   };
 }
 

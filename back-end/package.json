@@ -179,7 +179,10 @@
     "test:workflow-readiness": "tsx scripts/test-workflow-readiness-intake.ts && tsx scripts/test-book-operator-transitions.ts && tsx scripts/test-gelato-release-defaults.ts && tsx scripts/test-workflow-attempt-fencing.ts && tsx scripts/test-book-reassembly.ts && tsx scripts/test-w2-workflow-contracts.ts && tsx scripts/test-w2-http-handoff.ts",
     "test:w2-http-handoff": "tsx scripts/test-w2-http-handoff.ts",
     "test:admin-managed-auth": "tsx scripts/test-admin-managed-auth.ts",
-    "test:admin-managed-consumers": "tsx scripts/test-admin-workflow-csv.ts --supabase && tsx scripts/test-w2a-failure-recovery.ts --supabase && tsx scripts/test-gelato-release-application.ts --supabase"
+    "test:admin-managed-consumers": "tsx scripts/test-admin-workflow-csv.ts --supabase && tsx scripts/test-w2a-failure-recovery.ts --supabase && tsx scripts/test-gelato-release-application.ts --supabase",
+    "test:updated-test-book-copy": "node --import tsx scripts/test-updated-test-book-copy.ts && node --import tsx scripts/test-updated-test-book-copy-api.ts && node --import tsx scripts/test-updated-test-book-copy-runtime.ts",
+    "test:pose-revision-resolution": "node --import tsx scripts/test-pose-revision-resolution.ts",
+    "test:final-book-flying-orientation": "node --import tsx scripts/test-final-book-flying-orientation.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",

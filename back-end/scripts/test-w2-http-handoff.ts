@@ -197,6 +197,31 @@ async function main() {
     const bgSource={orderId,rootOrderId:generated.rootOrderId,amazonOrderId:generated.amazonOrderId,bookId,characterHash,poseNumber:generated.poseNumber,approvedKey:generated.uploadKey,manifest2aUrl:`${bookId}/orders/${orderId}/manifests/2a-manifest.json`,backendUrl:'https://admin.littleherolabs.com'};
     const [bgItem]=await attachWorkflowJobsToW2BWorkItems({orderId,rootOrderId:generated.rootOrderId,amazonOrderId:generated.amazonOrderId,bookId,workItems:[bgSource]});
     const bgResponse=await bg(request('/api/internal/w2b/build-pose-input',wire(2,{...bgItem,body:structuredClone(canonical.body)})));assert.equal(bgResponse.status,200,await bgResponse.clone().text());assert.equal((await bgResponse.json()).workflowJobId,bgItem.workflowJobId);
+    // Canonical accepted revision → worklist → persisted jobs → exported n8n HTTP → actual claim.
+    const {buildW2BWorklist}=await import('../src/lib/books/w2b-worklist');
+    const approved=Array.from({length:13},(_,poseNumber)=>({poseNumber,approved:true,status:'approved',approvedKey:`${bookId}/order-generated-assets/characters/${characterHash}/poses/pose${String(poseNumber).padStart(2,'0')}.png`,replacedAt:null as string|null,replacementCount:0}));
+    const aManifest={orderId,bookId,characterHash,order:{orderId,bookId,characterHash},entries:approved};
+    const bManifest={orderId,bookId,characterHash,entries:approved.map(e=>({poseNumber:e.poseNumber,briaStatus:'completed',bgRemovedKey:`${bookId}/order-generated-assets/characters/${characterHash}/characters_${characterHash}_pose${String(e.poseNumber).padStart(2,'0')}_nobg.png`,sourceApprovedKey:e.approvedKey,sourceReplacedAt:null,sourceReplacementCount:0}))};
+    const originalWorklist=await buildW2BWorklist({orderId,bookId,force:true,backendUrl:'https://admin.littleherolabs.com'},{loadManifest:async key=>key.endsWith('/2a-manifest.json')?aManifest:key.endsWith('/2b-manifest.json')?bManifest:null});
+    const original11=originalWorklist.workItems.find(e=>e.poseNumber===11)!;
+    const [first11]=await attachWorkflowJobsToW2BWorkItems({orderId,bookId,workItems:[original11]});
+    const firstResponse=await bg(request('/api/internal/w2b/build-pose-input',wire(2,first11)));assert.equal(firstResponse.status,200,await firstResponse.clone().text());
+    const oldJob=tables.workflow_jobs.find(j=>j.id===first11.workflowJobId)!;Object.assign(oldJob,{status:'succeeded',lease_owner:null,lease_expires_at:null,completed_at:'2026-11-18T01:00:00Z'});
+    const oldSnapshot=structuredClone(oldJob),otherImages=structuredClone(approved.filter(e=>e.poseNumber!==11));
+    approved[11].replacedAt='2026-11-18T02:00:00.001Z';approved[11].replacementCount=1;
+    const changed=await buildW2BWorklist({orderId,bookId,backendUrl:'https://admin.littleherolabs.com'},{loadManifest:async key=>key.endsWith('/2a-manifest.json')?aManifest:key.endsWith('/2b-manifest.json')?bManifest:null});
+    assert.equal(changed.summary.skippedBy2BManifest,12);assert.deepEqual(changed.workItems.map(e=>e.poseNumber),[11]);
+    const [revision11]=await attachWorkflowJobsToW2BWorkItems({...changed,workItems:changed.workItems});
+    assert.notEqual(revision11.workflowJobId,first11.workflowJobId,'Accepted revision needs its own cutout job');
+    const [repeat11]=await attachWorkflowJobsToW2BWorkItems({...changed,workItems:changed.workItems});assert.equal(repeat11.workflowJobId,revision11.workflowJobId,'Same revision enqueue is idempotent');
+    const revisionResponse=await bg(request('/api/internal/w2b/build-pose-input',wire(2,revision11)));assert.equal(revisionResponse.status,200,await revisionResponse.clone().text());const revisionBody=await revisionResponse.json();assert.equal(revisionBody.workflowJobId,revision11.workflowJobId);assert.equal(revisionBody.replacedAt,approved[11].replacedAt);assert.equal(revisionBody.replacementCount,1);assert(revisionBody.workflowAttemptId);
+    assert.notEqual((await bg(request('/api/internal/w2b/build-pose-input',wire(2,revision11)))).status,200,'Duplicate cannot acquire active revision');
+    assert.notEqual((await bg(request('/api/internal/w2b/build-pose-input',wire(2,{...revision11,workflowJobId:first11.workflowJobId,workflowJobIdempotencyKey:first11.workflowJobIdempotencyKey})))).status,200,'Stale original job cannot own replacement');
+    assert.deepEqual(oldJob,oldSnapshot);assert.deepEqual(approved.filter(e=>e.poseNumber!==11),otherImages);
+    const {buildW2BPoseJobIdentity}=await import('../src/lib/workflow-jobs/w2b-pose-jobs');
+    assert.equal(buildW2BPoseJobIdentity(original11).logicalKey,'pose-11','Unreplaced legacy identity unchanged');
+    const revisionKey=buildW2BPoseJobIdentity({...original11,replacedAt:approved[11].replacedAt,replacementCount:1}).logicalKey;
+    for(const patch of [{replacementCount:2},{replacedAt:'2026-11-18T02:00:00.002Z'},{approvedKey:approved[10].approvedKey},{characterHash:'different-character'}])assert.notEqual(buildW2BPoseJobIdentity({...original11,replacedAt:approved[11].replacedAt,replacementCount:1,...patch}).logicalKey,revisionKey);
     const source=readFileSync('scripts/helpers/select-workflow-http-envelope.js','utf8').split('module.exports = ',2)[1].trim().replace(/;$/, '');
     for(let index=0;index<3;index++)assert.equal(graphs[index].nodes.find((n:{name:string})=>n.name===nodeNames[index]).parameters.body,'={{JSON.stringify(('+source+')($json))}}','Exported selector must match its standalone source');
     // Conflicts stop at the actual serialization boundary, rather than silently selecting a different identity.

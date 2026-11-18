@@ -1,0 +1,5315 @@
+{
+  "qa": {
+    "pose": {
+      "perPoseExpectations": {
+        "1": {
+          "frontFacing": true,
+          "strictSymmetry": false
+        }
+      },
+      "requiredPoseNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    "finalPdf": {
+      "cover": {
+        "expectedPageCount": 1
+      },
+      "interior": {
+        "minBytesPerPage": 30000,
+        "expectedPreviewLabelPattern": "p{index:02d}"
+      }
+    },
+    "backgroundRemoval": {
+      "compositeQaEnabled": true,
+      "faceDefectReviewEnabled": true
+    }
+  },
+  "slug": "finding-our-inner-voice-32",
+  "notes": {
+    "pendingReview": [
+      "Original copy or shorter revisions",
+      "Character positions, expression, scale and gaze",
+      "Guide clue style and placement",
+      "New clue-free background candidates",
+      "Waiting-child cutout edges",
+      "Cover slide artwork and final cover design",
+      "Page30 activity and page31 credits copy",
+      "Print bleed and cover geometry"
+    ],
+    "sourcePosePlan": "character-pose-plan-2026-10-04.md",
+    "poseReferenceStatus": "References and stand-ins, not generated personalized character outputs.",
+    "operationalReadiness": "Draft/test-only. Original manuscript retained. Both editions have32 interior pages. No customer launch approval.",
+    "sourceManuscriptSha256": "db33f2fd86947ae211b5a20c9a8890ceea8491dc268383ea537df1f99a9f9115"
+  },
+  "assets": {
+    "fonts": {
+      "primary": "book-finding-our-inner-voice/v1/fonts/CustomBook.ttf"
+    },
+    "poses": {
+      "basePath": "book-finding-our-inner-voice/v1/characters/references",
+      "skinToneVariantPaths": {}
+    },
+    "preview": {
+      "hairstylesPrefix": "book-finding-our-inner-voice/v1/characters/hairstyles",
+      "baseCharactersPrefix": "book-finding-our-inner-voice/v1/characters/bases"
+    },
+    "overlays": {
+      "cover-logo": "book-finding-our-inner-voice/v3/review-candidates/11683f7dd30af65da12698fcad6dd44bf813aa618c101bc338213504bba61628/cover-logo.png",
+      "waitingChild": "book-finding-our-inner-voice/v3/editor-selected/850597574770ba51db34d715fba1faa775a25997091289367061a1014064458b/asset-61-page-28-waiting-child-waiting-child-2k-upscaled.png",
+      "cover-barcode": "book-finding-our-inner-voice/v3/review-candidates/2556699f18c3719bf64fa78dea80804e76969e1b85c476fc8d3f518f13598b2b/cover-barcode.png",
+      "cover-try-panel": "book-finding-our-inner-voice/v3/review-candidates/a5b846a9de14744f3a90b3ec0f71d4c7fbbe70798e6d9f57621c94359d6ee7e9/cover-try-panel.png",
+      "lhl-color-mark": "book-finding-our-inner-voice/v5/overlays/9b6ae153ab15433861167801b4472fc80940e8c92bf1e59423d6ea09797129e7/lhl-color-mark.png",
+      "back-imprint-panel": "book-finding-our-inner-voice/v5/overlays/c9c5a873c5fa9d6f24af3a2da63809fd4ad37df8108b8b4981de5c4e1f414c85/back-imprint-panel.png"
+    },
+    "assetRoot": "book-finding-our-inner-voice",
+    "generated": {
+      "orderPrefix": "book-finding-our-inner-voice/orders/{orderId}",
+      "characterBasePrefix": "book-finding-our-inner-voice/order-generated-assets/characters/{characterHash}"
+    },
+    "backgrounds": {
+      "blank": "book-finding-our-inner-voice/v5/backgrounds/85f6453969db20ce825046076a226c7334faabc37772a95bd344157f187e0023/white-page.png",
+      "title": "book-finding-our-inner-voice/v5/backgrounds/aaebc123fff1c5f61cf3c582b3020177310c334a034f5a58140dd3e6ba5ae6d2/original-title-page.png",
+      "covers": "book-finding-our-inner-voice/v4/backgrounds/49216613198ae313484ab88b977cbcacd92309441a22472faff96698fe66b47b/cover-wrap.png",
+      "credits": "book-finding-our-inner-voice/v5/backgrounds/85f6453969db20ce825046076a226c7334faabc37772a95bd344157f187e0023/white-page.png",
+      "page_03": "book-finding-our-inner-voice/v4/backgrounds/cf7ccc50d948755b27f0b9808d409023dade1120d4474b1c4e76f994e0520766/page-03.png",
+      "page_05": "book-finding-our-inner-voice/v4/backgrounds/74fc9b7e1bd1640f076eb3dce8ba2ad5b7cbb9a3d51e46cdbd046e2e24abd6fe/page-05.png",
+      "page_06": "book-finding-our-inner-voice/v4/backgrounds/e6f9807444ba536d890ab38089ed0ca1b7b7f80662c592409cbd60e8c05fc245/page-06.png",
+      "page_07": "book-finding-our-inner-voice/v4/backgrounds/029b8805532886ba507deb0e97af77933b70085a1465354689dc290020f3339f/page-07.png",
+      "page_08": "book-finding-our-inner-voice/v4/backgrounds/bf4c671359bb8fbd85fba2cb7816d07f32ee2db406f4b979016356e8f948af28/page-08.png",
+      "page_09": "book-finding-our-inner-voice/v4/backgrounds/b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75/page-09.png",
+      "page_10": "book-finding-our-inner-voice/v4/backgrounds/8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac/page-10.png",
+      "page_11": "book-finding-our-inner-voice/v4/backgrounds/be19d40cc5d9b9a64f34a92066ae91167579c9607caf8af40e452041ffea3fd5/page-11.png",
+      "page_12": "book-finding-our-inner-voice/v4/backgrounds/042b83d8ba6f3bf70786677a48de0522ff542fc83ca4b340fc79a63321d5bd7c/page-12.png",
+      "page_13": "book-finding-our-inner-voice/v4/backgrounds/d162b4688168d14c85072079781adb196a9994c3c0bb734c5c37483003bc43d6/page-13.png",
+      "page_14": "book-finding-our-inner-voice/v4/backgrounds/38e6780dfe7312b3be691552766242efc8d04e5cc1a81abca52dfca2bde0fb86/page-14.png",
+      "page_15": "book-finding-our-inner-voice/v4/backgrounds/4a3f8e375d5e3e0456f7e408859ca4b6c2217c5ca04e36b1f15a9f031405a734/page-15.png",
+      "page_16": "book-finding-our-inner-voice/v4/backgrounds/9985f9542429907f83f2c90a90bbd550c9f4b173c1cd9aee1736507f385bc5c8/page-16.png",
+      "page_17": "book-finding-our-inner-voice/v4/backgrounds/1e7a007b202e55383065d83b596ff8988661c49fa0b0c9f5e44a89ce08beeba4/page-17.png",
+      "page_18": "book-finding-our-inner-voice/v4/backgrounds/df17b618eef5a86c7a6561f29a651190c6fc3f794457e77b6244a41a822d0b53/page-18.png",
+      "page_19": "book-finding-our-inner-voice/v4/backgrounds/7f44c35f42034119cc1803e5872e3848dd4a12293cac773ee88edb4a68a62d39/page-19.png",
+      "page_20": "book-finding-our-inner-voice/v4/backgrounds/eb98df956cbed1d1c7929cfdf32356485ae8bea5072f44253945b55a2c578807/page-20.png",
+      "page_21": "book-finding-our-inner-voice/v4/backgrounds/416c3e727430d127f8bce3954bd7019ea06a7386e0ac18d03f2b9fc258ada24d/page-21.png",
+      "page_22": "book-finding-our-inner-voice/v4/backgrounds/d0f38a5a4406d80585a7ef4fdf804effe1924794f7fdba5e5c8e6ce221b95e72/page-22.png",
+      "page_23": "book-finding-our-inner-voice/v4/backgrounds/b143bc0f0630d1953f8987a47167b5a2aa973fec5b896dab72956335d18cad09/page-23.png",
+      "page_24": "book-finding-our-inner-voice/v4/backgrounds/8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18/page-24.png",
+      "page_25": "book-finding-our-inner-voice/v4/backgrounds/cb9cedc08e8ef9117919f39626ec25435920f71b0861b3afb782302f8b696356/page-25.png",
+      "page_26": "book-finding-our-inner-voice/v4/backgrounds/76f493e7f75f0b0d7efd11636932d99108160e4a5a15629beb360ecc46eccaf0/page-26.png",
+      "page_27": "book-finding-our-inner-voice/v4/backgrounds/ce80268f265996eba8d6adf59a8ce8424d2436d029b817f13016a2ba6164ad0a/page-27.png",
+      "page_28": "book-finding-our-inner-voice/v4/backgrounds/40733b58f94affb165c5115eb09793b19617f4ea2e796dee06510f095f1865c9/page-28.png",
+      "page_30": "book-finding-our-inner-voice/v4/backgrounds/a650e97e59a9842b8ffaf24828eb2a72461adab5f32f32bf93c30a140ae6a5b7/page-30.png",
+      "coversAmazon": "book-finding-our-inner-voice/v4/backgrounds/49216613198ae313484ab88b977cbcacd92309441a22472faff96698fe66b47b/cover-wrap.png"
+    },
+    "guideBackgrounds": {
+      "page_09": {
+        "cat": "book-finding-our-inner-voice/v4/backgrounds/b1f0d2ace09cca7f91261ae3302509a85aa5f1dd32f2a225f90eb0d4c7f95b75/page-09-cat.png",
+        "dog": "book-finding-our-inner-voice/v4/backgrounds/d822abfe6584e2d227a4a6b18b695ef81b7ce1d143cf717684b50e06ca74c887/page-09-dog.png",
+        "owl": "book-finding-our-inner-voice/v4/backgrounds/2ed10fd7c61af6488587caf31c6355527047efb250228ddb13093602b57e59cf/page-09-owl.png",
+        "lion": "book-finding-our-inner-voice/v4/backgrounds/b237de2537ad3d8cdf903c644dcaf34afac39d5f0d2c8ed5ea3371aab1311438/page-09-lion.png",
+        "t-rex": "book-finding-our-inner-voice/v4/backgrounds/a5b4cbcd70d7988dc8388e1eec594fc0be5eb955ea1adffdb1538d2ee145bd1d/page-09-t-rex.png",
+        "tiger": "book-finding-our-inner-voice/v4/backgrounds/d8d53e59ceddf5760f3cad5eb3f72374170db91d1432ca4397887d0e92e12ba5/page-09-tiger.png",
+        "penguin": "book-finding-our-inner-voice/v4/backgrounds/56dbd094c0def048c9c72a9348f0252b5c911d2805e22bee532a7045ec301efc/page-09-penguin.png",
+        "unicorn": "book-finding-our-inner-voice/v4/backgrounds/9267000d6453128226243bc30cbf87985e96334c556fccd415e792a471edb9bf/page-09-unicorn.png"
+      },
+      "page_10": {
+        "cat": "book-finding-our-inner-voice/v4/backgrounds/8d050fce12d3211cddb4da301404541a00f291af2b21d28b6b441167234a78ac/page-10-cat.png",
+        "dog": "book-finding-our-inner-voice/v4/backgrounds/d824d84f2198ec9698e6a5abdf1abd337ef91bc4378bc81bf745ab1f53f5757b/page-10-dog.png",
+        "owl": "book-finding-our-inner-voice/v4/backgrounds/58464eeff7fad1da8eefb6b7ebcac16257ac716d9fece9b3921473d8a5543dd9/page-10-owl.png",
+        "lion": "book-finding-our-inner-voice/v4/backgrounds/c140bb4de73551b8e825677c3dea48c38b83202b92d678346a7e313824d2e740/page-10-lion.png",
+        "t-rex": "book-finding-our-inner-voice/v4/backgrounds/8860aedcd622031a6b85a275c46f107cb4a84644c01c76f7e98f52589e6dc92b/page-10-t-rex.png",
+        "tiger": "book-finding-our-inner-voice/v4/backgrounds/b134f343d832cfd6c233308e7266ea5c41724e0520ce1d5083f37e0d62b5968c/page-10-tiger.png",
+        "penguin": "book-finding-our-inner-voice/v4/backgrounds/bc8979394a9617e44e73d971563c08de3a165b586f4f3a7d82f1833fe1ad21a5/page-10-penguin.png",
+        "unicorn": "book-finding-our-inner-voice/v4/backgrounds/29000680e12b99a532ef8698a7115dc064b1f776a4e89f5d7583d54777674a19/page-10-unicorn.png"
+      },
+      "page_12": {
+        "cat": "book-finding-our-inner-voice/v5/backgrounds/6f6402933e1a99ccae22e5197362ecec306c2af4dc712127d5e94e19ff037506/trail-cat-12-v5.png",
+        "dog": "book-finding-our-inner-voice/v5/backgrounds/694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1/trail-dog-12-v5.png",
+        "owl": "book-finding-our-inner-voice/v5/backgrounds/541149a1dc7709ec0d0922f61f39743a5a47b10e687bd19287f5717ea7f67bae/trail-owl-12-v5.png",
+        "lion": "book-finding-our-inner-voice/v5/backgrounds/694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1/trail-lion-12-v5.png",
+        "t-rex": "book-finding-our-inner-voice/v5/backgrounds/d68dd7a9d7a9a82122261963bd8d66a9e7f11bac155467f92ce5fd5c55ee7656/trail-t-rex-12-v5.png",
+        "tiger": "book-finding-our-inner-voice/v5/backgrounds/694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1/trail-tiger-12-v5.png",
+        "penguin": "book-finding-our-inner-voice/v5/backgrounds/533559d886116e11dd5be2eb7c03cac1a6eee27fbf812735f34d0b1570ea721b/trail-penguin-12-v5.png",
+        "unicorn": "book-finding-our-inner-voice/v5/backgrounds/37f6c136099b56aaeb07b03e63a5c18c4c1b0bb4689a625340ab125417e180d8/trail-unicorn-12-v5.png"
+      },
+      "page_13": {
+        "cat": "book-finding-our-inner-voice/v5/backgrounds/7c339de59e23d1cbb5954ba50d0d705b0ca7a6e24a77091f065820add1d0baba/trail-cat-13-v5.png",
+        "dog": "book-finding-our-inner-voice/v5/backgrounds/d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454/trail-dog-13-v5.png",
+        "owl": "book-finding-our-inner-voice/v5/backgrounds/b1b7fb895c388677fd48a8ece1b09a2fc21e7d31bc6eea3dd8ae0cb05c09188e/trail-owl-13-v5.png",
+        "lion": "book-finding-our-inner-voice/v5/backgrounds/d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454/trail-lion-13-v5.png",
+        "t-rex": "book-finding-our-inner-voice/v5/backgrounds/702711a782a7e7a9788412b7ca8427911323bd27dbdd8737641b43b14c130c13/trail-t-rex-13-v5.png",
+        "tiger": "book-finding-our-inner-voice/v5/backgrounds/d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454/trail-tiger-13-v5.png",
+        "penguin": "book-finding-our-inner-voice/v5/backgrounds/46507e91d0a6820b3f3902e7c89d436b04b603af022d9b5a8d5afb2d34949f73/trail-penguin-13-v5.png",
+        "unicorn": "book-finding-our-inner-voice/v5/backgrounds/dddbadd568cf7380ba3ce99c8c999bf11e14917a626d61be00d0542d439966de/trail-unicorn-13-v5.png"
+      },
+      "page_24": {
+        "cat": "book-finding-our-inner-voice/v4/backgrounds/8f0440919c9542f13887c228f900dd1372b82e321984cad32c25985113d51e18/page-24-cat.png",
+        "dog": "book-finding-our-inner-voice/v4/backgrounds/e22a2d7b3e083db574fd82023041444dfef669ea7f8006864aacad0f0b54f1b2/page-24-dog.png",
+        "owl": "book-finding-our-inner-voice/v4/backgrounds/3bc1e4286b116b17cdb6c6e0fd4d37dd460e5d022ed3df8045968e92454f6ca5/page-24-owl.png",
+        "lion": "book-finding-our-inner-voice/v4/backgrounds/d62138d4438544f95066805d6a852abbbf9e35d6ffb2154dddaf927f5d218de2/page-24-lion.png",
+        "t-rex": "book-finding-our-inner-voice/v4/backgrounds/a92c21a0072b0a2f04304f4430892077686fe2babfdc54ac44843e426a05b408/page-24-t-rex.png",
+        "tiger": "book-finding-our-inner-voice/v4/backgrounds/ea3157d9958a0bc0f561a743f22e0a72ed4b4adc5c106362203461e1c6295035/page-24-tiger.png",
+        "penguin": "book-finding-our-inner-voice/v4/backgrounds/65667c7ae0455116483e3ee20969ee78649f27a6c1b65928f2190e870b34cba1/page-24-penguin.png",
+        "unicorn": "book-finding-our-inner-voice/v4/backgrounds/d367f95e4b7c1897453111fbf45010345bda3d7fb233dc604aac226cd41887d3/page-24-unicorn.png"
+      }
+    },
+    "guideBackgroundRequiredSlots": [
+      "page_09",
+      "page_10",
+      "page_12",
+      "page_13",
+      "page_24"
+    ]
+  },
+  "bookId": "book-finding-our-inner-voice",
+  "schema": "lhb.book-config@v1",
+  "status": "active",
+  "formats": {
+    "amazon": {
+      "cover": {
+        "spreadSizeIn": {
+          "h": 8.11023622,
+          "w": 16.103543307
+        }
+      },
+      "print": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "apiPageCount": 32,
+        "innerPageCount": 32,
+        "defaultQuantity": 1,
+        "printGeometryMm": {
+          "trim": {
+            "h": 200,
+            "w": 200
+          },
+          "bleed": 3,
+          "spine": {
+            "h": 200,
+            "w": 3.03,
+            "x": 203,
+            "y": 3
+          },
+          "backPanel": {
+            "h": 200,
+            "w": 200,
+            "x": 3,
+            "y": 3
+          },
+          "frontPanel": {
+            "h": 200,
+            "w": 200,
+            "x": 206.03,
+            "y": 3
+          },
+          "coverCanvas": {
+            "h": 206,
+            "w": 409.03
+          },
+          "interiorCanvas": {
+            "h": 206,
+            "w": 206
+          }
+        },
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "shipmentMethodPolicy": {
+          "tiers": {
+            "priority": {
+              "uid": "usps_priority_mail_standard",
+              "kind": "uid"
+            },
+            "standard": {
+              "uid": "usps_ground_advantage",
+              "kind": "uid"
+            },
+            "expedited": {
+              "uid": "ups_2_day",
+              "kind": "uid"
+            }
+          },
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ]
+        }
+      },
+      "trimIn": {
+        "h": 7.874015748,
+        "w": 7.874015748
+      },
+      "bleedIn": {
+        "h": 8.11023622,
+        "w": 8.11023622
+      },
+      "channels": [
+        "amazon"
+      ],
+      "formatId": "amazon",
+      "interior": {
+        "pageSequence": [
+          {
+            "id": "page-01",
+            "type": "title",
+            "index": 0,
+            "label": "p00",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "title",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-02",
+            "type": "blank",
+            "index": 1,
+            "label": "p01",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-03",
+            "type": "dedication",
+            "index": 2,
+            "label": "p02",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_03",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-04",
+            "type": "blank",
+            "index": 3,
+            "label": "p03",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-05",
+            "type": "story",
+            "index": 4,
+            "label": "p04",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "arrival",
+                "placement": {
+                  "top": 1022.7837279894937,
+                  "left": 1137.4540319569383,
+                  "flipX": false,
+                  "width": 1343.0095776480557,
+                  "height": 1343.0095776480557,
+                  "zIndex": 10
+                },
+                "poseNumber": 1
+              }
+            ],
+            "required": true,
+            "poseNumber": 1,
+            "overlaySlot": null,
+            "backgroundSlot": "page_05",
+            "storyPageNumber": 5
+          },
+          {
+            "id": "page-06",
+            "type": "story",
+            "index": 5,
+            "label": "p05",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_06",
+            "storyPageNumber": 6
+          },
+          {
+            "id": "page-07",
+            "type": "story",
+            "index": 6,
+            "label": "p06",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "slide-awe",
+                "placement": {
+                  "top": 1302.8652146299055,
+                  "left": 306.5768066011163,
+                  "flipX": false,
+                  "width": 938.209057124261,
+                  "height": 938.209057124261,
+                  "zIndex": 10
+                },
+                "poseNumber": 2
+              }
+            ],
+            "required": true,
+            "poseNumber": 2,
+            "overlaySlot": null,
+            "backgroundSlot": "page_07",
+            "storyPageNumber": 7
+          },
+          {
+            "id": "page-08",
+            "type": "story",
+            "index": 7,
+            "label": "p07",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_08",
+            "storyPageNumber": 8
+          },
+          {
+            "id": "page-09",
+            "type": "story",
+            "index": 8,
+            "label": "p08",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "sad-seated",
+                "placement": {
+                  "top": 582.1673895979668,
+                  "left": 438.67045387871434,
+                  "flipX": false,
+                  "width": 1306.2221741732546,
+                  "height": 1306.2221741732546,
+                  "zIndex": 10
+                },
+                "poseNumber": 3
+              }
+            ],
+            "required": true,
+            "poseNumber": 3,
+            "overlaySlot": null,
+            "backgroundSlot": "page_09",
+            "storyPageNumber": 9
+          },
+          {
+            "id": "page-10",
+            "type": "story",
+            "index": 9,
+            "label": "p09",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_10",
+            "storyPageNumber": 10
+          },
+          {
+            "id": "page-11",
+            "type": "story",
+            "index": 10,
+            "label": "p10",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "walk",
+                "placement": {
+                  "top": 804.5352275860437,
+                  "left": 134.4723864803475,
+                  "flipX": true,
+                  "width": 1305.0275157844117,
+                  "height": 1305.0275157844117,
+                  "zIndex": 10
+                },
+                "poseNumber": 4
+              }
+            ],
+            "required": true,
+            "poseNumber": 4,
+            "overlaySlot": null,
+            "backgroundSlot": "page_11",
+            "storyPageNumber": 11
+          },
+          {
+            "id": "page-12",
+            "type": "story",
+            "index": 11,
+            "label": "p11",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_12",
+            "storyPageNumber": 12
+          },
+          {
+            "id": "page-13",
+            "type": "story",
+            "index": 12,
+            "label": "p12",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "crouch",
+                "placement": {
+                  "top": 768.9469728739964,
+                  "left": -167.53201799942053,
+                  "flipX": true,
+                  "width": 1494.9427078116162,
+                  "height": 1494.9427078116162,
+                  "zIndex": 10
+                },
+                "poseNumber": 5
+              }
+            ],
+            "required": true,
+            "poseNumber": 5,
+            "overlaySlot": null,
+            "backgroundSlot": "page_13",
+            "storyPageNumber": 13
+          },
+          {
+            "id": "page-14",
+            "type": "story",
+            "index": 13,
+            "label": "p13",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "overwhelmed",
+                "placement": {
+                  "top": 317.7045061720636,
+                  "left": -390.5600510014217,
+                  "flipX": true,
+                  "width": 1329.8467529581092,
+                  "height": 1329.8467529581092,
+                  "zIndex": 10
+                },
+                "poseNumber": 6
+              },
+              {
+                "id": "breath-vignette",
+                "clip": {
+                  "top": 0.11767578125,
+                  "left": 0,
+                  "width": 1,
+                  "height": 0.427734375,
+                  "cornerRadiusPercent": 12
+                },
+                "kind": "pose",
+                "poseId": "breath",
+                "placement": {
+                  "top": 1485.0630736631879,
+                  "left": 446.22129737341754,
+                  "flipX": false,
+                  "width": 2099.92849862067,
+                  "height": 2099.92849862067,
+                  "zIndex": 11
+                },
+                "poseNumber": 7
+              }
+            ],
+            "required": true,
+            "poseNumber": 6,
+            "overlaySlot": null,
+            "backgroundSlot": "page_14",
+            "storyPageNumber": 14
+          },
+          {
+            "id": "page-15",
+            "type": "story",
+            "index": 14,
+            "label": "p14",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "crawl",
+                "placement": {
+                  "top": 1291.60505362802,
+                  "left": -77.41471344486865,
+                  "flipX": false,
+                  "width": 1505.0840712294582,
+                  "height": 1505.0840712294582,
+                  "zIndex": 10
+                },
+                "poseNumber": 8
+              }
+            ],
+            "required": true,
+            "poseNumber": 8,
+            "overlaySlot": null,
+            "backgroundSlot": "page_15",
+            "storyPageNumber": 15
+          },
+          {
+            "id": "page-16",
+            "type": "story",
+            "index": 15,
+            "label": "p15",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_16",
+            "storyPageNumber": 16
+          },
+          {
+            "id": "page-17",
+            "type": "story",
+            "index": 16,
+            "label": "p16",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "climb",
+                "placement": {
+                  "top": 889.8071458628981,
+                  "left": 1198.9538421552597,
+                  "flipX": false,
+                  "width": 1183.2170457454174,
+                  "height": 1183.2170457454174,
+                  "zIndex": 10
+                },
+                "poseNumber": 9
+              }
+            ],
+            "required": true,
+            "poseNumber": 9,
+            "overlaySlot": null,
+            "backgroundSlot": "page_17",
+            "storyPageNumber": 17
+          },
+          {
+            "id": "page-18",
+            "type": "story",
+            "index": 17,
+            "label": "p17",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_18",
+            "storyPageNumber": 18
+          },
+          {
+            "id": "page-19",
+            "type": "story",
+            "index": 18,
+            "label": "p18",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "breath",
+                "placement": {
+                  "top": 534.782580408889,
+                  "left": 577.3846988239928,
+                  "flipX": false,
+                  "width": 1854.0004558596827,
+                  "height": 1854.0004558596827,
+                  "zIndex": 10
+                },
+                "poseNumber": 7
+              }
+            ],
+            "required": true,
+            "poseNumber": 7,
+            "overlaySlot": null,
+            "backgroundSlot": "page_19",
+            "storyPageNumber": 19
+          },
+          {
+            "id": "page-20",
+            "type": "story",
+            "index": 19,
+            "label": "p19",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_20",
+            "storyPageNumber": 20
+          },
+          {
+            "id": "page-21",
+            "type": "story",
+            "index": 20,
+            "label": "p20",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_21",
+            "storyPageNumber": 21
+          },
+          {
+            "id": "page-22",
+            "type": "story",
+            "index": 21,
+            "label": "p21",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_22",
+            "storyPageNumber": 22
+          },
+          {
+            "id": "page-23",
+            "type": "story",
+            "index": 22,
+            "label": "p22",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "run",
+                "placement": {
+                  "top": 1072.785747123015,
+                  "left": 607.8426849071927,
+                  "flipX": true,
+                  "width": 1189.5267363245237,
+                  "height": 1189.5267363245237,
+                  "zIndex": 10
+                },
+                "poseNumber": 10
+              }
+            ],
+            "required": true,
+            "poseNumber": 10,
+            "overlaySlot": null,
+            "backgroundSlot": "page_23",
+            "storyPageNumber": 23
+          },
+          {
+            "id": "page-24",
+            "type": "story",
+            "index": 23,
+            "label": "p23",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_24",
+            "storyPageNumber": 24
+          },
+          {
+            "id": "page-25",
+            "type": "story",
+            "index": 24,
+            "label": "p24",
+            "layers": [
+              {
+                "id": "guide-appears",
+                "kind": "animal",
+                "role": "appears",
+                "placement": {
+                  "top": 786.6611959563564,
+                  "left": 550.3791812010782,
+                  "flipX": false,
+                  "width": 1400,
+                  "height": 1400,
+                  "zIndex": 10
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_25",
+            "storyPageNumber": 25
+          },
+          {
+            "id": "page-26",
+            "type": "story",
+            "index": 25,
+            "label": "p25",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "fly",
+                "placement": {
+                  "top": 760.0057892451794,
+                  "left": 397.9696951723654,
+                  "flipX": false,
+                  "width": 1249.3867380812883,
+                  "height": 1249.3867380812883,
+                  "zIndex": 10
+                },
+                "poseNumber": 11
+              },
+              {
+                "id": "guide-flying",
+                "kind": "animal",
+                "role": "flying",
+                "placement": {
+                  "top": 1073.3385829229958,
+                  "left": 1133.4720440240374,
+                  "flipX": false,
+                  "width": 1000,
+                  "height": 1000,
+                  "zIndex": 11
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": 11,
+            "overlaySlot": null,
+            "backgroundSlot": "page_26",
+            "storyPageNumber": 26
+          },
+          {
+            "id": "page-27",
+            "type": "story",
+            "index": 26,
+            "label": "p26",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_27",
+            "storyPageNumber": 27
+          },
+          {
+            "id": "page-28",
+            "type": "story",
+            "index": 27,
+            "label": "p27",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "calm-speaking",
+                "placement": {
+                  "top": 969.3909580114102,
+                  "left": 899.4632443528459,
+                  "flipX": false,
+                  "width": 1257.7982292637464,
+                  "height": 1257.7982292637464,
+                  "zIndex": 10
+                },
+                "poseNumber": 12
+              },
+              {
+                "id": "waiting-child",
+                "kind": "overlay",
+                "assetSlot": "waitingChild",
+                "placement": {
+                  "top": 955.8066989870007,
+                  "left": 1586.8845683393783,
+                  "flipX": false,
+                  "width": 1159.666469784838,
+                  "height": 1234.0529703137995,
+                  "zIndex": 11
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": 12,
+            "overlaySlot": null,
+            "backgroundSlot": "page_28",
+            "storyPageNumber": 28
+          },
+          {
+            "id": "page-29",
+            "type": "blank",
+            "index": 28,
+            "label": "p28",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-30",
+            "type": "ending",
+            "index": 29,
+            "label": "p29",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_30",
+            "storyPageNumber": 30
+          },
+          {
+            "id": "page-31",
+            "type": "credits",
+            "index": 30,
+            "label": "p30",
+            "layers": [
+              {
+                "id": "publisher-color-mark",
+                "kind": "overlay",
+                "assetSlot": "lhl-color-mark",
+                "placement": {
+                  "left": 1112.5,
+                  "top": 330,
+                  "width": 400,
+                  "height": 523.4,
+                  "zIndex": 15
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "credits",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-32",
+            "type": "blank",
+            "index": 31,
+            "label": "p31",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          }
+        ],
+        "expectedPageCount": 32
+      },
+      "templates": {
+        "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75",
+        "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172"
+      }
+    },
+    "standard": {
+      "cover": {
+        "spreadSizeIn": {
+          "h": 8.11023622,
+          "w": 16.103543307
+        }
+      },
+      "print": {
+        "provider": "gelato",
+        "productUid": "photobooks-softcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_250-gsm-100-lb-cover-coated-silk_ver",
+        "apiPageCount": 32,
+        "innerPageCount": 32,
+        "defaultQuantity": 1,
+        "printGeometryMm": {
+          "trim": {
+            "h": 200,
+            "w": 200
+          },
+          "bleed": 3,
+          "spine": {
+            "h": 200,
+            "w": 3.03,
+            "x": 203,
+            "y": 3
+          },
+          "backPanel": {
+            "h": 200,
+            "w": 200,
+            "x": 3,
+            "y": 3
+          },
+          "frontPanel": {
+            "h": 200,
+            "w": 200,
+            "x": 206.03,
+            "y": 3
+          },
+          "coverCanvas": {
+            "h": 206,
+            "w": 409.03
+          },
+          "interiorCanvas": {
+            "h": 206,
+            "w": 206
+          }
+        },
+        "apiPageCountVerified": true,
+        "expectedPdfPageCount": 35,
+        "shipmentMethodPolicy": {
+          "tiers": {
+            "priority": {
+              "uid": "usps_priority_mail_standard",
+              "kind": "uid"
+            },
+            "standard": {
+              "uid": "usps_ground_advantage",
+              "kind": "uid"
+            },
+            "expedited": {
+              "uid": "ups_2_day",
+              "kind": "uid"
+            }
+          },
+          "version": 2,
+          "destinationCountries": [
+            "US"
+          ]
+        }
+      },
+      "trimIn": {
+        "h": 7.874015748,
+        "w": 7.874015748
+      },
+      "bleedIn": {
+        "h": 8.11023622,
+        "w": 8.11023622
+      },
+      "channels": [
+        "d2c"
+      ],
+      "formatId": "standard",
+      "interior": {
+        "pageSequence": [
+          {
+            "id": "page-01",
+            "type": "title",
+            "index": 0,
+            "label": "p00",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "title",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-02",
+            "type": "blank",
+            "index": 1,
+            "label": "p01",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-03",
+            "type": "dedication",
+            "index": 2,
+            "label": "p02",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_03",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-04",
+            "type": "blank",
+            "index": 3,
+            "label": "p03",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-05",
+            "type": "story",
+            "index": 4,
+            "label": "p04",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "arrival",
+                "placement": {
+                  "top": 1022.7837279894937,
+                  "left": 1137.4540319569383,
+                  "flipX": false,
+                  "width": 1343.0095776480557,
+                  "height": 1343.0095776480557,
+                  "zIndex": 10
+                },
+                "poseNumber": 1
+              }
+            ],
+            "required": true,
+            "poseNumber": 1,
+            "overlaySlot": null,
+            "backgroundSlot": "page_05",
+            "storyPageNumber": 5
+          },
+          {
+            "id": "page-06",
+            "type": "story",
+            "index": 5,
+            "label": "p05",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_06",
+            "storyPageNumber": 6
+          },
+          {
+            "id": "page-07",
+            "type": "story",
+            "index": 6,
+            "label": "p06",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "slide-awe",
+                "placement": {
+                  "top": 1302.8652146299055,
+                  "left": 306.5768066011163,
+                  "flipX": false,
+                  "width": 938.209057124261,
+                  "height": 938.209057124261,
+                  "zIndex": 10
+                },
+                "poseNumber": 2
+              }
+            ],
+            "required": true,
+            "poseNumber": 2,
+            "overlaySlot": null,
+            "backgroundSlot": "page_07",
+            "storyPageNumber": 7
+          },
+          {
+            "id": "page-08",
+            "type": "story",
+            "index": 7,
+            "label": "p07",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_08",
+            "storyPageNumber": 8
+          },
+          {
+            "id": "page-09",
+            "type": "story",
+            "index": 8,
+            "label": "p08",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "sad-seated",
+                "placement": {
+                  "top": 582.1673895979668,
+                  "left": 438.67045387871434,
+                  "flipX": false,
+                  "width": 1306.2221741732546,
+                  "height": 1306.2221741732546,
+                  "zIndex": 10
+                },
+                "poseNumber": 3
+              }
+            ],
+            "required": true,
+            "poseNumber": 3,
+            "overlaySlot": null,
+            "backgroundSlot": "page_09",
+            "storyPageNumber": 9
+          },
+          {
+            "id": "page-10",
+            "type": "story",
+            "index": 9,
+            "label": "p09",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_10",
+            "storyPageNumber": 10
+          },
+          {
+            "id": "page-11",
+            "type": "story",
+            "index": 10,
+            "label": "p10",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "walk",
+                "placement": {
+                  "top": 804.5352275860437,
+                  "left": 134.4723864803475,
+                  "flipX": true,
+                  "width": 1305.0275157844117,
+                  "height": 1305.0275157844117,
+                  "zIndex": 10
+                },
+                "poseNumber": 4
+              }
+            ],
+            "required": true,
+            "poseNumber": 4,
+            "overlaySlot": null,
+            "backgroundSlot": "page_11",
+            "storyPageNumber": 11
+          },
+          {
+            "id": "page-12",
+            "type": "story",
+            "index": 11,
+            "label": "p11",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_12",
+            "storyPageNumber": 12
+          },
+          {
+            "id": "page-13",
+            "type": "story",
+            "index": 12,
+            "label": "p12",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "crouch",
+                "placement": {
+                  "top": 768.9469728739964,
+                  "left": -167.53201799942053,
+                  "flipX": true,
+                  "width": 1494.9427078116162,
+                  "height": 1494.9427078116162,
+                  "zIndex": 10
+                },
+                "poseNumber": 5
+              }
+            ],
+            "required": true,
+            "poseNumber": 5,
+            "overlaySlot": null,
+            "backgroundSlot": "page_13",
+            "storyPageNumber": 13
+          },
+          {
+            "id": "page-14",
+            "type": "story",
+            "index": 13,
+            "label": "p13",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "overwhelmed",
+                "placement": {
+                  "top": 317.7045061720636,
+                  "left": -390.5600510014217,
+                  "flipX": true,
+                  "width": 1329.8467529581092,
+                  "height": 1329.8467529581092,
+                  "zIndex": 10
+                },
+                "poseNumber": 6
+              },
+              {
+                "id": "breath-vignette",
+                "clip": {
+                  "top": 0.11767578125,
+                  "left": 0,
+                  "width": 1,
+                  "height": 0.427734375,
+                  "cornerRadiusPercent": 12
+                },
+                "kind": "pose",
+                "poseId": "breath",
+                "placement": {
+                  "top": 1485.0630736631879,
+                  "left": 446.22129737341754,
+                  "flipX": false,
+                  "width": 2099.92849862067,
+                  "height": 2099.92849862067,
+                  "zIndex": 11
+                },
+                "poseNumber": 7
+              }
+            ],
+            "required": true,
+            "poseNumber": 6,
+            "overlaySlot": null,
+            "backgroundSlot": "page_14",
+            "storyPageNumber": 14
+          },
+          {
+            "id": "page-15",
+            "type": "story",
+            "index": 14,
+            "label": "p14",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "crawl",
+                "placement": {
+                  "top": 1291.60505362802,
+                  "left": -77.41471344486865,
+                  "flipX": false,
+                  "width": 1505.0840712294582,
+                  "height": 1505.0840712294582,
+                  "zIndex": 10
+                },
+                "poseNumber": 8
+              }
+            ],
+            "required": true,
+            "poseNumber": 8,
+            "overlaySlot": null,
+            "backgroundSlot": "page_15",
+            "storyPageNumber": 15
+          },
+          {
+            "id": "page-16",
+            "type": "story",
+            "index": 15,
+            "label": "p15",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_16",
+            "storyPageNumber": 16
+          },
+          {
+            "id": "page-17",
+            "type": "story",
+            "index": 16,
+            "label": "p16",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "climb",
+                "placement": {
+                  "top": 889.8071458628981,
+                  "left": 1198.9538421552597,
+                  "flipX": false,
+                  "width": 1183.2170457454174,
+                  "height": 1183.2170457454174,
+                  "zIndex": 10
+                },
+                "poseNumber": 9
+              }
+            ],
+            "required": true,
+            "poseNumber": 9,
+            "overlaySlot": null,
+            "backgroundSlot": "page_17",
+            "storyPageNumber": 17
+          },
+          {
+            "id": "page-18",
+            "type": "story",
+            "index": 17,
+            "label": "p17",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_18",
+            "storyPageNumber": 18
+          },
+          {
+            "id": "page-19",
+            "type": "story",
+            "index": 18,
+            "label": "p18",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "breath",
+                "placement": {
+                  "top": 534.782580408889,
+                  "left": 577.3846988239928,
+                  "flipX": false,
+                  "width": 1854.0004558596827,
+                  "height": 1854.0004558596827,
+                  "zIndex": 10
+                },
+                "poseNumber": 7
+              }
+            ],
+            "required": true,
+            "poseNumber": 7,
+            "overlaySlot": null,
+            "backgroundSlot": "page_19",
+            "storyPageNumber": 19
+          },
+          {
+            "id": "page-20",
+            "type": "story",
+            "index": 19,
+            "label": "p19",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_20",
+            "storyPageNumber": 20
+          },
+          {
+            "id": "page-21",
+            "type": "story",
+            "index": 20,
+            "label": "p20",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_21",
+            "storyPageNumber": 21
+          },
+          {
+            "id": "page-22",
+            "type": "story",
+            "index": 21,
+            "label": "p21",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_22",
+            "storyPageNumber": 22
+          },
+          {
+            "id": "page-23",
+            "type": "story",
+            "index": 22,
+            "label": "p22",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "run",
+                "placement": {
+                  "top": 1072.785747123015,
+                  "left": 607.8426849071927,
+                  "flipX": true,
+                  "width": 1189.5267363245237,
+                  "height": 1189.5267363245237,
+                  "zIndex": 10
+                },
+                "poseNumber": 10
+              }
+            ],
+            "required": true,
+            "poseNumber": 10,
+            "overlaySlot": null,
+            "backgroundSlot": "page_23",
+            "storyPageNumber": 23
+          },
+          {
+            "id": "page-24",
+            "type": "story",
+            "index": 23,
+            "label": "p23",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_24",
+            "storyPageNumber": 24
+          },
+          {
+            "id": "page-25",
+            "type": "story",
+            "index": 24,
+            "label": "p24",
+            "layers": [
+              {
+                "id": "guide-appears",
+                "kind": "animal",
+                "role": "appears",
+                "placement": {
+                  "top": 786.6611959563564,
+                  "left": 550.3791812010782,
+                  "flipX": false,
+                  "width": 1400,
+                  "height": 1400,
+                  "zIndex": 10
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_25",
+            "storyPageNumber": 25
+          },
+          {
+            "id": "page-26",
+            "type": "story",
+            "index": 25,
+            "label": "p25",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "fly",
+                "placement": {
+                  "top": 760.0057892451794,
+                  "left": 397.9696951723654,
+                  "flipX": false,
+                  "width": 1249.3867380812883,
+                  "height": 1249.3867380812883,
+                  "zIndex": 10
+                },
+                "poseNumber": 11
+              },
+              {
+                "id": "guide-flying",
+                "kind": "animal",
+                "role": "flying",
+                "placement": {
+                  "top": 1073.3385829229958,
+                  "left": 1133.4720440240374,
+                  "flipX": false,
+                  "width": 1000,
+                  "height": 1000,
+                  "zIndex": 11
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": 11,
+            "overlaySlot": null,
+            "backgroundSlot": "page_26",
+            "storyPageNumber": 26
+          },
+          {
+            "id": "page-27",
+            "type": "story",
+            "index": 26,
+            "label": "p26",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_27",
+            "storyPageNumber": 27
+          },
+          {
+            "id": "page-28",
+            "type": "story",
+            "index": 27,
+            "label": "p27",
+            "layers": [
+              {
+                "id": "hero",
+                "kind": "pose",
+                "poseId": "calm-speaking",
+                "placement": {
+                  "top": 969.3909580114102,
+                  "left": 899.4632443528459,
+                  "flipX": false,
+                  "width": 1257.7982292637464,
+                  "height": 1257.7982292637464,
+                  "zIndex": 10
+                },
+                "poseNumber": 12
+              },
+              {
+                "id": "waiting-child",
+                "kind": "overlay",
+                "assetSlot": "waitingChild",
+                "placement": {
+                  "top": 955.8066989870007,
+                  "left": 1586.8845683393783,
+                  "flipX": false,
+                  "width": 1159.666469784838,
+                  "height": 1234.0529703137995,
+                  "zIndex": 11
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": 12,
+            "overlaySlot": null,
+            "backgroundSlot": "page_28",
+            "storyPageNumber": 28
+          },
+          {
+            "id": "page-29",
+            "type": "blank",
+            "index": 28,
+            "label": "p28",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-30",
+            "type": "ending",
+            "index": 29,
+            "label": "p29",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "page_30",
+            "storyPageNumber": 30
+          },
+          {
+            "id": "page-31",
+            "type": "credits",
+            "index": 30,
+            "label": "p30",
+            "layers": [
+              {
+                "id": "publisher-color-mark",
+                "kind": "overlay",
+                "assetSlot": "lhl-color-mark",
+                "placement": {
+                  "left": 1112.5,
+                  "top": 330,
+                  "width": 400,
+                  "height": 523.4,
+                  "zIndex": 15
+                }
+              }
+            ],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "credits",
+            "storyPageNumber": null
+          },
+          {
+            "id": "page-32",
+            "type": "blank",
+            "index": 31,
+            "label": "p31",
+            "layers": [],
+            "required": true,
+            "poseNumber": null,
+            "overlaySlot": null,
+            "backgroundSlot": "blank",
+            "storyPageNumber": null
+          }
+        ],
+        "expectedPageCount": 32
+      },
+      "templates": {
+        "pdfMonkeyCoverTemplateId": "D52F14C8-BBC3-4058-929F-195DFC707E75",
+        "pdfMonkeyInteriorTemplateId": "5539DDB4-EC78-4AE9-A3FB-DB1E7F8DD172"
+      }
+    }
+  },
+  "version": 5,
+  "logistics": {},
+  "rendering": {
+    "pdf": {
+      "coverFilenamePattern": "cover_{orderId}.pdf",
+      "interiorFilenamePattern": "interior_{orderId}.pdf"
+    },
+    "html": {
+      "useImageBackgrounds": true
+    },
+    "recipe": {
+      "copy": {
+        "page-01": [
+          {
+            "id": "title-artwork-text",
+            "text": "",
+            "placement": {
+              "left": 0,
+              "top": 0,
+              "width": 2625,
+              "zIndex": 50
+            },
+            "fontSize": 74,
+            "lineHeight": 1.2,
+            "color": "#000000",
+            "align": "left",
+            "padding": 0
+          }
+        ],
+        "page-03": [
+          {
+            "id": "text-03-01",
+            "text": "[dedication message]",
+            "align": "center",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 92.60416666666666,
+            "placement": {
+              "top": 1150,
+              "left": 500,
+              "width": 1625,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.4
+          }
+        ],
+        "page-05": [
+          {
+            "id": "text-05-01",
+            "text": "This was [Child Name]'s favorite park\nin all of [Hometown].",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 149.625,
+              "left": 168,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-05-02",
+            "text": "Swings",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 420,
+              "left": 168,
+              "width": 254.57714843749997,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-05-03",
+            "text": "squeaked.",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 111.125,
+            "placement": {
+              "top": 393.3188469689699,
+              "left": 435.1114423072117,
+              "width": 517.9564208984375,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 0.875
+          },
+          {
+            "id": "text-05-04",
+            "text": "Sneakers",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 577.2722485152408,
+              "left": 170.25680345765917,
+              "width": 332.7119140625,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-05-05",
+            "text": "thumped.",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 111.125,
+            "placement": {
+              "top": 546.366171825016,
+              "left": 515.4898649619622,
+              "width": 474.76525878906244,
+              "zIndex": 50,
+              "rotateDeg": 2
+            },
+            "lineHeight": 0.875
+          },
+          {
+            "id": "text-05-06",
+            "text": "Kids laughed and called,",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 749.174164901997,
+              "left": 171.71321240679546,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-05-07",
+            "text": "\"Again, again!\"",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 115.75520833333333,
+            "placement": {
+              "top": 719.6634602317883,
+              "left": 1024.3771230510924,
+              "width": 1521.8728769489076,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 0.84
+          },
+          {
+            "id": "text-05-08",
+            "text": "[Child Name] ran in, ready to play.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 921.7646865698289,
+                "left": 507.1351342960877,
+                "width": 2050,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 921.7646865698289,
+              "left": 507.1351342960877,
+              "width": 1732.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-06": [
+          {
+            "id": "text-06-01",
+            "text": "Swings. Tunnels. Sand.\nA climbing wall like a mountain.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 156.40539178615663,
+              "left": 202.42721334317832,
+              "width": 1811.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-06-02",
+            "text": "[Child Name] looked left, then right.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 402.235137195122,
+              "left": 338.584318579697,
+              "width": 1811.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-06-03",
+            "text": "\"What should I try first?\"",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "placement": {
+              "top": 554.465131061833,
+              "left": 502.8780458031629,
+              "width": 1758.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2352941176470589
+          },
+          {
+            "id": "text-06-04",
+            "text": "Then came a",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 704.3391738519435,
+              "left": 680.4289238162157,
+              "width": 439.7854817708333,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-06-05",
+            "text": "whoosh",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 148.16666666666666,
+            "placement": {
+              "top": 695.5519308943088,
+              "left": 1150.9766002127794,
+              "width": 502.00390624999994,
+              "zIndex": 50,
+              "rotateDeg": -4
+            },
+            "lineHeight": 0.65625
+          },
+          {
+            "id": "text-06-06",
+            "text": "from way up high.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 861.9523613933632,
+              "left": 1170.4094480196022,
+              "width": 618.2655436197916,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-07": [
+          {
+            "id": "text-07-01",
+            "text": "It was the tall slide.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 157.5,
+              "left": 183.75,
+              "width": 1653.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-02",
+            "text": "Kids climbed up.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 315,
+              "left": 183.75,
+              "width": 1732.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-03",
+            "text": "Kids sat down.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 315.10459226289777,
+              "left": 776.9874779837982,
+              "width": 1732.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-04",
+            "text": "Kids",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 468.9455060261052,
+              "left": 179.57383690810786,
+              "width": 169.35237630208331,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-05",
+            "text": "whooshed",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 111.125,
+            "placement": {
+              "top": 470.4670843853214,
+              "left": 359.9825191342734,
+              "width": 495.49267578124994,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 0.875
+          },
+          {
+            "id": "text-07-06",
+            "text": "all the way",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 472.8518490675019,
+              "left": 893.1289657964937,
+              "width": 391.31298828125,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-07",
+            "text": "to the bottom.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 480.0228658536585,
+              "left": 1297.6028963414635,
+              "width": 1248.6471036585365,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-08",
+            "text": "\"Again, again!\"",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 111.125,
+            "placement": {
+              "top": 632.5042026294345,
+              "left": 177.3307931443836,
+              "width": 733.586669921875,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 0.875
+          },
+          {
+            "id": "text-07-09",
+            "text": "they shouted.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 647.9206219606143,
+              "left": 910.3604447148558,
+              "width": 476.8994954427083,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-10",
+            "text": "[Child Name] looked up.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 798.1748058489994,
+              "left": 173.06201339956692,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-11",
+            "text": "The slide looked fun.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 940.4512196364885,
+              "left": 177.5740447722316,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-12",
+            "text": "It also looked",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 940.116729070573,
+              "left": 880.789030000158,
+              "width": 477.1888834635417,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-07-13",
+            "text": "very, very tall.",
+            "align": "left",
+            "color": "#4c3024",
+            "padding": 0,
+            "fontSize": 101.86458333333333,
+            "placement": {
+              "top": 1050.9762678280035,
+              "left": 393.34936522151713,
+              "width": 708.5636494954427,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 0.9545454545454546
+          }
+        ],
+        "page-08": [
+          {
+            "id": "text-08-01",
+            "text": "[Child Name] climbed to the top.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 157.5,
+              "left": 183.75,
+              "width": 2047.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-08-02",
+            "text": "The slide looked even longer from here.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 306.68563623117166,
+              "left": 188.4341260796545,
+              "width": 2021.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-08-03",
+            "text": "\"Your turn!\"  \"Go!\"  \"It's fun!\"",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "placement": {
+              "top": 468.6428985195679,
+              "left": 180.25726028341663,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 1.1666666666666667
+          },
+          {
+            "id": "text-08-04",
+            "text": "[Child Name]'s tummy flipped.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 60,
+              "minChars": 13,
+              "placement": {
+                "top": 607.9596797317541,
+                "left": 189.69452548621942,
+                "width": 1350,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 607.9596797317541,
+              "left": 189.69452548621942,
+              "width": 1128.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-08-05",
+            "text": "The top felt small.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 738.3918987935103,
+              "left": 186.8169142470971,
+              "width": 997.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-08-06",
+            "text": "The slide felt big.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 738.3715972607515,
+              "left": 827.9410344358632,
+              "width": 997.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-08-07",
+            "text": "[Child Name] did not know \nwhat to do.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 1072.2866216966436,
+              "left": 1529.781713639745,
+              "width": 896.7278532988346,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-09": [
+          {
+            "id": "text-09-01",
+            "text": "That night, [Child Name]\nsat quietly on the bed.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 60,
+              "minChars": 13,
+              "placement": {
+                "top": 1121.5875657094418,
+                "left": 1473.0008672615388,
+                "width": 1100,
+                "zIndex": 50,
+                "rotateDeg": 0
+              },
+              "keepNameTogether": true
+            },
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1121.5875657094418,
+              "left": 1473.0008672615388,
+              "width": 1000,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-09-03",
+            "text": "The big feeling was still there.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1378.6694757677544,
+              "left": 1476.3073092001184,
+              "width": 1083.3434326406175,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-09-04",
+            "text": "\"Your turn!\" \"Go!\" \"It's fun!\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1533.5981498615756,
+              "left": 1480.0860999870665,
+              "width": 1000,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.4705882352941178
+          },
+          {
+            "id": "text-09-07",
+            "text": "\"That was scary,\" said a tiny voice.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 2012.0994307212318,
+              "left": 320.47102300310775,
+              "width": 1830,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-09-08",
+            "text": "[Child Name] nodded. \"Yes.\"",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 2146.0282959452975,
+              "left": 336.1503293555437,
+              "width": 1830,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-09-09",
+            "text": "\"Oh! You can hear me now.\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 2287.027528729869,
+              "left": 346.2533976432229,
+              "width": 1830,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-10": [
+          {
+            "id": "text-10-01",
+            "text": "\"Who said that?\" asked [Child Name].",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 95,
+                "left": 600,
+                "width": 1925,
+                "zIndex": 50,
+                "rotateDeg": 0
+              },
+              "keepNameTogether": true
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 198.03841551191425,
+              "left": 1226.464662503216,
+              "width": 1146.3424729477192,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-10-02",
+            "text": "A light blinked  beside the bed.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 361.19756238669595,
+              "left": 1395.1284392371915,
+              "width": 997.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-10-03",
+            "text": "Then another.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 495.9954228304526,
+              "left": 1445.4755025695513,
+              "width": 887.9813412404294,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 1
+          },
+          {
+            "id": "text-10-04",
+            "text": "Then another.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 639.3873017656074,
+              "left": 1458.6489415350693,
+              "width": 1050,
+              "zIndex": 50,
+              "rotateDeg": 2
+            },
+            "lineHeight": 1
+          },
+          {
+            "id": "text-10-05",
+            "text": "The lights made a path\nacross the floor.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 830.5767157153574,
+              "left": 1405.0206431464796,
+              "width": 1128.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-10-06",
+            "text": "\"Let's look together,\"\nsaid the tiny voice.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1091.5415373411493,
+              "left": 1226.1249011025313,
+              "width": 1233.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-11": [
+          {
+            "id": "text-11-01",
+            "text": "[Child Name] followed the lights.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 178.97345361869873,
+              "left": 157.5313010331168,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-11-02",
+            "text": "The walls became trees.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 299.31046501571484,
+              "left": 159.93216855724307,
+              "width": 1968.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-11-03",
+            "text": "The rug became moss.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 291.35208994221307,
+              "left": 994.4635499116939,
+              "width": 1415.6451178536836,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-11-04",
+            "text": "The ceiling filled with stars.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 433.2074963348333,
+              "left": 161.27229093997477,
+              "width": 1968.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-11-05",
+            "text": "\"This way,\" said the voice. \"Whenever you're ready.\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 562.2711301683669,
+              "left": 156.56430014565697,
+              "width": 1852.2188636940866,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5294117647058822
+          }
+        ],
+        "page-12": [
+          {
+            "id": "text-12-trail-dialogue",
+            "text": "On the path lay a trail of [animal clues].\n[Child Name] looked left. Then right.\n\"Where are you?\" called [Child Name].",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 540,
+              "left": 613,
+              "width": 1900,
+              "zIndex": 50,
+              "rotateDeg": 0,
+              "height": 700
+            },
+            "lineHeight": 1.3125,
+            "flow": {
+              "paragraphs": [
+                {
+                  "runs": [
+                    {
+                      "text": "On the path lay a trail of "
+                    },
+                    {
+                      "text": "[animal clues]",
+                      "style": {
+                        "sizeRatio": 1.15,
+                        "rotateDeg": -3
+                      },
+                      "keepWithNext": true,
+                      "atomicPhrase": true
+                    },
+                    {
+                      "text": "."
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "[Child Name] looked "
+                    },
+                    {
+                      "text": "left.",
+                      "style": {
+                        "sizeRatio": 1.15,
+                        "rotateDeg": -3
+                      }
+                    },
+                    {
+                      "text": " Then "
+                    },
+                    {
+                      "text": "right.",
+                      "style": {
+                        "sizeRatio": 1.15,
+                        "rotateDeg": 3
+                      }
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "\"Where are you?\"",
+                      "style": {
+                        "sizeRatio": 1.1
+                      }
+                    },
+                    {
+                      "text": " called [Child Name]."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "page-13": [
+          {
+            "id": "text-13-01",
+            "text": "Something rustled  in a bush.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 555.6128518830626,
+              "left": 1069.7717857834084,
+              "width": 1050,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-13-02",
+            "text": "\"Are you hiding?\"",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 679.8153719346872,
+              "left": 1068.405477829983,
+              "width": 1128.75,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 1.1666666666666667
+          },
+          {
+            "id": "text-13-03",
+            "text": "asked [Child Name].",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 760,
+                "left": 1114,
+                "width": 1430,
+                "zIndex": 50,
+                "rotateDeg": 0
+              },
+              "keepNameTogether": true
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 678.8828446348197,
+              "left": 1726.6625156440984,
+              "width": 1050,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-13-04",
+            "text": "The bush rustled again.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "minChars": 13,
+              "placement": {
+                "top": 850,
+                "left": 1072.5998944902703,
+                "width": 1076.25,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 803.3265040460014,
+              "left": 1072.5998944902703,
+              "width": 1076.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-13-05",
+            "text": "Then it sneezed.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "minChars": 13,
+              "placement": {
+                "top": 850,
+                "left": 1910,
+                "width": 635,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 804.4515709693743,
+              "left": 1886.8615178765892,
+              "width": 743.5846643451002,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-13-06",
+            "text": "\"Achoo!\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 143.53645833333331,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1305.9387032734892,
+              "left": 2022.569347978235,
+              "width": 547.4423207487098,
+              "zIndex": 50,
+              "rotateDeg": 8
+            },
+            "lineHeight": 0.6774193548387096
+          },
+          {
+            "id": "text-13-07",
+            "text": "Bushes do not usually sneeze.",
+            "align": "center",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 2220.5481567782836,
+              "left": 212.05187927420383,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-14": [
+          {
+            "id": "text-14-01",
+            "text": "Before [Child Name] could peek, voices called from every direction.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 133.5654726336943,
+                "left": 239.90133770641376,
+                "width": 1350,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 133.5654726336943,
+              "left": 239.90133770641376,
+              "width": 1266.473700876657,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-14-02",
+            "text": "\"This way!\" blinked a star.\n\"No, this way!\" puffed the wind.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 811.7271783254682,
+              "left": 1405.3253470203367,
+              "width": 1149.6631066744808,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.625
+          },
+          {
+            "id": "text-14-03",
+            "text": "\"Hop!\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1045.4424928668407,
+              "left": 1411.6566587435352,
+              "width": 263.0688781738281,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 1
+          },
+          {
+            "id": "text-14-04",
+            "text": "said a mushroom.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1056.546193204074,
+              "left": 1694.9418181732533,
+              "width": 611.4649251302084,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-14-05",
+            "text": "\"Skip!\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1160.3125905331485,
+              "left": 1407.7941125412847,
+              "width": 286.7127838134765,
+              "zIndex": 50,
+              "rotateDeg": 3
+            },
+            "lineHeight": 1
+          },
+          {
+            "id": "text-14-06",
+            "text": "said a stone.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1182.7757882149967,
+              "left": 1699.1179711409554,
+              "width": 452.301513671875,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-15-01",
+            "text": "\"Too many voices make it hard to hear your own,\"",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1607.6004165971576,
+              "left": 171.01422037135617,
+              "width": 1734.8886644359743,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-15-02",
+            "text": "said the tiny voice.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1727.272518985331,
+              "left": 190.6758119140157,
+              "width": 1155,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-15-03",
+            "text": "[Child Name] stopped.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 60,
+              "minChars": 13,
+              "placement": {
+                "top": 1830,
+                "left": 181.60278393531257,
+                "width": 1000,
+                "zIndex": 50,
+                "rotateDeg": 0
+              },
+              "keepNameTogether": true
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1842.996092519925,
+              "left": 181.60278393531257,
+              "width": 1312.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-15-04",
+            "text": "One slow breath.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1962.3018108814554,
+              "left": 182.44560065974193,
+              "width": 1207.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.1904761904761905
+          },
+          {
+            "id": "text-15-05",
+            "text": "Then listened.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 2114.488193856091,
+              "left": 187.53343739573648,
+              "width": 1365,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-15-06",
+            "text": "\"I'm still here.\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 2234.4748756569775,
+              "left": 185.77542940165398,
+              "width": 1365,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-15": [
+          {
+            "id": "text-15-07",
+            "text": "And there it was: a quiet path.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1041.9906149075262,
+              "left": 835.8960819061339,
+              "width": 1233.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-16": [
+          {
+            "id": "text-16-01",
+            "text": "The path split in two.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 186.43136696257199,
+              "left": 187.46313552710006,
+              "width": 1837.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-16-02",
+            "text": "One way was smooth and shiny.\nIt looked easy.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 327.4684351007677,
+              "left": 193.31506417946255,
+              "width": 1890,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.625
+          },
+          {
+            "id": "text-16-03",
+            "text": "The other was plain and steep.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 451.16306313682173,
+              "left": 720.5987755126439,
+              "width": 1825.651224487356,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-16-04",
+            "text": "[Child Name] looked at the shiny path. It was pretty.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 601.9311489828305,
+                "left": 186.499780262294,
+                "width": 2350,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 601.9311489828305,
+              "left": 186.499780262294,
+              "width": 1864.7367355141669,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.625
+          },
+          {
+            "id": "text-16-05",
+            "text": "But something inside felt tight.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 745.9782523532065,
+              "left": 191.3956015032221,
+              "width": 1995,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-16-06",
+            "text": "A deep breath.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 883.1194327314115,
+              "left": 193.62690536779752,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-16-07",
+            "text": "\"Not that way,\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1031.926602387293,
+              "left": 186.9850336166531,
+              "width": 1785,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.1666666666666667
+          },
+          {
+            "id": "text-16-08",
+            "text": "whispered the tiny voice.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1039.4531678669036,
+              "left": 774.5042790599118,
+              "width": 1771.7457209400882,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-17": [
+          {
+            "id": "text-17-01",
+            "text": "[Child Name] chose the steep path.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 475.9733878561109,
+              "left": 276.33637982558616,
+              "width": 1968.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-17-02",
+            "text": "Up, and up,",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 101.86458333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 617.1432521618806,
+              "left": 288.084551383201,
+              "width": 813.75,
+              "zIndex": 50,
+              "rotateDeg": -5
+            },
+            "lineHeight": 0.9545454545454546
+          },
+          {
+            "id": "text-17-03",
+            "text": "and up.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 129.64583333333331,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 604.9963270721073,
+              "left": 807.4111466019135,
+              "width": 813.75,
+              "zIndex": 50,
+              "rotateDeg": -5
+            },
+            "lineHeight": 0.75
+          },
+          {
+            "id": "text-17-04",
+            "text": "At the top, a cave glittered.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 777.5327571363329,
+              "left": 284.2953960061001,
+              "width": 1837.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-17-05",
+            "text": "[Child Name] stepped closer.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 921.6162559688216,
+              "left": 277.1115716341578,
+              "width": 1656.1869190402326,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-18": [
+          {
+            "id": "text-18-01",
+            "text": "[Child Name]'s tummy felt tight.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 193.1670615403071,
+              "left": 133.89090364130354,
+              "width": 2257.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.75
+          },
+          {
+            "id": "text-18-02",
+            "text": "\"YOU CAN'T! YOU'RE TOO LITTLE!\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 323.6576587424665,
+              "left": 128.94245248961255,
+              "width": 2201.9690583659763,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2352941176470589
+          },
+          {
+            "id": "text-18-03",
+            "text": "The tiny voice echoed through the cave.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 324.68408190195646,
+              "left": 1191.8555237890755,
+              "width": 1999.8851628435455,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-18-05",
+            "text": "The same words glowed on a wall in big, prickly letters.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 449.2313894826612,
+              "left": 140.3997807091782,
+              "width": 2040.9167117303714,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-18-07",
+            "text": "\"Why do you sound mean?\" asked [Child Name].",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "longName": {
+              "fontSize": 74,
+              "minChars": 13,
+              "placement": {
+                "top": 1706.5921135443402,
+                "left": 300,
+                "width": 2200,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1706.5921135443402,
+              "left": 616.2838085934072,
+              "width": 1817.6389598511594,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2352941176470589
+          }
+        ],
+        "page-19": [
+          {
+            "id": "text-19-01",
+            "text": "The voice was quiet. [Child Name] remembered.",
+            "align": "left",
+            "color": "#fff5de",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 246.4149472168906,
+              "left": 221.42832047651,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.75
+          },
+          {
+            "id": "text-19-02",
+            "text": "One deep breath.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 399.2548132382509,
+              "left": 225.5972687527624,
+              "width": 1128.75,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 1.1666666666666667
+          },
+          {
+            "id": "text-19-03",
+            "text": "Then another.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 395.67717047556016,
+              "left": 889.0672927569997,
+              "width": 1050,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2352941176470589
+          },
+          {
+            "id": "text-19-04",
+            "text": "The cave grew quieter.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 550.7413608602279,
+              "left": 229.72056441938582,
+              "width": 1181.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-20": [
+          {
+            "id": "text-19-05",
+            "text": "The prickly words",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 250.8198113908237,
+              "left": 315.80031762882754,
+              "width": 708.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-19-06",
+            "text": "wiggled.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 92.60416666666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 237.47310923980885,
+              "left": 946.3285985789234,
+              "width": 472.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.05
+          },
+          {
+            "id": "text-19-07",
+            "text": "Then softened.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 97.234375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 231.4507383028056,
+              "left": 1315.6477651760813,
+              "width": 1000,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1
+          },
+          {
+            "id": "text-20-01",
+            "text": "Inside were smaller words:",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 360,
+              "left": 321.51479399638987,
+              "width": 1837.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-20-03",
+            "text": "\"Oh. You weren't trying to be mean.\"",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1875.3174988124417,
+              "left": 675.1264880323091,
+              "width": 1736.9107837711827,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2352941176470589
+          },
+          {
+            "id": "text-20-04",
+            "text": "The tiny voice felt warm again.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1997.7630177636222,
+              "left": 707.8435188801702,
+              "width": 1598.4401966004073,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-21": [
+          {
+            "id": "text-21-01",
+            "text": "\"Sometimes big feelings come out sharp,\" said the voice.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 972.6309868927881,
+              "left": 279.7793988840873,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3529411764705883
+          },
+          {
+            "id": "text-21-02",
+            "text": "\"But if you listen close, you can hear what they are really trying to say.\"",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1138.3923682507534,
+              "left": 291.80218127407693,
+              "width": 2010.132802425099,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3888888888888888
+          }
+        ],
+        "page-22": [
+          {
+            "id": "text-22-01",
+            "text": "The prickles fell away.\nThe wall shimmered.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 233.45413601603275,
+              "left": 203.46487640770883,
+              "width": 1653.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.75
+          },
+          {
+            "id": "text-22-02",
+            "text": "The cave",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 517.585939523695,
+              "left": 206.91393946748593,
+              "width": 1233.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-22-03",
+            "text": "opened wide.",
+            "align": "left",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 134.27604166666666,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 530.5058529088908,
+              "left": 539.3409519241095,
+              "width": 1995,
+              "zIndex": 50,
+              "rotateDeg": -5
+            },
+            "lineHeight": 0.7241379310344828
+          },
+          {
+            "id": "text-22-04",
+            "text": "Beyond it, the world was bright.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 2286.410764297136,
+              "left": 1105.7891014938102,
+              "width": 1303.7272272091682,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-22-05",
+            "text": "[Child Name] stepped through.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "minChars": 13,
+              "placement": {
+                "top": 2410,
+                "left": 1235.55759737629,
+                "width": 1233.75,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 2395.7681750157403,
+              "left": 1235.55759737629,
+              "width": 1233.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-23": [
+          {
+            "id": "text-23-01",
+            "text": "[Child Name] ran into the sunlight.",
+            "align": "center",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 300.8577986001511,
+              "left": -106.46538234718012,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-23-03",
+            "text": "Now [subject pronoun] understood.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 382.2928010597584,
+              "left": 434.1262918531847,
+              "width": 1758.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-23-04",
+            "text": "The tiny voice helped [object pronoun] notice",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 510.54916475770244,
+              "left": 441.1815986438646,
+              "width": 1758.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-23-05",
+            "text": "what felt scary,",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 638.8936153390614,
+              "left": 550.356114628018,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-23-06",
+            "text": "what felt wrong,",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 754.6455460376918,
+              "left": 710.9721042205709,
+              "width": 1575,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-23-07",
+            "text": "and what felt right.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "placement": {
+              "top": 872.682490845498,
+              "left": 845.3598278333707,
+              "width": 1443.75,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.1666666666666667
+          }
+        ],
+        "page-24": [
+          {
+            "id": "text-24-01",
+            "text": "\"I want to see you,\" said [Child Name].",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 249.62537051620043,
+              "left": 349.5800831038755,
+              "width": 1950,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-24-02",
+            "text": "A trail of [animal clues] glowed ahead.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 375.44955614203457,
+              "left": 363.7505485549312,
+              "width": 1950,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-24-03",
+            "text": "The forest grew warmer and quieter.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 498.42073100084536,
+              "left": 362.7009869537061,
+              "width": 1950,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-24-04",
+            "text": "\"Where are you?\"",
+            "align": "center",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 106.49479166666666,
+            "placement": {
+              "top": 661.6844109884837,
+              "left": -125.50448602540939,
+              "width": 1750,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 1.2173913043478262
+          },
+          {
+            "id": "text-24-05",
+            "text": "\"Listen close,\" said the tiny voice.\n\"That quiet is your heart.\"",
+            "align": "center",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 78.71354166666666,
+            "placement": {
+              "top": 809.2706571201903,
+              "left": 379.0446044570425,
+              "width": 1830,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.411764705882353
+          }
+        ],
+        "page-25": [
+          {
+            "id": "text-25-01",
+            "text": "In a warm, magical clearing, [animal guide] appeared.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "minChars": 13,
+              "placement": {
+                "top": 190,
+                "left": 375.82116095896185,
+                "width": 2110,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 211.1920691726304,
+              "left": 375.82116095896185,
+              "width": 2110,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-25-02",
+            "text": "[Child Name] gasped.",
+            "align": "left",
+            "color": "#211d19",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 310,
+                "left": 280,
+                "width": 2100,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 335.3611613326704,
+              "left": 376.1097673353902,
+              "width": 850,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-25-03",
+            "text": "\"It was you?\"",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 106.49479166666666,
+            "longName": {
+              "fontSize": 100,
+              "minChars": 13,
+              "placement": {
+                "top": 450,
+                "left": 280,
+                "width": 1800,
+                "zIndex": 50,
+                "rotateDeg": -3
+              }
+            },
+            "placement": {
+              "top": 326.3562647257565,
+              "left": 1014.4547981950462,
+              "width": 1150,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 1.173913043478261
+          },
+          {
+            "id": "text-25-04",
+            "text": "[animal guide] smiled.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "minChars": 13,
+              "placement": {
+                "top": 595,
+                "left": 381.1220928345898,
+                "width": 1800,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 448.0401765087516,
+              "left": 381.1220928345898,
+              "width": 1800,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-25-05",
+            "text": "\"I am your quiet voice,\" said [animal guide], \"in a shape you can see.\"",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 710,
+                "left": 280,
+                "width": 2300,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 561.5138918241477,
+              "left": 369.9956020421121,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.25
+          },
+          {
+            "id": "text-25-06",
+            "text": "The warm quiet was inside [Child Name], too.",
+            "align": "center",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "longName": {
+              "fontSize": 68,
+              "minChars": 13,
+              "placement": {
+                "top": 815,
+                "left": 250,
+                "width": 2200,
+                "zIndex": 50,
+                "rotateDeg": 0
+              }
+            },
+            "placement": {
+              "top": 684.8160601302895,
+              "left": 55.16584692898274,
+              "width": 2050,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          }
+        ],
+        "page-26": [
+          {
+            "id": "text-26-01",
+            "flow": {
+              "paragraphs": [
+                {
+                  "runs": [
+                    {
+                      "text": "[Child Name] and [animal guide] "
+                    },
+                    {
+                      "text": "flew",
+                      "style": {
+                        "color": "#ffe09a",
+                        "rotateDeg": -4,
+                        "sizeRatio": 1.5294117647058822
+                      }
+                    },
+                    {
+                      "text": " through the stars.",
+                      "style": {
+                        "sizeRatio": 1.0588235294117647
+                      }
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "The magical forest grew small below.",
+                      "style": {
+                        "sizeRatio": 0.9583333333333334
+                      }
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "Ahead was the park, the ladder, and the very, very tall slide.",
+                      "style": {
+                        "sizeRatio": 0.9583333333333334
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "text": "[Child Name] and [animal guide] flew through the stars.\nThe magical forest grew small below.\nAhead was the park, the ladder, and the very, very tall slide.",
+            "align": "left",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 72,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 315,
+              "left": 705,
+              "width": 1550,
+              "height": 600,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.4
+          },
+          {
+            "id": "text-26-06",
+            "text": "[animal guide] stayed close. So did the quiet voice.",
+            "align": "center",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "stroke",
+            "placement": {
+              "top": 1949.804032631433,
+              "left": 326.22773212571974,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.6875
+          }
+        ],
+        "page-27": [
+          {
+            "id": "text-27-01",
+            "text": "[Child Name] was back at the top.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 157.5,
+              "left": 183.75,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-02",
+            "text": "The slide still looked long.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 304.41521276668027,
+              "left": 184.8521473128599,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-03",
+            "text": "The slide still looked fun.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 309.62214845155796,
+              "left": 1089.1248088697553,
+              "width": 1457.1251911302447,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-04",
+            "text": "The slide still looked",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 471.0451655470249,
+              "left": 189.79874067251603,
+              "width": 715.6446126302084,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-05",
+            "text": "very, very tall.",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 101.86458333333333,
+            "placement": {
+              "top": 454.94755414790706,
+              "left": 927.6475752563867,
+              "width": 708.5636494954427,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 0.9545454545454546
+          },
+          {
+            "id": "text-27-06",
+            "text": "\"Your turn!\"  \"Go!\"  \"It's fun!\"",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 101.86458333333333,
+            "placement": {
+              "top": 627.1579575492874,
+              "left": 186.7452421572753,
+              "width": 2152.5,
+              "zIndex": 50,
+              "rotateDeg": -2
+            },
+            "lineHeight": 0.9545454545454546
+          },
+          {
+            "id": "text-27-07",
+            "text": "[Child Name]'s tummy flipped.",
+            "align": "left",
+            "color": "#392e29",
+            "nameFit": {
+              "minScale": 0.7,
+              "thresholdChars": 15
+            },
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 771.3965268418794,
+              "left": 206.1209919173521,
+              "width": 2047.5,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-08",
+            "text": "This time [subject pronoun] knew what to do.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 902.8527858390003,
+              "left": 204.5024098636092,
+              "width": 1480.402696137236,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-27-09",
+            "text": "Pause.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 87.97395833333333,
+            "placement": {
+              "top": 1043.084339280961,
+              "left": 1600.5282534198432,
+              "width": 1009.7250155340917,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.105263157894737
+          },
+          {
+            "id": "text-27-10",
+            "text": "Breathe.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 87.97395833333333,
+            "placement": {
+              "top": 1043.4970233353454,
+              "left": 1910.0949746862257,
+              "width": 892.5094469769672,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.105263157894737
+          },
+          {
+            "id": "text-27-11",
+            "text": "Listen close.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 87.97395833333333,
+            "placement": {
+              "top": 1152.0914320112877,
+              "left": 1685.5398585929065,
+              "width": 804.4220574025687,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.105263157894737
+          }
+        ],
+        "page-28": [
+          {
+            "id": "text-28-01",
+            "text": "The quiet voice was there. Small and warm.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 131.25,
+              "left": 183.75,
+              "width": 2100,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.75
+          },
+          {
+            "id": "text-28-02",
+            "text": "\"Not yet,\" it said.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 291.03986787704497,
+              "left": 182.33310721428523,
+              "width": 1706.25,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.3125
+          },
+          {
+            "id": "text-28-03",
+            "text": "\"Almost.\"",
+            "align": "left",
+            "color": "#793c28",
+            "padding": 0,
+            "fontSize": 111.125,
+            "placement": {
+              "top": 279.3035734912484,
+              "left": 783.720108295814,
+              "width": 1496.25,
+              "zIndex": 50,
+              "rotateDeg": -3
+            },
+            "lineHeight": 0.875
+          },
+          {
+            "id": "text-28-responsive-dialogue",
+            "text": "[Child Name] looked at the child waiting behind [object pronoun].\n\"You go first,\" said [Child Name]. \"I'm almost ready.\"\nAnd this time, [Child Name] smiled.",
+            "align": "left",
+            "color": "#392e29",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "placement": {
+              "top": 449,
+              "left": 185,
+              "width": 2350,
+              "zIndex": 50,
+              "rotateDeg": 0,
+              "height": 680
+            },
+            "lineHeight": 1.3125,
+            "flow": {
+              "paragraphs": [
+                {
+                  "runs": [
+                    {
+                      "text": "[Child Name] looked at the child waiting behind [object pronoun]."
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "\"You go first,\" said [Child Name]. \"I'm almost ready.\""
+                    }
+                  ]
+                },
+                {
+                  "runs": [
+                    {
+                      "text": "And this time, [Child Name] smiled."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "page-30": [
+          {
+            "id": "text-30-01",
+            "text": "Pause. Breathe. Listen close.",
+            "align": "center",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 101.86458333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 292.9060188044513,
+              "left": 338.7665421674439,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.2727272727272727
+          },
+          {
+            "id": "text-30-02",
+            "text": "Put a hand on your tummy.",
+            "align": "center",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 547.3249310220729,
+              "left": 329.83143021186345,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5
+          },
+          {
+            "id": "text-30-03",
+            "text": "Take a slow breath in.\nLet it out slowly.",
+            "align": "center",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 676.4876226912075,
+              "left": 327.1415634301711,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5
+          },
+          {
+            "id": "text-30-04",
+            "text": "Think of something you'd like to try.",
+            "align": "center",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1045.4918663332421,
+              "left": 352.12362044145874,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5
+          },
+          {
+            "id": "text-30-05",
+            "text": "How does it make you feel?",
+            "align": "center",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1289.6098998320538,
+              "left": 345.91743015281986,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5555555555555556
+          },
+          {
+            "id": "text-30-06",
+            "text": "Listen close. Does your quiet voice say\n\"no,\" \"not yet,\" or \"yes\"?",
+            "align": "center",
+            "color": "#fff5de",
+            "padding": 0,
+            "fontSize": 74.08333333333333,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1509.205155619733,
+              "left": 357.2668720618777,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5
+          },
+          {
+            "id": "text-30-07",
+            "text": "You can take your time.",
+            "align": "center",
+            "color": "#ffe09a",
+            "padding": 0,
+            "fontSize": 83.34375,
+            "edgeStyle": "soft-shadow",
+            "placement": {
+              "top": 1866.7586846818392,
+              "left": 331.6421007972761,
+              "width": 1945,
+              "zIndex": 50,
+              "rotateDeg": 0
+            },
+            "lineHeight": 1.5555555555555556
+          }
+        ],
+        "page-31": [
+          {
+            "id": "publisher-heading",
+            "text": "Little Hero Labs",
+            "placement": {
+              "left": 250,
+              "top": 1050,
+              "width": 2125,
+              "zIndex": 50
+            },
+            "fontSize": 112,
+            "lineHeight": 1.2,
+            "color": "#17354b",
+            "align": "center",
+            "padding": 0
+          },
+          {
+            "id": "publisher-tagline",
+            "text": "Every child is the hero\nof their own story.",
+            "placement": {
+              "left": 300,
+              "top": 1300,
+              "width": 2025,
+              "zIndex": 50
+            },
+            "fontSize": 88,
+            "lineHeight": 1.4,
+            "color": "#17354b",
+            "align": "center",
+            "padding": 0
+          },
+          {
+            "id": "publisher-description",
+            "text": "Personalized books for little readers\nand the people who love them.",
+            "placement": {
+              "left": 300,
+              "top": 1710,
+              "width": 2025,
+              "zIndex": 50
+            },
+            "fontSize": 72,
+            "lineHeight": 1.5,
+            "color": "#17354b",
+            "align": "center",
+            "padding": 0
+          },
+          {
+            "id": "publisher-website",
+            "text": "www.LittleHeroLabs.com",
+            "placement": {
+              "left": 300,
+              "top": 2210,
+              "width": 2025,
+              "zIndex": 50
+            },
+            "fontSize": 74,
+            "lineHeight": 1.3,
+            "color": "#17354b",
+            "align": "center",
+            "padding": 0
+          }
+        ]
+      },
+      "poses": {
+        "fly": {
+          "poseNumber": 11,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/fly-b8af8476472f.png"
+        },
+        "run": {
+          "poseNumber": 10,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/run-7401ca27d81f.png"
+        },
+        "walk": {
+          "poseNumber": 4,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/walk-2f5ac532de6a.png"
+        },
+        "climb": {
+          "poseNumber": 9,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/climb-0d6b0953ba69.png"
+        },
+        "crawl": {
+          "poseNumber": 8,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/crawl-1c46e36e0fcd.png"
+        },
+        "breath": {
+          "poseNumber": 7,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/breath-410ec4c98bef.png"
+        },
+        "crouch": {
+          "poseNumber": 5,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/crouch-a1a70e2b3f61.png"
+        },
+        "arrival": {
+          "poseNumber": 1,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/arrival-f4a05ba4d001.png"
+        },
+        "slide-awe": {
+          "poseNumber": 2,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/slide-awe-9ab732d40d82.png"
+        },
+        "cover-base": {
+          "poseNumber": 0,
+          "referenceKey": "book-finding-our-inner-voice/v1/characters/references/cover-base.png"
+        },
+        "sad-seated": {
+          "poseNumber": 3,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/sad-seated-e92841277309.png"
+        },
+        "overwhelmed": {
+          "poseNumber": 6,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/overwhelmed-e98101c89f6c.png"
+        },
+        "calm-speaking": {
+          "poseNumber": 12,
+          "referenceKey": "book-finding-our-inner-voice/v3/characters/references/calm-speaking-bb621be92ac9.png"
+        }
+      },
+      "covers": {
+        "amazon": {
+          "texts": [
+            {
+              "id": "back-heading",
+              "text": "About Your Inner Voice.",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 135,
+              "placement": {
+                "top": 190,
+                "left": 180,
+                "width": 2200,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "back-description",
+              "text": "On a gentle adventure, [Child Name]\nlearns to hear the quiet voice inside—\nthe one that helps us feel brave, kind and true.",
+              "align": "center",
+              "color": "#17354b",
+              "nameFit": {
+                "minScale": 0.52,
+                "thresholdChars": 15
+              },
+              "padding": 0,
+              "fontSize": 89,
+              "placement": {
+                "top": 390,
+                "left": 220,
+                "width": 2120,
+                "zIndex": 50
+              },
+              "lineHeight": 1.3
+            },
+            {
+              "id": "back-try-heading",
+              "text": "TRY THIS",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 115,
+              "placement": {
+                "top": 880,
+                "left": 370,
+                "width": 2120,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "back-try-copy",
+              "text": "Hand on heart.\nBreathe in 4, breathe out 4.\nWhat is your inner voice saying?",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 89,
+              "placement": {
+                "top": 1030,
+                "left": 410,
+                "width": 2040,
+                "zIndex": 50
+              },
+              "lineHeight": 1.3
+            },
+            {
+              "id": "back-dedication",
+              "text": "Made with love for",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 83,
+              "placement": {
+                "top": 1850,
+                "left": 250,
+                "width": 1310,
+                "zIndex": 50
+              },
+              "lineHeight": 1.2
+            },
+            {
+              "id": "front-title",
+              "text": "Finding Our\nInner Voice",
+              "align": "center",
+              "color": "#fff4d7",
+              "padding": 0,
+              "fontSize": 200,
+              "edgeStyle": "soft-shadow",
+              "placement": {
+                "top": 210,
+                "left": 2748,
+                "width": 2100,
+                "zIndex": 50
+              },
+              "lineHeight": 1.15
+            },
+            {
+              "id": "front-byline",
+              "text": "By Little Hero Labs",
+              "align": "center",
+              "color": "#fff4d7",
+              "padding": 0,
+              "fontSize": 76,
+              "edgeStyle": "soft-shadow",
+              "placement": {
+                "top": 690,
+                "left": 2600,
+                "width": 2200,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "front-personalization-label",
+              "text": "A Story Made for",
+              "align": "center",
+              "color": "#fff4d7",
+              "padding": 0,
+              "fontSize": 100,
+              "edgeStyle": "soft-shadow",
+              "placement": {
+                "top": 920,
+                "left": 2600,
+                "width": 2200,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "front-personalization-name",
+              "text": "[Child Name]",
+              "align": "center",
+              "color": "#fff4d7",
+              "padding": 0,
+              "fontSize": 160,
+              "edgeStyle": "soft-shadow",
+              "placement": {
+                "top": 1070,
+                "left": 2600,
+                "width": 2200,
+                "zIndex": 50,
+                "height": 420,
+                "rotateDeg": 0
+              },
+              "lineHeight": 1.15,
+              "flow": {
+                "paragraphs": [
+                  {
+                    "runs": [
+                      {
+                        "text": "[Child Name]"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "back-dedication-name",
+              "text": "[Child Name]",
+              "placement": {
+                "left": 250,
+                "top": 1970,
+                "width": 1310,
+                "zIndex": 50
+              },
+              "fontSize": 110,
+              "lineHeight": 1.2,
+              "color": "#17354b",
+              "align": "center",
+              "padding": 0,
+              "nameFit": {
+                "thresholdChars": 14,
+                "minScale": 0.45
+              }
+            },
+            {
+              "id": "back-website",
+              "text": "www.LittleHeroLabs.com",
+              "placement": {
+                "left": 510,
+                "top": 2220,
+                "width": 1080,
+                "zIndex": 60
+              },
+              "fontSize": 54,
+              "lineHeight": 1.3,
+              "color": "#17354b",
+              "align": "left",
+              "padding": 0
+            }
+          ],
+          "layers": [
+            {
+              "id": "cover-child",
+              "kind": "pose",
+              "poseId": "breath",
+              "placement": {
+                "top": 1160,
+                "left": 3100,
+                "width": 1120,
+                "height": 1400,
+                "zIndex": 10
+              },
+              "poseNumber": 7
+            },
+            {
+              "id": "cover-barcode",
+              "kind": "overlay",
+              "assetSlot": "cover-barcode",
+              "placement": {
+                "top": 1985,
+                "left": 1740,
+                "width": 610,
+                "height": 461,
+                "zIndex": 65
+              }
+            },
+            {
+              "id": "cover-try-panel",
+              "kind": "overlay",
+              "assetSlot": "cover-try-panel",
+              "placement": {
+                "top": 1005,
+                "left": 470,
+                "width": 1900,
+                "height": 425,
+                "zIndex": 40
+              }
+            },
+            {
+              "id": "back-imprint-backing",
+              "kind": "overlay",
+              "assetSlot": "back-imprint-panel",
+              "placement": {
+                "left": 180,
+                "top": 1800,
+                "width": 1450,
+                "height": 620,
+                "zIndex": 40
+              }
+            },
+            {
+              "id": "back-color-mark",
+              "kind": "overlay",
+              "assetSlot": "lhl-color-mark",
+              "placement": {
+                "left": 285,
+                "top": 2145,
+                "width": 150,
+                "height": 196.275,
+                "zIndex": 60
+              }
+            }
+          ],
+          "templateId": "8DB1D274-AA3C-4E14-B051-65B6F872B013",
+          "backgroundSlot": "coversAmazon"
+        },
+        "standard": {
+          "texts": [
+            {
+              "id": "back-heading",
+              "text": "About Your Inner Voice.",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 135,
+              "placement": {
+                "top": 190,
+                "left": 180,
+                "width": 2200,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "back-description",
+              "text": "On a gentle adventure, [Child Name]\nlearns to hear the quiet voice inside—\nthe one that helps us feel brave, kind and true.",
+              "align": "center",
+              "color": "#17354b",
+              "nameFit": {
+                "minScale": 0.52,
+                "thresholdChars": 15
+              },
+              "padding": 0,
+              "fontSize": 89,
+              "placement": {
+                "top": 390,
+                "left": 220,
+                "width": 2120,
+                "zIndex": 50
+              },
+              "lineHeight": 1.3
+            },
+            {
+              "id": "back-try-heading",
+              "text": "TRY THIS",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 115,
+              "placement": {
+                "top": 880,
+                "left": 370,
+                "width": 2120,
+                "zIndex": 50
+              },
+              "lineHeight": 1.1
+            },
+            {
+              "id": "back-try-copy",
+              "text": "Hand on heart.\nBreathe in 4, breathe out 4.\nWhat is your inner voice saying?",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 89,
+              "placement": {
+                "top": 1030,
+                "left": 410,
+                "width": 2040,
+                "zIndex": 50
+              },
+              "lineHeight": 1.3
+            },
+            {
+              "id": "back-dedication",
+              "text": "Made with love for",
+              "align": "center",
+              "color": "#17354b",
+              "padding": 0,
+              "fontSize": 83,
+              "placement": {
+                "top": 1850,
+                "left": 250,
+                "width": 1310,
+                "zIndex": 50
+              },
+              "lineHeight": 1.2
+            },
+            {
+              "id": "front-title",
+              "text": "[Child Name]'s\nInner Voice",
+              "align": "center",
+              "color": "#fff4d7",
+              "nameFit": {
+                "minScale": 0.4,
+                "thresholdChars": 12
+              },
+              "padding": 0,
+              "fontSize": 200,
+              "edgeStyle": "soft-shadow",
+              "placement": {
+                "top": 210,
+                "left": 2748,
+                "width": 2100,
+                "zIndex": 50
+              },
+              "lineHeight": 1.15
+            },
+            {
+              "id": "back-dedication-name",
+              "text": "[Child Name]",
+              "placement": {
+                "left": 250,
+                "top": 1970,
+                "width": 1310,
+                "zIndex": 50
+              },
+              "fontSize": 110,
+              "lineHeight": 1.2,
+              "color": "#17354b",
+              "align": "center",
+              "padding": 0,
+              "nameFit": {
+                "thresholdChars": 14,
+                "minScale": 0.45
+              }
+            },
+            {
+              "id": "back-website",
+              "text": "www.LittleHeroLabs.com",
+              "placement": {
+                "left": 510,
+                "top": 2220,
+                "width": 1080,
+                "zIndex": 60
+              },
+              "fontSize": 54,
+              "lineHeight": 1.3,
+              "color": "#17354b",
+              "align": "left",
+              "padding": 0
+            }
+          ],
+          "layers": [
+            {
+              "id": "cover-child",
+              "kind": "pose",
+              "poseId": "breath",
+              "placement": {
+                "top": 1160,
+                "left": 3100,
+                "width": 1120,
+                "height": 1400,
+                "zIndex": 10
+              },
+              "poseNumber": 7
+            },
+            {
+              "id": "cover-try-panel",
+              "kind": "overlay",
+              "assetSlot": "cover-try-panel",
+              "placement": {
+                "top": 1005,
+                "left": 470,
+                "width": 1900,
+                "height": 425,
+                "zIndex": 40
+              }
+            },
+            {
+              "id": "back-imprint-backing",
+              "kind": "overlay",
+              "assetSlot": "back-imprint-panel",
+              "placement": {
+                "left": 180,
+                "top": 1800,
+                "width": 1450,
+                "height": 620,
+                "zIndex": 40
+              }
+            },
+            {
+              "id": "back-color-mark",
+              "kind": "overlay",
+              "assetSlot": "lhl-color-mark",
+              "placement": {
+                "left": 285,
+                "top": 2145,
+                "width": 150,
+                "height": 196.275,
+                "zIndex": 60
+              }
+            }
+          ],
+          "templateId": "D0F07D93-9267-47BB-A6AF-D6EC5ACDF476",
+          "backgroundSlot": "covers"
+        }
+      },
+      "schema": "lhb.book-render@v2",
+      "animals": {
+        "cat": {
+          "clues": "book-finding-our-inner-voice/v1/animals/cat-clues.png",
+          "flying": "book-finding-our-inner-voice/v3/editor-selected/31aecc71cb77024c92e1f222508ca12aca56e9e7c34137ac4a7c602b25156dfe/asset-74-cat-flying-review.png",
+          "appears": "book-finding-our-inner-voice/v3/editor-selected/9f571d75b1f417bd74d5e30e41a7bba5a25346e86135dd0440f55f62253adfd6/asset-73-cat-appears-review.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/cat-portrait.png"
+        },
+        "dog": {
+          "clues": "book-finding-our-inner-voice/v1/animals/dog-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/dog-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/dog-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/dog-portrait.png"
+        },
+        "owl": {
+          "clues": "book-finding-our-inner-voice/v1/animals/owl-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/owl-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/owl-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/owl-portrait.png"
+        },
+        "lion": {
+          "clues": "book-finding-our-inner-voice/v1/animals/lion-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/lion-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/lion-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/lion-portrait.png"
+        },
+        "t-rex": {
+          "clues": "book-finding-our-inner-voice/v1/animals/t-rex-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/t-rex-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/t-rex-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/t-rex-portrait.png"
+        },
+        "tiger": {
+          "clues": "book-finding-our-inner-voice/v1/animals/tiger-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/tiger-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/tiger-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/tiger-portrait.png"
+        },
+        "penguin": {
+          "clues": "book-finding-our-inner-voice/v1/animals/penguin-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/penguin-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/penguin-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/penguin-portrait.png"
+        },
+        "unicorn": {
+          "clues": "book-finding-our-inner-voice/v1/animals/unicorn-clues.png",
+          "flying": "book-finding-our-inner-voice/v2/animals/unicorn-flying.png",
+          "appears": "book-finding-our-inner-voice/v2/animals/unicorn-appears.png",
+          "portrait": "book-finding-our-inner-voice/v1/animals/unicorn-portrait.png"
+        }
+      },
+      "readingAreas": {
+        "page-09": [
+          {
+            "top": 1080,
+            "left": 1360,
+            "color": "#101c42",
+            "width": 1170,
+            "height": 820,
+            "feather": 100,
+            "opacity": 0.32
+          },
+          {
+            "top": 1950,
+            "left": 540,
+            "color": "#17233e",
+            "width": 1980,
+            "height": 520,
+            "feather": 90,
+            "opacity": 0.28
+          }
+        ],
+        "page-16": [
+          {
+            "top": 105,
+            "left": 100,
+            "color": "#102238",
+            "width": 1990,
+            "height": 1070,
+            "feather": 140,
+            "opacity": 0.52
+          }
+        ],
+        "page-24": [
+          {
+            "top": 125,
+            "left": 155,
+            "color": "#ffe0a3",
+            "width": 2300,
+            "height": 910,
+            "feather": 150,
+            "opacity": 0.76
+          }
+        ],
+        "page-25": [
+          {
+            "top": 120,
+            "left": 160,
+            "color": "#ffe0a3",
+            "width": 2300,
+            "height": 900,
+            "feather": 160,
+            "opacity": 0.72
+          }
+        ]
+      },
+      "pagePreviewTemplateId": "23277725-4AB0-446A-98C5-CB99C21822B3"
+    },
+    "preview": {
+      "coverPx": {
+        "h": 2625,
+        "w": 5203
+      },
+      "interiorPx": {
+        "h": 2625,
+        "w": 2625
+      }
+    },
+    "animalPlacement": {
+      "overridesByFormat": {},
+      "defaultByStoryPage": {}
+    },
+    "characterPlacement": {
+      "overridesByFormat": {},
+      "defaultByStoryPage": {}
+    },
+    "coverCharacterPlacement": {
+      "default": null,
+      "overridesByFormat": {}
+    }
+  },
+  "displayName": "Finding Our Inner Voice (print-test candidate)",
+  "contentModel": {
+    "characterSlots": 2,
+    "storyPageCount": 24,
+    "supportsDedication": true,
+    "supportsAnimalCompanion": true,
+    "supportsCoverBarcodeVariant": true
+  },
+  "defaultFormatId": "standard"
+}

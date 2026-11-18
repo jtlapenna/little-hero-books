@@ -458,7 +458,7 @@ export async function regeneratePoseResponse(
       systemInstruction,
       contents: [{ role: 'user', parts }],
       generationConfig: {
-        imageConfig: { aspectRatio: '1:1' },
+        imageConfig: { aspectRatio: '1:1', imageSize: '2K' },
         temperature: 0,
         topK: 1,
         topP: 0.6,
