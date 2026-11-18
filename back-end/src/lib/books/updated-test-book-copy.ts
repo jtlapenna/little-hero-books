@@ -239,7 +239,7 @@ export async function prepareUpdatedTestBookCopy(input: UpdatedBookCopyRequest, 
   for (const [index, name] of ['1','2a','2b'].entries()) requireCopy(sha(await requiredObject(ports, 'orders', `${sourcePrefix}/manifests/${name}-manifest.json`)) === sha(sourceManifests[index]), 'Source manifest changed before insertion');
   for (const original of originals) requireCopy(sha(await requiredObject(ports, 'assets', original.key)) === original.sha256, 'Source image changed before insertion');
   const payload: Row = { ...buildW0OrderUpsertPayload({ normalizedInput: { orderId, characterHash, customerEmail: text(source.customer_email), buyer: { name: source.customer_name }, marketplaceId: text(source.marketplace_id) }, manifest: w0, manifestKey: w0.artifacts.manifestKey }),
-    display_order_id: orderId, amazon_order_id: orderId, root_order_id: orderId,
+    display_order_id: `UPD-${fingerprint.slice(0,16)}`, amazon_order_id: orderId, root_order_id: orderId,
     manifest_2a_url: `${prefix}/manifests/2a-manifest.json`, manifest_2b_url: `${prefix}/manifests/2b-manifest.json`,
     workflow_step: '2B-complete', status: 'pending_bg_removal_review', execution_status: 'done', next_workflow: null,
     current_workflow: null, started_at: null, customer_approval_required: true, customer_approval_status: 'not_requested',
