@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { buildW2ARunManifest, uploadW2AManifest } from '@/lib/books';
+import { w2aParentClaimFromInput } from '@/lib/w2a-parent-claim';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +58,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const built = buildW2ARunManifest(body);
+    const context = isRecord(body.orderContext) ? body.orderContext : {};
+    const hasClaim = body.workflowParentClaim != null || context.workflowParentClaim != null;
+    const workflowParentClaim = w2aParentClaimFromInput(body);
+    if (hasClaim && (!workflowParentClaim || workflowParentClaim.orderId !== built.orderId)) {
+      throw new Error('Manifest publication requires a consistent parent claim for this order');
+    }
     await uploadW2AManifest(built.manifestKey, built.manifest);
 
     return NextResponse.json({
@@ -75,6 +82,9 @@ export async function POST(request: NextRequest) {
       manifest: built.manifest,
       manifestReady: true,
       uploadBucket: 'little-hero-orders',
+      // Native retries do not restore execution customData. Carry the validated
+      // original claim across this HTTP boundary; completion verifies its owner.
+      ...(workflowParentClaim ? { workflowParentClaim } : {}),
     });
   } catch (error: unknown) {
     console.error('[Internal W2A Build Run Manifest] Error:', error);

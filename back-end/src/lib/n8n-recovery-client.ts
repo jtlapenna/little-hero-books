@@ -5,7 +5,9 @@ export function n8nRecoveryBaseUrl(): string {
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !['', '/', '/api/v1', '/api/v1/'].includes(url.pathname)) throw Error('Invalid n8n recovery origin');
   return url.origin;
 }
-async function read(path: string): Promise<unknown> {
+const METADATA_INSPECTION_BYTES = 16 * 1024 * 1024;
+const EXECUTION_INSPECTION_BYTES = 32 * 1024 * 1024;
+async function read(path: string, maxBytes = METADATA_INSPECTION_BYTES): Promise<unknown> {
   const key = process.env.N8N_API_KEY?.trim();
   if (!key) throw Error('n8n recovery credentials are unavailable');
   const response = await fetch(n8nRecoveryBaseUrl() + '/api/v1/' + path, {
@@ -18,16 +20,20 @@ async function read(path: string): Promise<unknown> {
   for (;;) {
     const item = await reader.read(); if (item.done) break;
     size += item.value.byteLength;
-    if (size > 16 * 1024 * 1024) { await reader.cancel(); throw Error('n8n recovery details exceed the inspection limit'); }
+    if (size > maxBytes) { await reader.cancel(); throw Error('n8n recovery details exceed the inspection limit'); }
     parts.push(item.value);
   }
-  const bytes = new Uint8Array(size); let offset = 0;
+  let bytes: Uint8Array | null = new Uint8Array(size); let offset = 0;
   for (const part of parts) { bytes.set(part, offset); offset += part.byteLength; }
-  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { throw Error('n8n recovery returned invalid details'); }
+  // Release both binary inventories before parsing the larger execution graph. Collection timing
+  // belongs to the runtime, but these buffers need not remain reachable alongside parsed objects.
+  parts.length = 0;
+  const text = new TextDecoder().decode(bytes); bytes = null;
+  try { return JSON.parse(text); } catch { throw Error('n8n recovery returned invalid details'); }
 }
 export async function readN8NExecution(id: string): Promise<unknown> {
   if (!/^\d{1,30}$/.test(id)) throw Error('Invalid n8n execution ID');
-  return read(`executions/${id}?includeData=true`);
+  return read(`executions/${id}?includeData=true`, EXECUTION_INSPECTION_BYTES);
 }
 export async function listN8NExecutionPage(limit: number, workflowId?: string | null, cursor?: string): Promise<{ entries: N8NExecutionEntry[]; nextCursor: string | null }> {
   const query = new URLSearchParams({ limit: String(Math.min(100, Math.max(1, limit))), includeData: 'false' });
