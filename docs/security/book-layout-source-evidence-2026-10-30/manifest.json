@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "43c28f42dbe7f4b47860fbc0aafe78af93d2bb2cdefa6c061c2faaf61594a5bb",
+  "sourceSnapshotSha256": "b09cc41df3f0bd71a52ec37ae66d1bbbeee2890988ed2127a2940b444395cc1f",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -936,7 +936,7 @@
     {
       "path": "back-end/scripts/test-updated-test-book-copy-runtime.ts",
       "kind": "source",
-      "sha256": "ab592815602e25bfb5d3df42a47e122881361aa89e46521cd432cf2a89528036"
+      "sha256": "b5a23306648221374bdcf3a09b11fe287511247086fc76fd5b7940ba9fa5250d"
     },
     {
       "path": "back-end/scripts/test-updated-test-book-copy.ts",
@@ -1691,7 +1691,7 @@
     {
       "path": "back-end/src/lib/books/updated-test-book-copy.ts",
       "kind": "source",
-      "sha256": "f7ce5fbc9ad1542efb33476358890ee9c1dd70b154b7648d6148505cc5612a1f"
+      "sha256": "7f47803e6822f039971d0b8fe13a1baaf22d48372067bb34c3fbf0baf5aea3e6"
     },
     {
       "path": "back-end/src/lib/books/w2a-bootstrap-retry.ts",
@@ -2081,7 +2081,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "5470efd6863b78bc7e391585efe9fd8a42c0ad8903102a4c68d9641b0a5e1c59"
+      "sha256": "9b4b7ea71ea7164373aaf6fcca0e8d3eeac24a69c8dc45fbc9d5db5bbb416a5b"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
@@ -2097,6 +2097,11 @@
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-completion-claim-2026-11-17.json",
       "kind": "evidence",
       "sha256": "785546249c9bfb9305cf34c46e3d344d75285b7e544e815af47e9a8c9610a1ef"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-copy-display-label-2026-11-18.json",
+      "kind": "evidence",
+      "sha256": "9fc60a346c1cf2b5d8a30aefe1925e40c10096fd2a4df72df26c8e8207194398"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-error-observer-recovery-2026-11-17.json",
@@ -2121,12 +2126,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "e64b204f6d0fca4ed58c9dbc8c62783be8818e9534a455b38bcc557d21dd5d49"
+      "sha256": "df5e5cffcd114ea7ebb994c67bb39c89b487a85cb7f98702e170243928dafcb5"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "c41883fd17a1366fd5c183e31dc22fda91d9fa7042903035d0f83974a3afc6cc"
+      "sha256": "3f7f9e8073240707c30c12354e04536bf3ea625a534e386a73fdce2531296f1a"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -2552,5 +2557,15 @@
       "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts"
     ],
     "purpose": "Final book revision source/artifacts, image-preserving admin copy and revision-specific W2B jobs; no execution authority"
+  },
+  "copyDisplayLabelBindingUpdate": {
+    "date": "2026-11-18",
+    "baseHead": "e8d6af9945e510e93b6450828cf70f4b976cdbd1",
+    "priorManifestSha256": "9fc60a346c1cf2b5d8a30aefe1925e40c10096fd2a4df72df26c8e8207194398",
+    "reboundPaths": [
+      "back-end/scripts/test-updated-test-book-copy-runtime.ts",
+      "back-end/src/lib/books/updated-test-book-copy.ts"
+    ],
+    "purpose": "Honor canonical display_order_id VARCHAR20 without changing frozen/order/asset identity or existing staged preparations"
   }
 }
