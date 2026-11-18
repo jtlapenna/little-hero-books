@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "d6f3a4f673a4c7b244a2dc59076889c99e1bd216de531a1e2464f68a61e58f56",
+  "sourceSnapshotSha256": "43c28f42dbe7f4b47860fbc0aafe78af93d2bb2cdefa6c061c2faaf61594a5bb",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -12,7 +12,9 @@
   "addedSourcePaths": [
     ".github/workflows/check-application-access.yml",
     ".gitleaks.toml",
+    "back-end/scripts/assemble-final-book-proof.ts",
     "back-end/scripts/assemble-inner-voice-print-test.ts",
+    "back-end/scripts/export-final-book-revision-proof.ts",
     "back-end/scripts/fixtures/n8n-expression-runtime/package-lock.json",
     "back-end/scripts/fixtures/n8n-expression-runtime/package.json",
     "back-end/scripts/helpers/book-layout-v3-fixture.ts",
@@ -27,6 +29,7 @@
     "back-end/scripts/release-inner-voice-print-test.ts",
     "back-end/scripts/security-public-routes.mts",
     "back-end/scripts/serve-admin-workflow-ui.ts",
+    "back-end/scripts/serve-updated-book-copy-fixture.ts",
     "back-end/scripts/stage-inner-voice-print-test-csv.ts",
     "back-end/scripts/test-access-boundary.ts",
     "back-end/scripts/test-access-runtime-bindings.mjs",
@@ -43,6 +46,7 @@
     "back-end/scripts/test-book-reassembly.ts",
     "back-end/scripts/test-csv-request-boundary.ts",
     "back-end/scripts/test-customization-zip-consumers.ts",
+    "back-end/scripts/test-final-book-flying-orientation.ts",
     "back-end/scripts/test-gelato-api-contract.ts",
     "back-end/scripts/test-gelato-consumer-api-group-reuse.ts",
     "back-end/scripts/test-gelato-consumer-api.ts",
@@ -61,12 +65,17 @@
     "back-end/scripts/test-message-safety-guard.ts",
     "back-end/scripts/test-n8n-transport-worker.ts",
     "back-end/scripts/test-pages-access-boundary.ts",
+    "back-end/scripts/test-pose-revision-resolution.ts",
+    "back-end/scripts/test-updated-test-book-copy-api.ts",
+    "back-end/scripts/test-updated-test-book-copy-runtime.ts",
+    "back-end/scripts/test-updated-test-book-copy.ts",
     "back-end/scripts/test-w2-http-handoff.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
     "back-end/scripts/test-workflow-attempt-fencing.ts",
     "back-end/scripts/test-workflow-jobs.ts",
     "back-end/scripts/test-workflow-readiness-intake.ts",
+    "back-end/scripts/updated-test-book-fixture.ts",
     "back-end/scripts/verify-gelato-print-preflight.py",
     "back-end/scripts/verify-inner-voice-print-pixels.ts",
     "back-end/src/app/admin/csv-upload/page.tsx",
@@ -79,6 +88,7 @@
     "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts",
     "back-end/src/app/api/admin/orders/[orderId]/regenerate-4/route.ts",
     "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
+    "back-end/src/app/api/admin/orders/[orderId]/updated-test-copy/route.ts",
     "back-end/src/app/api/admin/orphaned-orders/route.ts",
     "back-end/src/app/api/admin/w2a-recovery/route.ts",
     "back-end/src/app/api/admin/w3-calibration/route.ts",
@@ -99,12 +109,14 @@
     "back-end/src/app/api/orders/[orderId]/flag/route.ts",
     "back-end/src/app/api/orders/[orderId]/print/route.ts",
     "back-end/src/app/api/orders/[orderId]/queue-workflow-3/route.ts",
+    "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
     "back-end/src/app/api/orders/[orderId]/reset/route.ts",
     "back-end/src/app/api/orders/[orderId]/route.ts",
     "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts",
     "back-end/src/app/api/webhooks/workflow-2a-complete/route.ts",
     "back-end/src/app/login/page.tsx",
     "back-end/src/app/orders/[orderId]/page.tsx",
+    "back-end/src/components/orders/updated-test-book-copy.tsx",
     "back-end/src/components/stages/gelato-release-review.tsx",
     "back-end/src/components/stages/gelato-stage.tsx",
     "back-end/src/components/stages/post-bria-stage.tsx",
@@ -157,6 +169,9 @@
     "back-end/src/lib/books/print-profiles/README.md",
     "back-end/src/lib/books/print-profiles/gracol.json",
     "back-end/src/lib/books/print-profiles/srgb.json",
+    "back-end/src/lib/books/updated-test-book-copy-http.ts",
+    "back-end/src/lib/books/updated-test-book-copy-store.ts",
+    "back-end/src/lib/books/updated-test-book-copy.ts",
     "back-end/src/lib/books/w2a-bootstrap-retry.ts",
     "back-end/src/lib/books/w2a-pose-input.ts",
     "back-end/src/lib/books/w3-assembly-state.ts",
@@ -189,10 +204,61 @@
     "back-end/wrangler.toml",
     "database/20261115230112_admin_workflow_test_print_hold.sql",
     "database/20261115232824_admin_workflow_test_release_scope.sql",
+    "docs/implementation-plans/final-book-revisions-20261117.md",
+    "docs/implementation-plans/final-book-revisions-validation-20261118.md",
+    "docs/implementation-plans/updated-test-book-copy-20261118.md",
     "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
-    "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json"
+    "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
+    "tools/inner-voice-placement-editor/build_final_book_candidate.py",
+    "tools/inner-voice-placement-editor/export_flow_candidate.py",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/.gitignore",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/README.md",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/back-imprint-panel.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/lhl-color-mark.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/original-title-page.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/approved-page13-shadow.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/owl.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/paw.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/penguin.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/trex.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/unicorn.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-12-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-13-v5.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/white-page.png",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/candidate-config.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/copy-revision.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering-data.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/publication-inventory.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/release-config.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-config.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-provenance.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-art-direction.md",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-provenance.json",
+    "tools/inner-voice-placement-editor/final-book-revisions-20261117/trails.json",
+    "tools/inner-voice-placement-editor/lettering_state.py",
+    "tools/inner-voice-placement-editor/process_final_book_trails.py",
+    "tools/inner-voice-placement-editor/rasterize_final_book_proof.py",
+    "tools/inner-voice-placement-editor/test_final_book_candidate.py",
+    "tools/inner-voice-placement-editor/test_final_book_proof.py",
+    "tools/inner-voice-placement-editor/test_final_book_trails.py",
+    "tools/inner-voice-placement-editor/test_reviewed_copy_revision.py"
   ],
   "reboundSourcePaths": [
     ".github/workflows/check-gelato-local-launch.yml",
@@ -260,7 +326,7 @@
     {
       "path": ".github/workflows/check-production-build.yml",
       "kind": "source",
-      "sha256": "bac20cfb71b0f4721ca964dafc803d9a865474e1645b5ab141a84a6243227434"
+      "sha256": "5a277c7a3f12df87961447b8daf42a5113b32ea82af2b268f857a40aabfa98f1"
     },
     {
       "path": ".github/workflows/check-workflow-export-secrets.yml",
@@ -285,7 +351,12 @@
     {
       "path": "back-end/package.json",
       "kind": "source",
-      "sha256": "c075a60b0c9d13462409659a674565688a9047ee751dcb617f381efb9177a8a2"
+      "sha256": "7f518199da457e3368170aa49ac33674166051b6e40fe4291485955c1f3e64db"
+    },
+    {
+      "path": "back-end/scripts/assemble-final-book-proof.ts",
+      "kind": "source",
+      "sha256": "f06e6f000c548c17204d5881f50522b98896d3e012966b6ff46a34f89449cc96"
     },
     {
       "path": "back-end/scripts/assemble-inner-voice-print-test.ts",
@@ -306,6 +377,11 @@
       "path": "back-end/scripts/create-pages-upload-identity.ts",
       "kind": "source",
       "sha256": "70ca220de683878e8312bd47c8b86cc9069d232f0da36b515985a3a6cfb4648f"
+    },
+    {
+      "path": "back-end/scripts/export-final-book-revision-proof.ts",
+      "kind": "source",
+      "sha256": "796424de36ef25500e1e02d6d75243b7b6e326d71543f46f914a435a637e72cc"
     },
     {
       "path": "back-end/scripts/fixtures/n8n-LICENSE.md",
@@ -513,6 +589,11 @@
       "sha256": "8cd9cc6d2f3838934b6a60911d21f425c90c928fbc08da25fd742c2f9c9bbb02"
     },
     {
+      "path": "back-end/scripts/serve-updated-book-copy-fixture.ts",
+      "kind": "source",
+      "sha256": "6ddeddf1bb27d51173e4203f26a6c49831fd6225b52743c41568425e7020eb51"
+    },
+    {
       "path": "back-end/scripts/stage-inner-voice-print-test-csv.ts",
       "kind": "source",
       "sha256": "84500f43fb6eb36fa886cfe4910e9b7beff9a8b0113b203e5016274ec2498e76"
@@ -611,6 +692,11 @@
       "path": "back-end/scripts/test-customization-zip-consumers.ts",
       "kind": "source",
       "sha256": "f718561773ec4991cb1a780a5c83d8a8ef5c1894b27a44d1e30f43766fdabbb2"
+    },
+    {
+      "path": "back-end/scripts/test-final-book-flying-orientation.ts",
+      "kind": "source",
+      "sha256": "0e26817683a2f3b7aaeb4bd3f827c41574e42a6dfb98fe1c0154d413ea7861c7"
     },
     {
       "path": "back-end/scripts/test-gelato-admission-settlement-boundaries.ts",
@@ -833,9 +919,29 @@
       "sha256": "fda94d8cdea5deca1d3bec9fbe5ca76c7387a34fbb51148116cd237727b54bb2"
     },
     {
+      "path": "back-end/scripts/test-pose-revision-resolution.ts",
+      "kind": "source",
+      "sha256": "0c31d0493c8dc4c25f12f6ebaff8ce611d5e20b68aab8d0c501cab103195afaa"
+    },
+    {
       "path": "back-end/scripts/test-publish-book-config-immutability.ts",
       "kind": "source",
       "sha256": "3221ecce5e666f354fa3b122bd02961edda26dac013e547194d296aacda0e55c"
+    },
+    {
+      "path": "back-end/scripts/test-updated-test-book-copy-api.ts",
+      "kind": "source",
+      "sha256": "1a82fe5696c82cf9757a41ef19307a2b4b7c2dadd5a664a2df93aec42ee88da6"
+    },
+    {
+      "path": "back-end/scripts/test-updated-test-book-copy-runtime.ts",
+      "kind": "source",
+      "sha256": "ab592815602e25bfb5d3df42a47e122881361aa89e46521cd432cf2a89528036"
+    },
+    {
+      "path": "back-end/scripts/test-updated-test-book-copy.ts",
+      "kind": "source",
+      "sha256": "1a77569d9328c80b64e451f9dc6a8334ffcc98599a288c528b736fcc8ae142d2"
     },
     {
       "path": "back-end/scripts/test-w0-build-readonly.ts",
@@ -880,7 +986,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "6a0643cd7ef9eb243f3d6a814bf1a9a87d54eddd2d34f8458dc7c39b115ae482"
+      "sha256": "cabc3c480db6fb29ad7266df38cc95f8bc6010d05f2388ec6732f98b650bd6ea"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -926,6 +1032,11 @@
       "path": "back-end/scripts/test-workflow-readiness-intake.ts",
       "kind": "source",
       "sha256": "54c5644a0b20fe162eb65994a3ce57d22ce5947f53793758a3025630cc877271"
+    },
+    {
+      "path": "back-end/scripts/updated-test-book-fixture.ts",
+      "kind": "source",
+      "sha256": "356d727ab1f4eb2c302e6daf862822447861be0aabf63bb1546bd8c2afff9937"
     },
     {
       "path": "back-end/scripts/verify-gelato-print-preflight.py",
@@ -986,6 +1097,11 @@
       "path": "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
       "kind": "source",
       "sha256": "3cf04e611d305f9c339b3f88818617a46c2884a6752449a953843e967f322385"
+    },
+    {
+      "path": "back-end/src/app/api/admin/orders/[orderId]/updated-test-copy/route.ts",
+      "kind": "source",
+      "sha256": "64ca836524eb4b3a30ae840f98cbecc1110005cd1a6b06f758a5285e8f243204"
     },
     {
       "path": "back-end/src/app/api/admin/orphaned-orders/route.ts",
@@ -1138,6 +1254,11 @@
       "sha256": "ca7b88a79a55c73f185925810a414c4a3410d636e2de8f0be1f6c03a0f68b39b"
     },
     {
+      "path": "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
+      "kind": "source",
+      "sha256": "715561c0b492afdff52cc68978286a1963eed17b76cdcaf26025efe9f5990915"
+    },
+    {
       "path": "back-end/src/app/api/orders/[orderId]/reset/route.ts",
       "kind": "source",
       "sha256": "5b5ffadd6e830fa61df00a4d410d7f3cf5e0073cf02c72e84e448ece25971b6a"
@@ -1165,7 +1286,12 @@
     {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
       "kind": "source",
-      "sha256": "c196f64282ff59955561e002d96346c1aa281c8de1cf917b2ad7acd7d7fc6431"
+      "sha256": "75c276bc1ed3bef4112d957a509180dbe4c04a135c000a0ef9505a0b22541377"
+    },
+    {
+      "path": "back-end/src/components/orders/updated-test-book-copy.tsx",
+      "kind": "source",
+      "sha256": "fbecabfd1d3d5d6ce232451477819ae51fc2cb33d42138451f5fe618a6450020"
     },
     {
       "path": "back-end/src/components/stages/gelato-release-review.tsx",
@@ -1553,6 +1679,21 @@
       "sha256": "75b221e00bd0dd51c948a41ffb0452592dd0184c5680ace2e6905e8fbae52334"
     },
     {
+      "path": "back-end/src/lib/books/updated-test-book-copy-http.ts",
+      "kind": "source",
+      "sha256": "4327d315f20fdecdcfbd5c6ed867bdb51c6251368f5f75f2cc32a7cd31847a1f"
+    },
+    {
+      "path": "back-end/src/lib/books/updated-test-book-copy-store.ts",
+      "kind": "source",
+      "sha256": "d6b2b25c162d33a4edbc45177568fcff80a605f96e532ea9ddffa0bc72b971d7"
+    },
+    {
+      "path": "back-end/src/lib/books/updated-test-book-copy.ts",
+      "kind": "source",
+      "sha256": "f7ce5fbc9ad1542efb33476358890ee9c1dd70b154b7648d6148505cc5612a1f"
+    },
+    {
       "path": "back-end/src/lib/books/w2a-bootstrap-retry.ts",
       "kind": "source",
       "sha256": "ee0f4d35ceb2cba4671201f1cdf09016b6c90c6c3befa520b13b962af55430da"
@@ -1725,7 +1866,7 @@
     {
       "path": "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts",
       "kind": "source",
-      "sha256": "b630491eebee3cc55fb37e63f17667fe971bbd7e703cb263131c4ea5f8403385"
+      "sha256": "dd51c5e3c463f19d3ac488e5dc9f0d138519784f27060b09437413a43c904d8d"
     },
     {
       "path": "back-end/src/middleware.ts",
@@ -1793,9 +1934,24 @@
       "sha256": "f8c9626318b8a7abb7c168b3d7feae838856b1e0e0b504db33587f1ee4fcb4f1"
     },
     {
+      "path": "docs/implementation-plans/final-book-revisions-20261117.md",
+      "kind": "source",
+      "sha256": "047846f3c9972a6a03522899ab4739eda73ce4b01a625412e1cf6acb9352638d"
+    },
+    {
+      "path": "docs/implementation-plans/final-book-revisions-validation-20261118.md",
+      "kind": "source",
+      "sha256": "9c9f06fd4c28f558d059ad50a2ba41ce03a8d131d5562f3041f71bb8fdf76e15"
+    },
+    {
       "path": "docs/implementation-plans/native-retry-jsonb-fix-20261117.md",
       "kind": "evidence",
       "sha256": "18b60cf707384bd0e32a4f62db1e1891620178b4937141f3913408c1af40ad97"
+    },
+    {
+      "path": "docs/implementation-plans/updated-test-book-copy-20261118.md",
+      "kind": "source",
+      "sha256": "5aab832a608f829d9fbc9214b2bce40f03568e3ac63f299431e4e459b1654b46"
     },
     {
       "path": "docs/implementation-plans/w2a-completion-claim-20261117.md",
@@ -1925,7 +2081,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "735114ce49cfecac95ba30e262a7d4a881f761bda288a1c6cb43c5e1874fafd4"
+      "sha256": "5470efd6863b78bc7e391585efe9fd8a42c0ad8903102a4c68d9641b0a5e1c59"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
@@ -1948,6 +2104,11 @@
       "sha256": "7ecab9758fdd8ce2f42470fafad15ad81a3af57fee0b15737be9df17447d0652"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-final-book-revisions-2026-11-18.json",
+      "kind": "evidence",
+      "sha256": "e9127d36ba0e8906b41f45b6405994477dcc609ae490191f12afa09525dee20f"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-hair-native-retry-2026-11-17.json",
       "kind": "evidence",
       "sha256": "01253fbd7d3889cf0c4035e2cf130d6c831877676851d9a18c95087ad03f9a0f"
@@ -1960,12 +2121,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "373443954b7aa0ca9be23fbc1e58cb0132c35e54ab9fa1c913cb0807a625a81a"
+      "sha256": "e64b204f6d0fca4ed58c9dbc8c62783be8818e9534a455b38bcc557d21dd5d49"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "a8d11527dee106d55291f046b3a329a6e85a47d7831dfccdb624f19703e5d946"
+      "sha256": "c41883fd17a1366fd5c183e31dc22fda91d9fa7042903035d0f83974a3afc6cc"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -1981,6 +2142,246 @@
       "path": "scripts/testing/local-preview-database.ts",
       "kind": "source",
       "sha256": "693304f04fad6ed2a51afce1ca9e94546be69f6502c42d22e79d79e1925b0c36"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/build_final_book_candidate.py",
+      "kind": "source",
+      "sha256": "a6ddd82060ad105a9c7ff6d24e1b78c24f474e537daa306339dd8826086e4cbd"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/export_flow_candidate.py",
+      "kind": "source",
+      "sha256": "bda177d23dcd0a27d296c499b22c4291a6a0966a401840347166d1ef5840f6f3"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/.gitignore",
+      "kind": "source",
+      "sha256": "abe55857e689f338c94150074243ea932141418da5d15c40a5b8fe0ab40f190d"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/README.md",
+      "kind": "source",
+      "sha256": "a37157c49759c4aed61c6b40021ebf0ef858778c8fd7f6d28c80b95822e81392"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/back-imprint-panel.png",
+      "kind": "source",
+      "sha256": "c9c5a873c5fa9d6f24af3a2da63809fd4ad37df8108b8b4981de5c4e1f414c85"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/lhl-color-mark.png",
+      "kind": "source",
+      "sha256": "9b6ae153ab15433861167801b4472fc80940e8c92bf1e59423d6ea09797129e7"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/original-title-page.png",
+      "kind": "source",
+      "sha256": "aaebc123fff1c5f61cf3c582b3020177310c334a034f5a58140dd3e6ba5ae6d2"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-12-v5.png",
+      "kind": "source",
+      "sha256": "6f6402933e1a99ccae22e5197362ecec306c2af4dc712127d5e94e19ff037506"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-13-v5.png",
+      "kind": "source",
+      "sha256": "7c339de59e23d1cbb5954ba50d0d705b0ca7a6e24a77091f065820add1d0baba"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-12-v5.png",
+      "kind": "source",
+      "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-13-v5.png",
+      "kind": "source",
+      "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-12-v5.png",
+      "kind": "source",
+      "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-13-v5.png",
+      "kind": "source",
+      "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/approved-page13-shadow.png",
+      "kind": "source",
+      "sha256": "8f9b305e45034dbf9e1746aa11c4cd58b8d96ad215c34509431ff5c88fbecd0c"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/owl.png",
+      "kind": "source",
+      "sha256": "ac19059f4d2183ba8dc6946a09da0defb40f8df559203ade9348d05639b1ff59"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/paw.png",
+      "kind": "source",
+      "sha256": "e6e16649e86c631c52a5f73687c8cee422701b6c8c8134827af83f9b60e2cb71"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/penguin.png",
+      "kind": "source",
+      "sha256": "3871fdca7924c3e29db708999cb9faa4dadc0c1b3317c1fe9147343c5faec19c"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/trex.png",
+      "kind": "source",
+      "sha256": "ed81955ec76ea71e18768e3304cb302d9286232700d7385facbf7d69eaf0b7cb"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/unicorn.png",
+      "kind": "source",
+      "sha256": "29e045cfa8f75541629cb04816ebe5d3326a8a4a4ecf2107590aa9e0f8b10772"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-12-v5.png",
+      "kind": "source",
+      "sha256": "541149a1dc7709ec0d0922f61f39743a5a47b10e687bd19287f5717ea7f67bae"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-13-v5.png",
+      "kind": "source",
+      "sha256": "b1b7fb895c388677fd48a8ece1b09a2fc21e7d31bc6eea3dd8ae0cb05c09188e"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-12-v5.png",
+      "kind": "source",
+      "sha256": "533559d886116e11dd5be2eb7c03cac1a6eee27fbf812735f34d0b1570ea721b"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-13-v5.png",
+      "kind": "source",
+      "sha256": "46507e91d0a6820b3f3902e7c89d436b04b603af022d9b5a8d5afb2d34949f73"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-12-v5.png",
+      "kind": "source",
+      "sha256": "d68dd7a9d7a9a82122261963bd8d66a9e7f11bac155467f92ce5fd5c55ee7656"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-13-v5.png",
+      "kind": "source",
+      "sha256": "702711a782a7e7a9788412b7ca8427911323bd27dbdd8737641b43b14c130c13"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-12-v5.png",
+      "kind": "source",
+      "sha256": "694d590e368aee3f4a1ea24ddd77d921842a93e0f1af016e7d16610553640fe1"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-13-v5.png",
+      "kind": "source",
+      "sha256": "d89975187f35be1a8879dd2958c9c1270676b08bfba857d091d578bec2d86454"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-12-v5.png",
+      "kind": "source",
+      "sha256": "37f6c136099b56aaeb07b03e63a5c18c4c1b0bb4689a625340ab125417e180d8"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-13-v5.png",
+      "kind": "source",
+      "sha256": "dddbadd568cf7380ba3ce99c8c999bf11e14917a626d61be00d0542d439966de"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/white-page.png",
+      "kind": "source",
+      "sha256": "85f6453969db20ce825046076a226c7334faabc37772a95bd344157f187e0023"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/candidate-config.json",
+      "kind": "source",
+      "sha256": "b3da96cee77a090f0a2006cd3dc9c19399543099b3a2ff717c3c60c5d3e37951"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/copy-revision.json",
+      "kind": "source",
+      "sha256": "2a112dd6729958acc6fabe9f6e910e0da3743ec26e4c67ec8409f322cee8d4ff"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering-data.json",
+      "kind": "source",
+      "sha256": "d3e27337fa6fa67ded4641ab09202a564d96aac39bb8fe724c9e8e87779bbb04"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering.json",
+      "kind": "source",
+      "sha256": "e056782a389274af82c75d24025be24095437256456233495b00f52dd211caf8"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/publication-inventory.json",
+      "kind": "source",
+      "sha256": "cc0debd4b07d0b69588edd95f556bf84613a48f100f49311b14e071d7e5f248f"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/release-config.json",
+      "kind": "source",
+      "sha256": "697e56e319fb869ec06b31759ba6e5eff81a18ae9de19b602f724ae866fa4263"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-config.json",
+      "kind": "source",
+      "sha256": "1d98a52157b84eaa5719c62f31ce1293c8bc8d7f4ea6893ca7e94c0f7dd631eb"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-provenance.json",
+      "kind": "source",
+      "sha256": "396a75441a9386d1060e5ca856d9c659ff12ca1a35cdc19cf93c2b3aa287b590"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-art-direction.md",
+      "kind": "source",
+      "sha256": "251ed5f65dfbe38672bb134468af077a5d2563a050bdef20243826aacf7e03a5"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-provenance.json",
+      "kind": "source",
+      "sha256": "303a56ccedca35516790b8d9dcdac50d58d7d7307eda133cff4c12e6323ac86d"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/final-book-revisions-20261117/trails.json",
+      "kind": "source",
+      "sha256": "c24595bfe1889b4c881748775cfffee4c0ca3b89403ec58e32317972b6fd7d82"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/lettering_state.py",
+      "kind": "source",
+      "sha256": "8e1894266e31f780de9f747a1165e1f4b6e96db0f0b745fb2cf7fd660ff855e3"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/process_final_book_trails.py",
+      "kind": "source",
+      "sha256": "2b0f2055bf0eb1e8f0d20fca05ed258fcb85d6742fffd1f6b36ced9e4652df34"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/rasterize_final_book_proof.py",
+      "kind": "source",
+      "sha256": "5d1eb782f13a1420e4d8bcaf4cfafd7686d6c1f99019bea6627573b368d46036"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/test_final_book_candidate.py",
+      "kind": "source",
+      "sha256": "05e974171e9097838d989f3f973e256efbc69800284bb087a78221ab86ab557d"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/test_final_book_proof.py",
+      "kind": "source",
+      "sha256": "72d550c39376e7ab7424f277c132807e1134183f677a30daaa9f13878ca6993d"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/test_final_book_trails.py",
+      "kind": "source",
+      "sha256": "ef1f97d9a1f3bbe68896a7ddb932670b863fc1faa9a75f791bc97fcab3d2d6a6"
+    },
+    {
+      "path": "tools/inner-voice-placement-editor/test_reviewed_copy_revision.py",
+      "kind": "source",
+      "sha256": "59327dc1dee22f054cb78e4fcbdfb86b370734e8e0c8865f9445214240e28606"
     }
   ],
   "originalPhaseCandidateBindingSha256": "301ae48dfb44e1bcd46b8db4934431697bc2b0b8c7488b39fa5dedef47f66263",
@@ -2070,5 +2471,86 @@
     "baseHead": "4938a2524be008836fc1b24780885044d07076ae",
     "priorManifestSha256": "785546249c9bfb9305cf34c46e3d344d75285b7e544e815af47e9a8c9610a1ef",
     "purpose": "Explicit completion claim and bounded native failure inspection; no generation or printing"
+  },
+  "finalBookSourceBindingUpdate": {
+    "date": "2026-11-18",
+    "baseHead": "4964eb486091e66e7b92543f30d61334a4f3c99a",
+    "priorManifestSha256": "e9127d36ba0e8906b41f45b6405994477dcc609ae490191f12afa09525dee20f",
+    "addedPaths": [
+      "back-end/scripts/assemble-final-book-proof.ts",
+      "back-end/scripts/export-final-book-revision-proof.ts",
+      "back-end/scripts/serve-updated-book-copy-fixture.ts",
+      "back-end/scripts/test-final-book-flying-orientation.ts",
+      "back-end/scripts/test-pose-revision-resolution.ts",
+      "back-end/scripts/test-updated-test-book-copy-api.ts",
+      "back-end/scripts/test-updated-test-book-copy-runtime.ts",
+      "back-end/scripts/test-updated-test-book-copy.ts",
+      "back-end/scripts/updated-test-book-fixture.ts",
+      "back-end/src/app/api/admin/orders/[orderId]/updated-test-copy/route.ts",
+      "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
+      "back-end/src/components/orders/updated-test-book-copy.tsx",
+      "back-end/src/lib/books/updated-test-book-copy-http.ts",
+      "back-end/src/lib/books/updated-test-book-copy-store.ts",
+      "back-end/src/lib/books/updated-test-book-copy.ts",
+      "docs/implementation-plans/final-book-revisions-20261117.md",
+      "docs/implementation-plans/final-book-revisions-validation-20261118.md",
+      "docs/implementation-plans/updated-test-book-copy-20261118.md",
+      "tools/inner-voice-placement-editor/build_final_book_candidate.py",
+      "tools/inner-voice-placement-editor/export_flow_candidate.py",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/.gitignore",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/README.md",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/back-imprint-panel.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/lhl-color-mark.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/original-title-page.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-cat-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-dog-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-lion-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/approved-page13-shadow.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/owl.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/paw.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/penguin.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/trex.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-native/unicorn.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-owl-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-penguin-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-t-rex-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-tiger-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-12-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/trail-unicorn-13-v5.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/assets/white-page.png",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/candidate-config.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/copy-revision.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering-data.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/lettering.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/publication-inventory.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/release-config.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-config.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/source-provenance.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-art-direction.md",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/trail-provenance.json",
+      "tools/inner-voice-placement-editor/final-book-revisions-20261117/trails.json",
+      "tools/inner-voice-placement-editor/lettering_state.py",
+      "tools/inner-voice-placement-editor/process_final_book_trails.py",
+      "tools/inner-voice-placement-editor/rasterize_final_book_proof.py",
+      "tools/inner-voice-placement-editor/test_final_book_candidate.py",
+      "tools/inner-voice-placement-editor/test_final_book_proof.py",
+      "tools/inner-voice-placement-editor/test_final_book_trails.py",
+      "tools/inner-voice-placement-editor/test_reviewed_copy_revision.py"
+    ],
+    "reboundPaths": [
+      ".github/workflows/check-production-build.yml",
+      "back-end/package.json",
+      "back-end/scripts/test-w2-http-handoff.ts",
+      "back-end/src/app/orders/[orderId]/page.tsx",
+      "back-end/src/lib/workflow-jobs/w2b-pose-jobs.ts"
+    ],
+    "purpose": "Final book revision source/artifacts, image-preserving admin copy and revision-specific W2B jobs; no execution authority"
   }
 }
