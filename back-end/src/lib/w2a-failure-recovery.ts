@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+import canonicalW2AWorkflow from '../../../docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json';
 import { supabase } from './supabase-client';
 import { listN8NExecutions, listN8NExecutionPage, readN8NExecution } from './n8n-recovery-client';
 import { W2A_ORCHESTRATOR_ID, W2A_FAILURE_KEY, W2A_PARENT_KEY, buildW2AFailure, claimTime, failureRecord, heldW2AFailure,
@@ -60,7 +62,9 @@ export async function assertLatestFailure(failure: W2AFailure, strict = false): 
       if (entry.id === failure.executionId) return;
       if (BigInt(entry.id) < BigInt(failure.executionId)) continue;
       const detail=await readN8NExecution(entry.id),claim = originalW2AClaim(detail);
-      if(strict && (failureRecord(detail)?.id!==entry.id || failureRecord(detail)?.workflowId!==W2A_ORCHESTRATOR_ID || !claim))throw Error('Newer W2A execution ownership is unverified; inspect workflow history');
+      if(strict && (failureRecord(detail)?.id!==entry.id || failureRecord(detail)?.workflowId!==W2A_ORCHESTRATOR_ID))throw Error('Newer W2A execution ownership is unverified; inspect workflow history');
+      if(strict && isVerifiedW2AFailureObserver(detail,failure))continue;
+      if(strict && !claim)throw Error('Newer W2A execution ownership is unverified; inspect workflow history');
       if (!strict && reservedOwner && claim?.orderId === failure.orderId && claim.orderRowId === failure.orderRowId && claim.startedAt === failure.claimStartedAt) continue;
       if (claim?.orderId === failure.orderId && claim.orderRowId === failure.orderRowId) throw Error('A newer W2A execution exists; refresh recovery before continuing');
     }
@@ -155,4 +159,65 @@ export async function queueEarlyW2ARetry(input: { orderId: string; executionId: 
     .eq('error_type', failure.code).eq('error_message', failure.message).select('id').maybeSingle();
   if (result.error || !result.data) throw Error('Retry was not confirmed; refresh order status before trying again');
   return { queued: true, orderId: failure.orderId, nextWorkflow: '2A', dispatchStarted: false };
+}
+
+/** A completed, isolated error observer records a failure; it cannot acquire or generate a book. */
+export function isVerifiedW2AFailureObserver(execution: unknown, expected: W2AFailure): boolean {
+  const root=failureRecord(execution),data=failureRecord(root?.data),result=failureRecord(data?.resultData);
+  const started=claimTime(root?.startedAt),stopped=claimTime(root?.stoppedAt);
+  if(!root || root.workflowId!==W2A_ORCHESTRATOR_ID || typeof root.id!=='string' || !/^\d{1,30}$/.test(root.id) ||
+    root.mode!=='error' || root.status!=='success' || root.finished!==true || !started || !stopped || stopped<started ||
+    root.retryOf!=null || root.retrySuccessId!=null || root.waitTill!=null || data?.parentExecution!=null || result?.error!=null) return false;
+  const startData=failureRecord(data?.startData),executionData=failureRecord(data?.executionData);
+  if(!startData || Object.keys(startData).length || !executionData || !Array.isArray(executionData.nodeExecutionStack) || executionData.nodeExecutionStack.length ||
+    ['waitingExecution','waitingExecutionSource'].some(key=>executionData[key]!=null && (!failureRecord(executionData[key]) || Object.keys(executionData[key] as object).length)))return false;
+  const triggerName='W2A Error Trigger',reportName='Report W2A Execution Failure';
+  const workflow=failureRecord(root.workflowData),nodes=workflow?.nodes,connections=failureRecord(workflow?.connections);
+  if(workflow?.id!==W2A_ORCHESTRATOR_ID || !Array.isArray(nodes))return false;
+  const find=(name:string)=>nodes.filter(node=>failureRecord(node)?.name===name);
+  const triggers=find(triggerName),reports=find(reportName);
+  if(triggers.length!==1 || reports.length!==1)return false;
+  const trigger=failureRecord(triggers[0]),report=failureRecord(reports[0]);
+  const canonicalTrigger=canonicalW2AWorkflow.nodes.find(node=>node.name===triggerName)!;
+  const canonical=canonicalW2AWorkflow.nodes.find(node=>node.name===reportName)!;
+  function canonicalParameters(value:unknown,defaults:Record<string,unknown>):Record<string,unknown>|null {
+    const parameters=failureRecord(value);if(!parameters)return null;
+    const normalized=structuredClone(parameters);
+    // n8n persists these explicit defaults when the canonical nodes are opened/saved.
+    for(const [key,defaultValue] of Object.entries(defaults))if(key in normalized){if(!isDeepStrictEqual(normalized[key],defaultValue))return null;delete normalized[key];}
+    const response=failureRecord(failureRecord(failureRecord(normalized.options)?.response)?.response);
+    if(response)for(const key of ['fullResponse','neverError'])if(key in response){if(response[key]!==false)return null;delete response[key];}
+    return normalized;
+  }
+  const triggerParameters=canonicalParameters(trigger?.parameters,{notice:''});
+  const parameters=canonicalParameters(report?.parameters,{specifyHeaders:'keypair',provideSslCertificates:false,sendQuery:false,preBuiltAgentsCalloutHttpRequest:'',curlImport:'',infoMessage:''});
+
+  if(trigger?.type!=='n8n-nodes-base.errorTrigger' || report?.type!=='n8n-nodes-base.httpRequest' || trigger.disabled===true || report.disabled===true ||
+    trigger.typeVersion!==canonicalTrigger.typeVersion || report.typeVersion!==canonical.typeVersion ||
+    !isDeepStrictEqual(triggerParameters,canonicalTrigger.parameters) || !isDeepStrictEqual(parameters,canonical.parameters) ||
+    !isDeepStrictEqual(connections?.[triggerName],{main:[[{node:reportName,type:'main',index:0}]]}) ||
+    connections?.[reportName]!=null && !isDeepStrictEqual(connections[reportName],{main:[]}) ||
+    result?.lastNodeExecuted!==reportName)return false;
+  const runData=failureRecord(result.runData);
+  if(!runData || !isDeepStrictEqual(Object.keys(runData).sort(),[triggerName,reportName].sort()))return false;
+  function single(name:string,source:unknown):Record<string,unknown>|null {
+    const values=runData![name];if(!Array.isArray(values) || values.length!==1)return null;
+    const run=failureRecord(values[0]),main=failureRecord(run?.data)?.main;
+    if(run?.executionStatus!=='success' || run.error!=null || !isDeepStrictEqual(run.source,source) || !Array.isArray(main) || main.length!==1 || !Array.isArray(main[0]) || main[0].length!==1)return null;
+    return failureRecord(failureRecord(main[0][0])?.json);
+  }
+  const event=single(triggerName,[]),ack=single(reportName,[{previousNode:triggerName}]);
+  const eventExecution=failureRecord(event?.execution),eventWorkflow=failureRecord(event?.workflow),raw=failureRecord(ack?.failure);
+  if(ack?.success!==true || ack.recorded!==true || ack.stale===true || !raw || eventWorkflow?.id!==W2A_ORCHESTRATOR_ID ||
+    eventExecution?.id!==raw.executionId || typeof raw.executionId!=='string' || !/^\d{1,30}$/.test(raw.executionId) || BigInt(raw.executionId)>=BigInt(root.id) ||
+    !Number.isSafeInteger(raw.orderRowId) || Number(raw.orderRowId)<1 || typeof raw.orderId!=='string' || !raw.orderId || raw.orderId.trim()!==raw.orderId)return false;
+  const reported=storedW2AFailure({id:raw.orderRowId,orderId:raw.orderId,product_info:{[W2A_FAILURE_KEY]:raw}});
+  const claimStarted=claimTime(reported?.claimStartedAt),failed=claimTime(reported?.failedAt);
+  if(!reported || reported.resolvedAt || !claimStarted || !failed || failed<claimStarted || failed>started ||
+    typeof reported.failedNode!=='string' || !reported.failedNode || !reported.message || !reported.sourceExecutionIds.length ||
+    reported.sourceExecutionIds[0]!==reported.executionId || new Set(reported.sourceExecutionIds).size!==reported.sourceExecutionIds.length ||
+    reported.sourceExecutionIds.some(id=>typeof id!=='string' || !/^\d{1,30}$/.test(id)))return false;
+  if(reported.executionId===expected.executionId && !isDeepStrictEqual(reported,expected))return false;
+  return reported.orderRowId===expected.orderRowId || reported.orderId===expected.orderId
+    ? isDeepStrictEqual(reported,expected) : true;
 }
