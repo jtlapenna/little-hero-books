@@ -167,6 +167,8 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
   const actionInFlight = useRef(false);
   const readSequence = useRef(0);
   const readController = useRef<AbortController | null>(null);
+  const actionErrorRef = useRef<HTMLDivElement | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [resolvedRevision, setResolvedRevision] = useState<string | null>(null);
   const [creditRevision, setCreditRevision] = useState<string | null>(null);
@@ -255,6 +257,9 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
     ? `${selectedOrderId}:${inspectedOrder.failure.executionId}:${inspectedOrder.failure.claimStartedAt}:${inspectedOrder.failureRevision}` : null;
   const causeResolved = Boolean(failureRevision && resolvedRevision === failureRevision);
   const creditsAcknowledged = Boolean(failureRevision && creditRevision === failureRevision);
+  const hasInspectedOrder = inspectedOrder !== null;
+  useEffect(() => { if (actionError) actionErrorRef.current?.focus(); }, [actionError, hasInspectedOrder]);
+  const actionFailureNotice = actionError && <div ref={actionErrorRef} role="alert" aria-live="assertive" tabIndex={-1} className="m-5 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-950 focus:outline-none focus:ring-2 focus:ring-red-500">{actionError}</div>;
   const runAction = async (action: RecoveryMutation) => {
     if (!selectedOrderId || !verified || loading || actionInFlight.current || inspectedOrder?.orderId !== selectedOrderId) return;
     const snapshot = inspectedOrder;
@@ -264,7 +269,7 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
     if (action === 'resume_native_retry' && (!snapshot.nativeRecovery?.canResume || !causeResolved || !creditsAcknowledged)) return;
     actionInFlight.current = true;
     readController.current?.abort(); readSequence.current++;
-    setActing(true); setVerified(false); setBanner(null); setResolvedRevision(null); setCreditRevision(null);
+    setActing(true); setVerified(false); setBanner(null); setActionError(null); setResolvedRevision(null); setCreditRevision(null);
     try {
       const response = await fetch('/api/admin/w2a-recovery', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -287,7 +292,9 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
       setBanner({ tone: 'success', message });
     } catch (error) {
       if (!mounted.current) return;
-      setBanner({ tone: 'error', message: `${error instanceof Error ? error.message : 'Action outcome is uncertain'}. Checking current order state before another action.` });
+      const detail = error instanceof Error ? error.message : 'Action outcome is uncertain';
+      const context = action === 'prepare_native_retry' ? 'Readiness could not be confirmed. This check does not request image generation.' : 'The recovery action could not be confirmed.';
+      setActionError(`${context} ${detail}. Checking current order state before another action.`);
     } finally {
       if (mounted.current) { await fetchData(selectedOrderId); setActing(false); }
       actionInFlight.current = false;
@@ -406,6 +413,8 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
           </form>
         </div>
 
+        {!inspectedOrder && actionFailureNotice}
+
         {inspectedOrder && (
           <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-200 px-5 py-4">
@@ -455,6 +464,8 @@ function W2ARecoveryPageContent({ selectedOrderId }: { selectedOrderId: string }
                 </div>
               </div>
             </div>
+
+            {actionFailureNotice}
 
             {inspectedOrder.nativeRecovery && <section aria-labelledby="resume-poses-title" className="m-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
               <h3 id="resume-poses-title" className="font-semibold">Resume interrupted poses</h3>

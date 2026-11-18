@@ -296,7 +296,19 @@ async function main() {
     runtime.data={...root.data,resultData:{...root.data.resultData,error:{executionId:'5253',message:'Input endpoint rejected parent'},lastNodeExecuted:'Execute SW1 - Pose Generation'}};
     executions.set('5253',{id:'5253',workflowId:'fixture-sw1',status:'error',stoppedAt:runtime.stoppedAt,data:{parentExecution:{executionId:'5252',workflowId:runtime.workflowId},resultData:{error:{message:'A different execution owns this W2A parent claim'},lastNodeExecuted:'Fetch Repo W2A Pose Input'}}});
     const {recordW2AExecutionFailure}=await import('../src/lib/w2a-failure-recovery');
-    await recordW2AExecutionFailure('5252');
+    const {POST:reportFailure}=await import('../src/app/api/internal/w2a/report-failure/route');
+    const reportResult=await reportFailure(request('/api/internal/w2a/report-failure',{executionId:'5252'}));
+    assert.equal(reportResult.status,200,await reportResult.clone().text());
+    const recordedFailure=await reportResult.json();assert.equal(recordedFailure.recorded,true);
+    // n8n invokes the workflow's own error-trigger branch after the parent fails.
+    const observer={id:'5353',workflowId:root.workflowId,mode:'error',status:'success',finished:true,retryOf:null,
+      startedAt:'2026-11-16T06:01:01.000Z',stoppedAt:'2026-11-16T06:01:02.000Z',workflowData:{...structuredClone(top),id:root.workflowId},
+      data:{startData:{},executionData:{nodeExecutionStack:[]},resultData:{lastNodeExecuted:'Report W2A Execution Failure',runData:{
+        'W2A Error Trigger':[{source:[],executionStatus:'success',data:{main:[[{json:{execution:{id:'5252'},workflow:{id:root.workflowId}}}]]}}],
+        'Report W2A Execution Failure':[{source:[{previousNode:'W2A Error Trigger'}],executionStatus:'success',data:{main:[[{json:recordedFailure}]]}}],
+      }}}};
+    executions.set('5353',observer);
+
     const stoppedJobs=structuredClone(tables.workflow_jobs),stoppedAttempts=structuredClone(tables.workflow_job_attempts);
     const {GET:recoveryGet,POST:recoveryPost}=await import('../src/app/api/admin/w2a-recovery/route');
     const adminRequest=(body?:unknown)=>new NextRequest('https://admin.littleherolabs.com/api/admin/w2a-recovery?orderId='+nativeId,{method:body?'POST':'GET',headers:{cookie:managed.cookie('operator@example.test'),origin:'https://admin.littleherolabs.com','content-type':'application/json'},body:body?JSON.stringify(body):undefined});
@@ -305,6 +317,48 @@ async function main() {
     const actionBody=(dto:any,action:string)=>({action,orderId:nativeId,executionId:dto.failure.executionId,updatedAt:dto.failureRevision,resolvedCause:true});
     const assertRejected=async(body:unknown)=>{const before=structuredClone(nativeRow),jobBefore=structuredClone(tables.workflow_jobs),attemptBefore=structuredClone(tables.workflow_job_attempts),posts=retryPosts;const response=await recoveryPost(adminRequest(body));assert.equal(response.status,400,await response.clone().text());assert.deepEqual(nativeRow,before);assert.deepEqual(tables.workflow_jobs,jobBefore);assert.deepEqual(tables.workflow_job_attempts,attemptBefore);assert.equal(retryPosts,posts);};
     const stoppedBody=actionBody(stoppedDto.inspectedOrder,'prepare_native_retry');
+    const {isVerifiedW2AFailureObserver}=await import('../src/lib/w2a-failure-recovery');
+    const {assertLatestFailure}=await import('../src/lib/w2a-failure-recovery');
+    assert.equal(isVerifiedW2AFailureObserver(observer,recordedFailure.failure),true);
+    const reporterNode=(value:any)=>value.workflowData.nodes.find((node:any)=>node.name==='Report W2A Execution Failure');
+    const reportOutput=(value:any)=>value.data.resultData.runData['Report W2A Execution Failure'][0].data.main[0][0].json;
+    const triggerOutput=(value:any)=>value.data.resultData.runData['W2A Error Trigger'][0].data.main[0][0].json;
+    const corruptObservers:Array<(value:any)=>void>=[
+      value=>{value.mode='webhook';},value=>{value.status='running';},value=>{value.status='new';},value=>{value.status='error';},value=>{value.finished=false;},
+      value=>{delete value.stoppedAt;},value=>{value.startedAt='2099-01-01T00:00:00Z';},value=>{value.retryOf='4242';},value=>{value.data.parentExecution={executionId:'1'};},
+      value=>{value.data.executionData.nodeExecutionStack=[{}];},value=>{value.data.executionData.waitingExecution={pending:{}};},value=>{value.data.startData={runNodeFilter:['Generate']};},
+      value=>{value.data.resultData.error={message:'stopped'};},value=>{value.workflowData.id='FOREIGN';},
+      value=>{value.workflowData.nodes.find((node:any)=>node.name==='W2A Error Trigger').type='n8n-nodes-base.webhook';},value=>{reporterNode(value).type='n8n-nodes-base.code';},
+      value=>{reporterNode(value).parameters.url='https://example.test/generate';},value=>{reporterNode(value).parameters.method='GET';},value=>{reporterNode(value).parameters.body='={{ $json }}';},
+      value=>{reporterNode(value).parameters.options.redirect.redirect.followRedirects=true;},
+      value=>{reporterNode(value).parameters.options.proxy='http://proxy.example.test:8080';},value=>{reporterNode(value).parameters.options.allowUnauthorizedCerts=true;},
+      value=>{reporterNode(value).parameters.options.response.response.responseFormat='text';},value=>{reporterNode(value).parameters.sendQuery=true;},
+      value=>{reporterNode(value).typeVersion=1;},value=>{reporterNode(value).parameters.sendHeaders=false;},
+      value=>{value.workflowData.nodes.find((node:any)=>node.name==='W2A Error Trigger').parameters.notice='changed';},
+      value=>{value.workflowData.connections['W2A Error Trigger'].main[0].push({node:'Execute SW1 - Pose Generation',type:'main',index:0});},
+      value=>{value.workflowData.connections['Report W2A Execution Failure']={main:[[{node:'Execute SW1 - Pose Generation',type:'main',index:0}]]};},
+      value=>{value.data.resultData.runData['Execute SW1 - Pose Generation']=[];},value=>{value.data.resultData.runData['W2A Error Trigger'].push(value.data.resultData.runData['W2A Error Trigger'][0]);},
+      value=>{value.data.resultData.runData['Report W2A Execution Failure'][0].source=[{previousNode:'Generate'}];},
+      value=>{value.data.resultData.runData['Report W2A Execution Failure'][0].data.main[0].push({json:reportOutput(value)});},
+      value=>{value.data.resultData.runData['W2A Error Trigger'][0].executionStatus='running';},
+      value=>{triggerOutput(value).execution.id='FOREIGN';},value=>{triggerOutput(value).workflow.id='FOREIGN';},
+      value=>{reportOutput(value).success=false;},value=>{reportOutput(value).recorded=false;},value=>{reportOutput(value).stale=true;},
+      value=>{reportOutput(value).failure.claimStartedAt='2026-11-16T06:00:00.000001Z';},
+      value=>{reportOutput(value).failure.orderId='FOREIGN';},value=>{reportOutput(value).failure.orderRowId=999;},
+      value=>{reportOutput(value).failure.orderRowId=999;reportOutput(value).failure.orderId='FOREIGN';},
+      value=>{reportOutput(value).failure.sourceExecutionIds=[];},
+      value=>{delete value.data.resultData.runData['Report W2A Execution Failure'];},
+    ];
+    for(const corrupt of corruptObservers){const bad=structuredClone(observer);corrupt(bad);assert.equal(isVerifiedW2AFailureObserver(bad,recordedFailure.failure),false);executions.set('5353',bad);await assertRejected(stoppedBody);}
+    const persistedDefaults=structuredClone(observer),persistedNode=reporterNode(persistedDefaults);
+    Object.assign(persistedNode.parameters,{specifyHeaders:'keypair',provideSslCertificates:false,sendQuery:false,preBuiltAgentsCalloutHttpRequest:'',curlImport:'',infoMessage:''});
+    Object.assign(persistedNode.parameters.options.response.response,{fullResponse:false,neverError:false});
+    persistedDefaults.workflowData.nodes.find((node:any)=>node.name==='W2A Error Trigger').parameters={notice:''};
+    assert.equal(isVerifiedW2AFailureObserver(persistedDefaults,recordedFailure.failure),true,'Actual n8n explicit defaults remain canonical');
+    executions.set('5353',{...structuredClone(observer),id:'5354'});await assertRejected(stoppedBody);
+    const foreignObserver=structuredClone(observer);Object.assign(reportOutput(foreignObserver).failure,{executionId:'5300',orderId:'FOREIGN-ORDER',orderRowId:999,sourceExecutionIds:['5300','5301']});triggerOutput(foreignObserver).execution.id='5300';
+    assert.equal(isVerifiedW2AFailureObserver(foreignObserver,recordedFailure.failure),true);executions.set('5353',foreignObserver);await assertLatestFailure(recordedFailure.failure,true);executions.set('5353',observer);
+
     await assertRejected({...stoppedBody,updatedAt:'1999-01-01T00:00:00Z'});
     const assertUnknownHistory=async(body:unknown)=>{
       for(const detail of [{},{id:'7777',workflowId:root.workflowId,status:'running'}, {...root,id:'7778'}, {...root,id:'7777',workflowId:'FOREIGN'},...['new','running','success','error'].map(status=>({...root,id:'7777',status}))]){
@@ -363,7 +417,7 @@ async function main() {
     const doneRow=structuredClone(nativeRow);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,product_info:{...nativeRow.product_info,_w2a_failure:{...mappedFailure,executionId:'6262',resolvedAt:undefined}}});
     const laterFailure=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(laterFailure.nativeRecovery?.phase,'adopted');assert.equal(laterFailure.nativeRecovery?.canResume,false);Object.assign(nativeRow,doneRow);
     assert.equal(providerCalls,0);
-    log('Actual W0/bootstrap → pose8 two-image request → SW1 return/SW2/repeated QA retry/exhaustion → POST passed; native preparation/dispatch CAS → retained0–8/resumed9–12 → 13-pose manifest/completion passed, zero provider calls');
+    log('Actual W0/bootstrap → pose8 two-image request → SW1 return/SW2/repeated QA retry/exhaustion → POST passed; actual failure-report observer history + strict negatives → native preparation/dispatch CAS → retained0–8/resumed9–12 → 13-pose manifest/completion passed, zero provider calls');
   }finally{globalThis.fetch=transport;console.log=log;console.error=errorLog;}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

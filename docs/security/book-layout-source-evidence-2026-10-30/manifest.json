@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "65f14876a99ebe16528d962a2b73e3a573a33282d1e98cc3aaee40ad40e7c17c",
+  "sourceSnapshotSha256": "aba07dc9a7753768086f07bf585b73e8d9924c7be1d5340da227507bdce213ea",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -879,7 +879,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "b5a5c6070cf0af9d00fde7e80a04ed56d30a2b27c45792a5daa0e5f99865c571"
+      "sha256": "c88a033ef688a30151cce2ff2d6b1351feee4beb26e5cc13aa3d361468a262ab"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -944,7 +944,7 @@
     {
       "path": "back-end/src/app/admin/w2a-recovery/page.tsx",
       "kind": "source",
-      "sha256": "3edd800337ffcaeb962ea6cfa13a27c949dd0522212164761b16badc76cbcb90"
+      "sha256": "a72f4e6601aa0203d21738a342b1cdbd8a3c7442564fa180067ce8f5da7986b6"
     },
     {
       "path": "back-end/src/app/admin/w3-calibration/page.tsx",
@@ -1669,7 +1669,7 @@
     {
       "path": "back-end/src/lib/w2a-failure-recovery.ts",
       "kind": "source",
-      "sha256": "5dd6515ce80cc0f86a2abba09ddc77324922640d5785c4fd7cd3c2687a398362"
+      "sha256": "009cf46e4c85f80015eb99ba811eb90350b3d7295ef5ce07d642ec80235af2e9"
     },
     {
       "path": "back-end/src/lib/w2a-native-retry.ts",
@@ -1769,7 +1769,7 @@
     {
       "path": "docs/admin-workflow-recovery.md",
       "kind": "evidence",
-      "sha256": "a60afe8c0ffd072406b8334e7a61bed22d39eae77c0967311c124e9340d3a7e6"
+      "sha256": "6a6211394d542f2c2e6e22640f58dc14611159d869c7edb573d0ce771a5ca3f2"
     },
     {
       "path": "docs/database/migration-activate-book-config-version.sql",
@@ -1790,6 +1790,11 @@
       "path": "docs/implementation-plans/native-retry-jsonb-fix-20261117.md",
       "kind": "evidence",
       "sha256": "18b60cf707384bd0e32a4f62db1e1891620178b4937141f3913408c1af40ad97"
+    },
+    {
+      "path": "docs/implementation-plans/w2a-error-observer-recovery-20261117.md",
+      "kind": "evidence",
+      "sha256": "6bcff8b9595bc6b8fb42c36537bfe1452f59beeeb72c848570cdfd3a4e2429d0"
     },
     {
       "path": "docs/implementation-plans/w2a-hair-retry-preservation-20261116.md",
@@ -1909,7 +1914,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "115bda2abcff9e1ea32ff47eac600b1a8fe10d4c8616cf5a001b0d7a302f54ab"
+      "sha256": "7fc09d89da4f9bab478a6bbce68c45016deac0c1b4ce1782320326d1186de8ca"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
@@ -1920,6 +1925,11 @@
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-recovery-ui-2026-11-17.json",
       "kind": "evidence",
       "sha256": "3c4c27626215594708690f174d271bd2882339162bf152196088f8cb36997a9b"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-error-observer-recovery-2026-11-17.json",
+      "kind": "evidence",
+      "sha256": "7ecab9758fdd8ce2f42470fafad15ad81a3af57fee0b15737be9df17447d0652"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-hair-native-retry-2026-11-17.json",
@@ -1934,12 +1944,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "aac9253cabe4b48cb8c422087eb728ec6d7cc76b08fd4b574b6f893997c2ec6e"
+      "sha256": "4cc19e7db4cf548656673b3bc8f1f109cd52087bdf20ec4c8b633e0f0d1cf854"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "cc930b30dde6311a220064223a8c25355d2fc8737d3686f131238779e9a8c467"
+      "sha256": "e513a0f0946f46e72a3e93c674585d3185fac2d7608b965dd7a781578f45d652"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -2032,5 +2042,11 @@
     "baseHead": "1e23282b088303b5ab741b98d78784623df47ea2",
     "priorManifestSha256": "12496aceaa09f4f60d3a80d20c27713ae5817b1e140fcbc28a2947f75cac2e23",
     "purpose": "Order-independent claim comparison and admin recovery for failed no-progress native continuation; no live generation/printing"
+  },
+  "errorObserverBindingUpdate": {
+    "date": "2026-11-17",
+    "baseHead": "6c470079702ccd49cbb0a9dc873dc426a10adac7",
+    "priorManifestSha256": "7ecab9758fdd8ce2f42470fafad15ad81a3af57fee0b15737be9df17447d0652",
+    "purpose": "Actual readiness observer exclusion and inline error visibility; no paid generation or direct DBhealing"
   }
 }
