@@ -49,6 +49,13 @@ while queue:
             queue.append(target.with_name('manifest.json'))
 
 source_cases = {
+    'changed-completion-claim-response': 'back-end/src/app/api/internal/w2a/build-run-manifest/route.ts',
+    'changed-completion-inspection': 'back-end/src/lib/w2a-recovery.ts',
+    'changed-completion-transport': 'back-end/src/lib/n8n-recovery-client.ts',
+    'changed-completion-transport-test': 'back-end/scripts/test-n8n-transport-worker.ts',
+    'changed-completion-plan': 'docs/implementation-plans/w2a-completion-claim-20261117.md',
+    'changed-completion-prior': 'docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-completion-claim-2026-11-17.json',
+
     'changed-error-observer-contract': 'docs/n8n-workflow-files/repo-centric/workflows/w2A-Orchestrator.repo-centric.json',
     'changed-error-observer-history': 'back-end/src/lib/w2a-failure-recovery.ts',
     'changed-error-observer-admin': 'back-end/src/app/admin/w2a-recovery/page.tsx',
@@ -161,6 +168,8 @@ results = []
 added_cases += ['changed-admin-recovery-inspection', 'changed-admin-recovery-client', 'changed-admin-recovery-order-link', 'changed-admin-recovery-runbook', 'changed-admin-recovery-plan', 'changed-admin-recovery-prior-manifest']
 added_cases += ['changed-native-jsonb-parent', 'changed-native-jsonb-rearm', 'changed-native-jsonb-failure', 'changed-native-jsonb-http-proof', 'changed-native-jsonb-plan', 'changed-native-jsonb-prior']
 added_cases += ['changed-error-observer-contract', 'changed-error-observer-history', 'changed-error-observer-admin', 'changed-error-observer-http', 'changed-error-observer-plan', 'changed-error-observer-prior']
+
+added_cases += ['changed-completion-claim-response', 'changed-completion-inspection', 'changed-completion-transport', 'changed-completion-transport-test', 'changed-completion-plan', 'changed-completion-prior']
 
 for case in original_cases + added_cases:
     with tempfile.TemporaryDirectory(prefix='lhl-book-layout-source-overlay-') as temporary:

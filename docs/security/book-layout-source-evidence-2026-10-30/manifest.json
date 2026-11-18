@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "aba07dc9a7753768086f07bf585b73e8d9924c7be1d5340da227507bdce213ea",
+  "sourceSnapshotSha256": "d6f3a4f673a4c7b244a2dc59076889c99e1bd216de531a1e2464f68a61e58f56",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -89,6 +89,7 @@
     "back-end/src/app/api/cron/health-monitor/route.ts",
     "back-end/src/app/api/internal/w2a/build-base-input/route.ts",
     "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
+    "back-end/src/app/api/internal/w2a/build-run-manifest/route.ts",
     "back-end/src/app/api/internal/w2a/report-failure/route.ts",
     "back-end/src/app/api/internal/w2b/build-pose-input/route.ts",
     "back-end/src/app/api/internal/w3/build-assembly-input/route.ts",
@@ -819,7 +820,7 @@
     {
       "path": "back-end/scripts/test-n8n-transport-worker.ts",
       "kind": "source",
-      "sha256": "1e6406bd0ac6e4bbbf089a994de0251bfde4d560506412fa74a400b9743b32b6"
+      "sha256": "04863bcfae7d993f9542127e21951d90221184a9197bc4eb9073b3b32e6d3270"
     },
     {
       "path": "back-end/scripts/test-pages-access-boundary.ts",
@@ -879,7 +880,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "c88a033ef688a30151cce2ff2d6b1351feee4beb26e5cc13aa3d361468a262ab"
+      "sha256": "6a0643cd7ef9eb243f3d6a814bf1a9a87d54eddd2d34f8458dc7c39b115ae482"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -1060,6 +1061,11 @@
       "path": "back-end/src/app/api/internal/w2a/build-pose-input/route.ts",
       "kind": "source",
       "sha256": "677927fc01d0f86f7c886410d172ac648bbd3be3a7be10890473ef398b91fcc5"
+    },
+    {
+      "path": "back-end/src/app/api/internal/w2a/build-run-manifest/route.ts",
+      "kind": "source",
+      "sha256": "f0d67fdb80f15636e6771abe0a44dc3381a97deebc439a6159eb5257f8cd1144"
     },
     {
       "path": "back-end/src/app/api/internal/w2a/report-failure/route.ts",
@@ -1614,7 +1620,7 @@
     {
       "path": "back-end/src/lib/n8n-recovery-client.ts",
       "kind": "source",
-      "sha256": "2ad8d115630ad637bd6f7e6f9eb187e930f92073d76e19819dd4dde1cb42c4ad"
+      "sha256": "62b0469adb8628629afe228034101c60b8c834e1de7c5c4db1837b668807c28d"
     },
     {
       "path": "back-end/src/lib/order-mapper.ts",
@@ -1684,7 +1690,7 @@
     {
       "path": "back-end/src/lib/w2a-recovery.ts",
       "kind": "source",
-      "sha256": "3eb36f2b0366fbe676782deba366c23de4f20a6265e9b56007cbae4c5b5ea5b3"
+      "sha256": "8043ce465f6440269d295811151d5b3ae17e5e49b20fc534d450a6195b3abe51"
     },
     {
       "path": "back-end/src/lib/w3-calibration-http.ts",
@@ -1769,7 +1775,7 @@
     {
       "path": "docs/admin-workflow-recovery.md",
       "kind": "evidence",
-      "sha256": "6a6211394d542f2c2e6e22640f58dc14611159d869c7edb573d0ce771a5ca3f2"
+      "sha256": "4a24424c30ab0fc58cab3fbaa8bd3355f1eb435b7e102f3187ab90286033da44"
     },
     {
       "path": "docs/database/migration-activate-book-config-version.sql",
@@ -1790,6 +1796,11 @@
       "path": "docs/implementation-plans/native-retry-jsonb-fix-20261117.md",
       "kind": "evidence",
       "sha256": "18b60cf707384bd0e32a4f62db1e1891620178b4937141f3913408c1af40ad97"
+    },
+    {
+      "path": "docs/implementation-plans/w2a-completion-claim-20261117.md",
+      "kind": "evidence",
+      "sha256": "98c1b0d49060c2e2000ee0c54730116c9a4ad79a722d0148f1f17263f0ec657d"
     },
     {
       "path": "docs/implementation-plans/w2a-error-observer-recovery-20261117.md",
@@ -1914,7 +1925,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/README.md",
       "kind": "evidence",
-      "sha256": "7fc09d89da4f9bab478a6bbce68c45016deac0c1b4ce1782320326d1186de8ca"
+      "sha256": "735114ce49cfecac95ba30e262a7d4a881f761bda288a1c6cb43c5e1874fafd4"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-mobile-signin-2026-11-17.json",
@@ -1925,6 +1936,11 @@
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-admin-recovery-ui-2026-11-17.json",
       "kind": "evidence",
       "sha256": "3c4c27626215594708690f174d271bd2882339162bf152196088f8cb36997a9b"
+    },
+    {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-completion-claim-2026-11-17.json",
+      "kind": "evidence",
+      "sha256": "785546249c9bfb9305cf34c46e3d344d75285b7e544e815af47e9a8c9610a1ef"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-error-observer-recovery-2026-11-17.json",
@@ -1944,12 +1960,12 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
-      "sha256": "4cc19e7db4cf548656673b3bc8f1f109cd52087bdf20ec4c8b633e0f0d1cf854"
+      "sha256": "373443954b7aa0ca9be23fbc1e58cb0132c35e54ab9fa1c913cb0807a625a81a"
     },
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "e513a0f0946f46e72a3e93c674585d3185fac2d7608b965dd7a781578f45d652"
+      "sha256": "a8d11527dee106d55291f046b3a329a6e85a47d7831dfccdb624f19703e5d946"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -2048,5 +2064,11 @@
     "baseHead": "6c470079702ccd49cbb0a9dc873dc426a10adac7",
     "priorManifestSha256": "7ecab9758fdd8ce2f42470fafad15ad81a3af57fee0b15737be9df17447d0652",
     "purpose": "Actual readiness observer exclusion and inline error visibility; no paid generation or direct DBhealing"
+  },
+  "completionClaimBindingUpdate": {
+    "date": "2026-11-17",
+    "baseHead": "4938a2524be008836fc1b24780885044d07076ae",
+    "priorManifestSha256": "785546249c9bfb9305cf34c46e3d344d75285b7e544e815af47e9a8c9610a1ef",
+    "purpose": "Explicit completion claim and bounded native failure inspection; no generation or printing"
   }
 }

@@ -720,7 +720,8 @@ export async function inspectW2ARecoveryOrder(
 
   if (options.includeExecutionLookup !== false) {
     try {
-      if (jobs.length === 0 || heldW2AFailure(lookup.row)) {
+      if (jobs.length === 0 || heldW2AFailure(lookup.row) ||
+          lookup.row.execution_status === 'processing' && lookup.row.current_workflow === '2A') {
         failureInspection = await inspectW2AFailure({ ...lookup.row });
         workflow = summarizeWorkflow(await fetchWorkflow(TOP_WORKFLOW_ID));
         const failure = failureInspection.failure;

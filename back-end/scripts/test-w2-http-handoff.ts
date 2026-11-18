@@ -36,7 +36,7 @@ async function main() {
   Object.assign(process.env,{ADMIN_SITE_ORIGIN:'https://admin.littleherolabs.com',ADMIN_ALLOWED_EMAILS:'operator@example.test'});
   const managed=await managedAdminFixture(['operator@example.test']);
   const transport=globalThis.fetch,log=console.log,errorLog=console.error;
-  const tables:Record<string,Record<string,any>[]>={orders:[],workflow_jobs:[],workflow_job_attempts:[],workflow_job_events:[],book_configs:[]};
+  const tables:Record<string,Record<string,any>[]>={orders:[],workflow_jobs:[],workflow_job_attempts:[],workflow_job_events:[],book_configs:[],preview_tokens:[]};
   // JSONB object ordering is not JavaScript insertion ordering. Exercise the storage boundary.
   const jsonb=(value:unknown):unknown=>Array.isArray(value)?value.map(jsonb):value!==null&&typeof value==='object'
     ? Object.fromEntries(Object.entries(value).sort(([a],[b])=>Buffer.byteLength(a)-Buffer.byteLength(b)||Buffer.compare(Buffer.from(a),Buffer.from(b))).map(([key,item])=>[key,jsonb(item)])):value;
@@ -52,9 +52,10 @@ async function main() {
       const id=url.pathname.split('/').pop()!;assert(executions.has(id),'Unexpected execution lookup '+id);return Response.json(executions.get(id));
     }
     if(url.hostname.endsWith('.synthetic-handoff.r2.cloudflarestorage.com')){
+      if(request.method==='DELETE'){objects.delete(url.pathname);return new Response(null,{status:204});}
       if(request.method==='HEAD')return new Response(null,{status:objects.has(url.pathname)?200:404});
       if(request.method==='GET')return url.pathname.endsWith('/1-manifest.json')?Response.json(one):objects.has(url.pathname)?(objects.get(url.pathname) instanceof Uint8Array ? new Response(Uint8Array.from(objects.get(url.pathname) as Uint8Array).buffer) : Response.json(objects.get(url.pathname))):new Response(null,{status:404});
-      assert.equal(request.method,'PUT');if(!url.pathname.endsWith('/2a-manifest.json'))assert.equal(request.headers.get('If-None-Match'),'*');if(objects.has(url.pathname)&&request.headers.has('If-None-Match'))return new Response(null,{status:412});objects.set(url.pathname,await request.json());return new Response(null,{status:200});
+      assert.equal(request.method,'PUT');if(!url.pathname.endsWith('/2a-manifest.json') && !request.headers.get('Content-Type')?.startsWith('image/'))assert.equal(request.headers.get('If-None-Match'),'*');if(objects.has(url.pathname)&&request.headers.has('If-None-Match'))return new Response(null,{status:412});objects.set(url.pathname,request.headers.get('Content-Type')?.startsWith('image/')?new Uint8Array(await request.arrayBuffer()):await request.json());return new Response(null,{status:200});
     }
     if(url.hostname==='admin.littleherolabs.com' && request.method==='GET' && url.pathname.startsWith('/api/manifests/'))return new Response(null,{status:404});
     if(url.hostname!=='handoff-db.example.test'){providerCalls++;throw Error('Nonfixture transport forbidden');}
@@ -69,7 +70,7 @@ async function main() {
     });
     let found:Record<string,any>|undefined;
     if(request.method==='POST'){found={id:++ids,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),...await request.json()};Object.assign(found!,databaseRow(found!));records.push(found!);writes++;}
-    else {found=records.find(matches);if(request.method==='PATCH'&&found){Object.assign(found,databaseRow(await request.json()));found.updated_at=new Date().toISOString();writes++;}else assert.equal(request.method,'GET');}
+    else {found=records.find(matches);if(request.method==='PATCH'){const patch=await request.json();if(found){Object.assign(found,databaseRow(patch));found.updated_at=new Date().toISOString();writes++;}}else assert.equal(request.method,'GET');}
     return Response.json(request.headers.get('Accept')?.includes('object')?databaseRow(found??null):request.method==='GET'?records.filter(matches).map(databaseRow):found?[databaseRow(found)]:[]);
   };
   console.log=()=>{};console.error=()=>{};
@@ -398,7 +399,12 @@ async function main() {
       const response=await pose(request('/api/internal/w2a/build-pose-input',wire(1,body)));assert.equal(response.status,200,'Native continuation pose'+n+': '+await response.clone().text());
       const output=await response.json();assert.equal(output.workflowParentClaim.executionId,'6262');assert.equal(output.workflowAttempt,n===9?2:1);
       if(n===9){const adopted=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(adopted.nativeRecovery?.phase,'adopted');assert.equal(adopted.nativeRecovery?.canResume,false);}
-      published.push(publishedAck({...output,success:true,uploadKey:output.uploadKey.replace(/_r\d+(?=\.)/,''),qaPass:true,qa:{combined:{pass:true}}}));
+      const ack=publishedAck({...output,success:true,uploadKey:output.uploadKey.replace(/_r\d+(?=\.)/,''),qaPass:true,qa:{combined:{pass:true}}});published.push(ack);
+      // The provider boundary is synthetic; persist its terminal job/attempt and
+      // canonical upload just as the initial retained-pose fixture does.
+      Object.assign(tables.workflow_jobs.find(j=>j.id===output.workflowJobId)!,{status:'succeeded',result_snapshot:{uploadKey:output.uploadKey,generatedFileName:output.generatedFileName},lease_owner:null,lease_expires_at:null});
+      Object.assign(tables.workflow_job_attempts.find(a=>a.id===output.workflowAttemptId)!,{status:'succeeded',ended_at:'2026-11-16T07:05:00.000Z'});
+      objects.set('/'+ack.approvedKey,new Uint8Array([n+1,2,3]));
     }
     assert.deepEqual(tables.workflow_jobs.filter(j=>j.order_id===nativeId&&Number(j.logical_key.slice(-2))<9),retainedJobs);
     for(const [key,bytes]of retainedImages)assert.deepEqual(objects.get(key),bytes);
@@ -407,11 +413,54 @@ async function main() {
     const manifestItems=topNode('Write Run Manifest1',published[0],{$input:{all:()=>published.map(json=>({json}))},$execution:{id:'6262',customData:{orderContext:nativeTop.orderContext}}});
     const manifestBody=JSON.parse(topNode('Prepare Build 2A Manifest Body',manifestItems[0].json)[0].json.requestBody);
     const {POST:manifestPost}=await import('../src/app/api/internal/w2a/build-run-manifest/route');
+    for(const claims of [
+      {workflowParentClaim:{...claim,executionId:'invalid'}},
+      {workflowParentClaim:{...claim,orderId:'FOREIGN'},orderContext:{...manifestBody.payload.orderContext,workflowParentClaim:{...claim,orderId:'FOREIGN'}}},
+      {workflowParentClaim:claim,orderContext:{...manifestBody.payload.orderContext,workflowParentClaim:{...claim,executionId:'9999'}}},
+    ]){
+      const beforeObjects=structuredClone(objects),beforeWrites=writes;
+      const refused=await manifestPost(request('/api/internal/w2a/build-run-manifest',{payload:{...manifestBody.payload,...claims}}));
+      assert.equal(refused.status,500);assert.match((await refused.json()).details,/consistent parent claim/);
+      assert.deepEqual(objects,beforeObjects);assert.equal(writes,beforeWrites);
+    }
     const manifestRes=await manifestPost(request('/api/internal/w2a/build-run-manifest',manifestBody));assert.equal(manifestRes.status,200,await manifestRes.clone().text());const manifestOut=await manifestRes.json();assert.equal(manifestOut.manifest.entries.length,13);
-    const completion=JSON.parse(topNode('Prepare 2A Completion Upsert Body',manifestOut,{$execution:{id:'6262',customData:{orderContext:nativeTop.orderContext}}})[0].json.requestBody);
+    const completion=JSON.parse(topNode('Prepare 2A Completion Upsert Body',manifestOut,{$execution:{id:'6262',customData:{}}})[0].json.requestBody);
     assert.equal(completion.workflowNativeParentExecutionId,'6262');assert.equal(completion.workflowParentClaim.executionId,'4242','Saved context is old; only verified lineage can map it');
     const {POST:completePost}=await import('../src/app/api/webhooks/workflow-2a-complete/route');
-    const completeResponse=await completePost(request('/api/webhooks/workflow-2a-complete',completion));assert.equal(completeResponse.status,200,await completeResponse.clone().text());assert.equal(nativeRow.execution_status,'done');
+    const runningRow=structuredClone(nativeRow),runningRoot=structuredClone(executions.get('6262'));
+    const canonicalManifest=structuredClone(objects.get('/'+manifestOut.manifestKey)) as any;
+    const tempKey=manifestOut.orderPrefix+'/revisions/pose08/synthetic.png',replacementBytes=new Uint8Array([137,80,78,71,13,10,26,10]);
+    const attachReplacement=()=>{
+      const m=structuredClone(canonicalManifest);m.revisions={history:[],pending:{pose08:{poseNumber:8,r2Key:tempKey,status:'completed',jobId:'synthetic-revision8'}}};
+      objects.set('/'+manifestOut.manifestKey,m);objects.set('/'+tempKey,replacementBytes);
+    };
+    attachReplacement();
+    const {POST:replacePost}=await import('../src/app/api/orders/[orderId]/replace-image/route');
+    const replaceRequest=()=>{const form=new FormData();form.set('poseNumber','8');form.set('stage','preBria');form.set('temporaryR2Key',tempKey);return new NextRequest('https://admin.littleherolabs.com/api/orders/'+nativeId+'/replace-image',{method:'POST',headers:{cookie:managed.cookie('operator@example.test'),origin:'https://admin.littleherolabs.com'},body:form});};
+    const allJobs=structuredClone(tables.workflow_jobs),allAttempts=structuredClone(tables.workflow_job_attempts);
+    const pendingBefore=structuredClone(objects),orderBefore=structuredClone(nativeRow);
+    const locked=await replacePost(replaceRequest(),{params:Promise.resolve({orderId:nativeId})});assert.equal(locked.status,500);assert.match((await locked.json()).error,/owned by an active workflow/);assert.deepEqual(objects,pendingBefore);assert.deepEqual(nativeRow,orderBefore);
+    // Reproduce the old callback with no execution customData, then recover it
+    // through the actual admin actions, including a realistic large native run.
+    const missingClaim={...completion};delete missingClaim.workflowParentClaim;
+    assert.equal((await completePost(request('/api/webhooks/workflow-2a-complete',missingClaim))).status,500);
+    const stoppedRoot={...runningRoot,status:'error',stoppedAt:'2026-11-16T07:06:00.000Z',padding:'x'.repeat(23198010),data:{...runningRoot.data,resultData:{...runningRoot.data.resultData,error:{message:'Missing completion parent claim'},lastNodeExecuted:'Supabase — Upsert from 2A Manifest'}}};
+    executions.set('6262',stoppedRoot);executions.set('6263',{id:'6263',workflowId:'HduzTWm0ekmrvwrn',status:'error',data:{resultData:{error:{message:'n8n recovery details exceed the inspection limit'}}}});
+    const syncDto=await (await recoveryGet(adminRequest())).json();assert.equal(syncDto.inspectedOrder.failure.executionId,'6262');assert.equal(syncDto.inspectedOrder.canRecordFailure,true);
+    const synced=await recoveryPost(adminRequest({...actionBody(syncDto.inspectedOrder,'record_failure'),claimStartedAt:syncDto.inspectedOrder.failure.claimStartedAt}));assert.equal(synced.status,200,await synced.clone().text());const syncOut=await synced.json();const {verifyCompletedW2ARecovery}=await import('../src/lib/w2a-completed-recovery');await verifyCompletedW2ARecovery(nativeRow);assert.equal(syncOut.after.safeToFinalize,true);
+    const finalized=await recoveryPost(adminRequest({...actionBody(syncOut.after,'finalize'),claimStartedAt:syncOut.after.failure.claimStartedAt}));assert.equal(finalized.status,200,await finalized.clone().text());assert.equal(nativeRow.current_workflow,null);assert.equal(nativeRow.started_at,null);
+    const acceptReplacement=async()=>{
+      const beforeManifest=structuredClone(objects.get('/'+manifestOut.manifestKey)) as any;
+      const response=await replacePost(replaceRequest(),{params:Promise.resolve({orderId:nativeId})});assert.equal(response.status,200,await response.clone().text());
+      const m=objects.get('/'+manifestOut.manifestKey) as any;assert.equal(m.revisions.pending.pose08,undefined);assert.equal(m.revisions.history.at(-1).status,'accepted');
+      assert.deepEqual(m.entries.filter((e:any)=>e.poseNumber!==8),beforeManifest.entries.filter((e:any)=>e.poseNumber!==8));
+      assert.deepEqual(objects.get('/'+m.entries.find((e:any)=>e.poseNumber===8).approvedKey),replacementBytes);
+      assert.deepEqual(tables.workflow_jobs,allJobs);assert.deepEqual(tables.workflow_job_attempts,allAttempts);assert.equal(nativeRow.next_workflow,null);assert.equal(nativeRow.human_approved,false);
+    };
+    await acceptReplacement();
+    Object.keys(nativeRow).forEach(k=>delete nativeRow[k]);Object.assign(nativeRow,runningRow);executions.set('6262',runningRoot);executions.delete('6263');attachReplacement();
+    const completeResponse=await completePost(request('/api/webhooks/workflow-2a-complete',{...completion,needsReview:true}));assert.equal(completeResponse.status,200,await completeResponse.clone().text());assert.equal(nativeRow.execution_status,'processing');assert.equal(nativeRow.current_workflow,null);assert.equal(nativeRow.started_at,null);
+    await acceptReplacement();
     assert.equal(nativeRow.product_info[NATIVE_RETRY_KEY].currentClaim.executionId,'6262');
     const completedInspection=await inspectW2ARecoveryOrder(nativeId,{adminBaseUrl:'https://admin.littleherolabs.com',includeExecutionLookup:false});assert.equal(completedInspection.nativeRecovery?.phase,'adopted');assert.equal(completedInspection.nativeRecovery?.canPrepare,false);
     const doneRow=structuredClone(nativeRow);Object.assign(nativeRow,{execution_status:'error_requires_manual_review',current_workflow:null,started_at:null,product_info:{...nativeRow.product_info,_w2a_failure:{...mappedFailure,executionId:'6262',resolvedAt:undefined}}});
