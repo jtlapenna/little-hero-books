@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "b09cc41df3f0bd71a52ec37ae66d1bbbeee2890988ed2127a2940b444395cc1f",
+  "sourceSnapshotSha256": "f1501acf900b63c9dcff0a29129e3d2f0c840f75d7aa7aa44cef7c88c7026f00",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -172,6 +172,7 @@
     "back-end/src/lib/books/updated-test-book-copy-http.ts",
     "back-end/src/lib/books/updated-test-book-copy-store.ts",
     "back-end/src/lib/books/updated-test-book-copy.ts",
+    "back-end/src/lib/books/w2a-base-input.ts",
     "back-end/src/lib/books/w2a-bootstrap-retry.ts",
     "back-end/src/lib/books/w2a-pose-input.ts",
     "back-end/src/lib/books/w3-assembly-state.ts",
@@ -288,6 +289,7 @@
     "back-end/scripts/test-w0-character-handoff.ts",
     "back-end/scripts/test-w1-frozen-manifest-handoff.ts",
     "back-end/scripts/test-w2-workflow-contracts.ts",
+    "back-end/scripts/test-w2a-base-input.ts",
     "back-end/scripts/test-w2a-pose-input.ts",
     "back-end/src/app/api/checkout/create/route.ts",
     "back-end/src/app/api/cron/amazon-orders/route.ts",
@@ -921,7 +923,7 @@
     {
       "path": "back-end/scripts/test-pose-revision-resolution.ts",
       "kind": "source",
-      "sha256": "0c31d0493c8dc4c25f12f6ebaff8ce611d5e20b68aab8d0c501cab103195afaa"
+      "sha256": "2120763f6ffc0c80cc24dc0d388fdff202ff20b7297403957970e0dbb62ad716"
     },
     {
       "path": "back-end/scripts/test-publish-book-config-immutability.ts",
@@ -986,17 +988,17 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "cabc3c480db6fb29ad7266df38cc95f8bc6010d05f2388ec6732f98b650bd6ea"
+      "sha256": "0954d557e54ae5f8291a6f9e146601728e17f303992005b56eefc7cd09ae2d04"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
       "kind": "source",
-      "sha256": "c764591ccc514117f0ade8dc44e3644ad5cd274bd5fd9299e0dcaedce3f84472"
+      "sha256": "cdae17f5688fbea63ecdb296ed137ee507ceaa4c7f7f2ce3f04aa4101e935ae0"
     },
     {
       "path": "back-end/scripts/test-w2a-base-input.ts",
       "kind": "source",
-      "sha256": "853c890a9513a2f261a5541369a1b5729888cc043d30a59b49df75e77cac3822"
+      "sha256": "83845a315f252c28b347ced30aa1eb72ae7b81c115f79ebfbc648c77e6c188fa"
     },
     {
       "path": "back-end/scripts/test-w2a-failure-recovery.ts",
@@ -1256,7 +1258,7 @@
     {
       "path": "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
       "kind": "source",
-      "sha256": "715561c0b492afdff52cc68978286a1963eed17b76cdcaf26025efe9f5990915"
+      "sha256": "77f118d5c484d9ea91c2ad4a5cd8b5fe0253050eb6de8f55a58d7970a73f0815"
     },
     {
       "path": "back-end/src/app/api/orders/[orderId]/reset/route.ts",
@@ -1694,6 +1696,11 @@
       "sha256": "7f47803e6822f039971d0b8fe13a1baaf22d48372067bb34c3fbf0baf5aea3e6"
     },
     {
+      "path": "back-end/src/lib/books/w2a-base-input.ts",
+      "kind": "source",
+      "sha256": "0d65024f4a1b1cdad4195680b433ad347e71804d864c2db012578a653ff26e92"
+    },
+    {
       "path": "back-end/src/lib/books/w2a-bootstrap-retry.ts",
       "kind": "source",
       "sha256": "ee0f4d35ceb2cba4671201f1cdf09016b6c90c6c3befa520b13b962af55430da"
@@ -1711,7 +1718,7 @@
     {
       "path": "back-end/src/lib/books/w2a-pose-input.ts",
       "kind": "source",
-      "sha256": "e871decb553b113ed35cd4931b574a749d2543d500c5109603f9a53513ce65e2"
+      "sha256": "10f7bdf05e1439d54f3ca86ba9d26533ca057fe041887e963ed61bef64545088"
     },
     {
       "path": "back-end/src/lib/books/w3-assembly-state.ts",
@@ -1811,7 +1818,7 @@
     {
       "path": "back-end/src/lib/w2a-execution-failure.ts",
       "kind": "source",
-      "sha256": "10f85e324639c130606504ce13e2e98496c529b6447d32cf7dc22e50f2ef4b6d"
+      "sha256": "ab1224d1b7b2bafed90987a8b35ed5cda3578cc603a66c759f8736fb4f4682c7"
     },
     {
       "path": "back-end/src/lib/w2a-failure-recovery.ts",
@@ -1971,7 +1978,7 @@
     {
       "path": "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
       "kind": "source",
-      "sha256": "e811ec5a64ec4d42e149982a9093d2713b5dd5e85c7a48ffdfdcf82dc16a004c"
+      "sha256": "9889a26e0868a300e3dbcb3c3a86172d6f80e089e9ef1a2f7511393b4baec730"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
@@ -1991,7 +1998,7 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "fc2a2d22dee7374fc0a1c841b30642b2fa01d4113de4e3d124906005a2717b96"
+      "sha256": "9276a1fb80162d6cf520c60b824e9ca3b13eb09b6bd4959665caec6a25aae7d1"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
@@ -2109,6 +2116,11 @@
       "sha256": "7ecab9758fdd8ce2f42470fafad15ad81a3af57fee0b15737be9df17447d0652"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-face-identity-2026-11-18.json",
+      "kind": "evidence",
+      "sha256": "95a73d2a63518a723ea3e620a62002df67bb0424619e0823288fd6c0fb5b7098"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-final-book-revisions-2026-11-18.json",
       "kind": "evidence",
       "sha256": "e9127d36ba0e8906b41f45b6405994477dcc609ae490191f12afa09525dee20f"
@@ -2131,7 +2143,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "3f7f9e8073240707c30c12354e04536bf3ea625a534e386a73fdce2531296f1a"
+      "sha256": "be983d063dc2d414eff7283d94a4ff68b9317e5e62e1a2ffbe89104cb3f457c4"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
@@ -2567,5 +2579,24 @@
       "back-end/src/lib/books/updated-test-book-copy.ts"
     ],
     "purpose": "Honor canonical display_order_id VARCHAR20 without changing frozen/order/asset identity or existing staged preparations"
+  },
+  "faceIdentityBindingUpdate": {
+    "date": "2026-11-18",
+    "priorManifestSha256": "95a73d2a63518a723ea3e620a62002df67bb0424619e0823288fd6c0fb5b7098",
+    "addedPaths": [
+      "back-end/src/lib/books/w2a-base-input.ts"
+    ],
+    "reboundPaths": [
+      "back-end/scripts/test-pose-revision-resolution.ts",
+      "back-end/scripts/test-w2-http-handoff.ts",
+      "back-end/scripts/test-w2-workflow-contracts.ts",
+      "back-end/scripts/test-w2a-base-input.ts",
+      "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
+      "back-end/src/lib/books/w2a-pose-input.ts",
+      "back-end/src/lib/w2a-execution-failure.ts",
+      "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
+      "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json"
+    ],
+    "purpose": "Restore and verify the Inner Voice base face before pose generation and enforce specific W2A pose identity checks; no execution authority"
   }
 }

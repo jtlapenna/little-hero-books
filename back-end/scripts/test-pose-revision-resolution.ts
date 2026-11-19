@@ -8,7 +8,7 @@ import { regeneratePoseResponse } from '../src/app/api/orders/[orderId]/regenera
 async function main() {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.GOOGLE_GEMINI_API_KEY;
-  let body: { generationConfig?: { imageConfig?: { aspectRatio?: string; imageSize?: string } } } | undefined;
+  let body: { systemInstruction?: { parts: { text: string }[] }; generationConfig?: { imageConfig?: { aspectRatio?: string; imageSize?: string } } } | undefined;
   let calls = 0;
   process.env.GOOGLE_GEMINI_API_KEY = 'synthetic-no-network';
   globalThis.fetch = async (_url, init) => {
@@ -33,6 +33,9 @@ async function main() {
     assert.equal(calls, 1, 'Fixture must stop before any generation, persistence or retry');
     assert.equal(body?.generationConfig?.imageConfig?.aspectRatio, '1:1');
     assert.equal(body?.generationConfig?.imageConfig?.imageSize, '2K', 'Admin revision must match W2A image detail');
+    const identityPrompt = body?.systemInstruction?.parts[0]?.text ?? '';
+    assert.match(identityPrompt, /style anchor for nose shape, fill and relative size/);
+    assert.match(identityPrompt, /Ignore the face and proportions in POSE/);
     const workflow = JSON.parse(readFileSync('../docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json', 'utf8'));
     assert.ok(workflow.nodes.some((node: { parameters: { jsCode?: string } }) => /imageSize:\s*["']2K["']/.test(node.parameters.jsCode ?? '')));
     console.log('Actual admin revision and W2A request resolution agree; zero live calls or writes');

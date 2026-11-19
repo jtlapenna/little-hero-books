@@ -141,6 +141,47 @@ async function main() {
     });
     assert.equal(prepared.json.requestBody.contents[0].parts.filter((p:any)=>p.inlineData||p.inline_data).length,2,'Pose transfer must use exactly BASE and POSE images, ignoring stale auxiliary binaries');
     assert.doesNotMatch(JSON.stringify(prepared.json.requestBody),/HAIR CHIP|silhouette override/);
+    const baseGraph = graphs[0];
+    const baseNode = (name: string) => baseGraph.nodes.find((node: { name: string }) => node.name === name);
+    const runBaseNode = (name: string, input: Record<string, unknown>, context: Record<string, unknown> = {}) =>
+      vm.runInNewContext('(async function(){' + baseNode(name).parameters.jsCode + '\n}).call({helpers})', {
+        $json: input, helpers: {}, ...context,
+      });
+    const gateName = 'Requires Inner Voice Base Face QA?';
+    const gateCondition = baseNode(gateName).parameters.conditions.conditions[0].leftValue;
+    const gate = (bookId: string, isMock: boolean) => tournament.execute(gateCondition.slice(1), expressionContext({bookId, generatedImage:{isMock}}));
+    const innerVoiceBook = 'book-finding-our-inner-voice';
+    assert.equal(gate(innerVoiceBook,false),true);
+    assert.equal(gate(innerVoiceBook,true),false);
+    assert.equal(gate('book-mvp-simple-adventure',false),false);
+    const edges: [string, string[]][] = [
+      ['Process Gemini API response and extract generated image1', [gateName]],
+      [gateName, ['Build Base Face QA Request','Finalize Repo W2A Base Result']],
+      ['Build Base Face QA Request', ['Verify Base Face (Gemini)']],
+      ['Verify Base Face (Gemini)', ['Require Base Face Match']],
+      ['Require Base Face Match', ['Finalize Repo W2A Base Result']],
+    ];
+    for (const [source, destinations] of edges) {
+      assert.deepEqual(baseGraph.connections[source].main.flat().map((edge: {node:string})=>edge.node),destinations);
+    }
+    const approvedBase = {json:{characterHash:'synthetic'},binary:{data:{mimeType:'image/png'}}};
+    const inline = (name: string) => ({inlineData:{mimeType:'image/png',data:Buffer.from(name).toString('base64')}});
+    const qaRequest = await runBaseNode('Build Base Face QA Request', {
+      requestBody:{contents:[{parts:[{text:'base prompt'},inline('reference'),inline('hair')]}]},
+    }, {$binary:approvedBase.binary,$itemIndex:0,helpers:{getBinaryDataBuffer:async()=>Buffer.from('output')}});
+    assert.equal(qaRequest.json.baseFaceQaRequest.generationConfig.responseMimeType,'application/json');
+    assert.deepEqual(JSON.parse(JSON.stringify(qaRequest.json.baseFaceQaRequest.contents[0].parts.filter((part:{inlineData?:unknown})=>part.inlineData))),[inline('reference'),inline('output')]);
+    const readApprovedBase = (value: unknown, finishReason = 'STOP') => runBaseNode('Require Base Face Match', {
+      candidates:[{finishReason,content:{parts:[{text:JSON.stringify(value)}]}}],
+    }, {$:()=>({item:approvedBase})});
+    const faceApproved = await readApprovedBase({nose_design_match:true,head_proportions_match:true});
+    assert.equal(faceApproved.json,approvedBase.json);
+    assert.equal(faceApproved.binary,approvedBase.binary);
+    await assert.rejects(readApprovedBase({nose_design_match:false,head_proportions_match:true}),/filled triangular nose/);
+    await assert.rejects(readApprovedBase({nose_design_match:true,head_proportions_match:false}),/head shape/);
+    await assert.rejects(readApprovedBase({nose_design_match:'true',head_proportions_match:true}),/base face QA failed/);
+    await assert.rejects(readApprovedBase({},'MAX_TOKENS'),/base face QA failed/);
+
     const qaGraph=JSON.parse(readFileSync('../docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json','utf8'));
     const runQaNode=(name:string,input:any,trigger:any,graph=qaGraph)=>{
       const node=graph.nodes.find((n:any)=>n.name===name);
@@ -155,6 +196,32 @@ async function main() {
       }
       return out;
     };
+    const posePrompt = JSON.stringify(prepared.json.requestBody);
+    assert.match(posePrompt, /Copy the nose from BASE/);
+    assert.match(posePrompt, /Keep the BASE skull, cheek and jaw outline/);
+    assert.match(posePrompt, /Ignore its face, skull shape, skin color, and head-to-body proportions/);
+
+    const passingStyleVerdict = {
+      identity_score: 1, identity_match: true, style_score: 1, color_score: 1, hair_color_score: 1,
+      skin_tone_score: 1, skin_pass: true, skin_evaluable: true, skin_roi: 'face',
+      skin_s_base: 0.4, skin_s_out: 0.4, skin_v_base: 0.9, skin_v_out: 0.9, skin_ds_pct: 0, skin_dv_pct: 0,
+      clothing_score: 1, hair_cleanliness_score: 1,
+      nose_design_match: true, head_proportions_match: true, visible_skin_match: true,
+    };
+    const checkStyleVerdict = (verdict: Record<string, unknown>) => {
+      const response = { candidates: [{ content: { parts: [{ text: JSON.stringify(verdict) }] } }] };
+      const parsed = runQaNode('Parse Style QA Verdict', response, generated);
+      return runQaNode('Derive Style QA Pass', parsed, generated);
+    };
+    assert.equal(checkStyleVerdict(passingStyleVerdict).styleQaPass, true);
+    for (const field of ['nose_design_match', 'head_proportions_match', 'visible_skin_match']) {
+      for (const invalid of [false, undefined, 'true']) {
+        const result = checkStyleVerdict({ ...passingStyleVerdict, [field]: invalid });
+        assert.equal(result.styleQaPass, false, `${field} must explicitly pass`);
+        assert(result.styleQaReasons.includes(field.replace(/_match$/, '_mismatch_or_unverified')));
+      }
+    }
+
     const qaReturn=(generatedOutput:any)=>{
       const generatedEnvelope={...generatedOutput,generatedImage:{mimeType:'image/png',size:100}};
       const trigger=runQaNode('Return Generated Image',generatedEnvelope,generatedEnvelope,graphs[1]);

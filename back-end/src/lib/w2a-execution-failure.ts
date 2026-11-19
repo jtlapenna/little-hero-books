@@ -82,7 +82,9 @@ export function buildW2AFailure(execution: unknown, children: unknown[] = []): W
   const code: W2AFailureCode = billing ? 'w2a_provider_billing' : auth ? 'w2a_provider_auth' : 'w2a_generation_failed';
   const message = billing ? 'Gemini image generation is blocked because its prepaid credits are depleted. Restore the project balance, then queue W2A again.'
     : auth ? 'Image generation could not authenticate with its provider. Correct the provider connection before queueing W2A again.'
-      : 'W2A stopped before completing character generation. Review the failed execution and resolve its cause before retrying.';
+      : /w2a base face qa (?:failed|could not find)/.test(combined)
+        ? 'The generated base did not pass the nose and head shape check. Poses cannot use this base. Open W2A Recovery to review the failure and queue a new base.'
+        : 'W2A stopped before completing character generation. Review the failed execution and resolve its cause before retrying.';
   const result = failureRecord(failureRecord(root.data)?.resultData);
   const failedNode = typeof result?.lastNodeExecuted === 'string' ? result.lastNodeExecuted.replace(/[\r\n]/g, ' ').slice(0, 120) : 'W2A';
   return { schema: 'lhb.w2a-failure@1', executionId: root.id, orderId: claim.orderId, orderRowId: claim.orderRowId, claimStartedAt: claim.startedAt,

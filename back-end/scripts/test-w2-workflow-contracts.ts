@@ -378,7 +378,7 @@ async function main(): Promise<void> {
       w2aSw0GenerateConnections.includes(
         "Process Gemini API response and extract generated image1",
       ) &&
-      w2aSw0ExtractConnections.includes("Finalize Repo W2A Base Result") &&
+      w2aSw0ExtractConnections.includes("Requires Inner Voice Base Face QA?") &&
       w2aSw0FinalizeConnections.includes("Restore Finalized Base Envelope") &&
       w2aSw0RestoreFinalizedConnections.includes("Upload a file1") &&
       w2aSw0UploadConnections.includes("Restore Uploaded Base Envelope") &&

@@ -345,6 +345,7 @@ function buildSkinColorLock(skinToneHex: string | null, skinToneLabel: string | 
 }
 
 function buildBasePromptContract(input: {
+  bookId: string;
   favoriteColorHex: string | null;
   shortsHex: string;
   clothingTypeCanonical: string;
@@ -353,6 +354,9 @@ function buildBasePromptContract(input: {
   hairStyleCanonical: string | null;
   hairPromptBlock: string;
 }): { systemInstructionText: string; userPromptText: string; generationConfig: JsonRecord } {
+  const faceStyle = input.bookId === 'book-finding-our-inner-voice'
+    ? 'FACE DESIGN: Copy IMAGE A’s rounded skull, cheek-to-jaw outline, and childlike head-to-body proportions. Draw a small filled triangular nose, as in the original book. Do not replace it with a curved line, dot, or realistic nose. Use the hair guide only for hair.'
+    : null;
   const isDress = input.clothingTypeCanonical === 'dress';
   const topColorLock = isDress
     ? (input.favoriteColorHex
@@ -390,6 +394,7 @@ function buildBasePromptContract(input: {
   const userPromptText = [
     topColorLock,
     'BOOK STYLE: flat, clean vector-like forms with soft textured shading.',
+    faceStyle,
     'BACKGROUND: pure white (#FFFFFF). No props, logos, text, or transparency.',
     'SUBJECT LIMIT: render exactly one child in frame.',
     'FRAMING: show the full body from head to feet with comfortable margin inside the frame.',
@@ -420,7 +425,7 @@ function buildBasePromptContract(input: {
       '- No crop above the feet.',
       '- No colored or textured background.',
     ].join('\n'),
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
 
   const systemInstructionText = [
     'You are a precise illustration tool.',
@@ -432,6 +437,7 @@ function buildBasePromptContract(input: {
     `CRITICAL: ${input.skinColorLock}`,
     'CRITICAL: Show the full body from head to feet.',
     EYEBROW_SYSTEM_INSTRUCTION,
+    faceStyle,
     'Do not add props, logos, text, or extra characters.',
   ]
     .filter(Boolean)
@@ -557,6 +563,7 @@ export async function buildW2ABaseInput(
     previewResolved.skinToneLabel,
   );
   const promptContract = buildBasePromptContract({
+    bookId: config.bookId,
     favoriteColorHex: previewResolved.favoriteColorHex,
     shortsHex: previewResolved.shortsHex,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,
@@ -680,7 +687,9 @@ export async function buildW2ABaseInput(
       hasSkinSwatch: false,
     },
     requestParts: {
-      baseLabel: 'IMAGE A — BASE STYLE GUIDE. Do not infer haircut from this image.',
+      baseLabel: config.bookId === 'book-finding-our-inner-voice'
+        ? 'IMAGE A — FACE AND STYLE REFERENCE. Copy the small filled triangular nose and face proportions. Use IMAGE B for the haircut.'
+        : 'IMAGE A — BASE STYLE GUIDE. Do not infer haircut from this image.',
       hairLabel:
         'IMAGE B — HAIRSTYLE REFERENCE. Use only for hair silhouette, part, length, and placement.',
       skinLabel:

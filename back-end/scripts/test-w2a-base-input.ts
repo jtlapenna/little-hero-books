@@ -118,6 +118,27 @@ async function main(): Promise<void> {
     'Expected minimal payloads to derive the default Book 1 base reference key',
   );
 
+  const innerVoice = await buildW2ABaseInput(
+    {
+      orderId: 'FIXTURE-INNER-VOICE-FACE',
+      bookId: 'book-finding-our-inner-voice',
+      characterHash: 'fixturefacehash001',
+      characterSpecs: {
+        childName: 'Luca',
+        hairStyle: 'side part',
+        hairColor: 'light brown',
+        skinTone: 'light',
+        pronouns: 'he/him',
+      },
+    },
+    { loadConfig },
+  );
+  for (const prompt of [innerVoice.userPromptText, innerVoice.systemInstructionText]) {
+    assert(/small filled triangular nose/.test(prompt), 'Inner Voice base must specify the original nose design');
+    assert(/rounded skull, cheek-to-jaw outline/.test(prompt), 'Inner Voice base must specify the original head design');
+  }
+  assert(!bookTwoBuilt.userPromptText.includes('small filled triangular nose'), 'Other books keep their own face design');
+
   const routeResponse = await buildW2ABaseInputResponse(
     {
       orderId: 'FIXTURE-W2A-BASE-ROUTE-001',
