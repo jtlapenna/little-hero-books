@@ -376,6 +376,7 @@ export async function regeneratePoseResponse(
     // Build Gemini API request body
     // Determine style anchor source (base character OR previous option)
     const styleAnchorSource = hasBaseCharacter ? 'BASE' : (hasPreviousOption ? 'PREVIOUS OPTION' : null);
+    const previousOptionIsStyleAnchor = hasPreviousOption && !hasBaseCharacter;
     
     const systemInstruction = {
       role: 'system',
@@ -387,7 +388,8 @@ export async function regeneratePoseResponse(
           'Do not sample any palette or materials from POSE.',
           'HARD CONSTRAINT ORDER (highest→lowest):',
           '1) SINGLE SUBJECT (one child; exactly ONE face with two eyes, one nose and one mouth; never a duplicated, overlapping or second face; exactly 2 arms/2 legs/2 shoes)',
-          '1b) SKIN TONE LOCK (most important appearance rule): every visible bit of skin (face, ears, hands, arms, legs) must exactly match the skin color of ' + (styleAnchorSource || 'NONE') + '; POSE shows a different child with a different skin color, so never copy its skin color, hair style, bangs or clothing colors; POSE is a body-shape guide only',
+          '1b) SKIN TONE LOCK (most important appearance rule): every visible bit of skin (face, ears, hands, arms, legs) must exactly match the skin color of ' + (styleAnchorSource || 'NONE') + '; POSE shows a different child with a different skin color, so never copy its skin color, hair style, bangs or clothing colors; POSE guides joint positions and contact only',
+          '1c) FACE LOCK: Use the style anchor for nose shape, fill and relative size, skull shape, cheek and jaw outline, and head-to-body proportions. The pose can change the angle and expression. Ignore the face and proportions in POSE.' + (previousOptionIsStyleAnchor ? ' Change a facial feature only when the revision explicitly asks for that change.' : ''),
           '2) POSE LOCK (limbs/angles/contact)',
           '3) STYLE/IDENTITY LOCK (palette, line weight, facial schema, clothing, shoes, hair - from ' + (styleAnchorSource || 'NONE') + ')',
           '4) FRAMING & CONTACT (full body; pure white)',
@@ -401,7 +403,6 @@ export async function regeneratePoseResponse(
     const baseImg = imageData.find(img => img.type === 'base');
     const poseImg = imageData.find(img => img.type === 'pose');
     
-    const previousOptionIsStyleAnchor = hasPreviousOption && !hasBaseCharacter;
     
     // Build revision instruction with explicit preservation requirements
     let revisionInstruction = `Revision Request: ${revisionPrompt}`;
@@ -434,7 +435,7 @@ export async function regeneratePoseResponse(
     }
 
     if (baseImg) {
-      parts.push({ text: 'BASE (appearance lock). Use style/palette from this only.' });
+      parts.push({ text: 'BASE (appearance lock). Use this for facial features, head shape, style and palette.' });
       parts.push({ 
         inlineData: { 
           mimeType: baseImg.mimeType, 
@@ -444,7 +445,7 @@ export async function regeneratePoseResponse(
     }
 
     if (poseImg) {
-      parts.push({ text: 'POSE (pose lock). Use joints/contact only; ignore appearance. Its skin color, hair, bangs and clothing colors are WRONG for this child and must not appear in the output.' });
+      parts.push({ text: 'POSE (pose lock). Use joint positions, head direction and contact only; ignore appearance and body proportions. Its skin color, hair, bangs and clothing colors are WRONG for this child and must not appear in the output.' });
       parts.push({ 
         inlineData: { 
           mimeType: poseImg.mimeType, 

@@ -288,7 +288,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1344,
+        2240,
         112
       ],
       "credentials": {
@@ -308,7 +308,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
+        2464,
         112
       ]
     },
@@ -322,7 +322,7 @@
       "type": "n8n-nodes-base.s3",
       "typeVersion": 1,
       "position": [
-        1792,
+        2688,
         112
       ],
       "id": "bcf06207-7777-4002-850f-e6b53eaf3568",
@@ -344,7 +344,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
+        2912,
         112
       ]
     },
@@ -466,11 +466,115 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2240,
+        3136,
         112
       ],
       "notesInFlow": true,
       "notes": "Returns envelope with bin.generated and slimmed payload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "67509d1b-59e0-4a75-9aaf-0f79eb836b45",
+              "leftValue": "={{ $json.bookId === 'book-finding-our-inner-voice' && $json.generatedImage?.isMock !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0e47e858-9034-467e-bfc2-45c61826629b",
+      "name": "Requires Inner Voice Base Face QA?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        112
+      ],
+      "notes": "Routes to MOCK (true) or REAL API (false)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const reference = $json.requestBody?.contents?.[0]?.parts?.find(part => part.inlineData)?.inlineData;\nif (!reference?.data || !$binary.data) {\n  throw new Error('W2A base face QA could not find the face reference or generated base image.');\n}\nconst generated = await this.helpers.getBinaryDataBuffer($itemIndex, 'data');\nreturn { json: { baseFaceQaRequest: {\n  contents: [{ role: 'user', parts: [\n    { text: 'Check whether the proposed base character preserves the Inner Voice face design. The first image is the original face reference and the second is the proposed base. Report a separate boolean for each check. The nose must be a visible, small, filled triangle like the reference. A line, dot, outline, missing nose, or realistic sculpted nose fails. The head must preserve the reference’s rounded skull, cheeks, jaw and relative size. Allow for hair and slight differences in angle or expression. If a feature is unclear or hidden, return false for that check. Return only a JSON object with boolean fields nose_design_match and head_proportions_match. Do not generate an image.' },\n    { text: 'Original face reference' }, { inlineData: reference },\n    { text: 'Proposed base character' }, { inlineData: {\n      mimeType: $binary.data.mimeType || 'image/png',\n      data: generated.toString('base64'),\n    } },\n  ] }],\n  generationConfig: {\n    temperature: 0,\n    responseMimeType: 'application/json',\n  },\n} } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -80
+      ],
+      "id": "5f7be0a2-fe6d-40b9-9fdc-fd4e8d2601e0",
+      "name": "Build Base Face QA Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Client-Request-Id",
+              "value": "={{$json.correlationId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.baseFaceQaRequest }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "9e93a8c5-147c-4d45-9e0e-157dd82ff6db",
+      "name": "Verify Base Face (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1792,
+        -80
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jdcfc9T2O9vensv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const candidate = $json.candidates?.[0];\nlet verdict;\ntry {\n  if (candidate?.finishReason === 'STOP') {\n    const text = candidate.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('');\n    verdict = JSON.parse(text);\n  }\n} catch {}\nif (verdict?.nose_design_match !== true || verdict?.head_proportions_match !== true) {\n  const details = [];\n  if (verdict?.nose_design_match !== true) details.push('filled triangular nose');\n  if (verdict?.head_proportions_match !== true) details.push('head shape and proportions');\n  throw new Error('W2A base face QA failed or could not verify the ' + details.join(' and ') + '. No poses were generated from this base.');\n}\nconst approved = $('Process Gemini API response and extract generated image1').item;\nreturn { json: approved.json, binary: approved.binary };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -80
+      ],
+      "id": "bf166b11-dc01-463a-ab8d-471e9d712643",
+      "name": "Require Base Face Match"
     }
   ],
   "connections": {
@@ -600,7 +704,7 @@
       "main": [
         [
           {
-            "node": "Finalize Repo W2A Base Result",
+            "node": "Requires Inner Voice Base Face QA?",
             "type": "main",
             "index": 0
           }
@@ -645,6 +749,57 @@
         [
           {
             "node": "Return Generated Image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires Inner Voice Base Face QA?": {
+      "main": [
+        [
+          {
+            "node": "Build Base Face QA Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Repo W2A Base Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Base Face QA Request": {
+      "main": [
+        [
+          {
+            "node": "Verify Base Face (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Base Face (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Require Base Face Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Base Face Match": {
+      "main": [
+        [
+          {
+            "node": "Finalize Repo W2A Base Result",
             "type": "main",
             "index": 0
           }
