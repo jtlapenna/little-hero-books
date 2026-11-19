@@ -49,7 +49,7 @@ export function ManualReviewAlert({
 
   // Determine why it's marked
   const getWhyMarked = () => {
-    if (w3Failure) return 'The assembly execution ended before creating a job.';
+    if (w3Failure) return 'The assembly execution ended before the book was ready for page review.';
     if (w2aFailure) return 'Generation is on hold until the cause is resolved and an administrator queues a retry.';
     if (retryCount !== null && retryCount !== undefined && retryCount >= 3) {
       return `Maximum retry attempts (${retryCount}) exceeded. Automated recovery system has given up.`;

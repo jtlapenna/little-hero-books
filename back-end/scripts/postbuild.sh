@@ -70,6 +70,27 @@ else
   exit 1
 fi
 
+# Wrangler bundles the OpenNext handler again when uploading Pages. Compact
+# its local identifiers first so the final Worker fits the uncompressed limit.
+node --input-type=module - "$OUTPUT_DIR/server-functions/default/handler.mjs" <<'JS'
+import { readFile, writeFile } from 'node:fs/promises';
+import { transform } from 'esbuild';
+
+const handler = process.argv[2];
+const source = await readFile(handler, 'utf8');
+const { code } = await transform(source, {
+  format: 'esm',
+  target: 'es2022',
+  minify: true,
+  keepNames: true,
+  charset: 'utf8',
+  legalComments: 'inline',
+  logLevel: 'error',
+});
+await writeFile(handler, code);
+console.log(`Compacted Pages server handler from ${Buffer.byteLength(source)} to ${Buffer.byteLength(code)} bytes`);
+JS
+
 # Copy .build directory if it exists (for durable objects)
 echo "📦 Copying .build directory (if exists)"
 if [ -d ".open-next/.build" ]; then
