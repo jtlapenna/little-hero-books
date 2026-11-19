@@ -1,4 +1,5 @@
 import { BookReviewConflict } from '@/lib/book-review-invalidation';
+import { requiresW3ClaimRecovery } from '@/lib/w3-claim-recovery';
 import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
@@ -225,6 +226,7 @@ export async function POST(
       console.log(`[Regenerate 4] Restored order ${orderId} from archived_orders`);
     }
 
+    if (requiresW3ClaimRecovery(currentOrder)) return NextResponse.json({ error: 'Use Inspect Workflow or Regenerate 3 to recover W3 assembly' }, { status: 409 });
     if (heldW2AFailure(currentOrder)) return NextResponse.json({ error: 'Resolve the W2A failure in W2A Recovery before regeneration' }, { status: 409 });
 
     const orderRecord = currentOrder as Regenerate4OrderRecord;

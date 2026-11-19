@@ -1,4 +1,5 @@
 import { BookReviewConflict } from '@/lib/book-review-invalidation';
+import { requiresW3ClaimRecovery } from '@/lib/w3-claim-recovery';
 import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest } from '@/lib/r2-service';
@@ -109,6 +110,7 @@ export async function POST(
       );
     }
 
+    if (requiresW3ClaimRecovery(currentOrder)) return NextResponse.json({ error: 'Use Inspect Workflow or Regenerate 3 to recover W3 assembly' }, { status: 409 });
     if (heldW2AFailure(currentOrder)) return NextResponse.json({ error: 'Resolve the W2A failure in W2A Recovery before regeneration' }, { status: 409 });
 
     const perBookOrderId =

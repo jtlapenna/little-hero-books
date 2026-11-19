@@ -532,6 +532,7 @@ async function main(): Promise<void> {
   );
 
   let skippedInstrumented = false;
+  const beforeSkippedNormalization = normalizationCalls.length;
   const skippedResponse = await buildW3AssemblyInputResponse(
     {
       body: {
@@ -572,6 +573,28 @@ async function main(): Promise<void> {
     skippedInstrumented === false,
     'Expected completed W3 short-circuit to bypass job instrumentation entirely',
   );
+
+  assert(normalizationCalls.length === beforeSkippedNormalization, 'Completed W3 replay must preserve existing pose files');
+
+  let staleClaimRejected = false;
+  try {
+    await buildW3AssemblyInputResponse({
+      orderId: siblingOrderId, rootOrderId: amazonOrderId, amazonOrderId,
+      orderPrefix: siblingOrderPrefix, backendUrl, orderDbId: 874,
+      claimedAt: '2026-11-19T19:18:53.066Z',
+    }, {
+      loadManifest: siblingLoadManifest, normalizePoseScale,
+      lookupOrderRow: async () => ({
+        id: 874, orderId: siblingOrderId, execution_status: 'processing', current_workflow: '3',
+        started_at: '2026-11-19T19:23:53.066Z',
+      }),
+      instrumentAssemblyJob: async () => { throw new Error('Stale claim reached job creation'); },
+    });
+  } catch (error) {
+    staleClaimRejected = error instanceof Error && error.message === 'W3 order claim is no longer active';
+  }
+  assert(staleClaimRejected && normalizationCalls.length === beforeSkippedNormalization,
+    'Superseded router dispatch must neither open a W3 job nor normalize poses');
 
   let forcedInstrumented = false;
   const forcedReplayResponse = await buildW3AssemblyInputResponse(

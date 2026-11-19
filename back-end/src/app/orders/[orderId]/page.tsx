@@ -1717,10 +1717,10 @@ export default function OrderDetailPage() {
                   Regenerate 2B
                 </button>
                 <button
-                  disabled={Boolean(bookReviewOwnershipIssue(order))}
-                  title={bookReviewOwnershipIssue(order) ?? undefined}
+                  disabled={Boolean(bookReviewOwnershipIssue(order)) && !(order.currentWorkflow === '3' && order.executionStatus === 'processing')}
+                  title={order.currentWorkflow === '3' ? 'Verify W3 stopped before retrying' : bookReviewOwnershipIssue(order) ?? undefined}
                   onClick={async () => {
-                    if (!confirm('This will clear 3 (Book Assembly) assets and regenerate. Continue?')) return;
+                    if (!confirm('Retry book assembly using the existing poses and backgrounds?')) return;
                     try {
                       const res = await fetch(`/api/admin/orders/${order.orderId}/regenerate-3`, { method: 'POST' });
                       const data = await res.json();
@@ -1734,7 +1734,7 @@ export default function OrderDetailPage() {
                         ].filter(Boolean);
                         throw new Error(msgParts.join('\n'));
                       }
-                      alert('3 regeneration queued successfully');
+                      alert(data.message || 'W3 is queued and waiting for the workflow router.');
                       // Refresh order data
                       window.location.reload();
                     } catch (error: any) {

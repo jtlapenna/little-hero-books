@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyBearerAuth } from '@/lib/auth';
 import { fetchOrderRowByAnyId } from '@/lib/order-lookup';
 import { downloadManifest } from '@/lib/r2-service';
+import { claimTime } from '@/lib/w2a-execution-failure';
 import { supabase } from '@/lib/supabase-client';
 import {
   buildSkippedW3AssemblyWorkflowFields,
@@ -28,6 +29,9 @@ type W3ReplayGuardOrderRow = {
   status?: string | null;
   manifest_3_url?: string | null;
   next_workflow?: string | number | null;
+  current_workflow?: string | null;
+  started_at?: string | null;
+  updated_at?: string | null;
 };
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -102,11 +106,20 @@ function shouldSkipCompletedW3Replay(
 
 async function lookupReplayGuardOrderRow(
   orderId: string,
+  body: JsonRecord,
 ): Promise<W3ReplayGuardOrderRow | null> {
+  const fields = 'id, orderId, order_id, workflow_step, execution_status, status, manifest_3_url, next_workflow, current_workflow, started_at, updated_at';
+  const orderRowId = pickBodyValue(body, 'orderDbId');
+  if (orderRowId != null) {
+    const { data, error } = await supabase.from('orders').select(fields)
+      .eq('id', orderRowId).eq('orderId', orderId).maybeSingle();
+    if (error) throw new Error('Cannot verify W3 order ownership');
+    return data;
+  }
   const lookup = await fetchOrderRowByAnyId<W3ReplayGuardOrderRow>(
     supabase,
     orderId,
-    'id, orderId, order_id, workflow_step, execution_status, status, manifest_3_url, next_workflow',
+    fields,
   );
   return lookup.row ?? null;
 }
@@ -117,6 +130,7 @@ export async function buildW3AssemblyInputResponse(
     loadManifest?: LoadManifestForW3;
     defaultBackendUrl?: string;
     normalizePoseScale?: NormalizePoseScaleFn;
+    signal?: AbortSignal;
     lookupOrderRow?: (orderId: string, rawBody: JsonRecord) => Promise<W3ReplayGuardOrderRow | null>;
     instrumentAssemblyJob?: (
       payload: BuildW3AssemblyInputResult,
@@ -124,37 +138,49 @@ export async function buildW3AssemblyInputResponse(
     ) => Promise<W3AssemblyWorkflowFields>;
   } = {},
 ): Promise<BuildW3AssemblyInputResult & W3AssemblyWorkflowFields & { success: true }> {
+  let workflowFields = buildSkippedW3AssemblyWorkflowFields('w3-order-already-complete');
+  const forceReplay = toBoolean(pickBodyValue(body, 'force'));
+  const rawClaim = pickBodyValue(body, 'claimedAt');
+  const claimedAt = typeof rawClaim === 'string' ? rawClaim : null;
+  const normalizePoseScale = options.normalizePoseScale ?? normalizePoseScaleAsset;
   const result = await buildW3AssemblyInput(body, {
     loadManifest: options.loadManifest ?? downloadManifest,
     defaultBackendUrl: options.defaultBackendUrl,
-    normalizePoseScale: options.normalizePoseScale ?? normalizePoseScaleAsset,
+    normalizePoseScale: input => {
+      options.signal?.throwIfAborted();
+      return normalizePoseScale(input);
+    },
+    beforeNormalize: async payload => {
+      options.signal?.throwIfAborted();
+      const lookup = options.lookupOrderRow ?? lookupReplayGuardOrderRow;
+      const orderRow = await lookup(payload.orderId, body);
+      if (shouldSkipCompletedW3Replay(orderRow, forceReplay)) return false;
+
+      // Router dispatches carry a physical order ID and the timestamp of its lease.
+      if (rawClaim != null || pickBodyValue(body, 'orderDbId') != null) {
+        const start = claimTime(claimedAt);
+        if (!start || orderRow?.execution_status !== 'processing' ||
+            orderRow.current_workflow !== '3' || claimTime(orderRow.started_at) !== start) {
+          throw new Error('W3 order claim is no longer active');
+        }
+        if (!options.lookupOrderRow) {
+          // Fence the transition to the durable job against a simultaneous recovery.
+          const { data, error } = await supabase.from('orders')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', orderRow.id).eq('orderId', payload.orderId)
+            .eq('execution_status', 'processing').eq('current_workflow', '3')
+            .eq('started_at', orderRow.started_at).eq('updated_at', orderRow.updated_at)
+            .select('id');
+          if (error || !data?.length) throw new Error('W3 order claim changed before assembly started');
+        }
+      }
+      options.signal?.throwIfAborted();
+      workflowFields = options.instrumentAssemblyJob
+        ? await options.instrumentAssemblyJob(payload, body)
+        : await claimAndStartW3AssemblyJob({ ...payload, claimedAt });
+      return !workflowFields.workflowSkipped;
+    },
   });
-  const forceReplay = toBoolean(pickBodyValue(body, 'force'));
-  const orderRow = options.lookupOrderRow
-    ? await options.lookupOrderRow(result.orderId, body)
-    : await lookupReplayGuardOrderRow(result.orderId);
-  if (shouldSkipCompletedW3Replay(orderRow, forceReplay)) {
-    return {
-      success: true,
-      ...result,
-      ...buildSkippedW3AssemblyWorkflowFields('w3-order-already-complete'),
-    };
-  }
-  const workflowFields =
-    options.instrumentAssemblyJob
-      ? await options.instrumentAssemblyJob(result, body)
-      : await claimAndStartW3AssemblyJob({
-        ...result,
-        claimedAt:
-          typeof body.claimedAt === 'string'
-            ? body.claimedAt
-            : typeof body.body === 'object' &&
-                body.body !== null &&
-                !Array.isArray(body.body) &&
-                typeof (body.body as JsonRecord).claimedAt === 'string'
-              ? ((body.body as JsonRecord).claimedAt as string)
-              : null,
-      });
 
   return {
     success: true,
@@ -202,6 +228,7 @@ export async function POST(request: NextRequest) {
   try {
     const response = await buildW3AssemblyInputResponse(body, {
       defaultBackendUrl: request.nextUrl.origin,
+      signal: request.signal,
     });
     return NextResponse.json(response);
   } catch (error: unknown) {

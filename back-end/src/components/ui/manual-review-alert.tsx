@@ -32,9 +32,11 @@ export function ManualReviewAlert({
     return null;
   }
 
+  const w3Failure = errorType === 'w3_assembly_failed';
   const w2aFailure = errorType?.startsWith('w2a_') === true;
   // Determine what happened
   const getWhatHappened = () => {
+    if (w3Failure) return 'Book assembly stopped';
     if (w2aFailure) return errorType === 'w2a_provider_billing' ? 'Character generation stopped: Gemini balance depleted' : 'Character generation stopped';
     if (errorType === 'workflow_timeout') {
       return 'Workflow timed out after multiple retry attempts';
@@ -47,6 +49,7 @@ export function ManualReviewAlert({
 
   // Determine why it's marked
   const getWhyMarked = () => {
+    if (w3Failure) return 'The assembly execution ended before creating a job.';
     if (w2aFailure) return 'Generation is on hold until the cause is resolved and an administrator queues a retry.';
     if (retryCount !== null && retryCount !== undefined && retryCount >= 3) {
       return `Maximum retry attempts (${retryCount}) exceeded. Automated recovery system has given up.`;
@@ -56,6 +59,7 @@ export function ManualReviewAlert({
 
   // Determine what stage it's in
   const getCurrentStage = () => {
+    if (w3Failure) return 'Book Assembly (3)';
     if (w2aFailure) return 'AI Character Generation (2A)';
     if (workflowStep) {
       const stepMap: Record<string, string> = {
@@ -76,6 +80,7 @@ export function ManualReviewAlert({
 
   // Determine what should happen next
   const getNextSteps = () => {
+    if (w3Failure) return ['Use Regenerate 3 to retry assembly with the completed images.'];
     if (w2aFailure) return [errorType === 'w2a_provider_billing' ? 'Restore the Gemini project’s prepaid balance in Google AI Studio.' : 'Inspect the failed execution and fix its underlying cause.', 'Open W2A Recovery to verify the failure and queue a retry when ready.'];
     const steps = [
       'Investigate the error message below to understand what went wrong',

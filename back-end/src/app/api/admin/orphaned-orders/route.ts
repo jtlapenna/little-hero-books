@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requiresW3ClaimRecovery } from '@/lib/w3-claim-recovery';
 import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { createClient } from '@supabase/supabase-js';
 
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     const providerOwnedIds = new Set((owned ?? []).map((order) => order.id));
     // Filter by minimum minutes if specified
     const filtered = (data || []).filter((order: any) => 
-      !providerOwnedIds.has(order.id) && (order.minutes_orphaned || 0) >= minMinutes
+      !providerOwnedIds.has(order.id) && !requiresW3ClaimRecovery(order) && (order.minutes_orphaned || 0) >= minMinutes
     );
 
     return NextResponse.json({
@@ -124,9 +125,10 @@ export async function POST(request: NextRequest) {
       .in('id', orderIds).eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
     if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
     if (owned?.length) return NextResponse.json({ error: 'Gelato print claims require provider recovery' }, { status: 409 });
-    const { data: failures, error: failureError } = await supabase.from('orders').select('id,orderId,product_info,execution_status,error_type,updated_at').in('id', orderIds);
+    const { data: failures, error: failureError } = await supabase.from('orders').select('id,orderId,product_info,execution_status,current_workflow,error_type,updated_at').in('id', orderIds);
     if (failureError) throw new Error('W2A recovery ownership lookup failed');
     if (failures?.some(heldW2AFailure)) return NextResponse.json({ error: 'W2A failures require W2A Recovery after resolving the cause' }, { status: 409 });
+    if (failures?.some(requiresW3ClaimRecovery)) return NextResponse.json({ error: 'Use Inspect Workflow or Regenerate 3 to recover W3 assembly' }, { status: 409 });
     const revisions = new Map((failures ?? []).map(row => [row.id, row]));
     if (revisions.size !== orderIds.length) return NextResponse.json({ error: 'Some orders could not be verified; refresh recovery' }, { status: 409 });
     const updateOwned = async (id: number, data: Record<string, unknown>) => {

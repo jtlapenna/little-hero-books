@@ -219,6 +219,7 @@ type WorkflowWatchdogRunResponse = {
   success: boolean;
   ranAt: string;
   storageMode: 'durable' | 'fallback';
+  assemblyClaims?: { checked: number; markedForReview: number; unavailable: number };
   summary: {
     scannedJobCount: number;
     conditionCount: number;
@@ -930,6 +931,7 @@ function WorkflowJobsPageContent() {
           `detected ${payload.summary.conditionCount} alert conditions, ` +
           `${payload.summary.openAlertCountAfterRun} alerts currently open, ` +
           `resolved ${payload.summary.resolvedAlertCount}.` +
+          (payload.assemblyClaims ? ` Checked ${payload.assemblyClaims.checked} W3 order claims, ${payload.assemblyClaims.markedForReview} marked for review, ${payload.assemblyClaims.checked - payload.assemblyClaims.markedForReview - payload.assemblyClaims.unavailable} left as-is pending completion or evidence the run stopped, ${payload.assemblyClaims.unavailable} could not be checked.` : '') +
           storageModeMessage,
       });
     } catch (error) {

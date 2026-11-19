@@ -87,6 +87,7 @@ export interface BuildW3AssemblyInputOptions {
   loadManifest: LoadManifestForW3;
   defaultBackendUrl?: string;
   normalizePoseScale?: NormalizePoseScaleFn;
+  beforeNormalize?: (input: BuildW3AssemblyInputResult) => Promise<boolean>;
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -1123,19 +1124,6 @@ export async function buildW3AssemblyInput(
   const manifest3Key = buildManifestKeyFromOrderPrefix(orderPrefixResolved, '3');
   const manifest2bKeyResolved = loaded2B.manifestKey ?? manifest2bKey;
   const oneManifestKeyResolved = loadedOneManifest.manifestKey ?? oneManifestKey;
-  await normalizeBgRemovedPoses(
-    loaded2B.manifest,
-    bookState.requiredPoseNumbers,
-    bookState.bookId,
-    options.normalizePoseScale,
-    referenceKeys,
-  );
-  if (usedZero) await normalizeCoverPose00(
-    identity.characterHash,
-    bookState.bookId,
-    options.normalizePoseScale,
-    referenceKeys,
-  );
   const { processedImages, missingBgRemovedPoseNumbers } = buildProcessedImages(
     loaded2B.manifest,
     bookState.requiredPoseNumbers,
@@ -1181,7 +1169,7 @@ export async function buildW3AssemblyInput(
     ? identity.rootOrderId
     : identity.orderId;
 
-  return {
+  const result: BuildW3AssemblyInputResult = {
     orderId: identity.orderId,
     amazonOrderId: canonicalAmazonOrderId,
     rootOrderId: canonicalRootOrderId,
@@ -1239,4 +1227,20 @@ export async function buildW3AssemblyInput(
     ),
     marketplace_id: bookState.marketplace_id,
   };
+  if (!options.beforeNormalize || await options.beforeNormalize(result)) {
+    await normalizeBgRemovedPoses(
+      loaded2B.manifest,
+      bookState.requiredPoseNumbers,
+      bookState.bookId,
+      options.normalizePoseScale,
+      referenceKeys,
+    );
+    if (usedZero) await normalizeCoverPose00(
+      identity.characterHash,
+      bookState.bookId,
+      options.normalizePoseScale,
+      referenceKeys,
+    );
+  }
+  return result;
 }
