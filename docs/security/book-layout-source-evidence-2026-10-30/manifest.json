@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "a16034c01cf909acc3285d9b4fe26d2b9a70936aaf8461c3d22e4050a2c9a8a5",
+  "sourceSnapshotSha256": "8dc9f1fdf53c5e01648a960b22b94f60bb4946e80e35cc316db050877da4210e",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -22,6 +22,7 @@
     "back-end/scripts/helpers/managed-admin-fixture.ts",
     "back-end/scripts/helpers/restore-w2a-qa-identity.js",
     "back-end/scripts/helpers/select-workflow-http-envelope.js",
+    "back-end/scripts/postbuild.sh",
     "back-end/scripts/prepare-admin-auth-bindings.mjs",
     "back-end/scripts/prepare-inner-voice-print-test.ts",
     "back-end/scripts/prepare-workflow-test-bindings.mjs",
@@ -544,6 +545,11 @@
       "path": "back-end/scripts/launch-gelato-protected-case.ts",
       "kind": "source",
       "sha256": "526a6e64c10b94b6ad2a0f44c0902fcd2551fe3e9f45e7205e25955f32fa6248"
+    },
+    {
+      "path": "back-end/scripts/postbuild.sh",
+      "kind": "source",
+      "sha256": "3a48126011168d334e1337aaf4b81d5342727d0ae4877f6d7d33cffda1ad3a1f"
     },
     {
       "path": "back-end/scripts/prepare-admin-auth-bindings.mjs",
@@ -1368,7 +1374,7 @@
     {
       "path": "back-end/src/components/ui/manual-review-alert.tsx",
       "kind": "source",
-      "sha256": "d194d1a17881fd079f3306083cf282e30b2f9c336a818f30f08def8356e55be8"
+      "sha256": "0f11b9cc8257a87600324fcc7e1446dd8b1619f1dd0de0cbca5a921d6d947ff4"
     },
     {
       "path": "back-end/src/components/ui/navigation.tsx",
@@ -2196,6 +2202,11 @@
       "sha256": "1493f061380cb0439898dfde56ab1b1e90d76a25e02bba59f215568775bc938b"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-pages-size-fix-2026-11-19.json",
+      "kind": "evidence",
+      "sha256": "e6fbcc145e179d623916d30e5231f88875d8e837e4206097239c3340809cb346"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-w3-timeout-recovery-2026-11-19.json",
       "kind": "evidence",
       "sha256": "c0cd34784e82ed05b2650752d1b573a14b1ea6833aa05c0709f4baf2187d7477"
@@ -2208,7 +2219,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "5aaa8379fa225a422342eaae0b8a49ca1933097836bd238341f3576a35fe652b"
+      "sha256": "ebb3aa8c0e07245eee6ce2774f5aec4f8e895ac6fbe2ac15c7fac55168dbc475"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
