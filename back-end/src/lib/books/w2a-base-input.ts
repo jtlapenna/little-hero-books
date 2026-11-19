@@ -346,6 +346,7 @@ function buildSkinColorLock(skinToneHex: string | null, skinToneLabel: string | 
 
 function buildBasePromptContract(input: {
   bookId: string;
+  skinToneCanonical: string;
   favoriteColorHex: string | null;
   shortsHex: string;
   clothingTypeCanonical: string;
@@ -356,6 +357,9 @@ function buildBasePromptContract(input: {
 }): { systemInstructionText: string; userPromptText: string; generationConfig: JsonRecord } {
   const faceStyle = input.bookId === 'book-finding-our-inner-voice'
     ? 'FACE DESIGN: Copy IMAGE A’s rounded skull, cheek-to-jaw outline, and childlike head-to-body proportions. Draw a small filled triangular nose, as in the original book. Do not replace it with a curved line, dot, or realistic nose. Use the hair guide only for hair.'
+    : null;
+  const noBlush = input.bookId === 'book-finding-our-inner-voice' && ['skin-medium-dark', 'skin-deep'].includes(input.skinToneCanonical)
+    ? 'CHEEKS: keep the same even skin tone as the rest of the face. Do not add circular blush, tint or highlights.'
     : null;
   const isDress = input.clothingTypeCanonical === 'dress';
   const topColorLock = isDress
@@ -395,6 +399,7 @@ function buildBasePromptContract(input: {
     topColorLock,
     'BOOK STYLE: flat, clean vector-like forms with soft textured shading.',
     faceStyle,
+    noBlush,
     'BACKGROUND: pure white (#FFFFFF). No props, logos, text, or transparency.',
     'SUBJECT LIMIT: render exactly one child in frame.',
     'FRAMING: show the full body from head to feet with comfortable margin inside the frame.',
@@ -438,6 +443,7 @@ function buildBasePromptContract(input: {
     'CRITICAL: Show the full body from head to feet.',
     EYEBROW_SYSTEM_INSTRUCTION,
     faceStyle,
+    noBlush,
     'Do not add props, logos, text, or extra characters.',
   ]
     .filter(Boolean)
@@ -564,6 +570,7 @@ export async function buildW2ABaseInput(
   );
   const promptContract = buildBasePromptContract({
     bookId: config.bookId,
+    skinToneCanonical: previewResolved.skinToneCanonical,
     favoriteColorHex: previewResolved.favoriteColorHex,
     shortsHex: previewResolved.shortsHex,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,

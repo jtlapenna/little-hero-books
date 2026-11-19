@@ -1,6 +1,6 @@
 import { resolveWorkflowBookConfig, type BookSnapshotFields, type WorkflowBookConfigOptions } from './book-snapshot';
 import { inspectWorkflowBookIdentity } from './workflow-book-identity';
-import { resolveRecipePoseReference } from './book-render-recipe';
+import { resolvePoseVariantReference, resolveRecipePoseReference } from './book-render-recipe';
 import { resolvePreviewCanonicalsForConfig } from '@/lib/preview-canonicals';
 import {
   buildAssetApiUrl,
@@ -308,50 +308,14 @@ function deriveOrderIdFromCorrelationId(
   return patternMatch?.[1] ?? null;
 }
 
-function extractSkinToneVariantKey(characterSpecs: JsonRecord): string | null {
-  const raw = String(
-    pickFirstNonEmpty(
-      characterSpecs.skinTone,
-      characterSpecs.skin_tone,
-      characterSpecs.skinToneCanonical,
-      '',
-    ) ?? '',
-  )
-    .trim()
-    .toLowerCase();
-
-  if (!raw) {
-    return null;
-  }
-
-  if (['deep', 'skin-deep', 'dark'].includes(raw)) {
-    return 'deep';
-  }
-
-  if (['medium-dark', 'skin-medium-dark', 'skin-brown-light'].includes(raw)) {
-    return 'medium-dark';
-  }
-
-  return null;
-}
-
 function resolvePoseReferenceKey(
   config: BookConfig,
   poseNumber: number,
   characterSpecs: JsonRecord,
 ): string {
-  const namedReference = resolveRecipePoseReference(config, poseNumber);
-  if (namedReference) return namedReference;
-  const poseVariantKey = extractSkinToneVariantKey(characterSpecs);
-  const variantBasePath =
-    (poseVariantKey && config.assets.poses.skinToneVariantPaths[poseVariantKey]) || null;
-  const poseNN = String(Math.max(0, poseNumber)).padStart(2, '0');
-
-  if (variantBasePath) {
-    return `${variantBasePath.replace(/\/+$/, '')}/pose${poseNN}.png`;
-  }
-
-  return buildPoseReferenceAssetKey(config.bookId, poseNumber);
+  return resolveRecipePoseReference(config, poseNumber, characterSpecs)
+    ?? resolvePoseVariantReference(config, poseNumber, characterSpecs)
+    ?? buildPoseReferenceAssetKey(config.bookId, poseNumber);
 }
 
 function buildRetryAwareUploadKey(
@@ -398,29 +362,21 @@ function hexToRgbTriplet(hex: string): string | null {
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
 
-// Measured median skin color of the fixed pose reference images, by book. The references are fully colored
-// characters, and the model drifts toward their skin unless told the exact color it must not copy.
-const POSE_REFERENCE_SKIN_RGB: Record<string, string> = {
-  'book-finding-our-inner-voice': '232,168,105',
-};
-
 function buildPoseSkinLock(
-  bookId: string,
   skinToneHex: string | null,
   skinToneLabel: string | null,
+  noBlush: boolean,
 ): string {
   const target = skinToneHex
     ? `${skinToneLabel ?? 'the selected tone'} ${skinToneHex}${hexToRgbTriplet(skinToneHex) ? ` (RGB ${hexToRgbTriplet(skinToneHex)})` : ''}`
     : 'the selected child settings';
-  const referenceRgb = POSE_REFERENCE_SKIN_RGB[bookId];
   return [
     `SKIN-TONE LOCK (most important rule): the skin in the final image must be the same color as BASE: ${target}.`,
-    referenceRgb
-      ? `The POSE image shows a different child with an orange-tan skin color (about RGB ${referenceRgb}), which is NOT the required skin color: do NOT copy it, and do not drift toward it.`
-      : 'The POSE image shows a different child with a different skin color: do NOT copy that skin color.',
+    'Use POSE for position only. Do not transfer its face, pigmentation or palette.',
+    noBlush ? 'CHEEKS: keep the same even skin tone as the rest of the face. Do not add circular blush, tint or highlights.' : null,
     'Do not lighten or darken the skin and do not shift it toward peach, orange or yellow; it must look visibly identical to BASE on the face, ears, hands, arms and legs.',
     'Take hair (same style as BASE, no bangs unless BASE has them), clothing and shoes only from BASE. Use POSE for body position only.',
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 }
 
 function buildPosePromptBlock(input: {
@@ -758,7 +714,8 @@ export async function buildW2APoseInput(
     childName,
     favoriteAnimal,
     clothingTypeCanonical: previewResolved.clothingTypeCanonical,
-    skinColorLock: buildPoseSkinLock(config.bookId, previewResolved.skinToneHex, previewResolved.skinToneLabel),
+    skinColorLock: buildPoseSkinLock(previewResolved.skinToneHex, previewResolved.skinToneLabel,
+      config.bookId === 'book-finding-our-inner-voice' && ['skin-medium-dark', 'skin-deep'].includes(previewResolved.skinToneCanonical)),
     poseNumber,
     pageLabel,
     pageType,

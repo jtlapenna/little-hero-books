@@ -3,6 +3,7 @@ import { buildW0RunManifestFromConfig } from '../src/lib/books/build-run-manifes
 import { loadBundledBookConfig } from '../src/lib/books/load-book-config';
 import { buildW2ABaseInputResponse } from '../src/app/api/internal/w2a/build-base-input/route';
 import { buildW2APoseInputResponse } from '../src/app/api/internal/w2a/build-pose-input/route';
+import { readOrderPoseContext } from '../src/lib/books/order-pose-context';
 import { installW2AConfigFixture } from './helpers/w2a-config-fixture';
 
 async function main() {
@@ -57,8 +58,42 @@ async function main() {
       }
       assert.equal(claims, 1, 'Invalid identity or snapshot must fail before job claim');
     }
+    const variantRoot = `${config.bookId}/v9/characters/references/no-blush`;
+    const configured = structuredClone(config);
+    configured.version = 9;
+    configured.assets.poses.skinToneVariantPaths = { 'medium-dark': variantRoot, deep: variantRoot };
+    for (const [tone, noBlush] of [
+      ['light', false], ['medium', false], ['tan', false],
+      ['medium-dark', true], ['deep', true], ['skin-brown-light', true], ['brown-deep', true], ['skin_medium_dark', true],
+    ] as const) {
+      const orderId = `SYNTHETIC-POSE-TONE-${tone}`;
+      const characterSpecs = { childName: 'Ari', animalGuide: 'cat', skinTone: tone };
+      const manifest = buildW0RunManifestFromConfig(configured, {
+        orderId, platform: 'amazon', formatId: 'amazon', characterHash: 'synthetic',
+        input: { characterSpecs, bookSpecs: { testMode: true } },
+      });
+      const snapshot = manifest.book.resolved.renderSnapshot!;
+      const manual = await readOrderPoseContext({bookId: configured.bookId, orderPrefix: `${configured.bookId}/orders/${orderId}`}, async () => manifest);
+      const base = await buildW2ABaseInputResponse({orderId, bookId:configured.bookId, formatId:'amazon', configVersion:9,
+        renderSnapshot:snapshot, characterHash:'synthetic', characterSpecs, testMode:true});
+      assert.equal(base.userPromptText.includes('Do not add circular blush'), noBlush);
+      for (const {poseNumber, referenceKey} of Object.values(configured.rendering.recipe!.poses)) {
+        const pose = await buildW2APoseInputResponse({orderId, bookId:configured.bookId, formatId:'amazon', configVersion:9,
+          renderSnapshot:snapshot, characterHash:'synthetic', characterSpecs, poseNumber, testMode:true}, {
+          instrumentPoseJob: async () => ({
+            workflowJobId: 1, workflowJobIdempotencyKey: `synthetic:${orderId}:pose${poseNumber}`,
+            workflowJobStatus: 'running', workflowAttemptId: 1, workflowAttempt: 1,
+            workflowClaimed: true, workflowReplay: null,
+          }),
+        });
+        const expected = noBlush ? `${variantRoot}/pose${String(poseNumber).padStart(2,'0')}.png` : referenceKey;
+        assert.equal(pose.poseRefKey, expected, `${tone} pose ${poseNumber}`);
+        assert.equal(manual.referenceKeys[String(poseNumber)], expected);
+        assert.equal(pose.userPromptText.includes('Do not add circular blush'), noBlush);
+      }
+    }
     assert.equal(fixture.attempts.length, 0);
-    console.log('Frozen W0 to W2A base/pose: standard and amazon pass; identity drift rejected before claim; no fetches');
+    console.log('Frozen W0 to W2A base/pose: standard and amazon pass; all tone variants match admin and W2A; identity drift rejected before claim; no fetches');
   } finally {
     fixture.restore();
   }

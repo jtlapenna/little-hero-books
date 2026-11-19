@@ -1114,7 +1114,7 @@ export async function buildW3AssemblyInput(
       }
     }
   }
-  const referenceKeys = renderSnapshot ? snapshotPoseReferenceKeys(renderSnapshot) : undefined;
+  const referenceKeys = renderSnapshot ? snapshotPoseReferenceKeys(renderSnapshot, normalizedOneManifest?.characterSpecs) : undefined;
   const usedZero = renderSnapshot ? [...bookState.pagePlan.flatMap(pagePoseNumbers), ...coverPoseNumbers(renderSnapshot.bookConfig.rendering.recipe!.covers[renderSnapshot.formatId].layers)].includes(0) : true;
   const orderPrefixResolved = resolveOrderPathContext(identity.orderId, {
     bookId: bookState.bookId,
@@ -1147,7 +1147,7 @@ export async function buildW3AssemblyInput(
   }
 
   const manifestOrder = pickJsonRecord(loaded2B.manifest.order);
-  const characterSpecs = pickJsonRecord(
+  const characterSpecs = normalizedOneManifest?.renderSnapshot ? normalizedOneManifest.characterSpecs : pickJsonRecord(
     primary.characterSpecs,
     nested.characterSpecs,
     pickJsonRecord(primary.orderData).characterSpecs,
