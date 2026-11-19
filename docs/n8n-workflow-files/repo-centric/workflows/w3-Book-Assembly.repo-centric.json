@@ -868,7 +868,7 @@
     {
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const input = $input.first()?.json || {};\nconst payload = input.body ?? input;\nconst backendUrl = String(payload.backendUrl || 'https://admin.littleherolabs.com').replace(/\\/$/, '');\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: backendUrl + '/api/internal/w3/build-assembly-input',\n  headers: {\n    Authorization: 'Bearer REDACTED_BACKEND_API_TOKEN',\n    'Content-Type': 'application/json',\n  },\n  body: payload,\n  json: true,\n  timeout: 90000,\n});\n\nconst normalized = response && typeof response === 'object' && !Array.isArray(response)\n  ? response\n  : { response };\n\nif (normalized.workflowSkipped === true) {\n  return [];\n}\n\nreturn [{ json: normalized }];",
+        "jsCode": "// The native HTTP node owns the long-running backend request.\nreturn $input.all().filter(item => item.json.workflowSkipped !== true);",
         "mode": "runOnceForAllItems"
       },
       "id": "1e571512-0fb2-4ac8-88a1-7a11df68ad06",
@@ -1013,6 +1013,46 @@
         "httpHeaderAuth": {
           "id": "e7oKyY07EBCKuCjU",
           "name": "LHL backend API containment 2026-10-16"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.littleherolabs.com/api/internal/w3/build-assembly-input",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body ?? $json) }}",
+        "options": {
+          "timeout": 240000,
+          "response": { "response": { "responseFormat": "json" } },
+          "redirect": { "redirect": { "followRedirects": false } }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "1d8db473-6404-46dd-a13c-2b796577d7c0",
+      "name": "Fetch Repo W3 Assembly Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1640,
+        1952
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__LHL_BACKEND_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "LHL backend API"
         }
       }
     }
@@ -1476,7 +1516,7 @@
       "main": [
         [
           {
-            "node": "Extract Manifest URL (3)",
+            "node": "Fetch Repo W3 Assembly Input",
             "type": "main",
             "index": 0
           }
@@ -1649,6 +1689,17 @@
         [
           {
             "node": "Cover Pending? (3A)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Repo W3 Assembly Input": {
+      "main": [
+        [
+          {
+            "node": "Extract Manifest URL (3)",
             "type": "main",
             "index": 0
           }

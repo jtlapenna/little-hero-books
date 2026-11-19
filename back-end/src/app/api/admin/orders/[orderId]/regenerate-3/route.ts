@@ -1,8 +1,10 @@
+import { findExactPreviewOrder } from '@/lib/customer-preview-access';
+import { reconcileStoppedW3Claim } from '@/lib/w3-claim-recovery';
 import { assertBookReviewOwnership, invalidateBookReview, BookReviewConflict } from '@/lib/book-review-invalidation';
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadManifest } from '@/lib/r2-service';
 import { putObject, R2_ORDERS_BUCKET } from '@/lib/r2-client';
-import { getOrderFromSupabase, supabase } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase-client';
 import {
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
@@ -61,7 +63,7 @@ export async function POST(
 
   try {
     // Get current order to preserve review_stages and get numeric id / amazon_order_id
-    let currentOrder = await getOrderFromSupabase(orderId).catch(() => null);
+    let currentOrder = await findExactPreviewOrder(orderId).catch(() => null);
     if (!currentOrder) {
       return NextResponse.json(
         { error: 'Order not found' },
@@ -69,9 +71,16 @@ export async function POST(
       );
     }
 
+    if (currentOrder.current_workflow === '3' && currentOrder.execution_status === 'processing') {
+      if (!await reconcileStoppedW3Claim(currentOrder)) {
+        throw new BookReviewConflict('W3 is still active or its stopped execution could not be verified. Inspect Workflow before retrying.');
+      }
+      currentOrder = await findExactPreviewOrder(orderId);
+      if (!currentOrder) throw new BookReviewConflict('Book changed; refresh before regenerating');
+    }
     assertBookReviewOwnership(currentOrder, 'postPdf');
     await invalidateBookReview(orderId, 'postPdf');
-    currentOrder = await getOrderFromSupabase(orderId);
+    currentOrder = await findExactPreviewOrder(orderId);
     if (!currentOrder) throw new BookReviewConflict('Book changed; refresh before regenerating');
     assertBookReviewOwnership(currentOrder, 'postPdf');
     const orderRowId = Number(currentOrder.id);
@@ -203,12 +212,12 @@ export async function POST(
 
     await updateOrderRowResilientById(orderRowId, updateData);
     console.log(`[Regenerate 3] ✅ Queued ${perBookOrderId} (id=${orderRowId}) for router at ${queuedAt}`);
-    console.log(`[Regenerate 3] Order ${perBookOrderId} queued for router. Router will pick it up on next cron run.`);
+    console.log(`[Regenerate 3] Order ${perBookOrderId} queued for router. Waiting for the workflow router.`);
 
     return NextResponse.json({
       success: true,
       orderId,
-      message: '3 workflow regeneration queued. Manifests cleared. Router will pick up this order on next cron run.',
+      message: 'W3 assembly queued with the existing character images. Waiting for the workflow router.',
       manifestCleared: manifest3Modified
     });
   } catch (error: any) {

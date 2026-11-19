@@ -1,3 +1,4 @@
+import { scanStoppedW3Claims } from '@/lib/w3-claim-recovery';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { getWorkflowAlertStorageMode } from '@/lib/workflow-alerts';
@@ -12,9 +13,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const [summary, storageMode] = await Promise.all([
+    const [summary, storageMode, assemblyClaims] = await Promise.all([
       runRepoWorkflowWatchdog(),
       getWorkflowAlertStorageMode(),
+      scanStoppedW3Claims(),
     ]);
 
     return NextResponse.json({
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest) {
       ranAt: new Date().toISOString(),
       storageMode,
       summary,
+      assemblyClaims,
     });
   } catch (error) {
     console.error('[POST /api/admin/workflow-jobs/watchdog] Error:', error);

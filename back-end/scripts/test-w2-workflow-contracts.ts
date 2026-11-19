@@ -1,3 +1,5 @@
+import strictAssert from 'node:assert/strict';
+import { reconcileStoppedW3Claim } from '../src/lib/w3-claim-recovery';
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -987,28 +989,59 @@ async function main(): Promise<void> {
     w3Workflow.connections?.["Complete Workflow Job (3)"] ?? {},
   );
 
+  const w3Native = getNode(w3Workflow, 'Fetch Repo W3 Assembly Input');
   assert(
     w3IdempotencyCode.includes("return $input.all();") &&
       !w3IdempotencyCode.includes("getWorkflowStaticData") &&
+      w3Native.type === "n8n-nodes-base.httpRequest" &&
+      w3Native.parameters?.url === "https://admin.littleherolabs.com/api/internal/w3/build-assembly-input" &&
+      String(w3Native.parameters?.body).includes("$json.body ?? $json") &&
+      w3Native.parameters?.genericAuthType === "httpHeaderAuth" &&
+      Number((w3Native.parameters?.options as Record<string, unknown>)?.timeout) > 60_000 &&
       w3ExtractAssemblyInputNode.type === "n8n-nodes-base.code" &&
-      w3ExtractAssemblyInputCode.includes("this.helpers.httpRequest") &&
-      w3ExtractAssemblyInputCode.includes("/api/internal/w3/build-assembly-input") &&
-      w3ExtractAssemblyInputCode.includes("const payload = input.body ?? input") &&
-      w3ExtractAssemblyInputCode.includes("body: payload") &&
-      w3ExtractAssemblyInputCode.includes("json: true") &&
-      w3ExtractAssemblyInputCode.includes("const normalized = response") &&
-      w3ExtractAssemblyInputCode.includes("normalized.workflowSkipped === true") &&
-      w3ExtractAssemblyInputCode.includes("return [];") &&
-      w3ExtractAssemblyInputCode.includes(
-        "Bearer REDACTED_BACKEND_API_TOKEN",
-      ) &&
-      w3BuildAssemblyInputCode.includes("return $input.all();") &&
-      !w3BuildAssemblyInputCode.includes("parseJsonPrefix") &&
-      !w3BuildAssemblyInputCode.includes(
-        "Could not parse W3 assembly input response",
-      ),
-    "Repo-centric W3 should rely on the repo-owned build-assembly-input route for durable job idempotency and normalized assembly payloads, leaving the workflow entry nodes as thin adapters",
+      !w3ExtractAssemblyInputCode.includes("httpRequest") &&
+      w3BuildAssemblyInputCode.includes("return $input.all();"),
+    "W3 HTTP transport should own the request timeout, with only a local skip check in the Code node",
   );
+  strictAssert.match(JSON.stringify(w3Workflow.connections?.['Idempotency Check']), /Fetch Repo W3 Assembly Input/);
+  strictAssert.match(JSON.stringify(w3Workflow.connections?.['Fetch Repo W3 Assembly Input']), /Extract Manifest URL/);
+  const filter = new Function('$input', w3ExtractAssemblyInputCode);
+  const accepted = { json: { success: true } };
+  strictAssert.deepEqual(filter({all: () => [accepted, {json:{workflowSkipped:true}}]}), [accepted]);
+
+  const row = {id: 40, orderId:'FIXTURE-ASSEMBLY', execution_status:'processing', current_workflow:'3',
+    started_at:'2026-11-19 19:18:53.066', manifest_2b_url:'saved-2b'};
+  const entry = {id:'88', workflowId:'D4rQ0zJG8JlKhZqq', status:'error',
+    startedAt:'2026-11-19T19:18:54Z', stoppedAt:'2026-11-19T19:19:54Z', finished:false};
+  const execution = {...entry, data:{resultData:{error:{message:'Task execution timed out'},runData:{
+    'Webhook Trigger (Book Assembly)1': [{data:{main:[[{json:{body:{orderId:row.orderId,orderDbId:row.id,claimedAt:'2026-11-19T19:18:53.066'}}}]]}}],
+  }}}};
+  const writes: Record<string, unknown>[] = [];
+  const ports = {
+    hasBlockingAssemblyJob: async () => false, list: async () => [entry], read: async (_id: string) => execution,
+    update: async (target: Record<string, unknown>, patch: Record<string, unknown>) => {
+      strictAssert.equal(target, row);writes.push(patch);return true;
+    },
+    now: () => Date.parse('2026-11-19T20:30:00Z'),
+  };
+  for (const guardedRow of [{ ...row, orderId:'OTHER' }, { ...row, id:41 },
+    { ...row, started_at:'2026-11-19 19:18:53.067' }, { ...row, print_claim_token:'owned' }, { ...row, manifest_3_url:'complete' }]) {
+    strictAssert.equal(await reconcileStoppedW3Claim(guardedRow, ports),false);
+  }
+  strictAssert.equal(await reconcileStoppedW3Claim(row,{...ports,hasBlockingAssemblyJob:async()=>true}),false);
+  strictAssert.equal(await reconcileStoppedW3Claim(row,{...ports,read:async()=>({...execution,status:'running',stoppedAt:null as never})}),false);
+  strictAssert.equal(await reconcileStoppedW3Claim({...row,updated_at:'2026-11-19T20:29:59Z'},ports),false);
+  const duplicate = {...entry,id:'89',status:'running'};
+  strictAssert.equal(await reconcileStoppedW3Claim(row,{...ports,list:async()=>[entry,duplicate],
+    read:async id=>id===entry.id?execution:{...execution,...duplicate,stoppedAt:null}}),false);
+  strictAssert.equal(writes.length,0);
+  strictAssert.equal(await reconcileStoppedW3Claim(row,ports),true);
+  strictAssert.equal(writes[0].execution_status,'error_requires_manual_review');
+  strictAssert.equal(writes[0].next_workflow,'3');
+  strictAssert.equal(writes[0].started_at,null);
+  strictAssert.match(String(writes[0].error_message), /timed out/);
+  strictAssert.equal('manifest_2b_url' in writes[0],false);
+
   assert(
     w3GetReadyConnections.includes('"node":"Load Canonical Assets"') &&
       !w3GetReadyConnections.includes('"node":"Normalize Inputs (3A Phase 1)1"') &&

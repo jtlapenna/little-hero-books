@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "6a8e8141ec91b441f935ccb2a81fae4ecf1e90cf79e34c822a773c4b3512ea59",
+  "sourceSnapshotSha256": "a16034c01cf909acc3285d9b4fe26d2b9a70936aaf8461c3d22e4050a2c9a8a5",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -72,6 +72,7 @@
     "back-end/scripts/test-w2-http-handoff.ts",
     "back-end/scripts/test-w2a-failure-recovery.ts",
     "back-end/scripts/test-w2a-pose-workflow-identity.ts",
+    "back-end/scripts/test-w3-assembly-input.ts",
     "back-end/scripts/test-workflow-attempt-fencing.ts",
     "back-end/scripts/test-workflow-jobs.ts",
     "back-end/scripts/test-workflow-readiness-intake.ts",
@@ -81,6 +82,7 @@
     "back-end/src/app/admin/csv-upload/page.tsx",
     "back-end/src/app/admin/w2a-recovery/page.tsx",
     "back-end/src/app/admin/w3-calibration/page.tsx",
+    "back-end/src/app/admin/workflow-jobs/page.tsx",
     "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
     "back-end/src/app/api/admin/gelato-print/route.ts",
     "back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts",
@@ -92,6 +94,7 @@
     "back-end/src/app/api/admin/orphaned-orders/route.ts",
     "back-end/src/app/api/admin/w2a-recovery/route.ts",
     "back-end/src/app/api/admin/w3-calibration/route.ts",
+    "back-end/src/app/api/admin/workflow-jobs/watchdog/route.ts",
     "back-end/src/app/api/admin/workflow-test-print/route.ts",
     "back-end/src/app/api/auth/request-code/route.ts",
     "back-end/src/app/api/auth/sign-out/route.ts",
@@ -198,6 +201,7 @@
     "back-end/src/lib/w2a-recovery.ts",
     "back-end/src/lib/w3-calibration-http.ts",
     "back-end/src/lib/w3-calibration.ts",
+    "back-end/src/lib/w3-claim-recovery.ts",
     "back-end/src/lib/workers/w3-manifest-publish.ts",
     "back-end/src/lib/workflow-jobs/repository.ts",
     "back-end/src/lib/workflow-jobs/types.ts",
@@ -216,6 +220,7 @@
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
     "tools/inner-voice-placement-editor/build_final_book_candidate.py",
     "tools/inner-voice-placement-editor/export_flow_candidate.py",
     "tools/inner-voice-placement-editor/final-book-revisions-20261117/.gitignore",
@@ -998,7 +1003,7 @@
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
       "kind": "source",
-      "sha256": "cdae17f5688fbea63ecdb296ed137ee507ceaa4c7f7f2ce3f04aa4101e935ae0"
+      "sha256": "26e725321ad718d3e21ebf76ac7d2c8c764099990765734ba4a1fac73aaa6c0f"
     },
     {
       "path": "back-end/scripts/test-w2a-base-input.ts",
@@ -1024,6 +1029,11 @@
       "path": "back-end/scripts/test-w2a-pose-workflow-identity.ts",
       "kind": "source",
       "sha256": "7a95d4ca1eaeb2c62a543cbb3f79571e82de4c99570e2f8a863a872a9edd2959"
+    },
+    {
+      "path": "back-end/scripts/test-w3-assembly-input.ts",
+      "kind": "source",
+      "sha256": "12ae01e7671c94aad2fae3960e5eb3447099410c97773bc5237e13867510f9ac"
     },
     {
       "path": "back-end/scripts/test-workflow-attempt-fencing.ts",
@@ -1071,6 +1081,11 @@
       "sha256": "8730cd944559af3116fa5d2827ade6bacfdc05b004029d8311b76c1454bf7ba8"
     },
     {
+      "path": "back-end/src/app/admin/workflow-jobs/page.tsx",
+      "kind": "source",
+      "sha256": "223dced499d100c881b7ce5e4feedef44724ec5c6fe2215bc394c9447090b951"
+    },
+    {
       "path": "back-end/src/app/api/admin/amazon-orders/upload-csv/route.ts",
       "kind": "source",
       "sha256": "8bd2509cecd27497f0e583f910c68c749a9d2830a64d1ae57c09e6e324e09d5c"
@@ -1083,27 +1098,27 @@
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-2a/route.ts",
       "kind": "source",
-      "sha256": "7cb3b783309d6f9b06dcc07f384b0dafb3e3a016f46af81c3035ba961651f409"
+      "sha256": "7441cb7a779cc00bc5e7b7327f404ec59d536cb2c641e2bcf5336618430915cd"
     },
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-2b/route.ts",
       "kind": "source",
-      "sha256": "636cb360610fcac0466eb11f6b53e46461c226d4674e0d768cbad4daa3b7720f"
+      "sha256": "61b65ad5b5c23ed56ab3dd39cd2cc7a4b8cd0d0430fc0c15006cc210bba639e1"
     },
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-3/route.ts",
       "kind": "source",
-      "sha256": "c0391bfa649bcbe161bc4148a6d2ea6c383a70a89bdce10c2e2c500675366eda"
+      "sha256": "51e888f82191ec23bfc4abcede710a852fdf6749fb5cbdde2b1bb07f8947d9ce"
     },
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/regenerate-4/route.ts",
       "kind": "source",
-      "sha256": "70a1f1bbbe31462a86cdbd36606b311f3a9d0bf18a3af8ae257ace3fc9f259fb"
+      "sha256": "421d95d274cb4ccaf27c3de5a336c83b2b923b56a4896af9ff77048b3cd7c487"
     },
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/reset/route.ts",
       "kind": "source",
-      "sha256": "3cf04e611d305f9c339b3f88818617a46c2884a6752449a953843e967f322385"
+      "sha256": "a9b84cef69dfab553387fbf38bbd4749a3f03eec2b0e1d0c19af502e48453b2a"
     },
     {
       "path": "back-end/src/app/api/admin/orders/[orderId]/updated-test-copy/route.ts",
@@ -1113,7 +1128,7 @@
     {
       "path": "back-end/src/app/api/admin/orphaned-orders/route.ts",
       "kind": "source",
-      "sha256": "241f3f9de98aba7bd9aef99356c1abf1ad14b808647389fb8189eee9f1828076"
+      "sha256": "cfefeec60b679c249ad4e35183793c7e949dde0fa2c5df8f229737b651437396"
     },
     {
       "path": "back-end/src/app/api/admin/w2a-recovery/route.ts",
@@ -1124,6 +1139,11 @@
       "path": "back-end/src/app/api/admin/w3-calibration/route.ts",
       "kind": "source",
       "sha256": "1d1c6882228da1a5855be1424768a1ee2db613ba70e75cf379a54ec58570118b"
+    },
+    {
+      "path": "back-end/src/app/api/admin/workflow-jobs/watchdog/route.ts",
+      "kind": "source",
+      "sha256": "4bc560534285a720b3c4ea76188d25941e7f9982cf00f71ae87e808306250269"
     },
     {
       "path": "back-end/src/app/api/admin/workflow-test-print/route.ts",
@@ -1158,7 +1178,7 @@
     {
       "path": "back-end/src/app/api/cron/health-monitor/route.ts",
       "kind": "source",
-      "sha256": "99740d4f94fc292e1341e53bfa781065d875122a111c74349db9f767baf841e7"
+      "sha256": "a0789e195a8ca89a798de2f6c1a516c5ba29fd7b36020b5ef783304ff6fc7647"
     },
     {
       "path": "back-end/src/app/api/cron/router/route.ts",
@@ -1208,7 +1228,7 @@
     {
       "path": "back-end/src/app/api/internal/w3/build-assembly-input/route.ts",
       "kind": "source",
-      "sha256": "41df72f0481182dc27f1b9b9090e09b3e125579463f1f23bd37ad8666dbb3068"
+      "sha256": "53a5c508a2e6e2120da839be03e40bf29c2c4fa5a1e54464898f730dce0db3d6"
     },
     {
       "path": "back-end/src/app/api/internal/w4/engineering-automation/route.ts",
@@ -1293,7 +1313,7 @@
     {
       "path": "back-end/src/app/orders/[orderId]/page.tsx",
       "kind": "source",
-      "sha256": "75c276bc1ed3bef4112d957a509180dbe4c04a135c000a0ef9505a0b22541377"
+      "sha256": "84e1c6c0a531773deea71b31d5d28eb603dbb5937d6f6a1bfa415c391d456ea0"
     },
     {
       "path": "back-end/src/components/orders/updated-test-book-copy.tsx",
@@ -1348,7 +1368,7 @@
     {
       "path": "back-end/src/components/ui/manual-review-alert.tsx",
       "kind": "source",
-      "sha256": "2013cd4bc0d210adfc152b6d3fdadbe685fcd6ffd57c86896a396e6cf8a68e8a"
+      "sha256": "d194d1a17881fd079f3306083cf282e30b2f9c336a818f30f08def8356e55be8"
     },
     {
       "path": "back-end/src/components/ui/navigation.tsx",
@@ -1733,7 +1753,7 @@
     {
       "path": "back-end/src/lib/books/w3-assembly-input.ts",
       "kind": "source",
-      "sha256": "ac69dfc36f603e04ded6f58c7389e7f06850b0ca2a89c9c76b0b873c4d32395d"
+      "sha256": "6f43fc2fddf2e8436622b0afc4b837e30b09849a91ded89f5237b67d8b362044"
     },
     {
       "path": "back-end/src/lib/books/w3-assembly-state.ts",
@@ -1869,6 +1889,11 @@
       "path": "back-end/src/lib/w3-calibration.ts",
       "kind": "source",
       "sha256": "58fa8acebec616f1c0ad13c8e6bdc0e4c58bfdc8bdb6e8583c8578e2464bc4b6"
+    },
+    {
+      "path": "back-end/src/lib/w3-claim-recovery.ts",
+      "kind": "source",
+      "sha256": "5af82ef266c874d358c7b8cc6a41d66a2c49e548101528a7aadc0be62dd4f3d3"
     },
     {
       "path": "back-end/src/lib/workers/w3-manifest-publish.ts",
@@ -2036,6 +2061,11 @@
       "sha256": "c60cdf190eaea7bba562f253492921920f1d4a5645a9154a7e1c9cf0eb651418"
     },
     {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
+      "kind": "source",
+      "sha256": "d7cdd778ab48e3033cfb50e5228f6099d785621c016de75c2a44970017f46b5a"
+    },
+    {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w4-GELATO-Print_Fulfillment.repo-centric.json",
       "kind": "source",
       "sha256": "7344775bfdbde93b5e5d5beac0d98ac152bd183ff08db0d4f4ce5e356e433826"
@@ -2166,6 +2196,11 @@
       "sha256": "1493f061380cb0439898dfde56ab1b1e90d76a25e02bba59f215568775bc938b"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-w3-timeout-recovery-2026-11-19.json",
+      "kind": "evidence",
+      "sha256": "c0cd34784e82ed05b2650752d1b573a14b1ea6833aa05c0709f4baf2187d7477"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/test-verifier.py",
       "kind": "evidence",
       "sha256": "df5e5cffcd114ea7ebb994c67bb39c89b487a85cb7f98702e170243928dafcb5"
@@ -2173,7 +2208,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "833afc8cdd6d7119a2cd36a16b624ea80eac4985b6b39140ce1257917b91249c"
+      "sha256": "5aaa8379fa225a422342eaae0b8a49ca1933097836bd238341f3576a35fe652b"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

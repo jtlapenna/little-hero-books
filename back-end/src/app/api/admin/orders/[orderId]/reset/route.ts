@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requiresW3ClaimRecovery } from '@/lib/w3-claim-recovery';
 import { heldW2AFailure } from '@/lib/w2a-execution-failure';
 import { createClient } from '@supabase/supabase-js';
 import { determineNextWorkflow } from '@/lib/determine-next-workflow';
@@ -88,6 +89,7 @@ export async function POST(
       );
     }
 
+    if (requiresW3ClaimRecovery(order)) return NextResponse.json({ error: 'Use Inspect Workflow or Regenerate 3 to recover W3 assembly' }, { status: 409 });
     if (heldW2AFailure(order)) return NextResponse.json({ error: 'Resolve this failure in W2A Recovery before retrying.' }, { status: 409 });
 
     console.log('[Reset Order] Found order:', {

@@ -1,3 +1,4 @@
+import { scanStoppedW3Claims } from '@/lib/w3-claim-recovery';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { splitCronExcludedOrders } from '@/lib/cron-order-guards';
@@ -43,6 +44,7 @@ type OrphanedOrderRow = {
   amazon_order_id?: string | null;
   root_order_id?: string | null;
   orphan_reason?: string | null;
+  error_type?: string | null;
   execution_status?: string | null;
   next_workflow?: string | null;
   current_workflow?: string | null;
@@ -67,7 +69,7 @@ type OrphanedOrderRow = {
 export async function GET(request: NextRequest) {
   // Verify cron secret (security)
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     console.error('[Cron Health Monitor] Unauthorized - missing or invalid CRON_SECRET');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -76,14 +78,6 @@ export async function GET(request: NextRequest) {
     console.error('[Cron Health Monitor] Supabase credentials not configured');
     return NextResponse.json(
       { error: 'Supabase credentials not configured' },
-      { status: 500 }
-    );
-  }
-
-  if (!n8nWebhookUrl) {
-    console.error('[Cron Health Monitor] N8N_HEALTH_MONITOR_WEBHOOK_URL not configured');
-    return NextResponse.json(
-      { error: 'N8N webhook URL not configured' },
       { status: 500 }
     );
   }
@@ -121,6 +115,7 @@ export async function GET(request: NextRequest) {
       .eq('print_provider', 'gelato').not('print_submission_id', 'is', null);
     if (ownershipError) throw new Error('Gelato recovery ownership lookup failed');
     const providerOwnedIds = new Set((owned ?? []).map((order) => order.id));
+    const assemblyClaims = await scanStoppedW3Claims().catch(() => ({checked: 0, markedForReview: 0, unavailable: 1}));
     // 1. Check for stuck orders (processing > 30 minutes)
     const stuckQueryStart = Date.now();
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
@@ -129,6 +124,7 @@ export async function GET(request: NextRequest) {
       .select('execution_status,error_type,product_info,book_specs,print_provider,print_book_id,print_format_id,print_config_version,next_workflow,current_workflow,workflow_step,one_manifest_url,id,"orderId",amazon_order_id,root_order_id,current_workflow,started_at,retry_count,error_message,customer_email,customer_name')
       .eq('execution_status', 'processing')
       .lt('started_at', stuckThreshold.toISOString())
+      .or('current_workflow.is.null,current_workflow.neq.3')
       // Exclude orders that are legitimately idle (approval, done, post-fulfillment)
       .not('workflow_step', 'in', '("customer_approval","done","print_fulfillment")');
     metrics.stuckQueryMs = Date.now() - stuckQueryStart;
@@ -216,7 +212,7 @@ export async function GET(request: NextRequest) {
     const orphanedOrdersFiltered = orphanedCandidates.filter(row => guardById.has(row.id)).map(row => ({ ...row, ...guardById.get(row.id) })).filter((o) => {
       // Exclude processing orders that are already in stuck query
       // (orphaned query catches processing orders > 1 hour, but stuck query catches > 30 minutes)
-      if (providerOwnedIds.has(o.id) || (o.execution_status === 'processing' && stuckOrderIds.has(o.id))) {
+      if (providerOwnedIds.has(o.id) || (o.execution_status === 'processing' && o.current_workflow === '3') || o.error_type === 'w3_assembly_failed' || (o.execution_status === 'processing' && stuckOrderIds.has(o.id))) {
         return false; // Already being processed as stuck
       }
       return true; // Include all other orphaned orders
@@ -290,11 +286,15 @@ export async function GET(request: NextRequest) {
         retryCount: 0,
         orphanedCount: 0,
         workflowWatchdog,
+        assemblyClaims,
         metrics,
         timestamp: new Date().toISOString()
       });
     }
 
+    if (!n8nWebhookUrl) {
+      return NextResponse.json({ error: 'W1.5 webhook URL is not configured', executionId, assemblyClaims }, { status: 503 });
+    }
     // 6. Work exists - call n8n webhook (1 execution)
     const payload = {
       stuck: stuckOrders,
@@ -352,6 +352,7 @@ export async function GET(request: NextRequest) {
             total: totalWork
           },
           workflowWatchdog,
+          assemblyClaims,
           metrics
         },
         { status: 502 }
@@ -391,6 +392,7 @@ export async function GET(request: NextRequest) {
       retryOrderIds: retryOrders.map((o) => o.amazon_order_id),
       orphanedOrderIds: orphanedOrders.map((o) => o.amazon_order_id),
       workflowWatchdog,
+      assemblyClaims,
       metrics,
       n8nExecutions: 1,
       timestamp: new Date().toISOString(),
