@@ -1,3 +1,4 @@
+import { resolveSkinToneCanonical } from '@/types/customization';
 import { resolveBookCharacterPlacementMap } from './character-placement';
 import { resolveBookAnimalPlacementMap } from './animal-placement';
 import { resolveBookCoverCharacterPlacement } from './cover-character-placement';
@@ -155,14 +156,26 @@ export function validateRenderSnapshot(value: unknown, identity?: { bookId?: str
   validateBookRenderRecipe(config, snapshot.formatId);
   return snapshot;
 }
-export function snapshotPoseReferenceKeys(snapshot: BookRenderSnapshot): Record<string,string> {
-  const config = snapshot.bookConfig;
-  return Object.fromEntries(Object.values(config.rendering.recipe!.poses).map(p => [String(p.poseNumber), p.referenceKey]));
+type PoseCharacterSpecs = Record<string, unknown>;
+
+export function resolvePoseVariantReference(config: BookConfig, poseNumber: number, characterSpecs: PoseCharacterSpecs): string | null {
+  const skin = resolveSkinToneCanonical(characterSpecs);
+  const variant = skin === 'skin-deep' ? 'deep' : skin === 'skin-medium-dark' ? 'medium-dark' : null;
+  const path = variant ? config.assets.poses.skinToneVariantPaths[variant] : null;
+  return path ? `${path}/pose${String(Math.max(0, poseNumber)).padStart(2, '0')}.png` : null;
 }
-export function resolveRecipePoseReference(config: BookConfig, poseNumber: number): string | null {
+
+export function snapshotPoseReferenceKeys(snapshot: BookRenderSnapshot, characterSpecs: PoseCharacterSpecs = {}): Record<string, string> {
+  const config = snapshot.bookConfig;
+  return Object.fromEntries(Object.values(config.rendering.recipe!.poses).map(p => [
+    String(p.poseNumber), resolvePoseVariantReference(config, p.poseNumber, characterSpecs) ?? p.referenceKey,
+  ]));
+}
+
+export function resolveRecipePoseReference(config: BookConfig, poseNumber: number, characterSpecs: PoseCharacterSpecs = {}): string | null {
   const recipe = config.rendering.recipe;
   if (!recipe) return null;
   const pose = Object.values(recipe.poses).find(p => p.poseNumber === poseNumber);
   if (!pose && poseNumber !== 0) throw new Error(`Pose ${poseNumber} is not in the configured recipe`);
-  return pose?.referenceKey ?? `${config.assets.poses.basePath}/pose00.png`;
+  return resolvePoseVariantReference(config, poseNumber, characterSpecs) ?? pose?.referenceKey ?? `${config.assets.poses.basePath}/pose00.png`;
 }

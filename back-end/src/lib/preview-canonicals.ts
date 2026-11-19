@@ -6,26 +6,7 @@
 
 import { loadBundledBookConfig } from '@/lib/books';
 import type { BookConfig } from '@/lib/books';
-import { SKIN_TONE_HEX_MAP } from '@/types/customization';
-
-// Frontend skinTone (traitOptions) -> w2A skinToneCanonical
-const SKIN_MAP: Record<string, string> = {
-  'skin-light': 'skin-light',
-  'skin-medium': 'skin-medium',
-  'skin-tan': 'skin-tan',
-  'skin-medium-dark': 'skin-medium-dark',
-  'skin-deep': 'skin-deep',
-  light: 'skin-light',
-  medium: 'skin-medium',
-  tan: 'skin-tan',
-  'medium-dark': 'skin-medium-dark',
-  deep: 'skin-deep',
-  // Legacy mappings (Amazon orders, old frontend)
-  olive: 'skin-tan',
-  dark: 'skin-deep',
-  'skin-brown-deep': 'skin-deep',
-  'skin-brown-light': 'skin-medium-dark',
-};
+import { resolveSkinToneCanonical, SKIN_TONE_HEX_MAP } from '@/types/customization';
 
 // w2A FILENAME_MAP for tee-shorts only (preview default)
 // Note: medium-dark uses light-aa files, deep uses dark-aa files (existing R2 assets)
@@ -149,8 +130,7 @@ export function resolvePreviewCanonicalsForConfig(
   const hairstylesPrefix =
     bookConfig.assets.preview?.hairstylesPrefix ??
     `${bookConfig.assets.assetRoot}/characters/hairstyles`;
-  const skinRaw = (specs.skinTone ?? 'medium').toString().toLowerCase().trim();
-  const skinToneCanonical = SKIN_MAP[skinRaw] ?? 'skin-medium';
+  const skinToneCanonical = resolveSkinToneCanonical(specs);
 
   // Determine clothing type from pronouns (or explicit clothingStyle)
   const clothingTypeCanonical = mapClothingType(specs.pronouns, specs.clothingStyle);

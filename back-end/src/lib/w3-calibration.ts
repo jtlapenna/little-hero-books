@@ -978,7 +978,7 @@ function buildPageOptions(
     const specs = toRecord(assemblyInput.characterSpecs);
     const slug = String(toRecord(previewPlan.animalImages).slug || specs.animalGuide);
     const url = (key: string) => `${previewPlan.backendUrl}/api/assets/${key}`;
-    const poseUrl = (number: number) => poseAssetMode === 'reference-standin' ? url(resolveRecipePoseReference(config, number)!) : assemblyInput.processedImages.find(image => image.poseNumber === number)?.publicUrl ?? (number === 0 ? url(buildBgRemovedPoseAssetKey(assemblyInput.characterHash, 0, config.bookId)) : null);
+    const poseUrl = (number: number) => poseAssetMode === 'reference-standin' ? url(resolveRecipePoseReference(config, number, assemblyInput.characterSpecs)!) : assemblyInput.processedImages.find(image => image.poseNumber === number)?.publicUrl ?? (number === 0 ? url(buildBgRemovedPoseAssetKey(assemblyInput.characterHash, 0, config.bookId)) : null);
     const v3 = recipe.schema === 'lhb.book-render@v3';
     const resolve = (layer: BookPageLayer, index: number, override?: BookCharacterPlacementEntry | null) =>
       resolveConfiguredLayerPlacement(layer, index, override, recipe.schema);
@@ -1201,7 +1201,7 @@ function buildPoseOptions(
   return assemblyInput.processedImages
     .filter((image) => Number.isFinite(image.poseNumber) && image.poseNumber > 0)
     .map((image) => {
-      const refKey = assemblyInput.renderSnapshot ? resolveRecipePoseReference(assemblyInput.renderSnapshot.bookConfig, image.poseNumber)! : buildPoseReferenceAssetKey(assemblyInput.bookId, image.poseNumber);
+      const refKey = assemblyInput.renderSnapshot ? resolveRecipePoseReference(assemblyInput.renderSnapshot.bookConfig, image.poseNumber, assemblyInput.characterSpecs)! : buildPoseReferenceAssetKey(assemblyInput.bookId, image.poseNumber);
       return {
         poseNumber: image.poseNumber,
         imageUrl: image.publicUrl,
@@ -1354,7 +1354,7 @@ export async function buildW3CalibrationResponse(
           imageKey,
           poseNumber: selectedPoseOption.poseNumber,
           bookId: assemblyInput.bookId,
-          referenceKey: assemblyInput.renderSnapshot ? resolveRecipePoseReference(config, selectedPoseOption.poseNumber)! : undefined,
+          referenceKey: assemblyInput.renderSnapshot ? resolveRecipePoseReference(config, selectedPoseOption.poseNumber, assemblyInput.characterSpecs)! : undefined,
         });
       } catch (error) {
         selectedPoseInspectionError =

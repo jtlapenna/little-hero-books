@@ -66,6 +66,35 @@ export const SKIN_TONES = [
 ] as const;
 export type SkinToneCanonical = typeof SKIN_TONES[number];
 
+// Frontend skinTone (traitOptions) -> w2A skinToneCanonical
+const SKIN_MAP: Record<string, SkinToneCanonical> = {
+  'skin-light': 'skin-light',
+  'skin-medium': 'skin-medium',
+  'skin-tan': 'skin-tan',
+  'skin-medium-dark': 'skin-medium-dark',
+  'skin-deep': 'skin-deep',
+  light: 'skin-light',
+  medium: 'skin-medium',
+  tan: 'skin-tan',
+  'medium-dark': 'skin-medium-dark',
+  deep: 'skin-deep',
+  // Legacy mappings (Amazon orders, old frontend)
+  olive: 'skin-tan',
+  dark: 'skin-deep',
+  'skin-brown-deep': 'skin-deep',
+  'brown-deep': 'skin-deep',
+  'deep-dark': 'skin-deep',
+  'brown-light': 'skin-medium-dark',
+  'skin-brown-light': 'skin-medium-dark',
+};
+
+export function resolveSkinToneCanonical(specs: {skinTone?: unknown; skin_tone?: unknown; skinToneCanonical?: unknown}): SkinToneCanonical {
+  const value = [specs.skinTone, specs.skin_tone, specs.skinToneCanonical]
+    .find((candidate): candidate is string => typeof candidate === 'string' && candidate.trim() !== '');
+  const key = value?.trim().toLowerCase().replace(/[\s_]+/g, '-') ?? 'medium';
+  return Object.hasOwn(SKIN_MAP, key) ? SKIN_MAP[key] : 'skin-medium';
+}
+
 export const SKIN_TONE_HEX_MAP: Record<SkinToneCanonical, { id: SkinToneCanonical; hex: string; label: string }> = {
   'skin-light': { id: 'skin-light', hex: '#EFC28E', label: 'Light' },
   'skin-medium': { id: 'skin-medium', hex: '#E7AB62', label: 'Medium' },
