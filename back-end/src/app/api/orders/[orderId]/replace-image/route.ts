@@ -3,7 +3,7 @@ import { BookReviewStage, invalidateBookReview } from '@/lib/book-review-invalid
 import { verifyBearerAuth } from '@/lib/auth';
 import { getObject, putObject, deleteObject, R2_ORDERS_BUCKET, R2_PUBLIC_BUCKET } from '@/lib/r2-client';
 import { clear2BEntryForReprocessing } from '@/lib/auto-flip-pose';
-import { PoseAutoFlipFormatError, transformPoseUploadBuffer } from '@/lib/pose-auto-flip';
+import { PoseAutoFlipFormatError, transformPoseUploadBuffer, usesRightFacingInnerVoicePoses } from '@/lib/pose-auto-flip';
 import {
   buildManifestKeyCandidates,
   buildManifestKeyHintOptionsFromOrderLike,
@@ -19,6 +19,7 @@ import {
 } from '@/lib/order-paths';
 import { getOrderFromSupabase, updateOrderInSupabase } from '@/lib/supabase-client';
 import { resolveCanonicalBackendBaseUrl } from '@/lib/backend-url';
+import { findExactPreviewOrder } from '@/lib/customer-preview-access';
 
 // Helper to parse JSON safely
 async function readJsonSafe<T = any>(res: Response): Promise<T> {
@@ -208,9 +209,16 @@ export async function POST(
     const storageKey = formData.get('storageKey')?.toString() || null;
     const replacedBy = formData.get('replacedBy')?.toString() || null; // Optional
     const isFlipped = formData.get('isFlipped')?.toString() === 'true'; // Indicates this is a flip operation
-    const currentOrder = (await getOrderFromSupabase(orderId).catch(() => null)) as
-      | Record<string, unknown>
-      | null;
+    // Use the same exact order resolution as the review hold for the edition-bound pose.
+    const checksFlyingDirection = stage === 'preBria' && Number.parseInt(poseNumberStr ?? '', 10) === 11;
+    const currentOrder = checksFlyingDirection ? await findExactPreviewOrder(orderId) : await getOrderFromSupabase(orderId).catch(() => null);
+    if (checksFlyingDirection && !currentOrder) {
+      return NextResponse.json({ error: 'Cannot verify the frozen edition for pose 11' }, { status: 409 });
+    }
+    const preserveOrientation = checksFlyingDirection && usesRightFacingInnerVoicePoses(currentOrder?.print_book_id, currentOrder?.print_config_version);
+    if (preserveOrientation && isFlipped) {
+      return NextResponse.json({ error: 'The flying pose must be published in its QA-approved direction for this edition' }, { status: 409 });
+    }
     const baseManifestHints = buildManifestKeyHintOptionsFromOrderLike(currentOrder);
     const hintedBookId =
       inferBookIdFromPathLikes(storageKey, temporaryR2Key, requestedTemporaryR2Key) ??
@@ -1116,6 +1124,7 @@ export async function POST(
         : await transformPoseUploadBuffer({
             stage,
             poseNumber,
+            preserveOrientation,
             buffer: Buffer.from(fileBuffer),
           });
       fileBuffer = transformedUpload.buffer;
@@ -1162,6 +1171,7 @@ export async function POST(
       const transformedUpload = await transformPoseUploadBuffer({
         stage,
         poseNumber,
+        preserveOrientation,
         buffer: Buffer.from(fileBuffer),
       });
       fileBuffer = transformedUpload.buffer;
@@ -1190,7 +1200,7 @@ export async function POST(
     if (replacedBy) {
       entry.replacedBy = replacedBy;
     }
-    if (stage === 'preBria' && (poseNumber === 3 || poseNumber === 11)) {
+    if (stage === 'preBria' && (poseNumber === 3 || (poseNumber === 11 && !preserveOrientation))) {
       entry.lastAutoFlipAt = replacedAt;
       entry.lastAutoFlipReason = isFlipped ? 'sw3_preflip_policy' : 'pose_policy';
     }
