@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import crypto from 'node:crypto';
+import { runInNewContext } from 'node:vm';
 import { buildW2APoseInput } from '../src/lib/books/w2a-pose-input';
 import { configuredBookFixture } from './configured-book-fixture';
 import { claimAndStartW2APoseJob, attachWorkflowJobsToW2AWorkItems } from '../src/lib/workflow-jobs/w2a-pose-jobs';
@@ -47,6 +49,73 @@ async function path(input: any) {
   j = (await run('TESTING - Prepare Gemini (POSE)', j, { pose: { mimeType: 'image/png' }, base: { mimeType: 'image/png' } })).json;
   return { before, after: j };
 }
+async function checkRightFacingPoses() {
+  const qaWorkflow = JSON.parse(readFileSync(resolve(process.cwd(), '../docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json'), 'utf8'));
+  const upload = JSON.parse(readFileSync(resolve(process.cwd(), '../docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json'), 'utf8'));
+  const uploadPolicy = upload.nodes.find((node: any) => node.name === 'Route SW3 Pre-Flip Policy').parameters.conditions.conditions[0].leftValue;
+  const qaNodes = new Map<string, any>(qaWorkflow.nodes.map((node: any) => [node.name, node]));
+  const binary = { pose: { mimeType: 'image/png', fileName: 'pose.png' }, generated: { mimeType: 'image/png', fileName: 'output.png' } };
+  async function runQa(name: string, json: any, upstream?: any) {
+    return runInNewContext(`(async () => {
+${qaNodes.get(name).parameters.jsCode}
+})()`, {
+      $json: json, $binary: binary, $input: { item: { json, pairedItem: { item: 0 } } },
+      $runIndex: 0, $itemIndex: 0,
+      $items: (node: string) => node === 'Pose QA — Build Request1' && upstream ? [upstream] : [],
+      helpers: { getBinaryDataBuffer: async () => Buffer.alloc(120) },
+      require: (module: string) => { assert.equal(module, 'crypto'); return crypto; },
+      console: { log() {}, warn() {}, error() {} }, Buffer, global: {},
+    });
+  }
+  for (const [bookId, version, pose, required] of [
+    ['book-finding-our-inner-voice', 12, 5, true],
+    ['book-finding-our-inner-voice', 12, 11, true],
+    ['book-finding-our-inner-voice', 12, 3, false],
+    ['book-finding-our-inner-voice', 11, 5, false],
+    ['book-finding-our-inner-voice', 11, 11, false],
+    ['book-some-other-book', 12, 11, false],
+  ] as const) {
+    const input = { ...fixture(pose), bookId, configVersion: version, renderSnapshot: {
+      schema: 'lhb.book-render-snapshot@v1', bookConfig: { bookId, version },
+    } };
+    const { after } = await path(input);
+    const prompt = after.requestBody.contents[0].parts[0].text;
+    assert.equal(prompt.includes('RIGHT EDGE of the image'), required);
+    if (required) assert.match(prompt, pose === 5 ? /pupils directed to the right/ : /feet trail to the left/);
+    const builder = await runQa('Pose QA — Build Request1', after);
+    assert.equal(builder.json.requiresRightFacing === true, required);
+    assert.equal(builder.json.qaRequestBody.systemInstruction.parts[0].text.includes('orientation_match'), required);
+
+    for (const orientation of [true, false, undefined, 'true']) {
+      const verdict = { pose_score: 0.99, single_subject: true, extra_limbs: false, bg_white: true,
+        leakage_from_pose_ref: false, cropped: false, orientation_match: orientation };
+      const response = { candidates: [{ content: { parts: [{ text: JSON.stringify(verdict) }] } }] };
+      const dropped = await runQa('Drop QA Payload1', response, builder);
+      const restored = await runQa('Restore Binaries After QA HTTP1', required ? dropped.json : response, builder);
+      const parsed = await runQa('Parse QA Verdict1', restored.json);
+      const derived = await runQa('Derive QA Pass1', parsed.json);
+      const combined = await runQa('Combine QA Verdicts', { ...derived.json, styleQaPass: true });
+      assert.equal(combined.json.qa.combined.pass, !required || orientation === true);
+      if (required && orientation !== true) assert.ok(derived.json.qa.pose.reasons.includes(
+        orientation === false ? 'wrong_pose_orientation' : 'pose_orientation_unverified'));
+    }
+    if (required) {
+      const mock = await runQa('🧪 MOCK: HTTP: Pose QA (Gemini)', builder.json);
+      const dropped = await runQa('Drop QA Payload1', mock.json, builder);
+      const restored = await runQa('Restore Binaries After QA HTTP1', dropped.json, builder);
+      const parsed = await runQa('Parse QA Verdict1', restored.json);
+      assert.equal((await runQa('Derive QA Pass1', parsed.json)).json.qa.pose.pass, true);
+    }
+    // Feed the upload policy the approved pose and its immutable book snapshot.
+    const trigger = { ...input, poseRefKey: 'fixture/v1/reference.png' };
+    const doesPreFlip = runInNewContext(uploadPolicy.slice(3, -2), {
+      $json: { poseNumber: pose },
+      $: () => ({ first: () => ({ json: trigger }) }),
+    });
+    assert.equal(doesPreFlip, pose === 3 || (pose === 11 && !required));
+  }
+}
+
 async function main() {
   const config = configuredBookFixture();
   const build = (extra: Record<string, unknown> = {}) => buildW2APoseInput({
@@ -140,6 +209,7 @@ async function main() {
   const legacy = { ...fixture(13), renderSnapshot: undefined, poseIdentityContract: 'legacy@v1', poseNumber: 13, currentPoseNumber: 13 };
   const legacyResult = await path(legacy);
   assert.equal(legacyResult.after.poseNumber, 12);
-  console.log('W2A workflow pose identity passed');
+  await checkRightFacingPoses();
+  console.log('W2A workflow pose identity and orientation passed');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -13,6 +13,10 @@ OWN = 'docs/security/book-layout-source-evidence-2026-10-30'
 PARENT = 'docs/security/lhl-cron-source-evidence-2026-10-23'
 EFFECTS = ['canInstall', 'canExecute', 'liveAcceptanceRenewed', 'suiteExecutionRenewed']
 ADDED = {
+    'back-end/src/app/api/orders/[orderId]/replace-image/route.ts',
+    'back-end/src/lib/pose-auto-flip.ts',
+    'docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json',
+
     'back-end/scripts/postbuild.sh',
     'back-end/scripts/test-w3-assembly-input.ts',
     'back-end/src/app/admin/workflow-jobs/page.tsx',
@@ -363,7 +367,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
     inherited = {item['path']: item for item in parent['files'] if item['kind'] == 'source'}
     sources = [item for item in rows if item['kind'] == 'source']
     current = {item['path']: item for item in sources}
-    assert len(inherited) == 147 and len(current) == 407, 'Unexpected source count'
+    assert len(inherited) == 147 and len(current) == 410, 'Unexpected source count'
     assert set(current) == set(inherited) | ADDED and not set(inherited) & ADDED, 'Lost or unexpected source coverage'
     assert manifest['addedSourcePaths'] == sorted(ADDED) and manifest['reboundSourcePaths'] == sorted(REBOUND), 'Source change ledger differs'
     for path, item in inherited.items():
@@ -372,7 +376,7 @@ def verify(root=ROOT, evidence=EVIDENCE, source=False):
         else:
             assert current[path]['sha256'] == item['sha256'], 'Unreviewed inherited source rebind: ' + path
     assert digest(json.dumps(sources, sort_keys=True, separators=(',', ':')).encode()) == manifest['sourceSnapshotSha256'], 'Source snapshot differs'
-    expected_evidence = {OWN + '/history/manifest-before-w3-claim-schema-2026-11-19.json', OWN + '/history/manifest-before-pages-size-fix-2026-11-19.json', OWN + '/history/manifest-before-w3-timeout-recovery-2026-11-19.json', OWN + '/history/manifest-before-no-blush-routing-2026-11-19.json', OWN + '/history/manifest-before-face-identity-2026-11-18.json', OWN + '/history/manifest-before-copy-display-label-2026-11-18.json', OWN + '/history/manifest-before-final-book-revisions-2026-11-18.json'} | {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', OWN + '/history/manifest-before-admin-mobile-signin-2026-11-17.json', OWN + '/history/manifest-before-admin-recovery-ui-2026-11-17.json', OWN + '/history/manifest-before-native-jsonb-fix-2026-11-17.json', 'docs/implementation-plans/native-retry-jsonb-fix-20261117.md', OWN + '/history/manifest-before-error-observer-recovery-2026-11-17.json', OWN + '/history/manifest-before-completion-claim-2026-11-17.json', 'docs/implementation-plans/w2a-completion-claim-20261117.md', 'docs/implementation-plans/w2a-error-observer-recovery-20261117.md', 'docs/admin-workflow-recovery.md', 'docs/implementation-plans/admin-workflow-recovery-20261117.md', 'docs/admin-sign-in.md', 'docs/implementation-plans/admin-mobile-signin-20261117.md', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
+    expected_evidence = {OWN + '/history/manifest-before-inner-voice-pose-direction-2026-11-20.json', OWN + '/history/manifest-before-w3-claim-schema-2026-11-19.json', OWN + '/history/manifest-before-pages-size-fix-2026-11-19.json', OWN + '/history/manifest-before-w3-timeout-recovery-2026-11-19.json', OWN + '/history/manifest-before-no-blush-routing-2026-11-19.json', OWN + '/history/manifest-before-face-identity-2026-11-18.json', OWN + '/history/manifest-before-copy-display-label-2026-11-18.json', OWN + '/history/manifest-before-final-book-revisions-2026-11-18.json'} | {OWN + '/' + name for name in ['README.md', 'verify.py', 'test-verifier.py']} | {PARENT + '/manifest.json', OWN + '/history/manifest-before-hair-native-retry-2026-11-17.json', OWN + '/history/manifest-before-admin-mobile-signin-2026-11-17.json', OWN + '/history/manifest-before-admin-recovery-ui-2026-11-17.json', OWN + '/history/manifest-before-native-jsonb-fix-2026-11-17.json', 'docs/implementation-plans/native-retry-jsonb-fix-20261117.md', OWN + '/history/manifest-before-error-observer-recovery-2026-11-17.json', OWN + '/history/manifest-before-completion-claim-2026-11-17.json', 'docs/implementation-plans/w2a-completion-claim-20261117.md', 'docs/implementation-plans/w2a-error-observer-recovery-20261117.md', 'docs/admin-workflow-recovery.md', 'docs/implementation-plans/admin-workflow-recovery-20261117.md', 'docs/admin-sign-in.md', 'docs/implementation-plans/admin-mobile-signin-20261117.md', 'docs/implementation-plans/w2a-hair-retry-preservation-20261116.md'}
     assert {item['path'] for item in rows if item['kind'] == 'evidence'} == expected_evidence, 'Missing or unexpected evidence'
 
     result = subprocess.run([sys.executable, str(root / PARENT / 'verify.py')],

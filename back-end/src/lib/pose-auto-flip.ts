@@ -19,15 +19,20 @@ export function shouldAutoFlipPoseUpload(stage: PoseAutoFlipStage, poseNumber: n
   return stage === 'preBria' && AUTO_FLIP_SUPPORTED_POSES.has(poseNumber);
 }
 
+export function usesRightFacingInnerVoicePoses(bookId: unknown, version: unknown): boolean {
+  return bookId === 'book-finding-our-inner-voice' && typeof version === 'number' && Number.isInteger(version) && version >= 12;
+}
+
 export async function transformPoseUploadBuffer(input: {
   stage: PoseAutoFlipStage;
   poseNumber: number;
   buffer: Buffer;
+  preserveOrientation?: boolean;
 }): Promise<{ buffer: Buffer; flipped: boolean; format: string; contentType: string }> {
   const { stage, poseNumber, buffer } = input;
   const format = detectImageFormat(buffer);
 
-  if (!shouldAutoFlipPoseUpload(stage, poseNumber)) {
+  if (input.preserveOrientation || !shouldAutoFlipPoseUpload(stage, poseNumber)) {
     return {
       buffer,
       flipped: false,

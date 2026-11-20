@@ -1,4 +1,5 @@
 /** Isolated, insert-last copy of an approved admin test book. Never queues or generates. */
+import { usesRightFacingInnerVoicePoses } from '../pose-auto-flip';
 import { createHash } from 'node:crypto';
 import { adminWorkflowTestAdmission, adminWorkflowTestPreparationRequested, createAdminWorkflowTestAdmission } from '../admin-workflow-test';
 import { bookReviewOwnershipIssue } from '../book-review-ownership';
@@ -80,6 +81,8 @@ async function loadContext(orderId: string, ports: UpdatedBookCopyPorts) {
   requireCopy(config.bookId === BOOK && config.status === 'active' && config.version > w0.book.bookConfigRef.version, 'A newer published Inner Voice edition is required');
   validateBookRenderRecipe(config, 'amazon');
   const before = w0.book.resolved.renderSnapshot.bookConfig;
+  requireCopy(!usesRightFacingInnerVoicePoses(config.bookId, config.version) || usesRightFacingInnerVoicePoses(before.bookId, before.version),
+    'The new edition requires fresh poses 5 and 11. Start a new order to generate them.');
   for (const [oldValue, newValue] of [
     [before.rendering.recipe?.poses, config.rendering.recipe?.poses],
     [before.assets.poses, config.assets.poses], [before.assets.preview, config.assets.preview],

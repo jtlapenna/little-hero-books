@@ -549,6 +549,59 @@ async function main() {
       assert.deepEqual(objects.get('/'+m.entries.find((e:any)=>e.poseNumber===8).approvedKey),replacementBytes);
       assert.deepEqual(tables.workflow_jobs,allJobs);assert.deepEqual(tables.workflow_job_attempts,allAttempts);assert.equal(nativeRow.next_workflow,null);assert.equal(nativeRow.human_approved,false);
     };
+    // Exercise the actual canonical upload path with distinguishable left/right pixels.
+    const { encode } = await import('fast-png');
+    const asymmetric = new Uint8Array(encode({ width: 2, height: 1, channels: 4,
+      data: new Uint8Array([255, 0, 0, 255, 0, 0, 255, 255]) }));
+    const { flipPngHorizontally } = await import('../src/lib/image-flip');
+    const mirrored = new Uint8Array(flipPngHorizontally(Buffer.from(asymmetric)));
+    assert.notDeepEqual(asymmetric, mirrored);
+    const upload = JSON.parse(readFileSync('../docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json', 'utf8'));
+    const uploadPolicy = upload.nodes.find((node: {name:string}) => node.name === 'Route SW3 Pre-Flip Policy').parameters.conditions.conditions[0].leftValue;
+    const priorObjects = structuredClone(objects);
+    const priorRow = structuredClone(nativeRow);
+    for (const [version, mode] of [[11, 'direct'], [12, 'direct'], [12, 'stored'], [12, 'upstream-flip']] as const) {
+      const frozen = buildW0RunManifestFromConfig({ ...config, version }, {
+        orderId: nativeId, platform: 'amazon', formatId: 'amazon', characterHash, input: { characterSpecs: specs },
+      });
+      const uploadInput = { bookId, configVersion: version, poseRefKey: 'fixture/v1/fly.png',
+        renderSnapshot: frozen.book.resolved.renderSnapshot };
+      assert.equal(tournament.execute(uploadPolicy.slice(1), {
+        ...expressionContext({ poseNumber: 11 }), String,
+        $: (name: string) => {
+          assert.equal(name, 'When Executed by Another Workflow');
+          return { first: () => ({ json: uploadInput }) };
+        },
+      }), version === 11);
+      Object.assign(nativeRow, { print_config_version: frozen.book.bookConfigRef.version, print_book_id: frozen.book.bookConfigRef.bookId });
+      const m = structuredClone(canonicalManifest);
+      const poseKey = manifestOut.orderPrefix + '/revisions/pose11/fixture.png';
+      if (mode === 'stored') m.revisions = { history: [], pending: { pose11: { poseNumber: 11, r2Key: poseKey, status: 'completed' } } };
+      objects.set('/' + manifestOut.manifestKey, m);
+      objects.set('/' + poseKey, asymmetric);
+      const form = new FormData();
+      form.set('poseNumber', '11');
+      form.set('stage', 'preBria');
+      if (mode === 'upstream-flip') form.set('isFlipped', 'true');
+      if (mode === 'stored') form.set('temporaryR2Key', poseKey);
+      else form.set('file', new Blob([Uint8Array.from(asymmetric).buffer], { type: 'image/png' }), 'pose11.png');
+      const beforeUpload = structuredClone(objects);
+      const response = await replacePost(new NextRequest('https://admin.littleherolabs.com/api/orders/' + nativeId + '/replace-image', {
+        method: 'POST', headers: { Authorization: 'Bearer synthetic-handoff-machine' }, body: form,
+      }), { params: Promise.resolve({ orderId: nativeId }) });
+      if (mode === 'upstream-flip') {
+        assert.equal(response.status, 409);
+        assert.deepEqual(objects, beforeUpload, 'An upstream flip must be rejected before writing');
+        continue;
+      }
+      assert.equal(response.status, 200, await response.clone().text());
+      const written = objects.get('/' + manifestOut.manifestKey) as any;
+      const published = written.entries.find((entry: any) => entry.poseNumber === 11);
+      assert.deepEqual(objects.get('/' + published.approvedKey), version === 11 ? mirrored : asymmetric);
+      assert.equal(Boolean(published.lastAutoFlipAt), version === 11);
+    }
+    objects.clear();for(const [key,value] of priorObjects)objects.set(key,value);
+    Object.keys(nativeRow).forEach(key=>delete nativeRow[key]);Object.assign(nativeRow,priorRow);
     await acceptReplacement();
     Object.keys(nativeRow).forEach(k=>delete nativeRow[k]);Object.assign(nativeRow,runningRow);executions.set('6262',runningRoot);executions.delete('6263');attachReplacement();
     const completeResponse=await completePost(request('/api/webhooks/workflow-2a-complete',{...completion,needsReview:true}));assert.equal(completeResponse.status,200,await completeResponse.clone().text());assert.equal(nativeRow.execution_status,'processing');assert.equal(nativeRow.current_workflow,null);assert.equal(nativeRow.started_at,null);

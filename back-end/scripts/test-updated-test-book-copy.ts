@@ -21,6 +21,12 @@ function unchanged(f:Fixture,source:unknown){assert.deepEqual(f.rows.get(f.sourc
 async function main(){
  globalThis.fetch=async()=>{throw Error('Test forbids all external requests');};
  let checks=0;
+ const orientationBoundary=updatedTestBookFixture();
+ orientationBoundary.targetConfig.version=12;
+ await assert.rejects(inspectUpdatedTestBookCopy(orientationBoundary.sourceId,orientationBoundary.ports),/requires fresh poses 5 and 11/);
+ assert.equal(orientationBoundary.writes,0);
+ checks++;
+
  const f=updatedTestBookFixture(),before=structuredClone(f.source),input=await request(f);
  const first=await prepareUpdatedTestBookCopy(input,f.ports),target=f.rows.get(first.orderId)!;
  assert.equal(first.reused,false);assert.equal(first.canAssemble,true);assert.equal(target.next_workflow,null);assert.equal(target.execution_status,'done');

@@ -341,7 +341,7 @@
           "conditions": [
             {
               "id": "85942841-2113-4135-b126-d100eb431839",
-              "leftValue": "={{ [3, 11].includes(Number($json.poseNumber ?? $json.currentPoseNumber ?? $json.__meta?.poseNumber ?? -1)) && !String($('When Executed by Another Workflow').first().json.poseRefKey ?? $('When Executed by Another Workflow').first().json.poseRefPublicUrl ?? '').includes('/v3/') }}",
+              "leftValue": "={{ (() => {\n  const input = $('When Executed by Another Workflow').first().json;\n  const pose = Number($json.poseNumber ?? $json.currentPoseNumber ?? $json.__meta?.poseNumber ?? -1);\n  const book = input.renderSnapshot?.bookConfig;\n  const rightFacingEdition = (book?.bookId ?? input.bookId) === 'book-finding-our-inner-voice'\n    && Number(book?.version ?? input.configVersion) >= 12;\n  if (pose === 11 && rightFacingEdition) return false;\n  return [3, 11].includes(pose) && !String(input.poseRefKey ?? input.poseRefPublicUrl ?? '').includes('/v3/');\n})() }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
