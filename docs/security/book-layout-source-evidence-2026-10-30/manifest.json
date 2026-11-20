@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "31e54b4629ee99b1134b9a5c61281d657df3e858bc74cc733441f7aff9f9e6d2",
+  "sourceSnapshotSha256": "492fc2fdb07849b978b79b27e0a1fcc041eeaad58b8e51889779d017d627446c",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -114,6 +114,7 @@
     "back-end/src/app/api/orders/[orderId]/print/route.ts",
     "back-end/src/app/api/orders/[orderId]/queue-workflow-3/route.ts",
     "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
+    "back-end/src/app/api/orders/[orderId]/replace-image/route.ts",
     "back-end/src/app/api/orders/[orderId]/reset/route.ts",
     "back-end/src/app/api/orders/[orderId]/route.ts",
     "back-end/src/app/api/orders/[orderId]/trigger-book-assembly/route.ts",
@@ -191,6 +192,7 @@
     "back-end/src/lib/n8n-recovery-client.ts",
     "back-end/src/lib/order-mapper.ts",
     "back-end/src/lib/order-reset.ts",
+    "back-end/src/lib/pose-auto-flip.ts",
     "back-end/src/lib/preview-canonicals.ts",
     "back-end/src/lib/supabase-client.ts",
     "back-end/src/lib/w0-webhook-transport.ts",
@@ -220,6 +222,7 @@
     "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW0-Base_Character_Generation.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
+    "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
     "docs/n8n-workflow-files/repo-centric/workflows/w3-Book-Assembly.repo-centric.json",
     "tools/inner-voice-placement-editor/build_final_book_candidate.py",
@@ -959,7 +962,7 @@
     {
       "path": "back-end/scripts/test-updated-test-book-copy.ts",
       "kind": "source",
-      "sha256": "1a77569d9328c80b64e451f9dc6a8334ffcc98599a288c528b736fcc8ae142d2"
+      "sha256": "fbce6018c4f9b943743f152c43c7e3869d1307cef634ef53e6a8aea8a0c7a7fa"
     },
     {
       "path": "back-end/scripts/test-w0-build-readonly.ts",
@@ -1004,7 +1007,7 @@
     {
       "path": "back-end/scripts/test-w2-http-handoff.ts",
       "kind": "source",
-      "sha256": "0954d557e54ae5f8291a6f9e146601728e17f303992005b56eefc7cd09ae2d04"
+      "sha256": "bd5e14dfda777445e3d62eb6749d3a380874784c1fa807099b650af0e0124306"
     },
     {
       "path": "back-end/scripts/test-w2-workflow-contracts.ts",
@@ -1034,7 +1037,7 @@
     {
       "path": "back-end/scripts/test-w2a-pose-workflow-identity.ts",
       "kind": "source",
-      "sha256": "7a95d4ca1eaeb2c62a543cbb3f79571e82de4c99570e2f8a863a872a9edd2959"
+      "sha256": "87b194039540fc0d063130ed103d9b31c9b2521b570b5dc62ed04919fd63fff6"
     },
     {
       "path": "back-end/scripts/test-w3-assembly-input.ts",
@@ -1290,6 +1293,11 @@
       "path": "back-end/src/app/api/orders/[orderId]/regenerate-pose/route.ts",
       "kind": "source",
       "sha256": "6d00d374e6e6a784a6e8e3b074c5296a4079bc9596fb504c212f102cda3e06e2"
+    },
+    {
+      "path": "back-end/src/app/api/orders/[orderId]/replace-image/route.ts",
+      "kind": "source",
+      "sha256": "bc4653a146398bea5db84022b160681e28a092d49102613ceb9bede889be78ba"
     },
     {
       "path": "back-end/src/app/api/orders/[orderId]/reset/route.ts",
@@ -1729,7 +1737,7 @@
     {
       "path": "back-end/src/lib/books/updated-test-book-copy.ts",
       "kind": "source",
-      "sha256": "7f47803e6822f039971d0b8fe13a1baaf22d48372067bb34c3fbf0baf5aea3e6"
+      "sha256": "dc6bd54f83d26003c79d5aa729a2a7098ccbd95ba53bb3a38bb73a26eb38e38e"
     },
     {
       "path": "back-end/src/lib/books/w2a-base-input.ts",
@@ -1820,6 +1828,11 @@
       "path": "back-end/src/lib/order-reset.ts",
       "kind": "source",
       "sha256": "207ce33f1343c8f7137fb0d1da92f6cba3c6f5dd6b0e5c7ec9f37e3ae527b4ce"
+    },
+    {
+      "path": "back-end/src/lib/pose-auto-flip.ts",
+      "kind": "source",
+      "sha256": "e8b7faf5b0f942d8971560f603a819f950d67c41b161837b5612786681080015"
     },
     {
       "path": "back-end/src/lib/preview-canonicals.ts",
@@ -2034,7 +2047,7 @@
     {
       "path": "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
       "kind": "source",
-      "sha256": "9889a26e0868a300e3dbcb3c3a86172d6f80e089e9ef1a2f7511393b4baec730"
+      "sha256": "d54ba39643e92acd51fc6117d5aa7a31a2c01a133fc6ea5705720cd0310925e2"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
@@ -2059,7 +2072,12 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "32fd4003d3045af0589543c9b402bba62993b4591de20fe55c4ac27fe799b1a6"
+      "sha256": "b68e653bcaedca8f7b77060c8c4ae30d4ef3aabad030a352873ba6b544545e8e"
+    },
+    {
+      "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json",
+      "kind": "source",
+      "sha256": "fa66f489c3087419d61e2d753d67bdc78163a6d7444f910e0ad6732098650bed"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2B-sw1-single-pose.repo-centric.json",
@@ -2192,6 +2210,11 @@
       "sha256": "01253fbd7d3889cf0c4035e2cf130d6c831877676851d9a18c95087ad03f9a0f"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-inner-voice-pose-direction-2026-11-20.json",
+      "kind": "evidence",
+      "sha256": "18444bc702b44629605aaefa284d414a31b32d8d2728a7bfaebd74e3fe837a28"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-native-jsonb-fix-2026-11-17.json",
       "kind": "evidence",
       "sha256": "12496aceaa09f4f60d3a80d20c27713ae5817b1e140fcbc28a2947f75cac2e23"
@@ -2224,7 +2247,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "c3a0c0578074b6a6c2cbbe279bbf9ad53cbaacdbd3fe53e66ceb11bc0a4d79bc"
+      "sha256": "7e3ad300be8a6a5d560302e69ca06795ed86c54ddddaccaaf14d5a1621605510"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",
