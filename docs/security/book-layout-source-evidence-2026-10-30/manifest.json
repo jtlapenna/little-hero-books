@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "8dc9f1fdf53c5e01648a960b22b94f60bb4946e80e35cc316db050877da4210e",
+  "sourceSnapshotSha256": "31e54b4629ee99b1134b9a5c61281d657df3e858bc74cc733441f7aff9f9e6d2",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -689,7 +689,7 @@
     {
       "path": "back-end/scripts/test-book-reassembly.ts",
       "kind": "source",
-      "sha256": "818b5c256d05be74f4d62fb7bf9ed9b6b099f89c4ebb2bff8f56758fb5115158"
+      "sha256": "bc8309837397312efdb64ba34657f207fa490fc13585c817fc90b1d14f3d0a36"
     },
     {
       "path": "back-end/scripts/test-checkout-validation.ts",
@@ -1234,7 +1234,7 @@
     {
       "path": "back-end/src/app/api/internal/w3/build-assembly-input/route.ts",
       "kind": "source",
-      "sha256": "53a5c508a2e6e2120da839be03e40bf29c2c4fa5a1e54464898f730dce0db3d6"
+      "sha256": "170322bddebd2a490ec0000fbca02d1306d415991333a645f4f84fec6a966595"
     },
     {
       "path": "back-end/src/app/api/internal/w4/engineering-automation/route.ts",
@@ -2207,6 +2207,11 @@
       "sha256": "e6fbcc145e179d623916d30e5231f88875d8e837e4206097239c3340809cb346"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-w3-claim-schema-2026-11-19.json",
+      "kind": "evidence",
+      "sha256": "c485d8584022848919ac37b823e84275fa84572f813d8aee6d9aefb80ac1ab2b"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-w3-timeout-recovery-2026-11-19.json",
       "kind": "evidence",
       "sha256": "c0cd34784e82ed05b2650752d1b573a14b1ea6833aa05c0709f4baf2187d7477"
@@ -2219,7 +2224,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "ebb3aa8c0e07245eee6ce2774f5aec4f8e895ac6fbe2ac15c7fac55168dbc475"
+      "sha256": "c3a0c0578074b6a6c2cbbe279bbf9ad53cbaacdbd3fe53e66ceb11bc0a4d79bc"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

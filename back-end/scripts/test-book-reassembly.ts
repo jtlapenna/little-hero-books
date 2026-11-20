@@ -9,11 +9,18 @@ async function main() {
   const previous = globalThis.fetch;
   let row: Record<string, unknown>, manifest: unknown;
   let checks = 0;
+  let physicalClaimReads = 0;
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init), url = new URL(request.url);
     if (url.origin === 'https://book-reassembly.example.test') {
       if (url.pathname.endsWith('/preview_tokens')) { assert.equal(request.method, 'PATCH'); return Response.json([]); }
       assert(url.pathname.endsWith('/orders'));
+      if (request.method === 'GET' && url.searchParams.get('id') === 'eq.1' && url.searchParams.has('orderId')) {
+        physicalClaimReads++;
+        if (url.searchParams.get('select')?.split(',').map(field => field.trim()).includes('order_id')) {
+          return Response.json({ code: '42703', message: 'column orders.order_id does not exist' }, { status: 400 });
+        }
+      }
       if (request.method === 'PATCH') Object.assign(row, await request.json()); else assert.equal(request.method, 'GET');
       return Response.json(request.headers.get('accept')?.includes('object') ? row : [row]);
     }
@@ -54,21 +61,23 @@ async function main() {
         sourceApprovedKey: buildGeneratedPoseAssetKey(characterHash, poseNumber, bookId), briaStatus: 'completed' })) };
     for (const stage of ['preBria', 'postBria'] as const) {
       Object.assign(row, { workflow_step: 'book_assembly_completed', manifest_3_url: prefix + '/manifests/3-manifest.json',
-        status: 'customer_approved', execution_status: 'done', customer_approval_status: 'approved',
+        status: 'customer_approved', execution_status: 'done', customer_approval_status: 'approved', current_workflow: null, started_at: null,
         review_stages: { preBria: { status: 'approved' }, postBria: { status: 'approved' }, postPdf: { status: 'approved' } } });
       await invalidateBookReview(orderId, stage); assert.equal(row.manifest_3_url, null); assert.notEqual(row.workflow_step, 'book_assembly_completed'); checks++;
       if (stage === 'preBria') await approveStage(orderId, 'preBria');
       await approveStage(orderId, 'postBria'); assert.equal(row.next_workflow, '3');
       let attempts = 0;
-      const result = await buildW3AssemblyInputResponse({ body: { orderId, rootOrderId: orderId, orderPrefix: prefix, backendUrl: 'https://admin.littleherolabs.com' } }, {
+      const claimTimestamp = '2026-10-29T00:00:00.066';
+      Object.assign(row, { current_workflow: '3', started_at: claimTimestamp, execution_status: 'processing' });
+      const result = await buildW3AssemblyInputResponse({ body: { orderId, rootOrderId: orderId, orderPrefix: prefix, orderDbId: row.id, claimedAt: claimTimestamp, backendUrl: 'https://admin.littleherolabs.com' } }, {
         loadManifest: async key => key.endsWith('/1-manifest.json') ? one : key.endsWith('/2b-manifest.json') ? two : null,
         normalizePoseScale: async ({ imageKey, poseNumber }) => ({ success: true, normalized: false, imageKey, poseNumber, bookId, refKey: imageKey, message: 'Synthetic scale boundary', scaleFactor: null, verticalOffset: null, horizontalOffset: null, groundContactOffset: null, sourceAnchorMetrics: null, referenceAnchorMetrics: null, sourceBBoxFound: true, referenceBBoxFound: true }),
-        lookupOrderRow: async () => row,
         instrumentAssemblyJob: async () => { attempts++; return { workflowJobId: 1, workflowJobIdempotencyKey: 'synthetic-reassembly', workflowJobStatus: 'running', workflowAttemptId: 1, workflowAttempt: 1, workflowClaimed: true, workflowSkipped: false, workflowSkipReason: null }; },
       });
       assert.notEqual(result.workflowSkipped, true); assert.equal(attempts, 1); checks++;
     }
-    console.log(JSON.stringify({ passed: true, checks, actualW2Completion: true, actualW3Entry: true, externalRequests: 0 }));
+    assert.equal(physicalClaimReads, 2);
+    console.log(JSON.stringify({ passed: true, checks, physicalClaimReads, actualW2Completion: true, actualW3Entry: true, externalRequests: 0 }));
   } finally { globalThis.fetch = previous; }
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

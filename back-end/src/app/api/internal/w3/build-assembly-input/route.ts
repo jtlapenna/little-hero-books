@@ -23,7 +23,6 @@ type JsonRecord = Record<string, unknown>;
 type W3ReplayGuardOrderRow = {
   id?: number | null;
   orderId?: string | null;
-  order_id?: string | null;
   workflow_step?: string | null;
   execution_status?: string | null;
   status?: string | null;
@@ -108,7 +107,7 @@ async function lookupReplayGuardOrderRow(
   orderId: string,
   body: JsonRecord,
 ): Promise<W3ReplayGuardOrderRow | null> {
-  const fields = 'id, orderId, order_id, workflow_step, execution_status, status, manifest_3_url, next_workflow, current_workflow, started_at, updated_at';
+  const fields = 'id, orderId, workflow_step, execution_status, status, manifest_3_url, next_workflow, current_workflow, started_at, updated_at';
   const orderRowId = pickBodyValue(body, 'orderDbId');
   if (orderRowId != null) {
     const { data, error } = await supabase.from('orders').select(fields)
