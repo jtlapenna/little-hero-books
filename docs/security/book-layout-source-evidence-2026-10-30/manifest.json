@@ -2,7 +2,7 @@
   "schema": "lhl.book-layout-source-overlay@1",
   "parent": "docs/security/lhl-cron-source-evidence-2026-10-23",
   "parentManifestSha256": "633b9524f1c35616d2b8684f8808e5e8a5c022260f19197fffd2a6d06462e749",
-  "sourceSnapshotSha256": "492fc2fdb07849b978b79b27e0a1fcc041eeaad58b8e51889779d017d627446c",
+  "sourceSnapshotSha256": "6839d4a71da421b7ecfd0cca0dccc43c1fc6403f922d7fefd10d9a13c148c36e",
   "preparedAgainstHead": "8b2d8a110ad6ca9a59caad9977873a91f8e00bd4",
   "phaseCandidateBindingSha256": "e8dbf9edaaa377fbccf48794b75ec9e82e48deb8ddf670386cfd336e34e64941",
   "canInstall": false,
@@ -1037,7 +1037,7 @@
     {
       "path": "back-end/scripts/test-w2a-pose-workflow-identity.ts",
       "kind": "source",
-      "sha256": "87b194039540fc0d063130ed103d9b31c9b2521b570b5dc62ed04919fd63fff6"
+      "sha256": "00df366c5e2937b20cfe1fce359b73ca2bf7fc140cd69a9c72e4edbf05646854"
     },
     {
       "path": "back-end/scripts/test-w3-assembly-input.ts",
@@ -2047,7 +2047,7 @@
     {
       "path": "docs/n8n-workflow-files/finals/w2A-SW2-Pose_and_Style_QA.json",
       "kind": "source",
-      "sha256": "d54ba39643e92acd51fc6117d5aa7a31a2c01a133fc6ea5705720cd0310925e2"
+      "sha256": "4bce81b05fa1402c480e07b65c0dbb2c35d5bce4b0dc4eb3d888bd5eed7577f0"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/patches/w1-gelato-native-queue.patch.json",
@@ -2072,7 +2072,7 @@
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW1-Pose_Generation.repo-centric.json",
       "kind": "source",
-      "sha256": "b68e653bcaedca8f7b77060c8c4ae30d4ef3aabad030a352873ba6b544545e8e"
+      "sha256": "d40ffb65b37a4c158c7ddca62125dc023a319298795267d8d69b66ec8827c092"
     },
     {
       "path": "docs/n8n-workflow-files/repo-centric/workflows/w2A-SW3-Upload.repo-centric.json",
@@ -2210,6 +2210,11 @@
       "sha256": "01253fbd7d3889cf0c4035e2cf130d6c831877676851d9a18c95087ad03f9a0f"
     },
     {
+      "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-inner-voice-page-26-and-28-2026-11-20.json",
+      "kind": "evidence",
+      "sha256": "55f743dca93c462439a87486fb4b2283ac26bfa8e675f84c2940abfba71246b6"
+    },
+    {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/history/manifest-before-inner-voice-pose-direction-2026-11-20.json",
       "kind": "evidence",
       "sha256": "18444bc702b44629605aaefa284d414a31b32d8d2728a7bfaebd74e3fe837a28"
@@ -2247,7 +2252,7 @@
     {
       "path": "docs/security/book-layout-source-evidence-2026-10-30/verify.py",
       "kind": "evidence",
-      "sha256": "7e3ad300be8a6a5d560302e69ca06795ed86c54ddddaccaaf14d5a1621605510"
+      "sha256": "c1d570d930fc329e66ad1e973a9c7cb1ce4a67764da3f57c8d410794c2d0416c"
     },
     {
       "path": "docs/security/lhl-cron-source-evidence-2026-10-23/manifest.json",

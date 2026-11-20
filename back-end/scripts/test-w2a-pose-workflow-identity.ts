@@ -71,6 +71,8 @@ ${qaNodes.get(name).parameters.jsCode}
     ['book-finding-our-inner-voice', 12, 5, true],
     ['book-finding-our-inner-voice', 12, 11, true],
     ['book-finding-our-inner-voice', 12, 3, false],
+    ['book-finding-our-inner-voice', 12, 12, false],
+    ['book-finding-our-inner-voice', 13, 12, true],
     ['book-finding-our-inner-voice', 11, 5, false],
     ['book-finding-our-inner-voice', 11, 11, false],
     ['book-some-other-book', 12, 11, false],
@@ -81,7 +83,7 @@ ${qaNodes.get(name).parameters.jsCode}
     const { after } = await path(input);
     const prompt = after.requestBody.contents[0].parts[0].text;
     assert.equal(prompt.includes('RIGHT EDGE of the image'), required);
-    if (required) assert.match(prompt, pose === 5 ? /pupils directed to the right/ : /feet trail to the left/);
+    if (required) assert.match(prompt, pose === 5 ? /pupils directed to the right/ : pose === 11 ? /feet trail to the left/ : /arm reaching toward the LEFT EDGE/);
     const builder = await runQa('Pose QA — Build Request1', after);
     assert.equal(builder.json.requiresRightFacing === true, required);
     assert.equal(builder.json.qaRequestBody.systemInstruction.parts[0].text.includes('orientation_match'), required);
